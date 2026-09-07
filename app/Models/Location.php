@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Location extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
+        'client_id',
         'latitude',
         'longitude',
         'accuracy',
@@ -18,15 +23,16 @@ class Location extends Model
     ];
 
     protected $casts = [
-        'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8',
-        'accuracy' => 'decimal:2',
-        'speed' => 'decimal:2',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'accuracy' => 'float',
+        'speed' => 'float',
+        'battery_level' => 'integer',
         'is_mock' => 'boolean',
         'recorded_at' => 'datetime',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

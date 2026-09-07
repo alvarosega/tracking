@@ -2,21 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DeviceEvent extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
+        'client_id',
         'event_type',
-        'event_time',
+        'details',
+        'recorded_at',
     ];
 
     protected $casts = [
-        'event_time' => 'datetime',
+        'recorded_at' => 'datetime',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

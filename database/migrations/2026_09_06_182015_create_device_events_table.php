@@ -10,10 +10,14 @@ return new class extends Migration
     {
         Schema::create('device_events', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('client_id');
             $table->string('event_type', 50);
-            $table->timestamp('event_time');
+            $table->text('details')->nullable();
+            $table->timestamp('recorded_at');
             $table->timestamps();
+
+            $table->index(['user_id', 'event_type']);
         });
     }
 
