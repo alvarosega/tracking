@@ -11,30 +11,53 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $vendedorRole = Role::create([
-            'name' => 'vendedor',
-            'description' => 'Ejecutivo de ventas en campo'
-        ]);
+        $vendedorRole = Role::firstOrCreate(
+            ['name' => 'vendedor'],
+            ['description' => 'Ejecutivo de ventas en campo']
+        );
 
-        $supervisorRole = Role::create([
-            'name' => 'supervisor',
-            'description' => 'Supervisor de rutas y tiempos'
-        ]);
+        $supervisorRole = Role::firstOrCreate(
+            ['name' => 'supervisor'],
+            ['description' => 'Supervisor de rutas y tiempos']
+        );
 
-        User::create([
-            'id' => 1001, // ID simulado del sistema externo
-            'role_id' => $vendedorRole->id,
-            'username' => 'vendedor1',
-            'password' => Hash::make('password123'),
-            'is_active' => true,
-        ]);
+        $usernames = [
+            'TDB 1A',
+            'TDB 2A',
+            'TDB 3A',
+            'TDB 4A',
+            'TDB 5A',
+            'TDB 6A',
+            'TDB 7A',
+            'TDB 8 PRT',
+            'TDB 8 FARMACIAS',
+            'TDB 8A',
+            'TDB 9A',
+            'TDB 10A',
+        ];
 
-        User::create([
-            'id' => 2001, // ID simulado del sistema externo
-            'role_id' => $supervisorRole->id,
-            'username' => 'supervisor1',
-            'password' => Hash::make('password123'),
-            'is_active' => true,
-        ]);
+        $defaultPassword = Hash::make('Tracking2026*');
+
+        foreach ($usernames as $index => $username) {
+            User::updateOrCreate(
+                ['username' => $username],
+                [
+                    'id' => 1001 + $index,
+                    'role_id' => $vendedorRole->id,
+                    'password' => $defaultPassword,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        User::updateOrCreate(
+            ['username' => 'supervisor1'],
+            [
+                'id' => 2001,
+                'role_id' => $supervisorRole->id,
+                'password' => Hash::make('password123'),
+                'is_active' => true,
+            ]
+        );
     }
 }
