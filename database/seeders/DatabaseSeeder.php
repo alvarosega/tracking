@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             'TDB 10A',
         ];
 
-        $defaultPassword = Hash::make('Tracking2026*');
+        $defaultPassword = Hash::make('123*');
 
         foreach ($usernames as $index => $username) {
             User::updateOrCreate(
