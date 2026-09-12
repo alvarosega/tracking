@@ -24,7 +24,7 @@ return new class extends Migration
             $table->foreign('client_id')
                 ->references('id_cliente')
                 ->on('reference_clients')
-                ->cascadeOnDelete();
+                ->onDelete('cascade');
         });
     }
 
