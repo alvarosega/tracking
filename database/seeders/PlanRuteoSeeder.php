@@ -22,7 +22,7 @@ class PlanRuteoSeeder extends Seeder
                 'longitude' => -68.2023100,
                 'status' => 'Activo',
                 'route' => 'TDB 6A',
-                'day' => 'Jueves',
+                'day' => 'Sábado',
             ],
             [
                 'client_id' => 2,
@@ -36,7 +36,7 @@ class PlanRuteoSeeder extends Seeder
                 'longitude' => -68.2062600,
                 'status' => 'Inactivo',
                 'route' => 'TDB 6A',
-                'day' => 'Jueves',
+                'day' => 'Sábado',
             ],
             [
                 'client_id' => 3,
@@ -50,7 +50,7 @@ class PlanRuteoSeeder extends Seeder
                 'longitude' => -68.2063700,
                 'status' => 'Inactivo',
                 'route' => 'TDB 6A',
-                'day' => 'Jueves',
+                'day' => 'Sábado',
             ],
         ];
 
