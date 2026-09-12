@@ -26,5 +26,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/plan-ruteo', [PlanRuteoController::class, 'index']);
     
     // Registro de Visitas en Campo con Fotografía
-    Route::post('/visitas', [VisitaRuteoController::class, 'store']);
+    Route::post('/visitas/store', [VisitaController::class, 'store']);
 });

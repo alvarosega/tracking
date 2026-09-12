@@ -4,39 +4,37 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class VisitaRuteo extends Model
+class Visita extends Model
 {
     use HasFactory;
 
-    protected $table = 'visitas_ruteo';
+    protected $table = 'visitas';
 
     protected $fillable = [
         'user_id',
         'client_id',
+        'route',
         'status',
-        'is_new_client',
-        'new_client_name',
+        'is_opportunity',
+        'opportunity_client_name',
         'latitude',
         'longitude',
         'accuracy',
-        'distance_to_target',
         'photo_path',
         'comments',
         'visited_at',
     ];
 
     protected $casts = [
-        'is_new_client' => 'boolean',
+        'is_opportunity' => 'boolean',
         'latitude' => 'float',
         'longitude' => 'float',
         'accuracy' => 'float',
-        'distance_to_target' => 'float',
         'visited_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }

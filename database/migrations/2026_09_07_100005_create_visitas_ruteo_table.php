@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('visitas_ruteo', function (Blueprint $table) {
+        Schema::create('visitas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->unsignedBigInteger('client_id')->nullable()->index();
-            $table->enum('status', ['PREVENTA', 'SIN_DINERO', 'TIENDA_CERRADA', 'AUSENTE']);
-            $table->boolean('is_new_client')->default(false);
-            $table->string('new_client_name')->nullable();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('client_id')->nullable(); // Nulo si es cliente oportunidad
+            $table->string('route');
+            $table->string('status'); // PREVENTA, SIN_DINERO, etc.
+            $table->boolean('is_opportunity')->default(false);
+            $table->string('opportunity_client_name')->nullable();
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 11, 7);
-            $table->float('accuracy')->default(0.0);
-            $table->float('distance_to_target')->nullable(); // Distancia calculada en backend en metros
+            $table->float('accuracy');
             $table->string('photo_path');
             $table->text('comments')->nullable();
             $table->timestamp('visited_at');
@@ -28,6 +28,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('visitas_ruteo');
+        Schema::dropIfExists('visitas');
     }
 };
