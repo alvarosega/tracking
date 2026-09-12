@@ -12,12 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedBigInteger('client_id')->index();
-            $table->string('audit_status', 30); // VALIDATED, NOT_FOUND, CLOSED_PERMANENT, DUPLICATE
+            $table->string('audit_status', 30);
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
             $table->float('accuracy')->default(0.0);
             $table->text('comments')->nullable();
-            $table->json('photo_paths'); // Rutas relativas del storage
+            $table->json('photo_paths');
             $table->timestamp('audited_at');
             $table->timestamps();
 
