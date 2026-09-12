@@ -12,8 +12,16 @@ class PlanRuteoController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $route = $user->username; // El username coincide con la ruta (ej. TDB 6A)
-        $day = $request->query('day'); // Opcional: filtrar por día específico
+
+        // Si no hay usuario autenticado (token inválido o ausente), denegamos el acceso
+        if (!$user) {
+            return response()->json([
+                'message' => 'No autorizado. Se requiere token de sesión válido.'
+            ], 401);
+        }
+
+        $route = $user->username; 
+        $day = $request->query('day');
 
         $query = PlanRuteo::query()
             ->where('route', $route);
