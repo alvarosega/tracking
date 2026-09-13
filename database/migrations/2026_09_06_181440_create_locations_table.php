@@ -18,8 +18,9 @@ return new class extends Migration
             $table->float('speed')->nullable();
             $table->unsignedTinyInteger('battery_level')->nullable();
             $table->boolean('is_mock')->default(false);
-            $table->timestamp('recorded_at');
-            $table->timestamps();
+            $table->dateTime('recorded_at');
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
 
             $table->index(['user_id', 'recorded_at']);
         });

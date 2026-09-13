@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reference_clients', function (Blueprint $table) {
-            $table->id('id_cliente'); // Clave primaria requerida por client_audits
+            $table->id('id_cliente');
             $table->string('client_name');
             $table->string('address')->nullable();
             $table->string('reference')->nullable();
@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('status', 30)->default('Activo');
             $table->string('route')->nullable()->index();
             $table->string('day', 20)->nullable()->index();
-            $table->timestamps();
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
     }
 

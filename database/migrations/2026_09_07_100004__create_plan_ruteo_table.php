@@ -20,9 +20,10 @@ return new class extends Migration
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 11, 7);
             $table->string('status', 30)->default('Activo');
-            $table->string('route')->nullable()->index(); // <-- Modificado a nullable
-            $table->string('day', 20)->nullable()->index();   // <-- Modificado a nullable
-            $table->timestamps();
+            $table->string('route')->nullable()->index();
+            $table->string('day', 20)->nullable()->index();
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
     }
 

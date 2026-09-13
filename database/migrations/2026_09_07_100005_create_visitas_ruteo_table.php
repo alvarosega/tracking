@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('visitas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->unsignedBigInteger('client_id')->nullable(); // Nulo si es cliente oportunidad
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('client_id')->nullable();
             $table->string('route');
-            $table->string('status'); // PREVENTA, SIN_DINERO, etc.
+            $table->string('status');
             $table->boolean('is_opportunity')->default(false);
             $table->string('opportunity_client_name')->nullable();
             $table->decimal('latitude', 10, 7);
@@ -21,8 +21,9 @@ return new class extends Migration
             $table->float('accuracy');
             $table->string('photo_path');
             $table->text('comments')->nullable();
-            $table->timestamp('visited_at');
-            $table->timestamps();
+            $table->dateTime('visited_at');
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
     }
 

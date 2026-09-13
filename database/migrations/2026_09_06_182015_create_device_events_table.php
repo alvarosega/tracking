@@ -14,8 +14,9 @@ return new class extends Migration
             $table->unsignedBigInteger('client_id');
             $table->string('event_type', 50);
             $table->text('details')->nullable();
-            $table->timestamp('recorded_at');
-            $table->timestamps();
+            $table->dateTime('recorded_at');
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
 
             $table->index(['user_id', 'event_type']);
         });

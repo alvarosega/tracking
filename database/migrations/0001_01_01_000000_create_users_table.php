@@ -12,22 +12,24 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->string('description')->nullable();
-            $table->timestamps();
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
 
         Schema::create('users', function (Blueprint $table) {
-            $table->id(); // ID proveniente de tu sistema actual
+            $table->id();
             $table->foreignId('role_id')->constrained('roles')->onDelete('restrict');
             $table->string('username')->unique();
             $table->string('password');
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('username')->primary();
             $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->dateTime('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -40,13 +42,11 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('roles');
     }
 };
