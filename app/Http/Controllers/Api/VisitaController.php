@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class VisitaController extends Controller
 {
@@ -23,7 +23,7 @@ class VisitaController extends Controller
             'longitude' => 'required|numeric',
             'accuracy' => 'nullable|numeric',
             'comments' => 'nullable|string',
-            'visited_at' => 'required|date_format:Y-m-d H:i:s',
+            // 'visited_at' ya no es obligatorio que lo mande el cliente, o lo ignoramos
         ]);
 
         $photoPath = null;
@@ -32,6 +32,9 @@ class VisitaController extends Controller
         }
 
         $isOpportunity = filter_var($request->input('is_opportunity'), FILTER_VALIDATE_BOOLEAN);
+
+        // OBTENEMOS LA HORA OFICIAL Y BLINDADA DEL SERVIDOR EN BOLIVIA
+        $boliviaTime = Carbon::now('America/La_Paz');
 
         $visitaId = DB::table('visitas')->insertGetId([
             'client_id' => $isOpportunity ? null : $request->input('client_id'),
@@ -44,10 +47,10 @@ class VisitaController extends Controller
             'accuracy' => $request->input('accuracy', 0.0),
             'photo_path' => $photoPath,
             'comments' => $request->input('comments'),
-            'visited_at' => $request->input('visited_at'),
+            'visited_at' => $boliviaTime, // <-- Hora oficial del servidor inalterable
             'user_id' => $request->user() ? $request->user()->id : null,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => $boliviaTime,
+            'updated_at' => $boliviaTime,
         ]);
 
         return response()->json([
