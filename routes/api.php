@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Descarga del plan de ruteo maestro unificado
     Route::get('/plan-ruteo', [PlanRuteoController::class, 'index']);
     
-    // Registro de Visitas en Campo (Ruta y Clientes Oportunidad con Fotografía)
+    // Registro de Visitas en Campo (ambos alias para compatibilidad total con Retrofit)
+    Route::post('/visitas', [VisitaController::class, 'store']);
     Route::post('/visitas/store', [VisitaController::class, 'store']);
 });
