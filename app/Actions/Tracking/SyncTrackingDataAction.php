@@ -13,27 +13,36 @@ class SyncTrackingDataAction
         return DB::transaction(function () use ($userId, $locations, $events) {
             $syncedLocations = [];
             $syncedEvents = [];
-            $now = now(); // Hora oficial del servidor al procesar la llegada del lote
+            $now = now(); // Momento exacto de recepción en servidor
 
             if (!empty($locations)) {
                 $locationRecords = array_map(function ($loc) use ($userId, $now, &$syncedLocations) {
                     $syncedLocations[] = (int) $loc['client_id'];
                     return [
                         'user_id' => $userId,
-                        'client_id' => $loc['client_id'],
+                        'client_id' => (int) $loc['client_id'],
                         'latitude' => $loc['latitude'],
                         'longitude' => $loc['longitude'],
                         'accuracy' => $loc['accuracy'] ?? null,
                         'speed' => $loc['speed'] ?? null,
                         'battery_level' => $loc['battery_level'] ?? null,
-                        'is_mock' => $loc['is_mock'],
-                        'recorded_at' => $loc['recorded_at'], // Hora atómica real generada por Kronos (cada 15s)
-                        'created_at' => $now,                 // Momento de recepción del lote en servidor
+                        'is_mock' => (bool) $loc['is_mock'],
+                        
+                        // Mapeo de métricas del Pilar 3
+                        'is_moving' => (bool) $loc['is_moving'],
+                        'step_count' => (int) $loc['step_count'],
+                        'motion_variance' => (float) $loc['motion_variance'],
+                        
+                        'recorded_at' => $loc['recorded_at'], // Sello inmutable de Bolivia
+                        'created_at' => $now,
                         'updated_at' => $now,
                     ];
                 }, $locations);
 
-                Location::insert($locationRecords);
+                // Inserción en bloques de 200 para blindar el driver PDO
+                foreach (array_chunk($locationRecords, 200) as $chunk) {
+                    Location::insert($chunk);
+                }
             }
 
             if (!empty($events)) {
@@ -41,16 +50,18 @@ class SyncTrackingDataAction
                     $syncedEvents[] = (int) $evt['client_id'];
                     return [
                         'user_id' => $userId,
-                        'client_id' => $evt['client_id'],
+                        'client_id' => (int) $evt['client_id'],
                         'event_type' => $evt['event_type'],
                         'details' => $evt['details'] ?? null,
-                        'recorded_at' => $evt['recorded_at'], // Evento sellado con hora Kronos
+                        'recorded_at' => $evt['recorded_at'],
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
                 }, $events);
 
-                DeviceEvent::insert($eventRecords);
+                foreach (array_chunk($eventRecords, 200) as $chunk) {
+                    DeviceEvent::insert($chunk);
+                }
             }
 
             return [

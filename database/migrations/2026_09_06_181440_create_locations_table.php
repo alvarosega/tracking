@@ -18,6 +18,12 @@ return new class extends Migration
             $table->float('speed')->nullable();
             $table->unsignedTinyInteger('battery_level')->nullable();
             $table->boolean('is_mock')->default(false);
+
+            // Métricas inerciales del Pilar 3
+            $table->boolean('is_moving')->default(false);
+            $table->unsignedInteger('step_count')->default(0);
+            $table->float('motion_variance', 8, 4)->default(0);
+
             $table->dateTime('recorded_at');
             $table->dateTime('created_at')->nullable();
             $table->dateTime('updated_at')->nullable();

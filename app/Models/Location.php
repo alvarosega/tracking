@@ -19,6 +19,9 @@ class Location extends Model
         'speed',
         'battery_level',
         'is_mock',
+        'is_moving',
+        'step_count',
+        'motion_variance',
         'recorded_at',
     ];
 
@@ -29,6 +32,9 @@ class Location extends Model
         'speed' => 'float',
         'battery_level' => 'integer',
         'is_mock' => 'boolean',
+        'is_moving' => 'boolean',
+        'step_count' => 'integer',
+        'motion_variance' => 'float',
         'recorded_at' => 'datetime',
     ];
 

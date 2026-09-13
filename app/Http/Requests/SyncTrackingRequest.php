@@ -22,6 +22,12 @@ class SyncTrackingRequest extends FormRequest
             'locations.*.speed' => ['nullable', 'numeric'],
             'locations.*.battery_level' => ['nullable', 'integer', 'between:0,100'],
             'locations.*.is_mock' => ['required', 'boolean'],
+            
+            // Validaciones del Pilar 3 (Inercial / Movimiento)
+            'locations.*.is_moving' => ['required', 'boolean'],
+            'locations.*.step_count' => ['required', 'integer', 'min:0'],
+            'locations.*.motion_variance' => ['required', 'numeric', 'min:0'],
+            
             'locations.*.recorded_at' => ['required', 'date_format:Y-m-d H:i:s'],
 
             'events' => ['present', 'array'],

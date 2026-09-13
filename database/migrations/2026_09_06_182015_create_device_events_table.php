@@ -18,7 +18,7 @@ return new class extends Migration
             $table->dateTime('created_at')->nullable();
             $table->dateTime('updated_at')->nullable();
 
-            $table->index(['user_id', 'event_type']);
+            $table->index(['user_id', 'event_type', 'recorded_at']);
         });
     }
 
