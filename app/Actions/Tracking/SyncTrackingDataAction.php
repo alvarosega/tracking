@@ -13,6 +13,8 @@ class SyncTrackingDataAction
         return DB::transaction(function () use ($userId, $locations, $events) {
             $syncedLocations = [];
             $syncedEvents = [];
+            
+            // Hora oficial del servidor en zona America/La_Paz
             $now = now();
 
             if (!empty($locations)) {
@@ -27,7 +29,8 @@ class SyncTrackingDataAction
                         'speed' => $loc['speed'] ?? null,
                         'battery_level' => $loc['battery_level'] ?? null,
                         'is_mock' => $loc['is_mock'],
-                        'recorded_at' => $loc['recorded_at'],
+                        // BLINDAJE ANTIFRAUDE: Usamos la hora oficial del servidor en lugar de la del cliente
+                        'recorded_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -44,7 +47,8 @@ class SyncTrackingDataAction
                         'client_id' => $evt['client_id'],
                         'event_type' => $evt['event_type'],
                         'details' => $evt['details'] ?? null,
-                        'recorded_at' => $evt['recorded_at'],
+                        // BLINDAJE ANTIFRAUDE: Hora oficial del servidor para eventos del dispositivo
+                        'recorded_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
