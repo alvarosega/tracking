@@ -20,8 +20,8 @@ return new class extends Migration
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 11, 7);
             $table->string('status', 30)->default('Activo');
-            $table->string('route')->index();      // Ej: TDB 6A
-            $table->string('day', 20)->index();    // Ej: Jueves
+            $table->string('route')->nullable()->index(); // <-- Modificado a nullable
+            $table->string('day', 20)->nullable()->index();   // <-- Modificado a nullable
             $table->timestamps();
         });
     }

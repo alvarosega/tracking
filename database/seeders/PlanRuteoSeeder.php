@@ -56,7 +56,7 @@ class PlanRuteoSeeder extends Seeder
 
         foreach ($planes as $plan) {
             PlanRuteo::updateOrCreate(
-                ['client_id' => $plan['client_id'], 'route' => $plan['route']],
+                ['client_id' => $plan['client_id']],
                 $plan
             );
         }

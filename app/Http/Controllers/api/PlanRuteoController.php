@@ -13,21 +13,22 @@ class PlanRuteoController extends Controller
     {
         $user = $request->user();
 
-        // Si no hay usuario autenticado (token inválido o ausente), denegamos el acceso
         if (!$user) {
             return response()->json([
                 'message' => 'No autorizado. Se requiere token de sesión válido.'
             ], 401);
         }
 
-        $route = $user->username; 
-        $day = $request->query('day');
+        $query = PlanRuteo::query();
 
-        $query = PlanRuteo::query()
-            ->where('route', $route);
+        // Filtro opcional por ruta vía query param o asignado al usuario
+        if ($request->has('route')) {
+            $query->where('route', $request->query('route'));
+        }
 
-        if ($day) {
-            $query->where('day', $day);
+        // Filtro opcional por día de la semana
+        if ($request->has('day')) {
+            $query->where('day', $request->query('day'));
         }
 
         $planRuteo = $query->select([
