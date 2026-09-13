@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Actions\Tracking\SyncTrackingDataAction;
 use App\Http\Requests\SyncTrackingRequest;
 use Illuminate\Http\JsonResponse;
