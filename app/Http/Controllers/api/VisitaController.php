@@ -3,60 +3,56 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Visita;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class VisitaController extends Controller
 {
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => [
-                'nullable',
-                'integer',
-                Rule::requiredIf(fn () => $request->boolean('is_opportunity') === false),
-                'exists:plan_ruteo,client_id'
-            ],
-            'route' => 'required|string|max:100',
-            'status' => 'required|in:PREVENTA,SIN_DINERO,TIENDA_CERRADA,AUSENTE',
-            'is_opportunity' => 'required|boolean',
-            'opportunity_client_name' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf(fn () => $request->boolean('is_opportunity') === true)
-            ],
+            'photo' => 'required|image|max:10240',
+            'status' => 'required|string',
+            'route' => 'nullable|string',
+            'is_opportunity' => 'required',
+            'client_id' => 'nullable|integer',
+            'opportunity_client_name' => 'nullable|string',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
-            'accuracy' => 'required|numeric',
+            'accuracy' => 'nullable|numeric',
             'comments' => 'nullable|string',
-            'visited_at' => 'required|date',
-            'photo' => 'required|image|mimes:jpeg,jpg,png|max:10240',
+            'visited_at' => 'required|date_format:Y-m-d H:i:s',
         ]);
 
-        // Guardar la fotografía adjunta en el disco público
-        $photoPath = $request->file('photo')->store('visitas_evidence', 'public');
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('visitas', 'public');
+        }
 
-        $visita = Visita::create([
-            'user_id' => $request->user()->id,
-            'client_id' => $request->boolean('is_opportunity') ? null : $validated['client_id'],
-            'route' => $validated['route'],
-            'status' => $validated['status'],
-            'is_opportunity' => $request->boolean('is_opportunity'),
-            'opportunity_client_name' => $request->boolean('is_opportunity') ? $validated['opportunity_client_name'] : null,
-            'latitude' => $validated['latitude'],
-            'longitude' => $validated['longitude'],
-            'accuracy' => $validated['accuracy'],
+        $isOpportunity = filter_var($request->input('is_opportunity'), FILTER_VALIDATE_BOOLEAN);
+
+        $visitaId = DB::table('visitas')->insertGetId([
+            'client_id' => $isOpportunity ? null : $request->input('client_id'),
+            'route' => $request->input('route', 'SIN_RUTA'),
+            'status' => $request->input('status'),
+            'is_opportunity' => $isOpportunity ? 1 : 0,
+            'opportunity_client_name' => $isOpportunity ? $request->input('opportunity_client_name') : null,
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            'accuracy' => $request->input('accuracy', 0.0),
             'photo_path' => $photoPath,
-            'comments' => $validated['comments'] ?? null,
-            'visited_at' => $validated['visited_at'],
+            'comments' => $request->input('comments'),
+            'visited_at' => $request->input('visited_at'),
+            'user_id' => $request->user() ? $request->user()->id : null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         return response()->json([
-            'message' => 'Visita registrada correctamente en el servidor.',
-            'data' => $visita
+            'message' => 'Visita guardada exitosamente',
+            'visita_id' => $visitaId,
+            'photo_url' => $photoPath ? Storage::url($photoPath) : null
         ], 201);
     }
 }
