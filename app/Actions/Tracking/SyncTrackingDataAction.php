@@ -13,9 +13,7 @@ class SyncTrackingDataAction
         return DB::transaction(function () use ($userId, $locations, $events) {
             $syncedLocations = [];
             $syncedEvents = [];
-            
-            // Hora oficial del servidor en zona America/La_Paz
-            $now = now();
+            $now = now(); // Hora oficial del servidor al procesar la llegada del lote
 
             if (!empty($locations)) {
                 $locationRecords = array_map(function ($loc) use ($userId, $now, &$syncedLocations) {
@@ -29,9 +27,8 @@ class SyncTrackingDataAction
                         'speed' => $loc['speed'] ?? null,
                         'battery_level' => $loc['battery_level'] ?? null,
                         'is_mock' => $loc['is_mock'],
-                        // BLINDAJE ANTIFRAUDE: Usamos la hora oficial del servidor en lugar de la del cliente
-                        'recorded_at' => $now,
-                        'created_at' => $now,
+                        'recorded_at' => $loc['recorded_at'], // Hora atómica real generada por Kronos (cada 15s)
+                        'created_at' => $now,                 // Momento de recepción del lote en servidor
                         'updated_at' => $now,
                     ];
                 }, $locations);
@@ -47,8 +44,7 @@ class SyncTrackingDataAction
                         'client_id' => $evt['client_id'],
                         'event_type' => $evt['event_type'],
                         'details' => $evt['details'] ?? null,
-                        // BLINDAJE ANTIFRAUDE: Hora oficial del servidor para eventos del dispositivo
-                        'recorded_at' => $now,
+                        'recorded_at' => $evt['recorded_at'], // Evento sellado con hora Kronos
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
