@@ -8,7 +8,7 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(ZiggyVue)
+            .use(ZiggyVue, typeof Ziggy !== 'undefined' ? Ziggy : props.initialPage.props.ziggy)
             .mount(el);
     },
 });
