@@ -1,6 +1,6 @@
 {
-  "_SupervisorLayout-obkjjPpc.js": {
-    "file": "assets/SupervisorLayout-obkjjPpc.js",
+  "_SupervisorLayout-CSoyGPun.js": {
+    "file": "assets/SupervisorLayout-CSoyGPun.js",
     "name": "SupervisorLayout",
     "imports": [
       "resources/js/app.js"
@@ -37,7 +37,7 @@
     ]
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-C13Dl2TF.js",
+    "file": "assets/Login-DZKJORxZ.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isDynamicEntry": true,
@@ -46,50 +46,50 @@
     ]
   },
   "resources/js/Pages/Supervisor/Index.vue": {
-    "file": "assets/Index-DYkAeXh6.js",
+    "file": "assets/Index-DGhOHWdE.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-obkjjPpc.js"
+      "_SupervisorLayout-CSoyGPun.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo.vue": {
-    "file": "assets/Ruteo-BJ3rePO8.js",
+    "file": "assets/Ruteo-Dyv6NRgB.js",
     "name": "Ruteo",
     "src": "resources/js/Pages/Supervisor/Ruteo.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-obkjjPpc.js"
+      "_SupervisorLayout-CSoyGPun.js"
     ]
   },
   "resources/js/Pages/Supervisor/Tracking.vue": {
-    "file": "assets/Tracking-M7BECI2L.js",
+    "file": "assets/Tracking-D975ZzBI.js",
     "name": "Tracking",
     "src": "resources/js/Pages/Supervisor/Tracking.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-obkjjPpc.js"
+      "_SupervisorLayout-CSoyGPun.js"
     ]
   },
   "resources/js/Pages/Supervisor/Visitas.vue": {
-    "file": "assets/Visitas-Cwia4kUp.js",
+    "file": "assets/Visitas-CxWbf4Ww.js",
     "name": "Visitas",
     "src": "resources/js/Pages/Supervisor/Visitas.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_SupervisorLayout-obkjjPpc.js"
+      "_SupervisorLayout-CSoyGPun.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CbcKrp6u.js",
+    "file": "assets/app-BPLiywBa.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

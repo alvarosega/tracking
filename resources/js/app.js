@@ -4,6 +4,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import { Ziggy } from './ziggy';
 
+if (typeof window !== 'undefined') {
+    Ziggy.url = window.location.origin;
+}
+
 createInertiaApp({
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
