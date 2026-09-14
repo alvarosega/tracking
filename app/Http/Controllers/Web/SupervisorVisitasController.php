@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Visita;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,98 +16,101 @@ class SupervisorVisitasController extends Controller
 {
     public function index(Request $request): Response
     {
-        $selectedDate = $request->input('date', now('America/La_Paz')->format('Y-m-d'));
-        $selectedUserId = $request->input('user_id');
+        $today = Carbon::now('America/La_Paz')->format('Y-m-d');
+        $vendedores = User::whereHas('role', fn($q) => $q->where('name', 'vendedor'))->pluck('username');
 
-        $sellers = User::whereHas('role', fn($q) => $q->where('name', 'vendedor'))
-            ->where('is_active', true)
-            ->select('id', 'username')
-            ->orderBy('username')
-            ->get();
+        $selectedDate = $request->input('date', $today);
+        $selectedRoute = $request->input('route');
+        $selectedAuditoria = $request->input('auditoria', 'TODAS'); // TODAS, DENTRO, FUERA, OPORTUNIDAD
 
-        if (!$selectedUserId && $sellers->isNotEmpty()) {
-            $selectedUserId = $sellers->first()->id;
+        $query = DB::table('visitas as v')
+            ->leftJoin('plan_ruteo as p', 'v.client_id', '=', 'p.client_id')
+            ->join('users as u', 'v.user_id', '=', 'u.id')
+            ->whereDate('v.visited_at', $selectedDate)
+            ->select([
+                'v.id',
+                'v.user_id',
+                'u.username as vendedor',
+                'v.client_id',
+                'v.route',
+                'v.status',
+                'v.is_opportunity',
+                'v.opportunity_client_name',
+                'v.latitude as visita_lat',
+                'v.longitude as visita_lon',
+                'v.accuracy',
+                'v.photo_path',
+                'v.comments',
+                'v.visited_at',
+                'p.client_name as official_client_name',
+                'p.latitude as official_lat',
+                'p.longitude as official_lon',
+                'p.address as official_address',
+            ])
+            ->orderBy('v.visited_at', 'desc');
+
+        if ($selectedRoute) {
+            $query->where('v.route', $selectedRoute);
         }
 
-        $visitas = [];
+        $visitas = $query->get()->map(function ($row) {
+            $distanciaMetros = null;
 
-        if ($selectedUserId) {
-            $records = DB::table('visitas as v')
-                ->leftJoin('reference_clients as rc', 'v.client_id', '=', 'rc.id_cliente')
-                ->leftJoin('plan_ruteo as pr', 'v.client_id', '=', 'pr.client_id')
-                ->where('v.user_id', $selectedUserId)
-                ->whereDate('v.visited_at', $selectedDate)
-                ->select([
-                    'v.id',
-                    'v.client_id',
-                    'v.route',
-                    'v.status',
-                    'v.is_opportunity',
-                    'v.opportunity_client_name',
-                    'v.latitude as actual_lat',
-                    'v.longitude as actual_lng',
-                    'v.accuracy',
-                    'v.photo_path',
-                    'v.comments',
-                    'v.visited_at',
-                    'v.created_at',
-                    DB::raw('COALESCE(rc.client_name, pr.client_name, v.opportunity_client_name, "Cliente Sin Nombre") as resolved_client_name'),
-                    DB::raw('COALESCE(rc.latitude, pr.latitude) as target_lat'),
-                    DB::raw('COALESCE(rc.longitude, pr.longitude) as target_lng'),
-                ])
-                ->orderBy('v.visited_at', 'asc')
-                ->get();
+            // Fórmula Haversine server-side si tiene cliente oficial asignado
+            if (!$row->is_opportunity && $row->official_lat && $row->official_lon) {
+                $distanciaMetros = $this->calculateHaversine(
+                    (float)$row->visita_lat, (float)$row->visita_lon,
+                    (float)$row->official_lat, (float)$row->official_lon
+                );
+            }
 
-            $visitas = $records->map(function ($v) {
-                $distanceMeters = null;
-                if ($v->target_lat && $v->target_lng) {
-                    $distanceMeters = $this->haversineDistance(
-                        $v->actual_lat,
-                        $v->actual_lng,
-                        $v->target_lat,
-                        $v->target_lng
-                    );
-                }
+            return [
+                'id' => $row->id,
+                'vendedor' => $row->vendedor,
+                'route' => $row->route,
+                'status' => $row->status,
+                'is_opportunity' => (bool)$row->is_opportunity,
+                'client_name' => $row->is_opportunity ? $row->opportunity_client_name : $row->official_client_name,
+                'client_id' => $row->client_id,
+                'address' => $row->official_address,
+                'visita_lat' => (float)$row->visita_lat,
+                'visita_lon' => (float)$row->visita_lon,
+                'accuracy' => (float)$row->accuracy,
+                'photo_url' => $row->photo_path ? Storage::url($row->photo_path) : null,
+                'comments' => $row->comments,
+                'visited_at' => $row->visited_at,
+                'distancia_metros' => $distanciaMetros !== null ? round($distanciaMetros, 1) : null,
+                'en_rango' => $distanciaMetros !== null ? ($distanciaMetros <= 35.0) : null,
+            ];
+        });
 
-                return [
-                    'id' => $v->id,
-                    'client_id' => $v->client_id,
-                    'client_name' => $v->resolved_client_name,
-                    'route' => $v->route,
-                    'status' => $v->status,
-                    'is_opportunity' => (bool) $v->is_opportunity,
-                    'actual_lat' => (float) $v->actual_lat,
-                    'actual_lng' => (float) $v->actual_lng,
-                    'target_lat' => $v->target_lat ? (float) $v->target_lat : null,
-                    'target_lng' => $v->target_lng ? (float) $v->target_lng : null,
-                    'accuracy' => (float) $v->accuracy,
-                    'distance_meters' => $distanceMeters !== null ? round($distanceMeters, 1) : null,
-                    'photo_url' => $v->photo_path ? asset('storage/' . $v->photo_path) : null,
-                    'comments' => $v->comments,
-                    'visited_at' => $v->visited_at,
-                    'created_at' => $v->created_at,
-                ];
-            });
+        // Filtro en memoria para auditoría de geocerca
+        if ($selectedAuditoria === 'FUERA') {
+            $visitas = $visitas->filter(fn($v) => !$v['is_opportunity'] && $v['distancia_metros'] > 35.0)->values();
+        } elseif ($selectedAuditoria === 'DENTRO') {
+            $visitas = $visitas->filter(fn($v) => !$v['is_opportunity'] && $v['distancia_metros'] <= 35.0)->values();
+        } elseif ($selectedAuditoria === 'OPORTUNIDAD') {
+            $visitas = $visitas->filter(fn($v) => $v['is_opportunity'])->values();
         }
 
-        return Inertia::render('Supervisor/Visitas/Index', [
-            'sellers' => $sellers,
-            'filters' => [
-                'date' => $selectedDate,
-                'user_id' => (int) $selectedUserId,
-            ],
+        return Inertia::render('Supervisor/Visitas', [
+            'vendedores' => $vendedores,
+            'selected_date' => $selectedDate,
+            'selected_route' => $selectedRoute,
+            'selected_auditoria' => $selectedAuditoria,
             'visitas' => $visitas,
         ]);
     }
 
-    private function haversineDistance($lat1, $lon1, $lat2, $lon2): float
+    private function calculateHaversine(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
-        $earthRadius = 6371000;
+        $earthRadius = 6371000; // metros
         $dLat = deg2rad($lat2 - $lat1);
         $dLon = deg2rad($lon2 - $lon1);
         $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLon / 2) * sin($dLon / 2);
-        return $earthRadius * (2 * atan2(sqrt($a), sqrt(1 - $a)));
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
     }
 }
