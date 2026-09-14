@@ -1,6 +1,6 @@
 {
-  "_SupervisorLayout-B1gYKTGA.js": {
-    "file": "assets/SupervisorLayout-B1gYKTGA.js",
+  "_SupervisorLayout-CnpA1C3F.js": {
+    "file": "assets/SupervisorLayout-CnpA1C3F.js",
     "name": "SupervisorLayout",
     "imports": [
       "resources/js/app.js"
@@ -23,7 +23,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BS_8rTOc.css",
+    "file": "assets/app-fdMoS9BE.css",
     "name": "app",
     "names": [
       "app.css"
@@ -37,7 +37,7 @@
     ]
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-BwtiuRw4.js",
+    "file": "assets/Login-2sgghNvb.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isDynamicEntry": true,
@@ -46,72 +46,50 @@
     ]
   },
   "resources/js/Pages/Supervisor/Index.vue": {
-    "file": "assets/Index-UXR79QEX.js",
+    "file": "assets/Index-DMKXu7OC.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
+      "_SupervisorLayout-CnpA1C3F.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo.vue": {
-    "file": "assets/Ruteo-D9W-ms7C.js",
+    "file": "assets/Ruteo-D8B9YHQK.js",
     "name": "Ruteo",
     "src": "resources/js/Pages/Supervisor/Ruteo.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
+      "_SupervisorLayout-CnpA1C3F.js"
     ]
   },
   "resources/js/Pages/Supervisor/Tracking.vue": {
-    "file": "assets/Tracking-B1n6fA5d.js",
+    "file": "assets/Tracking-CXlNtz82.js",
     "name": "Tracking",
     "src": "resources/js/Pages/Supervisor/Tracking.vue",
     "isDynamicEntry": true,
     "imports": [
       "_leaflet-src-C1IlRE7x.js",
       "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
-    ]
-  },
-  "resources/js/Pages/Supervisor/Tracking/Index.vue": {
-    "file": "assets/Index-CL5_5zS9.js",
-    "name": "Index",
-    "src": "resources/js/Pages/Supervisor/Tracking/Index.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "_leaflet-src-C1IlRE7x.js",
-      "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
+      "_SupervisorLayout-CnpA1C3F.js"
     ]
   },
   "resources/js/Pages/Supervisor/Visitas.vue": {
-    "file": "assets/Visitas-BWzrdC9p.js",
+    "file": "assets/Visitas-cRO00A3v.js",
     "name": "Visitas",
     "src": "resources/js/Pages/Supervisor/Visitas.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
-    ]
-  },
-  "resources/js/Pages/Supervisor/Visitas/Index.vue": {
-    "file": "assets/Index-C6FdKF7M.js",
-    "name": "Index",
-    "src": "resources/js/Pages/Supervisor/Visitas/Index.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "_leaflet-src-C1IlRE7x.js",
-      "resources/js/app.js",
-      "_SupervisorLayout-B1gYKTGA.js"
+      "_SupervisorLayout-CnpA1C3F.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BNSy6qHk.js",
+    "file": "assets/app-DAO5VMkQ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -119,9 +97,7 @@
       "resources/js/Pages/Auth/Login.vue",
       "resources/js/Pages/Supervisor/Index.vue",
       "resources/js/Pages/Supervisor/Ruteo.vue",
-      "resources/js/Pages/Supervisor/Tracking/Index.vue",
       "resources/js/Pages/Supervisor/Tracking.vue",
-      "resources/js/Pages/Supervisor/Visitas/Index.vue",
       "resources/js/Pages/Supervisor/Visitas.vue"
     ]
   }
