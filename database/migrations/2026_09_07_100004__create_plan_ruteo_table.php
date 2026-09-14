@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('plan_ruteo', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('client_id')->index();
+            $table->unsignedBigInteger('client_id')->unique();
             $table->string('client_name');
             $table->string('seller_name')->nullable();
             $table->string('business_type')->nullable();
