@@ -20,10 +20,11 @@ class PlanRuteoController extends Controller
             ], 401);
         }
 
-        $query = PlanRuteo::query();
+        // 1. Identificar la ruta del usuario autenticado (ej: "TDB 6A")
+        $rutaUsuario = $user->username;
 
-        // 1. Mapeo del día en curso oficial de Bolivia (America/La_Paz, UTC-4)
-        $diasSemana = [
+        // 2. Determinar el día en curso en Bolivia (UTC-4)
+        $diasMap = [
             1 => 'Lunes',
             2 => 'Martes',
             3 => 'Miércoles',
@@ -34,37 +35,23 @@ class PlanRuteoController extends Controller
         ];
 
         $nowBolivia = Carbon::now('America/La_Paz');
-        $diaActual = $diasSemana[$nowBolivia->dayOfWeekIso] ?? 'Lunes';
+        $diaActual = $diasMap[$nowBolivia->dayOfWeekIso];
 
-        // 2. Control de Acceso según Rol
-        $roleName = strtolower($user->role?->name ?? 'vendedor');
+        // 3. Filtrar estrictamente por la columna "route", "status" y el "day" actual
+        $query = PlanRuteo::query()
+            ->where('status', 'Activo')
+            ->where('route', $rutaUsuario);
 
-        if ($roleName === 'vendedor') {
-            // Un vendedor solo ve sus clientes Activos, de su Ruta y del Día actual
-            $query->where('status', 'Activo')
-                  ->where('route', $user->username);
-
-            // Permite override de día únicamente en modo desarrollo/debug para testing
-            $targetDay = (config('app.debug') && $request->filled('day')) 
-                ? $request->query('day') 
-                : $diaActual;
-
-            $this->applyDayFilter($query, $targetDay);
-
-        } else {
-            // Supervisores o administradores: filtros abiertos y opcionales
-            if ($request->filled('route')) {
-                $query->where('route', $request->query('route'));
+        // Absorbe discrepancias con o sin tilde que vengan del CSV
+        $query->where(function ($q) use ($diaActual) {
+            if ($diaActual === 'Miércoles') {
+                $q->where('day', 'Miércoles')->orWhere('day', 'Miercoles');
+            } elseif ($diaActual === 'Sábado') {
+                $q->where('day', 'Sábado')->orWhere('day', 'Sabado');
+            } else {
+                $q->where('day', $diaActual);
             }
-
-            if ($request->filled('day')) {
-                $this->applyDayFilter($query, $request->query('day'));
-            }
-
-            if ($request->filled('status')) {
-                $query->where('status', $request->query('status'));
-            }
-        }
+        });
 
         $planRuteo = $query->orderBy('client_id', 'asc')
             ->select([
@@ -84,23 +71,5 @@ class PlanRuteoController extends Controller
             ->get();
 
         return response()->json($planRuteo, 200);
-    }
-
-    /**
-     * Aplica el filtro de día absorbiendo variaciones con y sin tilde del CSV.
-     */
-    private function applyDayFilter($query, string $day): void
-    {
-        $day = trim($day);
-
-        $query->where(function ($q) use ($day) {
-            if (in_array(mb_strtolower($day, 'UTF-8'), ['miércoles', 'miercoles'])) {
-                $q->where('day', 'Miércoles')->orWhere('day', 'Miercoles');
-            } elseif (in_array(mb_strtolower($day, 'UTF-8'), ['sábado', 'sabado'])) {
-                $q->where('day', 'Sábado')->orWhere('day', 'Sabado');
-            } else {
-                $q->where('day', $day);
-            }
-        });
     }
 }
