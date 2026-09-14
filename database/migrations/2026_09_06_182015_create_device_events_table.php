@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('device_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedBigInteger('client_id');
             $table->string('event_type', 50);
             $table->text('details')->nullable();
             $table->dateTime('recorded_at');

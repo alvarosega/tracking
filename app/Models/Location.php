@@ -12,7 +12,6 @@ class Location extends Model
 
     protected $fillable = [
         'user_id',
-        'client_id',
         'latitude',
         'longitude',
         'accuracy',

@@ -12,7 +12,6 @@ class DeviceEvent extends Model
 
     protected $fillable = [
         'user_id',
-        'client_id',
         'event_type',
         'details',
         'recorded_at',
