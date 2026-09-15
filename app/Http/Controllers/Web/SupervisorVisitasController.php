@@ -29,19 +29,19 @@ class SupervisorVisitasController extends Controller
 
         $selectedDate = $request->input('date', $today);
         $selectedRoute = $request->input('route');
-        $selectedAuditoria = $request->input('auditoria', 'TODAS'); // TODAS, DENTRO, FUERA, OPORTUNIDAD, NO_VISITADOS
+        $selectedAuditoria = $request->input('auditoria', 'TODAS'); // TODAS, DENTRO, FUERA, NO_VISITADOS, OPORTUNIDAD
 
-        // Determinar día de la semana de la fecha consultada
         $dateCarbon = Carbon::parse($selectedDate);
         $diaSemana = $diasMap[$dateCarbon->dayOfWeekIso] ?? 'Lunes';
 
-        // 1. Clientes Teóricos del Plan de Ruteo
+        // 1. Clientes Teóricos del Plan de Ruteo para ese día
         $planQuery = PlanRuteo::query()->select([
             'client_id',
             'client_name',
             'latitude',
             'longitude',
             'address',
+            'reference',
             'route',
             'day'
         ]);
@@ -50,17 +50,15 @@ class SupervisorVisitasController extends Controller
             $planQuery->where('route', $selectedRoute);
         }
 
-        // Normalización de tildes para días
         $planQuery->where(function ($q) use ($diaSemana) {
             if ($diaSemana === 'Miércoles') $q->whereIn('day', ['Miércoles', 'Miercoles']);
             elseif ($diaSemana === 'Sábado') $q->whereIn('day', ['Sábado', 'Sabado']);
             else $q->where('day', $diaSemana);
         });
 
-        $clientesPlan = $planQuery->get();
-        $totalPlan = $clientesPlan->count();
+        $clientesPlan = $planQuery->get()->keyBy('client_id');
 
-        // 2. Visitas Reales Registradas
+        // 2. Visitas Reales registradas en esa fecha
         $visitasQuery = DB::table('visitas as v')
             ->leftJoin('plan_ruteo as p', 'v.client_id', '=', 'p.client_id')
             ->join('users as u', 'v.user_id', '=', 'u.id')
@@ -85,80 +83,105 @@ class SupervisorVisitasController extends Controller
                 'p.longitude as official_lon',
                 'p.address as official_address',
             ])
-            ->orderBy('v.visited_at', 'desc');
+            ->orderBy('v.visited_at', 'asc');
 
         if ($selectedRoute) {
             $visitasQuery->where('v.route', $selectedRoute);
         }
 
-        $visitedClientIds = [];
+        $visitasReales = $visitasQuery->get();
+        $visitadosClientIds = [];
 
-        $visitas = $visitasQuery->get()->map(function ($row) use (&$visitedClientIds) {
+        // 3. Procesar las visitas ejecutadas
+        $tablaConciliacion = [];
+
+        foreach ($visitasReales as $v) {
             $distanciaMetros = null;
 
-            if (!$row->is_opportunity && $row->official_lat && $row->official_lon) {
-                $distanciaMetros = $this->calculateHaversine(
-                    (float)$row->visita_lat, (float)$row->visita_lon,
-                    (float)$row->official_lat, (float)$row->official_lon
-                );
+            if (!$v->is_opportunity && $v->official_lat && $v->official_lon) {
+                $distanciaMetros = round($this->calculateHaversine(
+                    (float)$v->visita_lat, (float)$v->visita_lon,
+                    (float)$v->official_lat, (float)$v->official_lon
+                ), 1);
             }
 
-            if ($row->client_id) {
-                $visitedClientIds[] = $row->client_id;
+            if ($v->client_id) {
+                $visitadosClientIds[] = $v->client_id;
             }
 
             $enRango = $distanciaMetros !== null ? ($distanciaMetros <= 50.0) : null;
 
-            return [
-                'id' => $row->id,
-                'vendedor' => $row->vendedor,
-                'route' => $row->route,
-                'status' => $row->status,
-                'is_opportunity' => (bool)$row->is_opportunity,
-                'client_name' => $row->is_opportunity ? $row->opportunity_client_name : $row->official_client_name,
-                'client_id' => $row->client_id,
-                'address' => $row->official_address,
-                'visita_lat' => (float)$row->visita_lat,
-                'visita_lon' => (float)$row->visita_lon,
-                'official_lat' => $row->official_lat ? (float)$row->official_lat : null,
-                'official_lon' => $row->official_lon ? (float)$row->official_lon : null,
-                'accuracy' => (float)$row->accuracy,
-                'photo_url' => $row->photo_path ? Storage::url($row->photo_path) : null,
-                'comments' => $row->comments,
-                'visited_at' => $row->visited_at,
-                'distancia_metros' => $distanciaMetros !== null ? round($distanciaMetros, 1) : null,
+            $tipoAuditoria = 'DENTRO';
+            if ($v->is_opportunity) {
+                $tipoAuditoria = 'OPORTUNIDAD';
+            } elseif ($enRango === false) {
+                $tipoAuditoria = 'FUERA';
+            }
+
+            $tablaConciliacion[] = [
+                'id' => 'visita_' . $v->id,
+                'visita_id' => $v->id,
+                'client_id' => $v->client_id,
+                'client_name' => $v->is_opportunity ? $v->opportunity_client_name : $v->official_client_name,
+                'route' => $v->route,
+                'vendedor' => $v->vendedor,
+                'address' => $v->official_address,
+                'visitado' => true,
+                'is_opportunity' => (bool)$v->is_opportunity,
+                'visited_at' => $v->visited_at,
+                'visita_lat' => (float)$v->visita_lat,
+                'visita_lon' => (float)$v->visita_lon,
+                'official_lat' => $v->official_lat ? (float)$v->official_lat : null,
+                'official_lon' => $v->official_lon ? (float)$v->official_lon : null,
+                'accuracy' => (float)$v->accuracy,
+                'photo_url' => $v->photo_path ? Storage::url($v->photo_path) : null,
+                'comments' => $v->comments,
+                'distancia_metros' => $distanciaMetros,
                 'en_rango' => $enRango,
+                'tipo_auditoria' => $tipoAuditoria,
             ];
-        });
+        }
 
-        // 3. Determinar Clientes No Visitados
-        $visitedClientIds = array_unique($visitedClientIds);
-        $clientesNoVisitados = $clientesPlan->filter(fn($c) => !in_array($c->client_id, $visitedClientIds))->values()->map(function($c) {
-            return [
-                'client_id' => $c->client_id,
-                'client_name' => $c->client_name,
-                'address' => $c->address,
-                'route' => $c->route,
-                'latitude' => (float)$c->latitude,
-                'longitude' => (float)$c->longitude,
-            ];
-        });
+        // 4. Incorporar los clientes del Plan que NO fueron visitados
+        foreach ($clientesPlan as $clientId => $cp) {
+            if (!in_array($clientId, $visitadosClientIds)) {
+                $tablaConciliacion[] = [
+                    'id' => 'plan_' . $cp->client_id,
+                    'visita_id' => null,
+                    'client_id' => $cp->client_id,
+                    'client_name' => $cp->client_name,
+                    'route' => $cp->route,
+                    'vendedor' => $cp->route,
+                    'address' => $cp->address,
+                    'visitado' => false,
+                    'is_opportunity' => false,
+                    'visited_at' => null,
+                    'visita_lat' => null,
+                    'visita_lon' => null,
+                    'official_lat' => (float)$cp->latitude,
+                    'official_lon' => (float)$cp->longitude,
+                    'accuracy' => null,
+                    'photo_url' => null,
+                    'comments' => null,
+                    'distancia_metros' => null,
+                    'en_rango' => null,
+                    'tipo_auditoria' => 'NO_VISITADO',
+                ];
+            }
+        }
 
-        // 4. Métricas de Resumen
-        $totalVisitas = $visitas->count();
-        $totalEnRango = $visitas->where('en_rango', true)->count();
-        $totalFueraRango = $visitas->where('en_rango', false)->where('is_opportunity', false)->count();
-        $totalOportunidades = $visitas->where('is_opportunity', true)->count();
-        $totalPlanVisitados = count(array_intersect($visitedClientIds, $clientesPlan->pluck('client_id')->toArray()));
+        // Métricas
+        $totalPlan = $clientesPlan->count();
+        $totalVisitadosPlan = count(array_unique(array_intersect($visitadosClientIds, $clientesPlan->keys()->toArray())));
+        $totalEnRango = collect($tablaConciliacion)->where('tipo_auditoria', 'DENTRO')->count();
+        $totalFueraRango = collect($tablaConciliacion)->where('tipo_auditoria', 'FUERA')->count();
+        $totalOportunidades = collect($tablaConciliacion)->where('tipo_auditoria', 'OPORTUNIDAD')->count();
+        $totalNoVisitados = collect($tablaConciliacion)->where('tipo_auditoria', 'NO_VISITADO')->count();
 
-        // Filtrar según criterio de auditoría
-        $visitasFiltradas = $visitas;
-        if ($selectedAuditoria === 'FUERA') {
-            $visitasFiltradas = $visitas->filter(fn($v) => !$v['is_opportunity'] && $v['en_rango'] === false)->values();
-        } elseif ($selectedAuditoria === 'DENTRO') {
-            $visitasFiltradas = $visitas->filter(fn($v) => !$v['is_opportunity'] && $v['en_rango'] === true)->values();
-        } elseif ($selectedAuditoria === 'OPORTUNIDAD') {
-            $visitasFiltradas = $visitas->filter(fn($v) => $v['is_opportunity'])->values();
+        // Filtro de auditoría
+        $itemsFiltrados = collect($tablaConciliacion);
+        if ($selectedAuditoria !== 'TODAS') {
+            $itemsFiltrados = $itemsFiltrados->where('tipo_auditoria', $selectedAuditoria)->values();
         }
 
         return Inertia::render('Supervisor/Visitas', [
@@ -166,26 +189,22 @@ class SupervisorVisitasController extends Controller
             'selected_date' => $selectedDate,
             'selected_route' => $selectedRoute,
             'selected_auditoria' => $selectedAuditoria,
-            'visitas' => $visitasFiltradas,
-            'no_visitados' => $clientesNoVisitados,
+            'items' => $itemsFiltrados->values(),
             'metrics' => [
                 'total_plan' => $totalPlan,
-                'total_visitados_plan' => $totalPlanVisitados,
-                'cobertura_pct' => $totalPlan > 0 ? round(($totalPlanVisitados / $totalPlan) * 100, 1) : 0,
-                'total_visitas' => $totalVisitas,
+                'total_visitados_plan' => $totalVisitadosPlan,
+                'cobertura_pct' => $totalPlan > 0 ? round(($totalVisitadosPlan / $totalPlan) * 100, 1) : 0,
                 'en_rango' => $totalEnRango,
                 'fuera_rango' => $totalFueraRango,
                 'oportunidades' => $totalOportunidades,
-                'efectividad_geocerca_pct' => ($totalEnRango + $totalFueraRango) > 0 
-                    ? round(($totalEnRango / ($totalEnRango + $totalFueraRango)) * 100, 1) 
-                    : 0,
+                'no_visitados' => $totalNoVisitados,
             ]
         ]);
     }
 
     private function calculateHaversine(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
-        $earthRadius = 6371000; // metros
+        $earthRadius = 6371000;
         $dLat = deg2rad($lat2 - $lat1);
         $dLon = deg2rad($lon2 - $lon1);
         $a = sin($dLat / 2) * sin($dLat / 2) +

@@ -27,252 +27,316 @@
           </div>
 
           <div>
-            <label class="text-[11px] font-bold text-gray-500 uppercase block mb-1">Auditoría Geocerca:</label>
+            <label class="text-[11px] font-bold text-gray-500 uppercase block mb-1">Filtro de Conciliación:</label>
             <select
               v-model="selectedAuditoria"
               @change="applyFilters"
               class="border border-gray-300 rounded-lg p-2 text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="TODAS">Todas las Visitas</option>
-              <option value="DENTRO">En Rango (≤ 50m)</option>
-              <option value="FUERA">Fuera de Rango (> 50m)</option>
+              <option value="TODAS">Todo el Universo (Plan + Visitas)</option>
+              <option value="DENTRO">Visitados En Sitio (≤ 50m)</option>
+              <option value="FUERA">Visitados Fuera de Rango (> 50m)</option>
+              <option value="NO_VISITADO">Clientes No Visitados (Pendientes)</option>
               <option value="OPORTUNIDAD">Clientes Nuevos / Oportunidad</option>
             </select>
           </div>
         </div>
 
-        <!-- Selector de Vista (Mapa vs Galería) -->
-        <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg">
-          <button
-            @click="currentView = 'mapa'"
-            class="px-3 py-1.5 rounded-md text-xs font-bold transition"
-            :class="currentView === 'mapa' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'"
-          >
-            Mapa de Conciliación
-          </button>
-          <button
-            @click="currentView = 'galeria'"
-            class="px-3 py-1.5 rounded-md text-xs font-bold transition"
-            :class="currentView === 'galeria' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'"
-          >
-            Galería de Evidencias ({{ visitas.length }})
-          </button>
+        <!-- Leyenda cromática -->
+        <div class="flex flex-wrap gap-3 text-xs font-medium text-gray-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+          <span class="flex items-center space-x-1">
+            <span class="w-3 h-3 rounded-full bg-[#10b981]"></span>
+            <span>En Sitio (≤50m)</span>
+          </span>
+          <span class="flex items-center space-x-1">
+            <span class="w-3 h-3 rounded-full bg-[#ef4444]"></span>
+            <span>Desvío (>50m)</span>
+          </span>
+          <span class="flex items-center space-x-1">
+            <span class="w-3 h-3 rounded-full bg-[#f59e0b]"></span>
+            <span>No Visitado</span>
+          </span>
+          <span class="flex items-center space-x-1">
+            <span class="w-3 h-3 rounded-full bg-[#8b5cf6]"></span>
+            <span>Oportunidad</span>
+          </span>
         </div>
       </div>
 
-      <!-- Tarjetas KPI de Auditoría y Cumplimiento -->
+      <!-- Tarjetas Resumen de Conciliación -->
       <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
-          <p class="text-[11px] font-bold text-gray-400 uppercase">Plan del Día</p>
-          <p class="text-xl font-black text-slate-800 mt-0.5">
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Plan del Día</p>
+          <p class="text-xl font-black text-slate-800">
             {{ metrics.total_visitados_plan }} <span class="text-xs font-semibold text-slate-400">/ {{ metrics.total_plan }}</span>
           </p>
           <span class="text-[11px] font-bold text-blue-600">{{ metrics.cobertura_pct }}% Cobertura</span>
         </div>
 
-        <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
-          <p class="text-[11px] font-bold text-gray-400 uppercase">En Rango (≤ 50m)</p>
-          <p class="text-xl font-black text-emerald-600 mt-0.5">{{ metrics.en_rango }}</p>
-          <span class="text-[11px] font-semibold text-slate-500">Dentro de geocerca</span>
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Visitados En Sitio</p>
+          <p class="text-xl font-black text-emerald-600">{{ metrics.en_rango }}</p>
+          <span class="text-[11px] font-semibold text-slate-500">Dentro de 50m</span>
         </div>
 
-        <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
-          <p class="text-[11px] font-bold text-gray-400 uppercase">Desvíos (> 50m)</p>
-          <p class="text-xl font-black text-rose-600 mt-0.5">{{ metrics.fuera_rango }}</p>
-          <span class="text-[11px] font-semibold text-rose-500">Alertas de distancia</span>
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Desvíos</p>
+          <p class="text-xl font-black text-rose-600">{{ metrics.fuera_rango }}</p>
+          <span class="text-[11px] font-semibold text-rose-500">> 50m del catastro</span>
         </div>
 
-        <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
-          <p class="text-[11px] font-bold text-gray-400 uppercase">Oportunidades</p>
-          <p class="text-xl font-black text-purple-600 mt-0.5">{{ metrics.oportunidades }}</p>
-          <span class="text-[11px] font-semibold text-slate-500">Clientes no censados</span>
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">No Visitados</p>
+          <p class="text-xl font-black text-amber-600">{{ metrics.no_visitados }}</p>
+          <span class="text-[11px] font-semibold text-amber-600">Pendientes</span>
         </div>
 
-        <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
-          <p class="text-[11px] font-bold text-gray-400 uppercase">Faltantes</p>
-          <p class="text-xl font-black text-amber-600 mt-0.5">{{ no_visitados.length }}</p>
-          <span class="text-[11px] font-semibold text-amber-600">Por visitar hoy</span>
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">Oportunidades</p>
+          <p class="text-xl font-black text-purple-600">{{ metrics.oportunidades }}</p>
+          <span class="text-[11px] font-semibold text-slate-500">Fuera de plan</span>
         </div>
       </div>
 
-      <!-- VISTA 1: Mapa de Conciliación -->
-      <div v-show="currentView === 'mapa'" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Sección Principal: Mapa y Panel de Detalle / Fotografía -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Mapa de Conciliación -->
         <div class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-          <div id="map-visitas" class="h-[620px] w-full rounded-lg"></div>
+          <div id="map-visitas" class="h-[520px] w-full rounded-lg"></div>
         </div>
 
-        <!-- Panel Lateral de Puntos No Visitados / Desvíos -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[640px]">
-          <div class="flex border-b border-gray-100 mb-3 pb-2 gap-3 text-xs font-bold">
-            <button
-              @click="sidebarTab = 'desvios'"
-              class="pb-1 transition border-b-2"
-              :class="sidebarTab === 'desvios' ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'"
-            >
-              Desvíos (>50m) [{{ desviosList.length }}]
-            </button>
-            <button
-              @click="sidebarTab = 'faltantes'"
-              class="pb-1 transition border-b-2"
-              :class="sidebarTab === 'faltantes' ? 'border-amber-600 text-amber-600' : 'border-transparent text-slate-400 hover:text-slate-600'"
-            >
-              No Visitados [{{ no_visitados.length }}]
-            </button>
-          </div>
+        <!-- Panel de Detalle del Registro Seleccionado -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-[540px]">
+          <div v-if="selectedItem" class="space-y-3 overflow-y-auto pr-1">
+            <div class="flex justify-between items-start border-b pb-2 border-gray-100">
+              <div>
+                <span class="text-xs font-mono font-bold text-slate-400">#{{ selectedItem.client_id || 'OPP' }}</span>
+                <h3 class="text-sm font-bold text-slate-900 leading-tight mt-0.5">{{ selectedItem.client_name }}</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Ruta: {{ selectedItem.route }} | Vendedor: {{ selectedItem.vendedor }}</p>
+              </div>
+              <span
+                class="px-2 py-0.5 text-[10px] font-bold rounded text-white"
+                :style="{ backgroundColor: getItemColor(selectedItem) }"
+              >
+                {{ getStatusLabel(selectedItem) }}
+              </span>
+            </div>
 
-          <!-- Lista de Desvíos -->
-          <div v-if="sidebarTab === 'desvios'" class="flex-1 overflow-y-auto space-y-2 pr-1">
-            <div
-              v-for="v in desviosList"
-              :key="v.id"
-              class="p-2.5 border border-rose-200 bg-rose-50/40 rounded-lg cursor-pointer hover:border-rose-400 transition text-xs"
-              @click="focusVisita(v)"
-            >
-              <div class="flex justify-between items-start">
-                <span class="font-mono font-bold text-slate-700">#{{ v.client_id }}</span>
-                <span class="px-1.5 py-0.5 rounded font-black text-rose-700 bg-rose-100 text-[10px]">
-                  {{ v.distancia_metros }}m desvío
+            <!-- Evidencia Fotográfica -->
+            <div class="space-y-1">
+              <p class="text-[11px] font-bold text-gray-400 uppercase">Evidencia Fotográfica del Día</p>
+              <div
+                v-if="selectedItem.photo_url"
+                class="relative h-48 bg-slate-900 rounded-lg overflow-hidden group cursor-pointer border border-gray-200"
+                @click="openModal(selectedItem)"
+              >
+                <img :src="selectedItem.photo_url" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                <div class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                  <span class="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-lg">Click para pantalla completa</span>
+                </div>
+              </div>
+              <div v-else class="h-32 bg-slate-50 rounded-lg flex flex-col items-center justify-center border border-dashed border-gray-200 text-slate-400 text-xs">
+                <span>Sin fotografía registrada</span>
+                <span class="text-[10px] mt-0.5">{{ selectedItem.visitado ? 'No se cargó imagen' : 'Cliente aún no visitado' }}</span>
+              </div>
+            </div>
+
+            <!-- Datos Técnicos de Geocerca -->
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
+              <div class="flex justify-between">
+                <span class="text-slate-500 font-medium">Hora de Visita:</span>
+                <span class="font-mono font-bold text-slate-800">{{ selectedItem.visited_at ? formatTime(selectedItem.visited_at) : 'Pendiente' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500 font-medium">Distancia a Catastro:</span>
+                <span class="font-bold" :class="selectedItem.en_rango ? 'text-emerald-600' : (selectedItem.distancia_metros ? 'text-rose-600' : 'text-slate-600')">
+                  {{ selectedItem.distancia_metros !== null ? selectedItem.distancia_metros + ' metros' : (selectedItem.is_opportunity ? 'N/A (Oportunidad)' : 'Pendiente') }}
                 </span>
               </div>
-              <p class="font-bold text-slate-900 mt-1">{{ v.client_name }}</p>
-              <p class="text-slate-500 text-[11px] mt-0.5">Ruta: {{ v.route }} | {{ formatTime(v.visited_at) }}</p>
-            </div>
-            <div v-if="desviosList.length === 0" class="text-center py-14 text-slate-400 text-xs">
-              No hay visitas fuera del radio de 50 metros.
+              <div v-if="selectedItem.accuracy" class="flex justify-between">
+                <span class="text-slate-500 font-medium">Precisión GPS Foto:</span>
+                <span class="font-mono text-slate-700">±{{ Math.round(selectedItem.accuracy) }} m</span>
+              </div>
+              <div v-if="selectedItem.comments" class="pt-1 text-[11px] text-slate-600 italic border-t border-slate-200 mt-1">
+                "{{ selectedItem.comments }}"
+              </div>
             </div>
           </div>
 
-          <!-- Lista de No Visitados -->
-          <div v-if="sidebarTab === 'faltantes'" class="flex-1 overflow-y-auto space-y-2 pr-1">
-            <div
-              v-for="c in no_visitados"
-              :key="c.client_id"
-              class="p-2.5 border border-amber-200 bg-amber-50/40 rounded-lg cursor-pointer hover:border-amber-400 transition text-xs"
-              @click="focusNoVisitado(c)"
+          <!-- Estado Vacío -->
+          <div v-else class="flex flex-col items-center justify-center h-full text-slate-400 text-xs text-center p-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            Selecciona un cliente de la tabla o un marcador del mapa para auditar su fotografía y geolocalización.
+          </div>
+
+          <div v-if="selectedItem" class="pt-3 border-t border-gray-100 flex justify-end">
+            <button
+              @click="focusItem(selectedItem)"
+              class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition"
             >
-              <div class="flex justify-between items-start">
-                <span class="font-mono font-bold text-slate-700">#{{ c.client_id }}</span>
-                <span class="px-1.5 py-0.5 rounded font-bold text-amber-700 bg-amber-100 text-[10px]">
-                  Pendiente
-                </span>
-              </div>
-              <p class="font-bold text-slate-900 mt-1">{{ c.client_name }}</p>
-              <p class="text-slate-500 text-[11px] mt-0.5">{{ c.address || 'Sin dirección' }}</p>
-            </div>
-            <div v-if="no_visitados.length === 0" class="text-center py-14 text-slate-400 text-xs">
-              Todos los clientes del plan de hoy han sido visitados.
-            </div>
+              Centrar en el Mapa
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- VISTA 2: Galería de Evidencias -->
-      <div v-show="currentView === 'galeria'" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div
-            v-for="v in visitas"
-            :key="v.id"
-            class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col hover:shadow-md transition"
-          >
-            <div class="relative bg-slate-900 h-48 cursor-pointer overflow-hidden group" @click="openModal(v)">
-              <img
-                v-if="v.photo_url"
-                :src="v.photo_url"
-                alt="Foto Visita"
-                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-              />
-              <div v-else class="flex items-center justify-center h-full text-slate-500 text-xs">
-                Sin Fotografía
-              </div>
-
-              <!-- Badge de Geocerca (50m) -->
-              <div class="absolute top-2 right-2">
-                <span v-if="v.is_opportunity" class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-purple-600 text-white shadow">
-                  Oportunidad
-                </span>
-                <span v-else-if="v.en_rango" class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-600 text-white shadow">
-                  {{ v.distancia_metros }}m (En Sitio)
-                </span>
-                <span v-else class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-rose-600 text-white shadow">
-                  {{ v.distancia_metros }}m (Desvío)
-                </span>
-              </div>
-            </div>
-
-            <div class="p-3.5 flex-1 flex flex-col justify-between text-xs">
-              <div>
-                <div class="flex justify-between items-center text-slate-400 font-mono text-[11px]">
-                  <span>Ruta: {{ v.route }}</span>
-                  <span>{{ formatTime(v.visited_at) }}</span>
-                </div>
-                <h4 class="font-bold text-slate-900 text-sm mt-1 leading-snug">{{ v.client_name }}</h4>
-                <p v-if="v.address" class="text-slate-500 text-[11px] mt-0.5 truncate">{{ v.address }}</p>
-                <p v-if="v.comments" class="text-slate-600 italic mt-2 bg-slate-50 p-2 rounded border border-slate-100 text-[11px]">
-                  "{{ v.comments }}"
-                </p>
-              </div>
-
-              <div class="mt-3 pt-2.5 border-t border-gray-100 flex justify-between items-center text-[11px]">
-                <span class="font-bold text-slate-700">Estado: {{ v.status }}</span>
-                <span class="text-slate-400 font-mono">±{{ Math.round(v.accuracy) }}m</span>
-              </div>
-            </div>
+      <!-- Tabla Maestra de Conciliación y Auditoría -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800 uppercase">Tabla de Conciliación de Jornada</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Cruce ordenado cronológicamente entre el Plan de Ruteo y Visitas registradas</p>
           </div>
+          <span class="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border border-gray-200 text-slate-600">
+            {{ items.length }} registros
+          </span>
         </div>
 
-        <div v-if="visitas.length === 0" class="text-center py-20 text-slate-400 text-sm bg-white rounded-xl border border-gray-100">
-          No se encontraron visitas registradas para este filtro.
+        <div class="max-h-96 overflow-y-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0 z-10 border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3 text-center">Foto</th>
+                <th class="py-2.5 px-3">Hora</th>
+                <th class="py-2.5 px-3">ID</th>
+                <th class="py-2.5 px-3">Cliente</th>
+                <th class="py-2.5 px-3">Ruta</th>
+                <th class="py-2.5 px-3">Estado Auditoría</th>
+                <th class="py-2.5 px-3 text-right">Distancia a Catastro</th>
+                <th class="py-2.5 px-3 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr
+                v-for="item in sortedItems"
+                :key="item.id"
+                class="hover:bg-amber-50/40 transition cursor-pointer"
+                :class="selectedItem?.id === item.id ? 'bg-amber-50/70 font-medium' : ''"
+                @click="selectRow(item)"
+              >
+                <!-- Miniatura de Foto -->
+                <td class="py-1.5 px-3 text-center">
+                  <div
+                    v-if="item.photo_url"
+                    class="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 inline-block bg-slate-800"
+                    @click.stop="openModal(item)"
+                  >
+                    <img :src="item.photo_url" class="w-full h-full object-cover hover:opacity-80 transition" />
+                  </div>
+                  <span v-else class="text-[10px] text-gray-300 font-mono">-</span>
+                </td>
+
+                <!-- Hora de Visita -->
+                <td class="py-2 px-3 font-mono font-bold text-slate-700 whitespace-nowrap">
+                  {{ item.visited_at ? formatTime(item.visited_at) : 'Pendiente' }}
+                </td>
+
+                <!-- ID Cliente -->
+                <td class="py-2 px-3 font-mono text-slate-500 font-bold">
+                  {{ item.client_id ? '#' + item.client_id : 'OPP' }}
+                </td>
+
+                <!-- Nombre Cliente y Dirección -->
+                <td class="py-2 px-3">
+                  <div class="font-bold text-slate-900 leading-snug">{{ item.client_name }}</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">{{ item.address || 'Sin dirección' }}</div>
+                </td>
+
+                <!-- Ruta -->
+                <td class="py-2 px-3 font-semibold text-slate-700 whitespace-nowrap">
+                  {{ item.route }}
+                </td>
+
+                <!-- Badge Estado Auditoría -->
+                <td class="py-2 px-3 whitespace-nowrap">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-bold text-white inline-block shadow-sm"
+                    :style="{ backgroundColor: getItemColor(item) }"
+                  >
+                    {{ getStatusLabel(item) }}
+                  </span>
+                </td>
+
+                <!-- Distancia Calculada -->
+                <td class="py-2 px-3 text-right font-mono font-bold">
+                  <span v-if="item.distancia_metros !== null" :class="item.en_rango ? 'text-emerald-600' : 'text-rose-600'">
+                    {{ item.distancia_metros }} m
+                  </span>
+                  <span v-else-if="item.is_opportunity" class="text-purple-500 text-[11px]">
+                    Oportunidad
+                  </span>
+                  <span v-else class="text-slate-300 text-[11px]">
+                    No evaluado
+                  </span>
+                </td>
+
+                <!-- Botón Ubicar -->
+                <td class="py-2 px-3 text-center whitespace-nowrap">
+                  <button
+                    class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] transition"
+                    @click.stop="focusItem(item)"
+                  >
+                    Ubicar
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="items.length === 0">
+                <td colspan="8" class="py-12 text-center text-gray-400 text-xs">
+                  No hay datos registrados para los filtros seleccionados.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <!-- Modal Fotografía Ampliada con Auditoría Técnica -->
+    <!-- Modal Fotografía en Pantalla Completa con Detalle Forense -->
     <div
-      v-if="modalVisita"
+      v-if="modalItem"
       class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      @click.self="modalVisita = null"
+      @click.self="modalItem = null"
     >
       <div class="bg-white rounded-xl overflow-hidden max-w-2xl w-full shadow-2xl">
         <div class="p-3.5 border-b border-gray-100 flex justify-between items-center bg-slate-50">
           <div>
-            <h4 class="font-bold text-sm text-slate-900">{{ modalVisita.client_name }}</h4>
-            <p class="text-xs text-slate-400">Ruta {{ modalVisita.route }} | Vendedor: {{ modalVisita.vendedor }}</p>
+            <h4 class="font-bold text-sm text-slate-900">{{ modalItem.client_name }}</h4>
+            <p class="text-xs text-slate-400">Ruta {{ modalItem.route }} | Vendedor: {{ modalItem.vendedor }}</p>
           </div>
-          <button @click="modalVisita = null" class="text-slate-400 hover:text-slate-800 font-bold text-xl px-2">
+          <button @click="modalItem = null" class="text-slate-400 hover:text-slate-800 font-bold text-xl px-2">
             &times;
           </button>
         </div>
 
         <div class="max-h-[65vh] bg-black flex items-center justify-center">
-          <img :src="modalVisita.photo_url" class="max-h-[65vh] object-contain" />
+          <img :src="modalItem.photo_url" class="max-h-[65vh] object-contain" />
         </div>
 
         <div class="p-4 bg-white text-xs space-y-2 border-t border-gray-100">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <p class="text-slate-400 font-semibold uppercase text-[10px]">Hora de Visita</p>
-              <p class="font-bold text-slate-800">{{ modalVisita.visited_at }}</p>
+              <p class="text-slate-400 font-semibold uppercase text-[10px]">Hora Oficial de Captura</p>
+              <p class="font-bold text-slate-800">{{ modalItem.visited_at }}</p>
             </div>
             <div>
-              <p class="text-slate-400 font-semibold uppercase text-[10px]">Auditoría Geocerca</p>
-              <p
-                class="font-bold"
-                :class="modalVisita.en_rango ? 'text-emerald-600' : 'text-rose-600'"
-              >
-                {{ modalVisita.distancia_metros !== null ? modalVisita.distancia_metros + ' metros' : 'Cliente Oportunidad' }}
+              <p class="text-slate-400 font-semibold uppercase text-[10px]">Distancia de Conciliación</p>
+              <p class="font-bold" :class="modalItem.en_rango ? 'text-emerald-600' : 'text-rose-600'">
+                {{ modalItem.distancia_metros !== null ? modalItem.distancia_metros + ' metros' : 'Cliente Oportunidad' }}
               </p>
             </div>
             <div>
               <p class="text-slate-400 font-semibold uppercase text-[10px]">Coordenadas Fotografía</p>
-              <p class="font-mono text-slate-700">{{ modalVisita.visita_lat }}, {{ modalVisita.visita_lon }} (±{{ Math.round(modalVisita.accuracy) }}m)</p>
+              <p class="font-mono text-slate-700">{{ modalItem.visita_lat }}, {{ modalItem.visita_lon }} (±{{ Math.round(modalItem.accuracy || 0) }}m)</p>
             </div>
-            <div v-if="modalVisita.official_lat">
+            <div v-if="modalItem.official_lat">
               <p class="text-slate-400 font-semibold uppercase text-[10px]">Coordenadas Catastro</p>
-              <p class="font-mono text-slate-700">{{ modalVisita.official_lat }}, {{ modalVisita.official_lon }}</p>
+              <p class="font-mono text-slate-700">{{ modalItem.official_lat }}, {{ modalItem.official_lon }}</p>
             </div>
           </div>
-          <p v-if="modalVisita.comments" class="pt-2 border-t border-gray-100 text-slate-600">
-            <strong>Observaciones del Vendedor:</strong> "{{ modalVisita.comments }}"
+          <p v-if="modalItem.comments" class="pt-2 border-t border-gray-100 text-slate-600">
+            <strong>Observación del Vendedor:</strong> "{{ modalItem.comments }}"
           </p>
         </div>
       </div>
@@ -291,31 +355,50 @@ const props = defineProps({
   selected_date: String,
   selected_route: String,
   selected_auditoria: String,
-  visitas: Array,
-  no_visitados: Array,
+  items: Array,
   metrics: Object,
 });
 
 const selectedDate = ref(props.selected_date);
 const selectedRoute = ref(props.selected_route);
 const selectedAuditoria = ref(props.selected_auditoria);
-const currentView = ref('mapa');
-const sidebarTab = ref('desvios');
-const modalVisita = ref(null);
+const selectedItem = ref(null);
+const modalItem = ref(null);
 
 let map = null;
 let mapLayers = null;
-const visitaMarkersMap = new Map();
-const noVisitadoMarkersMap = new Map();
+const markersMap = new Map();
 
-const desviosList = computed(() => {
-  return props.visitas.filter((v) => !v.is_opportunity && v.en_rango === false);
+// Orden cronológico: Primero los que tienen visita (ordenados por visited_at asc), luego los no visitados
+const sortedItems = computed(() => {
+  return [...props.items].sort((a, b) => {
+    if (a.visited_at && b.visited_at) {
+      return a.visited_at.localeCompare(b.visited_at);
+    }
+    if (a.visited_at && !b.visited_at) return -1;
+    if (!a.visited_at && b.visited_at) return 1;
+    return (a.client_id || 0) - (b.client_id || 0);
+  });
 });
 
 function formatTime(dt) {
   if (!dt) return '--:--';
   const parts = dt.split(' ');
   return parts.length > 1 ? parts[1] : dt;
+}
+
+function getItemColor(item) {
+  if (item.tipo_auditoria === 'DENTRO') return '#10b981'; // Verde: En Sitio
+  if (item.tipo_auditoria === 'FUERA') return '#ef4444';  // Rojo: Desvío
+  if (item.tipo_auditoria === 'OPORTUNIDAD') return '#8b5cf6'; // Púrpura: Oportunidad
+  return '#f59e0b'; // Amarillo: No Visitado
+}
+
+function getStatusLabel(item) {
+  if (item.tipo_auditoria === 'DENTRO') return `En Sitio (≤50m)`;
+  if (item.tipo_auditoria === 'FUERA') return `Desvío (${item.distancia_metros}m)`;
+  if (item.tipo_auditoria === 'OPORTUNIDAD') return 'Oportunidad';
+  return 'No Visitado';
 }
 
 function applyFilters() {
@@ -329,45 +412,38 @@ function applyFilters() {
     {
       preserveState: true,
       preserveScroll: true,
-      only: ['visitas', 'no_visitados', 'metrics', 'selected_route', 'selected_date', 'selected_auditoria'],
+      only: ['items', 'metrics', 'selected_route', 'selected_date', 'selected_auditoria'],
     }
   );
 }
 
-function openModal(v) {
-  modalVisita.value = v;
+function selectRow(item) {
+  selectedItem.value = item;
+}
+
+function openModal(item) {
+  modalItem.value = item;
 }
 
 function renderMap() {
   if (!map || !mapLayers) return;
 
   mapLayers.clearLayers();
-  visitaMarkersMap.clear();
-  noVisitadoMarkersMap.clear();
+  markersMap.clear();
 
   const bounds = [];
 
-  // 1. Renderizar Visitas Reales
-  props.visitas.forEach((v) => {
-    const lat = v.visita_lat;
-    const lon = v.visita_lon;
+  props.items.forEach((item) => {
+    const lat = item.visitado ? item.visita_lat : item.official_lat;
+    const lon = item.visitado ? item.visita_lon : item.official_lon;
+
     if (!lat || !lon) return;
 
     bounds.push([lat, lon]);
 
-    let markerColor = '#059669'; // Verde: En Rango (<= 50m)
-    let badgeText = `${v.distancia_metros}m En Rango`;
-
-    if (v.is_opportunity) {
-      markerColor = '#9333ea'; // Púrpura: Oportunidad
-      badgeText = 'Cliente Oportunidad';
-    } else if (!v.en_rango) {
-      markerColor = '#dc2626'; // Rojo: Desvío (> 50m)
-      badgeText = `${v.distancia_metros}m Desvío`;
-    }
-
+    const markerColor = getItemColor(item);
     const marker = L.circleMarker([lat, lon], {
-      radius: 6.5,
+      radius: item.visitado ? 6.5 : 5,
       fillColor: markerColor,
       color: '#ffffff',
       weight: 1.5,
@@ -376,26 +452,31 @@ function renderMap() {
 
     marker.bindPopup(`
       <div class="font-sans text-xs space-y-1">
-        <div class="font-bold text-slate-900">${v.client_name}</div>
-        <div class="text-[10px] font-mono text-slate-500">${v.visited_at} | Ruta: ${v.route}</div>
+        <div class="font-bold text-slate-900">${item.client_name}</div>
+        <div class="text-[10px] font-mono text-slate-500">
+          ${item.visited_at ? item.visited_at : 'PENDIENTE'} | Ruta: ${item.route}
+        </div>
         <div class="pt-1">
           <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style="background-color: ${markerColor}">
-            ${badgeText}
+            ${getStatusLabel(item)}
           </span>
         </div>
-        ${v.comments ? `<div class="italic text-slate-600 text-[11px] pt-1">"${v.comments}"</div>` : ''}
+        ${item.distancia_metros !== null ? `<div class="text-[11px] text-slate-700">Distancia: <strong>${item.distancia_metros} m</strong></div>` : ''}
       </div>
     `);
 
+    marker.on('click', () => {
+      selectedItem.value = item;
+    });
+
     mapLayers.addLayer(marker);
-    visitaMarkersMap.set(v.id, marker);
+    markersMap.set(item.id, marker);
 
-    // Si tiene desvío y existe coordenada oficial, trazar línea entre posición oficial y foto
-    if (!v.is_opportunity && !v.en_rango && v.official_lat && v.official_lon) {
-      bounds.push([v.official_lat, v.official_lon]);
+    // Si tiene desvío, trazar la línea entre posición de la foto y posición oficial
+    if (item.tipo_auditoria === 'FUERA' && item.official_lat && item.official_lon) {
+      bounds.push([item.official_lat, item.official_lon]);
 
-      // Marcador de catastro oficial
-      const officialMarker = L.circleMarker([v.official_lat, v.official_lon], {
+      const officialMarker = L.circleMarker([item.official_lat, item.official_lon], {
         radius: 4.5,
         fillColor: '#64748b',
         color: '#ffffff',
@@ -404,14 +485,13 @@ function renderMap() {
       }).bindPopup(`
         <div class="font-sans text-xs">
           <strong>Ubicación Oficial Catastro</strong><br/>
-          <span>${v.client_name}</span>
+          <span>${item.client_name}</span>
         </div>
       `);
       mapLayers.addLayer(officialMarker);
 
-      // Línea punteada de desvío
-      const dashLine = L.polyline([[v.official_lat, v.official_lon], [lat, lon]], {
-        color: '#dc2626',
+      const dashLine = L.polyline([[item.official_lat, item.official_lon], [item.visita_lat, item.visita_lon]], {
+        color: '#ef4444',
         weight: 2,
         dashArray: '4, 6',
         opacity: 0.7,
@@ -420,65 +500,33 @@ function renderMap() {
     }
   });
 
-  // 2. Renderizar Clientes No Visitados (Amarillo / Gris)
-  props.no_visitados.forEach((c) => {
-    if (!c.latitude || !c.longitude) return;
-    bounds.push([c.latitude, c.longitude]);
-
-    const marker = L.circleMarker([c.latitude, c.longitude], {
-      radius: 5,
-      fillColor: '#f59e0b',
-      color: '#ffffff',
-      weight: 1.2,
-      fillOpacity: 0.85,
-    }).bindPopup(`
-      <div class="font-sans text-xs space-y-1">
-        <div class="font-bold text-amber-700">NO VISITADO</div>
-        <div class="font-bold text-slate-900">#${c.client_id} - ${c.client_name}</div>
-        <div class="text-slate-500">${c.address || 'Sin dirección'}</div>
-        <div class="text-[10px] text-slate-400">Ruta: ${c.route}</div>
-      </div>
-    `);
-
-    mapLayers.addLayer(marker);
-    noVisitadoMarkersMap.set(c.client_id, marker);
-  });
-
   if (bounds.length > 0) {
     map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 });
   }
 }
 
-function focusVisita(v) {
-  if (!map || !v.visita_lat || !v.visita_lon) return;
-  map.setView([v.visita_lat, v.visita_lon], 17, { animate: true });
-  const marker = visitaMarkersMap.get(v.id);
-  if (marker) marker.openPopup();
-}
+function focusItem(item) {
+  selectedItem.value = item;
+  const lat = item.visitado ? item.visita_lat : item.official_lat;
+  const lon = item.visitado ? item.visita_lon : item.official_lon;
 
-function focusNoVisitado(c) {
-  if (!map || !c.latitude || !c.longitude) return;
-  map.setView([c.latitude, c.longitude], 17, { animate: true });
-  const marker = noVisitadoMarkersMap.get(c.client_id);
+  if (!map || !lat || !lon) return;
+
+  map.setView([lat, lon], 17, { animate: true });
+  const marker = markersMap.get(item.id);
   if (marker) marker.openPopup();
 }
 
 watch(
-  () => [props.visitas, props.no_visitados],
+  () => props.items,
   () => {
     renderMap();
+    if (props.items.length > 0 && !selectedItem.value) {
+      selectedItem.value = props.items[0];
+    }
   },
   { deep: true }
 );
-
-watch(currentView, (view) => {
-  if (view === 'mapa' && map) {
-    setTimeout(() => {
-      map.invalidateSize();
-      renderMap();
-    }, 150);
-  }
-});
 
 onMounted(() => {
   map = L.map('map-visitas').setView([-16.5000, -68.1500], 13);
@@ -490,5 +538,9 @@ onMounted(() => {
 
   mapLayers = L.featureGroup().addTo(map);
   renderMap();
+
+  if (props.items.length > 0) {
+    selectedItem.value = props.items[0];
+  }
 });
 </script>
