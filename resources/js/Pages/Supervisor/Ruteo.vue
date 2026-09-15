@@ -1,48 +1,62 @@
 <template>
   <SupervisorLayout>
     <div class="space-y-4">
-      <!-- Filtros Superiores -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <label class="text-xs font-bold text-gray-600 uppercase">Ruta:</label>
-          <select v-model="currentRoute" @change="fetchData" class="border border-gray-300 rounded-lg p-2 text-sm font-semibold">
-            <option v-for="r in rutas" :key="r" :value="r">{{ r }}</option>
-          </select>
+      <!-- Filtros Superiores Adaptativos -->
+      <div class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto">
+          <div class="flex items-center space-x-2">
+            <label class="text-xs font-bold text-gray-600 uppercase min-w-[45px] sm:min-w-0">Ruta:</label>
+            <select
+              v-model="currentRoute"
+              @change="fetchData"
+              class="w-full sm:w-auto border border-gray-300 rounded-lg p-2 text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option v-for="r in rutas" :key="r" :value="r">{{ r }}</option>
+            </select>
+          </div>
 
-          <label class="text-xs font-bold text-gray-600 uppercase ml-2">Día:</label>
-          <select v-model="currentDay" @change="fetchData" class="border border-gray-300 rounded-lg p-2 text-sm font-semibold">
-            <option v-for="d in dias" :key="d" :value="d">{{ d }}</option>
-          </select>
+          <div class="flex items-center space-x-2">
+            <label class="text-xs font-bold text-gray-600 uppercase min-w-[45px] sm:min-w-0">Día:</label>
+            <select
+              v-model="currentDay"
+              @change="fetchData"
+              class="w-full sm:w-auto border border-gray-300 rounded-lg p-2 text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option v-for="d in dias" :key="d" :value="d">{{ d }}</option>
+            </select>
+          </div>
         </div>
 
-        <div class="flex items-center space-x-4 text-xs font-semibold text-gray-600">
-          <div v-if="currentRoute === 'TODAS'" class="text-slate-500 italic">
-            Visualizando fronteras territoriales por color
-          </div>
-          <div>
-            Total Clientes: <span class="font-bold text-gray-900">{{ clientes.length }}</span>
+        <div class="flex items-center justify-between sm:justify-end space-x-3 text-xs font-semibold text-gray-600 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+          <span v-if="currentRoute === 'TODAS'" class="text-slate-500 italic text-[11px] sm:text-xs">
+            Fronteras territoriales activas
+          </span>
+          <div class="bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+            Clientes: <span class="font-bold text-gray-900">{{ clientes.length }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Mapa y Lista de Clientes -->
+      <!-- Contenedor Principal: Mapa y Cartera de Clientes -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-          <div id="map-ruteo" class="h-[650px] w-full rounded-lg"></div>
+        <!-- Mapa -->
+        <div class="lg:col-span-2 bg-white p-2 sm:p-3 rounded-xl shadow-sm border border-gray-100">
+          <div id="map-ruteo" class="h-[380px] sm:h-[500px] lg:h-[650px] w-full rounded-lg"></div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[670px]">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-sm font-bold text-gray-800 uppercase">Cartera de Clientes</h3>
+        <!-- Cartera de Clientes Lateral -->
+        <div class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[480px] sm:h-[550px] lg:h-[670px]">
+          <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+            <h3 class="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wide">Cartera de Clientes</h3>
             <span class="text-xs text-gray-400 font-mono">({{ clientes.length }})</span>
           </div>
 
-          <div class="flex-1 overflow-y-auto space-y-2 pr-2">
+          <div class="flex-1 overflow-y-auto space-y-2 pr-1">
             <div
               v-for="c in clientes"
               :key="c.id || c.client_id"
-              class="p-3 border rounded-lg hover:border-amber-500 transition cursor-pointer"
-              :class="c.status === 'Activo' ? 'border-gray-200 bg-white' : 'border-red-200 bg-red-50'"
+              class="p-2.5 sm:p-3 border rounded-lg hover:border-amber-500 transition cursor-pointer"
+              :class="c.status === 'Activo' ? 'border-gray-200 bg-white' : 'border-red-200 bg-red-50/50'"
               @click="focusClient(c)"
             >
               <div class="flex justify-between items-start">
@@ -50,29 +64,29 @@
                 <div class="flex items-center space-x-1.5">
                   <span
                     v-if="currentRoute === 'TODAS'"
-                    class="text-[10px] px-1.5 py-0.5 rounded font-bold text-white"
+                    class="text-[10px] px-1.5 py-0.5 rounded font-bold text-white shadow-xs"
                     :style="{ backgroundColor: getRouteColor(c.route) }"
                   >
                     {{ c.route }}
                   </span>
                   <span
-                    class="text-xs px-2 py-0.5 rounded font-bold"
+                    class="text-[11px] px-2 py-0.5 rounded font-bold"
                     :class="c.status === 'Activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
                   >
                     {{ c.status }}
                   </span>
                 </div>
               </div>
-              <p class="font-bold text-sm text-gray-900 mt-1">{{ c.client_name }}</p>
-              <p class="text-xs text-gray-500 mt-0.5">{{ c.address || 'Sin dirección registrada' }}</p>
-              <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
-                <span>{{ c.reference ? 'Ref: ' + c.reference : '' }}</span>
-                <span class="font-semibold text-slate-600">Día: {{ c.day }}</span>
+              <p class="font-bold text-xs sm:text-sm text-gray-900 mt-1 line-clamp-1">{{ c.client_name }}</p>
+              <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5 line-clamp-2">{{ c.address || 'Sin dirección registrada' }}</p>
+              <div class="flex justify-between items-center mt-1 text-[10px] sm:text-[11px] text-gray-400 pt-1 border-t border-gray-50">
+                <span class="truncate max-w-[140px] sm:max-w-[200px]">{{ c.reference ? 'Ref: ' + c.reference : '' }}</span>
+                <span class="font-semibold text-slate-600 shrink-0">Día: {{ c.day }}</span>
               </div>
             </div>
 
             <div v-if="clientes.length === 0" class="text-center text-gray-400 py-16 text-xs">
-              No hay clientes asignados para este criterio de búsqueda.
+              No hay clientes asignados para este criterio.
             </div>
           </div>
         </div>
@@ -102,7 +116,6 @@ let map = null;
 let markersLayer = null;
 const clientMarkersMap = new Map();
 
-// Paleta cromática fija para distinguir fronteras de rutas
 const ROUTE_PALETTE = [
   '#2563eb', '#ea580c', '#16a34a', '#9333ea', '#0891b2',
   '#dc2626', '#d97706', '#4f46e5', '#059669', '#be123c',
@@ -162,7 +175,7 @@ function renderMarkers() {
     });
 
     marker.bindPopup(`
-      <div class="font-sans text-xs space-y-1">
+      <div class="font-sans text-xs space-y-1 max-w-[200px]">
         <div class="font-bold text-slate-800">#${c.client_id} - ${c.client_name}</div>
         <div class="text-slate-600">${c.address || 'Sin dirección'}</div>
         <div class="text-[11px] text-slate-500">
@@ -181,7 +194,7 @@ function renderMarkers() {
   });
 
   if (bounds.length > 0) {
-    map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 });
+    map.fitBounds(bounds, { padding: [25, 25], maxZoom: 16 });
   }
 }
 
@@ -215,7 +228,6 @@ onMounted(() => {
   }).addTo(map);
 
   markersLayer = L.featureGroup().addTo(map);
-
   renderMarkers();
 });
 </script>

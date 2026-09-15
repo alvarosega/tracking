@@ -1,51 +1,48 @@
 <template>
   <SupervisorLayout>
     <div class="space-y-4">
-      <!-- Filtros Superiores, Controles de Tiempo Real y Métricas -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
-        <div class="flex flex-wrap gap-4 items-center justify-between">
-          <div class="flex flex-wrap items-center gap-3">
-            <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase block mb-1">Vendedor / Ruta:</label>
+      <!-- Filtros Superiores y Controles de Telemetría -->
+      <div class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 space-y-3 sm:space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+            <div class="w-full sm:w-auto">
+              <label class="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase block mb-1">Vendedor / Ruta:</label>
               <select
                 v-model="selectedUser"
                 @change="applyFilter"
-                class="border border-gray-300 rounded-lg p-2 text-sm font-semibold bg-white min-w-[210px] focus:ring-2 focus:ring-amber-500 outline-none"
+                class="w-full border border-gray-300 rounded-lg p-2 text-xs sm:text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
               >
                 <option :value="null">-- Todos los Vendedores --</option>
                 <option v-for="u in vendedores" :key="u.id" :value="u.id">{{ u.username }}</option>
               </select>
             </div>
 
-            <div>
-              <label class="text-[11px] font-bold text-gray-500 uppercase block mb-1">Fecha de Operación:</label>
+            <div class="w-full sm:w-auto">
+              <label class="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase block mb-1">Fecha de Operación:</label>
               <input
                 type="date"
                 v-model="selectedDate"
                 @change="applyFilter"
-                class="border border-gray-300 rounded-lg p-2 text-sm font-semibold bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                class="w-full border border-gray-300 rounded-lg p-1.5 sm:p-2 text-xs sm:text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
             <!-- Controles de Refresco: Switch y Botón Manual -->
-            <div class="flex items-center space-x-3 pt-5">
-              <!-- Switch Modo En Vivo -->
+            <div class="flex items-center space-x-3 pt-1 sm:pt-4 col-span-1 sm:col-span-2 lg:col-span-1">
               <label class="relative inline-flex items-center cursor-pointer select-none">
                 <input type="checkbox" v-model="livePolling" class="sr-only peer" />
-                <div class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                <span class="ml-2.5 text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                <span class="ml-2 text-xs font-bold text-gray-700 flex items-center gap-1.5">
                   <span v-if="livePolling" class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                   En Vivo
                 </span>
               </label>
 
-              <!-- Botón Actualizar (Solo cuando En Vivo está inactivo) -->
               <button
                 v-if="!livePolling"
                 @click="manualRefresh"
                 :disabled="isRefreshing"
                 class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition disabled:opacity-50"
-                title="Sincronizar telemetría actual"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -57,95 +54,95 @@
                 >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span>{{ isRefreshing ? 'Actualizando...' : 'Actualizar' }}</span>
+                <span>{{ isRefreshing ? '...' : 'Actualizar' }}</span>
               </button>
             </div>
           </div>
 
-          <!-- Leyenda de Estados -->
-          <div class="flex flex-wrap gap-3 text-xs font-medium text-gray-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-            <span class="flex items-center space-x-1.5">
-              <span class="w-3 h-3 rounded-full bg-[#16a34a] border border-white shadow-sm"></span>
+          <!-- Leyenda de Estados Móvil/Desktop -->
+          <div class="flex flex-wrap gap-2 text-[10px] sm:text-xs font-medium text-gray-600 bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+            <span class="flex items-center space-x-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
               <span>Legítimo</span>
             </span>
-            <span class="flex items-center space-x-1.5">
-              <span class="w-3 h-3 rounded-full bg-[#ea580c] border border-white shadow-sm"></span>
+            <span class="flex items-center space-x-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#ea580c]"></span>
               <span>Sospechoso</span>
             </span>
-            <span class="flex items-center space-x-1.5">
-              <span class="w-3 h-3 rounded-full bg-[#dc2626] border border-white shadow-sm"></span>
-              <span>Mock GPS</span>
+            <span class="flex items-center space-x-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#dc2626]"></span>
+              <span>Mock</span>
             </span>
-            <span class="flex items-center space-x-1.5">
-              <span class="w-3 h-3 rounded-full bg-[#2563eb] border border-white shadow-sm"></span>
+            <span class="flex items-center space-x-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#2563eb]"></span>
               <span>Detenido</span>
             </span>
           </div>
         </div>
 
-        <!-- Barra de Telemetría Acumulada -->
-        <div v-if="puntos.length > 0" class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2 border-t border-gray-100">
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p class="text-[11px] font-bold text-gray-400 uppercase">Puntos Capturados</p>
-            <p class="text-base font-black text-slate-800">{{ puntos.length }}</p>
+        <!-- Resumen de Telemetría -->
+        <div v-if="puntos.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
+          <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
+            <p class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase">Puntos</p>
+            <p class="text-sm sm:text-base font-black text-slate-800">{{ puntos.length }}</p>
           </div>
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p class="text-[11px] font-bold text-gray-400 uppercase">Distancia Total</p>
-            <p class="text-base font-black text-slate-800">{{ totalDistanceKm }} km</p>
+          <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
+            <p class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase">Distancia</p>
+            <p class="text-sm sm:text-base font-black text-slate-800">{{ totalDistanceKm }} km</p>
           </div>
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p class="text-[11px] font-bold text-gray-400 uppercase">Batería Terminal</p>
-            <p class="text-base font-black" :class="lastBatteryLevel !== null && lastBatteryLevel <= 20 ? 'text-red-600' : 'text-slate-800'">
+          <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
+            <p class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase">Batería</p>
+            <p class="text-sm sm:text-base font-black" :class="lastBatteryLevel !== null && lastBatteryLevel <= 20 ? 'text-red-600' : 'text-slate-800'">
               {{ lastBatteryLevel !== null ? lastBatteryLevel + '%' : 'N/D' }}
             </p>
           </div>
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p class="text-[11px] font-bold text-gray-400 uppercase">Inicio Registro</p>
-            <p class="text-xs font-bold text-slate-700 mt-1">{{ formatTime(puntos[0]?.recorded_at) }}</p>
+          <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
+            <p class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase">Inicio</p>
+            <p class="text-[11px] sm:text-xs font-bold text-slate-700 mt-0.5 truncate">{{ formatTime(puntos[0]?.recorded_at) }}</p>
           </div>
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p class="text-[11px] font-bold text-gray-400 uppercase">Último Reporte</p>
-            <p class="text-xs font-bold text-slate-700 mt-1">{{ formatTime(puntos[puntos.length - 1]?.recorded_at) }}</p>
+          <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100 col-span-2 sm:col-span-1">
+            <p class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase">Último Reporte</p>
+            <p class="text-[11px] sm:text-xs font-bold text-slate-700 mt-0.5 truncate">{{ formatTime(puntos[puntos.length - 1]?.recorded_at) }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Contenedor del Mapa -->
-      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 relative">
-        <div id="map-tracking" class="h-[550px] w-full rounded-lg"></div>
+      <!-- Mapa -->
+      <div class="bg-white p-2 sm:p-3 rounded-xl shadow-sm border border-gray-100 relative">
+        <div id="map-tracking" class="h-[380px] sm:h-[480px] lg:h-[550px] w-full rounded-lg"></div>
         <div
           v-if="puntos.length === 0"
-          class="absolute inset-0 bg-white/80 backdrop-blur-sm z-[500] flex flex-col items-center justify-center rounded-lg"
+          class="absolute inset-0 bg-white/85 backdrop-blur-xs z-[500] flex flex-col items-center justify-center p-4 text-center rounded-lg"
         >
-          <p class="text-sm font-bold text-gray-600">No hay telemetría registrada para este criterio.</p>
-          <p class="text-xs text-gray-400 mt-1">Selecciona otra fecha o aguarda la sincronización de los dispositivos.</p>
+          <p class="text-xs sm:text-sm font-bold text-gray-600">No hay telemetría registrada para este criterio.</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Verifica la fecha seleccionada o el estado del GPS en el dispositivo móvil.</p>
         </div>
       </div>
 
-      <!-- Tabla Resumen de Puntos de Auditoría -->
+      <!-- Tabla Resumen con scroll horizontal en móviles -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+        <div class="p-3 sm:p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
           <div>
-            <h3 class="text-sm font-bold text-slate-800 uppercase">Registro Detallado de Telemetría</h3>
-            <p class="text-xs text-slate-400 mt-0.5">Listado cronológico en orden descendente</p>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-800 uppercase">Registro Detallado</h3>
+            <p class="text-[10px] sm:text-xs text-slate-400">Orden cronológico descendente</p>
           </div>
-          <span class="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border border-gray-200 text-slate-600">
-            {{ puntos.length }} registros
+          <span class="text-[10px] sm:text-xs font-mono font-bold bg-white px-2 py-0.5 rounded border border-gray-200 text-slate-600">
+            {{ puntos.length }} pts
           </span>
         </div>
 
-        <div class="max-h-80 overflow-y-auto">
-          <table class="w-full text-left border-collapse text-xs">
+        <div class="overflow-x-auto max-h-72 sm:max-h-80">
+          <table class="w-full text-left border-collapse text-[11px] sm:text-xs min-w-[550px]">
             <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th class="py-2.5 px-4">Hora</th>
-                <th class="py-2.5 px-4">Ruta / Vendedor</th>
-                <th class="py-2.5 px-4">Estado / Auditoría</th>
-                <th class="py-2.5 px-4 text-right">Velocidad</th>
-                <th class="py-2.5 px-4 text-right">Varianza (σ²)</th>
-                <th class="py-2.5 px-4 text-right">Pasos</th>
-                <th class="py-2.5 px-4 text-center">Batería</th>
-                <th class="py-2.5 px-4 text-center">Acción</th>
+                <th class="py-2 px-3">Hora</th>
+                <th class="py-2 px-3">Ruta</th>
+                <th class="py-2 px-3">Estado</th>
+                <th class="py-2 px-3 text-right">Vel.</th>
+                <th class="py-2 px-3 text-right">Varianza</th>
+                <th class="py-2 px-3 text-right">Pasos</th>
+                <th class="py-2 px-3 text-center">Batería</th>
+                <th class="py-2 px-3 text-center">Acción</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -155,30 +152,30 @@
                 class="hover:bg-amber-50/40 transition cursor-pointer"
                 @click="centerOnPoint(p)"
               >
-                <td class="py-2 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">
+                <td class="py-1.5 px-3 font-mono font-bold text-slate-700 whitespace-nowrap">
                   {{ formatTime(p.recorded_at) }}
                 </td>
-                <td class="py-2 px-4 font-semibold text-slate-800">
+                <td class="py-1.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
                   {{ p.vendedor_ruta }}
                 </td>
-                <td class="py-2 px-4">
+                <td class="py-1.5 px-3 whitespace-nowrap">
                   <span
-                    class="px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap inline-block"
+                    class="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-white inline-block"
                     :style="{ backgroundColor: getPointColor(p) }"
                   >
                     {{ getPointStatus(p) }}
                   </span>
                 </td>
-                <td class="py-2 px-4 text-right font-mono text-slate-700">
+                <td class="py-1.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap">
                   {{ (p.speed * 3.6).toFixed(1) }} km/h
                 </td>
-                <td class="py-2 px-4 text-right font-mono text-slate-600">
+                <td class="py-1.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
                   {{ parseFloat(p.motion_variance || 0).toFixed(4) }}
                 </td>
-                <td class="py-2 px-4 text-right font-mono text-slate-600">
+                <td class="py-1.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
                   {{ p.step_count || 0 }}
                 </td>
-                <td class="py-2 px-4 text-center">
+                <td class="py-1.5 px-3 text-center whitespace-nowrap">
                   <span
                     class="font-mono font-bold"
                     :class="p.battery_level !== null && p.battery_level <= 20 ? 'text-red-600' : 'text-slate-700'"
@@ -186,7 +183,7 @@
                     {{ p.battery_level !== null ? p.battery_level + '%' : '-' }}
                   </span>
                 </td>
-                <td class="py-2 px-4 text-center">
+                <td class="py-1.5 px-3 text-center whitespace-nowrap">
                   <button
                     class="text-amber-600 hover:text-amber-700 font-bold text-[11px] underline"
                     @click.stop="centerOnPoint(p)"
@@ -231,10 +228,7 @@ let trackingLayers = null;
 let pollTimer = null;
 const pointMarkersMap = new Map();
 
-// Invertir lista para la tabla sin mutar el prop original
-const reversedPuntos = computed(() => {
-  return [...props.puntos].reverse();
-});
+const reversedPuntos = computed(() => [...props.puntos].reverse());
 
 const totalDistanceKm = computed(() => {
   if (!props.puntos || props.puntos.length < 2) return '0.00';
@@ -286,17 +280,17 @@ function formatTime(dtString) {
 }
 
 function getPointColor(p) {
-  if (p.is_mock) return '#dc2626'; // Rojo = Mock
+  if (p.is_mock) return '#dc2626';
   if (p.is_moving) {
-    return p.motion_variance >= 0.60 ? '#16a34a' : '#ea580c'; // Verde = Legítimo, Naranja = Sospechoso
+    return p.motion_variance >= 0.60 ? '#16a34a' : '#ea580c';
   }
-  return '#2563eb'; // Azul = Detenido
+  return '#2563eb';
 }
 
 function getPointStatus(p) {
-  if (p.is_mock) return 'MOCK GPS DETECTADO';
+  if (p.is_mock) return 'MOCK';
   if (p.is_moving) {
-    return p.motion_variance >= 0.60 ? 'En Movimiento (Legítimo)' : 'Sospechoso (Baja Varianza)';
+    return p.motion_variance >= 0.60 ? 'Legítimo' : 'Sospechoso';
   }
   return 'Detenido';
 }
@@ -350,27 +344,24 @@ function renderTracking() {
     const isLast = index === props.puntos.length - 1;
 
     const marker = L.circleMarker([lat, lng], {
-      radius: isFirst || isLast ? 8 : 5,
+      radius: isFirst || isLast ? 7 : 4.5,
       fillColor: isFirst ? '#059669' : (isLast ? '#2563eb' : markerColor),
       color: '#ffffff',
-      weight: isFirst || isLast ? 2.5 : 1,
+      weight: isFirst || isLast ? 2 : 1,
       fillOpacity: 0.9,
     });
 
     marker.bindPopup(`
-      <div class="font-sans text-xs space-y-1">
-        <div class="font-bold text-slate-800 text-sm">${p.vendedor_ruta}</div>
-        <div class="text-[11px] font-mono text-slate-500">${p.recorded_at}</div>
-        <div class="pt-1">
-          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style="background-color: ${markerColor}">
+      <div class="font-sans text-xs space-y-1 max-w-[190px]">
+        <div class="font-bold text-slate-800">${p.vendedor_ruta}</div>
+        <div class="text-[10px] font-mono text-slate-500">${p.recorded_at}</div>
+        <div class="pt-0.5">
+          <span class="px-1 py-0.5 rounded text-[9px] font-bold text-white" style="background-color: ${markerColor}">
             ${statusLabel}
           </span>
         </div>
-        <div class="text-[11px] text-slate-600 pt-1 leading-relaxed">
-          <strong>Velocidad:</strong> ${(p.speed * 3.6).toFixed(1)} km/h<br/>
-          <strong>Varianza Inercial:</strong> ${parseFloat(p.motion_variance || 0).toFixed(4)}<br/>
-          <strong>Pasos:</strong> ${p.step_count || 0}<br/>
-          <strong>Batería:</strong> ${p.battery_level !== null ? p.battery_level + '%' : 'N/D'}
+        <div class="text-[10px] text-slate-600 pt-0.5">
+          Vel: ${(p.speed * 3.6).toFixed(1)} km/h | Bat: ${p.battery_level !== null ? p.battery_level + '%' : 'N/D'}
         </div>
       </div>
     `);
@@ -378,7 +369,6 @@ function renderTracking() {
     trackingLayers.addLayer(marker);
     pointMarkersMap.set(p.id, marker);
 
-    // Flechas direccionales cada 3 puntos si hay más de 1 punto y vendedor seleccionado
     if (selectedUser.value && index > 0 && index % 3 === 0) {
       const prevLat = parseFloat(props.puntos[index - 1].latitude);
       const prevLng = parseFloat(props.puntos[index - 1].longitude);
@@ -386,9 +376,9 @@ function renderTracking() {
 
       const arrowIcon = L.divIcon({
         className: 'tracking-arrow',
-        html: `<div style="transform: rotate(${bearing}deg); width: 12px; height: 12px; display: flex; align-items: center; justify-content: center; color: #0284c7; font-size: 10px; font-weight: bold;">▲</div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        html: `<div style="transform: rotate(${bearing}deg); width: 10px; height: 10px; display: flex; align-items: center; justify-content: center; color: #0284c7; font-size: 9px; font-weight: bold;">▲</div>`,
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
       });
 
       trackingLayers.addLayer(L.marker([lat, lng], { icon: arrowIcon }));
@@ -398,12 +388,12 @@ function renderTracking() {
   if (coords.length > 1) {
     const polyline = L.polyline(coords, {
       color: selectedUser.value ? '#0284c7' : '#94a3b8',
-      weight: selectedUser.value ? 4 : 2,
+      weight: selectedUser.value ? 3.5 : 2,
       opacity: 0.8,
       lineJoin: 'round',
     });
     trackingLayers.addLayer(polyline);
-    map.fitBounds(polyline.getBounds(), { padding: [40, 40], maxZoom: 16 });
+    map.fitBounds(polyline.getBounds(), { padding: [25, 25], maxZoom: 16 });
   } else if (coords.length === 1) {
     map.setView(coords[0], 15);
   }
@@ -416,9 +406,7 @@ function centerOnPoint(point) {
 
   map.setView([lat, lng], 17, { animate: true });
   const marker = pointMarkersMap.get(point.id);
-  if (marker) {
-    marker.openPopup();
-  }
+  if (marker) marker.openPopup();
 }
 
 watch(
@@ -429,7 +417,6 @@ watch(
   { deep: true }
 );
 
-// Switch En Vivo: Sondeo cada 15 segundos
 watch(livePolling, (enabled) => {
   if (enabled) {
     pollTimer = setInterval(() => {
