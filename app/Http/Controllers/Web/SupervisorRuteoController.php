@@ -19,28 +19,55 @@ class SupervisorRuteoController extends Controller
             4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'
         ];
         $today = Carbon::now('America/La_Paz');
-        $diaActual = $diasMap[$today->dayOfWeekIso];
+        $diaActual = $diasMap[$today->dayOfWeekIso] ?? 'Lunes';
 
-        // Rutas disponibles registradas en el sistema
-        $rutas = User::whereHas('role', fn($q) => $q->where('name', 'vendedor'))
+        // Rutas existentes en el sistema (usuarios vendedores)
+        $rutasBase = User::whereHas('role', fn($q) => $q->where('name', 'vendedor'))
             ->pluck('username')
             ->sort()
-            ->values();
+            ->values()
+            ->all();
 
-        $selectedRoute = $request->input('route', $rutas->first() ?? 'TDB 6A');
+        // Opciones de rutas incluyendo 'TODAS'
+        $rutas = array_merge(['TODAS'], $rutasBase);
+
+        $selectedRoute = $request->input('route', 'TODAS');
         $selectedDay = $request->input('day', $diaActual);
 
-        $query = PlanRuteo::query()->where('route', $selectedRoute);
+        $query = PlanRuteo::query()->select([
+            'id',
+            'client_id',
+            'client_name',
+            'address',
+            'reference',
+            'latitude',
+            'longitude',
+            'status',
+            'route',
+            'day',
+        ]);
 
+        // Filtro de Ruta
+        if ($selectedRoute !== 'TODAS') {
+            $query->where('route', $selectedRoute);
+        }
+
+        // Filtro de Día
         if ($selectedDay !== 'TODOS') {
             $query->where(function ($q) use ($selectedDay) {
-                if ($selectedDay === 'Miércoles') $q->whereIn('day', ['Miércoles', 'Miercoles']);
-                elseif ($selectedDay === 'Sábado') $q->whereIn('day', ['Sábado', 'Sabado']);
-                else $q->where('day', $selectedDay);
+                if ($selectedDay === 'Miércoles') {
+                    $q->whereIn('day', ['Miércoles', 'Miercoles']);
+                } elseif ($selectedDay === 'Sábado') {
+                    $q->whereIn('day', ['Sábado', 'Sabado']);
+                } else {
+                    $q->where('day', $selectedDay);
+                }
             });
         }
 
-        $clientes = $query->orderBy('client_id', 'asc')->get();
+        $clientes = $query->orderBy('route', 'asc')
+            ->orderBy('client_id', 'asc')
+            ->get();
 
         return Inertia::render('Supervisor/Ruteo', [
             'rutas' => $rutas,
