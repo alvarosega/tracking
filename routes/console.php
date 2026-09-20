@@ -9,4 +9,3 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Registrar la tarea programada
-Schedule::command('workday:close-expired')->everyMinute();
