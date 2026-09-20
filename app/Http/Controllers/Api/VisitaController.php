@@ -33,7 +33,8 @@ class VisitaController extends Controller
                 Rule::requiredIf(!$isOpportunity),
                 'nullable',
                 'integer',
-                'exists:supervisor.pan_ruteo,cliente_id',
+                // 'supervisor.pan_ruteo' indica la conexión 'supervisor' y la tabla 'pan_ruteo'
+                Rule::exists('supervisor.pan_ruteo', 'cliente_id'),
             ],
             'opportunity_client_name' => [
                 Rule::requiredIf($isOpportunity),
