@@ -16,14 +16,13 @@ class WorkdayService
         $dayOfWeek = $now->dayOfWeekIso; // 1: Lunes ... 6: Sábado, 7: Domingo
         $timeStr = $now->format('H:i:s');
 
-        // Si se permite excepción explícita (ej. jornada dominical de pruebas abierta por supervisor)
-        if ($allowException) {
+        // Excepción de desarrollo y pruebas: permitir domingos
+        if ($dayOfWeek === 7) {
             return true;
         }
 
-        // Domingo no laborable por defecto
-        if ($dayOfWeek === 7) {
-            return false;
+        if ($allowException) {
+            return true;
         }
 
         // Sábado: 08:00 a 12:00
