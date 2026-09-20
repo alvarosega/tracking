@@ -16,7 +16,7 @@ class WorkdayService
         $dayOfWeek = $now->dayOfWeekIso; // 1: Lunes ... 6: Sábado, 7: Domingo
         $timeStr = $now->format('H:i:s');
 
-        // Excepción de desarrollo y pruebas: permitir domingos
+        // Excepción de pruebas: permitir domingos
         if ($dayOfWeek === 7) {
             return true;
         }
