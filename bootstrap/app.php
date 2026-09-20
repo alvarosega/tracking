@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckActiveWorkday;
 use App\Http\Middleware\EnsureUserIsSupervisor;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'supervisor'     => EnsureUserIsSupervisor::class,
             'workday.active' => CheckActiveWorkday::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('workday:close-expired')->everyMinute();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

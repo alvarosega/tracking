@@ -8,5 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Ejecución periódica para cerrar jornadas fuera del horario legal
+// Registrar la tarea programada
 Schedule::command('workday:close-expired')->everyMinute();
