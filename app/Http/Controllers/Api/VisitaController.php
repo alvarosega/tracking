@@ -33,10 +33,8 @@ class VisitaController extends Controller
                 Rule::requiredIf(!$isOpportunity),
                 'nullable',
                 'integer',
-                // Debe existir en plan_ruteo y pertenecer a la ruta asignada al vendedor
-                Rule::exists('plan_ruteo', 'client_id')->where(function ($query) use ($userRoute) {
-                    $query->where('route', $userRoute);
-                }),
+                // Valida contra la tabla pan_ruteo en la columna 'id' (el punto del mapa)
+                Rule::exists('pan_ruteo', 'id'),
             ],
             'opportunity_client_name' => [
                 Rule::requiredIf($isOpportunity),
