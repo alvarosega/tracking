@@ -20,10 +20,10 @@ class OportunidadesController extends Controller
             ], 401);
         }
 
-        // 1. Ruta del usuario autenticado (ej: "TDB 10A")
+        // 1. Ruta del usuario autenticado (ej: "TDB 99")
         $rutaUsuario = trim($user->username);
 
-        // 2. Determinar día actual en Bolivia (UTC-4) o permitir override por query param
+        // 2. Determinar día actual en Bolivia (UTC-4) o query param opcional
         $diasMap = [
             1 => 'LUNES',
             2 => 'MARTES',
@@ -41,16 +41,15 @@ class OportunidadesController extends Controller
             ? mb_strtoupper(trim($request->query('dia')), 'UTF-8') 
             : $diaDefault;
 
-        // Normalizar acentos en caso de recibir 'MIÉRCOLES' o 'SÁBADO'
         $diaSolicitado = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú'], ['A', 'E', 'I', 'O', 'U'], $diaSolicitado);
 
-        // 3. Obtener el polígono activo para la ruta y día en dim_fronteras_dias
+        // 3. Validar frontera activa
         $frontera = DB::connection('supervisor')
             ->table('dim_fronteras_dias')
             ->where('ruta', $rutaUsuario)
             ->where('dia', $diaSolicitado)
             ->where('estado', 'ACTIVO')
-            ->selectRaw('id, ruta, dia, ST_AsText(poligono) as wkt_poligono')
+            ->select('id')
             ->first();
 
         if (!$frontera) {
@@ -62,7 +61,7 @@ class OportunidadesController extends Controller
             ], 200);
         }
 
-        // 4. Cruce espacial: puntos dentro del polígono (orden: Longitud X, Latitud Y, SRID 4326)
+        // 4. Consulta espacial compatible con MySQL/MariaDB (ST_GeomFromText con SRID 4326)
         $oportunidades = DB::connection('supervisor')
             ->table('fact_oportunidades as o')
             ->join('dim_fronteras_dias as f', function ($join) use ($rutaUsuario, $diaSolicitado) {
@@ -70,7 +69,7 @@ class OportunidadesController extends Controller
                      ->where('f.dia', '=', $diaSolicitado)
                      ->where('f.estado', '=', 'ACTIVO');
             })
-            ->whereRaw('ST_Contains(f.poligono, ST_SRID(POINT(o.longitud, o.latitud), 4326))')
+            ->whereRaw("ST_Contains(f.poligono, ST_GeomFromText(CONCAT('POINT(', o.longitud, ' ', o.latitud, ')'), 4326))")
             ->select([
                 'o.cliid as client_id',
                 'o.clinom as client_name',
