@@ -62,6 +62,7 @@ class OportunidadesController extends Controller
         }
 
         // 4. Consulta espacial compatible con MySQL/MariaDB (ST_GeomFromText con SRID 4326)
+// Consulta espacial ligera: solo geometría
         $oportunidades = DB::connection('supervisor')
             ->table('fact_oportunidades as o')
             ->join('dim_fronteras_dias as f', function ($join) use ($rutaUsuario, $diaSolicitado) {
@@ -72,17 +73,9 @@ class OportunidadesController extends Controller
             ->whereRaw("ST_Contains(f.poligono, ST_GeomFromText(CONCAT('POINT(', o.longitud, ' ', o.latitud, ')'), 4326))")
             ->select([
                 'o.cliid as client_id',
-                'o.clinom as client_name',
-                'o.nombre_fantasia',
-                'o.comprador',
-                'o.clidom as address',
-                'o.telefono as phone',
-                'o.categoria as category',
-                'o.ramo as sector',
                 'o.latitud as latitude',
                 'o.longitud as longitude',
             ])
-            ->orderBy('o.clinom', 'asc')
             ->get();
 
         return response()->json([

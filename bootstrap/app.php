@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CheckActiveWorkday;
 use App\Http\Middleware\EnsureUserIsSupervisor;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -20,7 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'supervisor' => EnsureUserIsSupervisor::class,
+            'supervisor'     => EnsureUserIsSupervisor::class,
+            'workday.active' => CheckActiveWorkday::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
