@@ -33,8 +33,8 @@ class VisitaController extends Controller
                 Rule::requiredIf(!$isOpportunity),
                 'nullable',
                 'integer',
-                // Valida contra la tabla pan_ruteo en la columna 'id' (el punto del mapa)
-                Rule::exists('pan_ruteo', 'id'),
+                // Especifica la conexión secundaria 'supervisor', la tabla 'pan_ruteo' y la columna 'cliente_id'
+                Rule::exists('pan_ruteo', 'cliente_id')->connection('supervisor'),
             ],
             'opportunity_client_name' => [
                 Rule::requiredIf($isOpportunity),
