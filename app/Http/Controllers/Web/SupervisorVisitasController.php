@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\PlanRuteo;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -34,33 +33,41 @@ class SupervisorVisitasController extends Controller
         $dateCarbon = Carbon::parse($selectedDate);
         $diaSemana = $diasMap[$dateCarbon->dayOfWeekIso] ?? 'Lunes';
 
-        // 1. Clientes Teóricos del Plan de Ruteo para ese día
-        $planQuery = PlanRuteo::query()->select([
-            'client_id',
-            'client_name',
-            'latitude',
-            'longitude',
-            'address',
-            'reference',
-            'route',
-            'day'
-        ]);
+        // 1. Clientes Teóricos del Plan de Ruteo en la BD supervisor
+        $planQuery = DB::connection('supervisor')->table('pan_ruteo')
+            ->where('estado', 'Activo')
+            ->select([
+                'cliente_id as client_id',
+                DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as client_name"),
+                'latitud as latitude',
+                'longitud as longitude',
+                'direccion as address',
+                'referencia as reference',
+                'ruta as route',
+                'dia as day'
+            ]);
 
         if ($selectedRoute) {
-            $planQuery->where('route', $selectedRoute);
+            $planQuery->where('ruta', $selectedRoute);
         }
 
         $planQuery->where(function ($q) use ($diaSemana) {
-            if ($diaSemana === 'Miércoles') $q->whereIn('day', ['Miércoles', 'Miercoles']);
-            elseif ($diaSemana === 'Sábado') $q->whereIn('day', ['Sábado', 'Sabado']);
-            else $q->where('day', $diaSemana);
+            if ($diaSemana === 'Miércoles') {
+                $q->whereIn('dia', ['Miércoles', 'Miercoles'])
+                  ->orWhereIn('dia_norm', ['Miércoles', 'Miercoles', 'MIERCOLES']);
+            } elseif ($diaSemana === 'Sábado') {
+                $q->whereIn('dia', ['Sábado', 'Sabado'])
+                  ->orWhereIn('dia_norm', ['Sábado', 'Sabado', 'SABADO']);
+            } else {
+                $q->where('dia', $diaSemana)
+                  ->orWhere('dia_norm', $diaSemana);
+            }
         });
 
         $clientesPlan = $planQuery->get()->keyBy('client_id');
 
-        // 2. Visitas Reales registradas en esa fecha
+        // 2. Visitas Reales registradas en esa fecha (BD principal)
         $visitasQuery = DB::table('visitas as v')
-            ->leftJoin('plan_ruteo as p', 'v.client_id', '=', 'p.client_id')
             ->join('users as u', 'v.user_id', '=', 'u.id')
             ->whereDate('v.visited_at', $selectedDate)
             ->select([
@@ -78,10 +85,6 @@ class SupervisorVisitasController extends Controller
                 'v.photo_path',
                 'v.comments',
                 'v.visited_at',
-                'p.client_name as official_client_name',
-                'p.latitude as official_lat',
-                'p.longitude as official_lon',
-                'p.address as official_address',
             ])
             ->orderBy('v.visited_at', 'asc');
 
@@ -92,16 +95,24 @@ class SupervisorVisitasController extends Controller
         $visitasReales = $visitasQuery->get();
         $visitadosClientIds = [];
 
-        // 3. Procesar las visitas ejecutadas
+        // 3. Procesar y conciliar visitas con las coordenadas teóricas de pan_ruteo
         $tablaConciliacion = [];
 
         foreach ($visitasReales as $v) {
             $distanciaMetros = null;
+            $cpOficial = (!$v->is_opportunity && $v->client_id && isset($clientesPlan[$v->client_id]))
+                ? $clientesPlan[$v->client_id]
+                : null;
 
-            if (!$v->is_opportunity && $v->official_lat && $v->official_lon) {
+            $officialLat = $cpOficial ? (float)$cpOficial->latitude : null;
+            $officialLon = $cpOficial ? (float)$cpOficial->longitude : null;
+            $officialName = $cpOficial ? $cpOficial->client_name : null;
+            $officialAddress = $cpOficial ? $cpOficial->address : null;
+
+            if (!$v->is_opportunity && $officialLat && $officialLon) {
                 $distanciaMetros = round($this->calculateHaversine(
                     (float)$v->visita_lat, (float)$v->visita_lon,
-                    (float)$v->official_lat, (float)$v->official_lon
+                    $officialLat, $officialLon
                 ), 1);
             }
 
@@ -122,17 +133,17 @@ class SupervisorVisitasController extends Controller
                 'id' => 'visita_' . $v->id,
                 'visita_id' => $v->id,
                 'client_id' => $v->client_id,
-                'client_name' => $v->is_opportunity ? $v->opportunity_client_name : $v->official_client_name,
+                'client_name' => $v->is_opportunity ? $v->opportunity_client_name : ($officialName ?: 'Cliente #' . $v->client_id),
                 'route' => $v->route,
                 'vendedor' => $v->vendedor,
-                'address' => $v->official_address,
+                'address' => $officialAddress,
                 'visitado' => true,
                 'is_opportunity' => (bool)$v->is_opportunity,
                 'visited_at' => $v->visited_at,
                 'visita_lat' => (float)$v->visita_lat,
                 'visita_lon' => (float)$v->visita_lon,
-                'official_lat' => $v->official_lat ? (float)$v->official_lat : null,
-                'official_lon' => $v->official_lon ? (float)$v->official_lon : null,
+                'official_lat' => $officialLat,
+                'official_lon' => $officialLon,
                 'accuracy' => (float)$v->accuracy,
                 'photo_url' => $v->photo_path ? Storage::url($v->photo_path) : null,
                 'comments' => $v->comments,
@@ -142,7 +153,7 @@ class SupervisorVisitasController extends Controller
             ];
         }
 
-        // 4. Incorporar los clientes del Plan que NO fueron visitados
+        // 4. Incorporar clientes del Plan que NO fueron visitados
         foreach ($clientesPlan as $clientId => $cp) {
             if (!in_array($clientId, $visitadosClientIds)) {
                 $tablaConciliacion[] = [
@@ -170,7 +181,7 @@ class SupervisorVisitasController extends Controller
             }
         }
 
-        // Métricas
+        // 5. Métricas
         $totalPlan = $clientesPlan->count();
         $totalVisitadosPlan = count(array_unique(array_intersect($visitadosClientIds, $clientesPlan->keys()->toArray())));
         $totalEnRango = collect($tablaConciliacion)->where('tipo_auditoria', 'DENTRO')->count();
@@ -210,7 +221,7 @@ class SupervisorVisitasController extends Controller
         $a = sin($dLat / 2) * sin($dLat / 2) +
              cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
              sin($dLon / 2) * sin($dLon / 2);
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $c = 2 * atan2(sqrt($a), sqrt(1 - a));
         return $earthRadius * $c;
     }
 }
