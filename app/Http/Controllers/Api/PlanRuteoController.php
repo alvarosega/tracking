@@ -20,10 +20,10 @@ class PlanRuteoController extends Controller
             ], 401);
         }
 
-        // 1. Identificar la ruta del usuario autenticado (ej: "TDB 6A")
-        $rutaUsuario = $user->username;
+        // 1. Ruta del usuario autenticado (ej: "TDB 6A" o "TDB 99")
+        $rutaUsuario = trim($user->username);
 
-        // 2. Determinar el día en curso en Bolivia (UTC-4)
+        // 2. Determinar día actual en Bolivia (UTC-4)
         $diasMap = [
             1 => 'Lunes',
             2 => 'Martes',
@@ -37,36 +37,40 @@ class PlanRuteoController extends Controller
         $nowBolivia = Carbon::now('America/La_Paz');
         $diaActual = $diasMap[$nowBolivia->dayOfWeekIso];
 
-        // 3. Filtrar estrictamente por la columna "route", "status" y el "day" actual
+        // 3. Consulta contra la conexión supervisor.pan_ruteo
         $query = PlanRuteo::query()
-            ->where('status', 'Activo')
-            ->where('route', $rutaUsuario);
+            ->where('estado', 'Activo')
+            ->where('ruta', $rutaUsuario);
 
-        // Absorbe discrepancias con o sin tilde que vengan del CSV
+        // Filtrado de día aprovechando 'dia_norm' o 'dia'
         $query->where(function ($q) use ($diaActual) {
             if ($diaActual === 'Miércoles') {
-                $q->where('day', 'Miércoles')->orWhere('day', 'Miercoles');
+                $q->whereIn('dia_norm', ['Miercoles', 'Miércoles'])
+                  ->orWhereIn('dia', ['Miercoles', 'Miércoles']);
             } elseif ($diaActual === 'Sábado') {
-                $q->where('day', 'Sábado')->orWhere('day', 'Sabado');
+                $q->whereIn('dia_norm', ['Sabado', 'Sábado'])
+                  ->orWhereIn('dia', ['Sabado', 'Sábado']);
             } else {
-                $q->where('day', $diaActual);
+                $q->where('dia_norm', $diaActual)
+                  ->orWhere('dia', $diaActual);
             }
         });
 
-        $planRuteo = $query->orderBy('client_id', 'asc')
+        // Mapeo con alias para preservar exactamente el contrato de Android
+        $planRuteo = $query->orderBy('cliente_id', 'asc')
             ->select([
-                'client_id',
-                'client_name',
-                'seller_name',
-                'business_type',
-                'territory',
-                'address',
-                'reference',
-                'latitude',
-                'longitude',
-                'status',
-                'route',
-                'day',
+                'cliente_id as client_id',
+                'cliente as client_name',
+                'vendedor as seller_name',
+                'tipo_negocio as business_type',
+                'territorio as territory',
+                'direccion as address',
+                'referencia as reference',
+                'latitud as latitude',
+                'longitud as longitude',
+                'estado as status',
+                'ruta as route',
+                'dia as day',
             ])
             ->get();
 
