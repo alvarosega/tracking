@@ -17,5 +17,6 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::get('/', [SupervisorIndexController::class, 'index'])->name('index');
     Route::get('/ruteo', [SupervisorRuteoController::class, 'index'])->name('ruteo.index');
     Route::get('/tracking', [SupervisorTrackingController::class, 'index'])->name('tracking.index');
+    Route::post('/tracking/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('tracking.workday.close');
     Route::get('/visitas', [SupervisorVisitasController::class, 'index'])->name('visitas.index');
 });

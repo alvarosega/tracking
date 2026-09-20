@@ -1,6 +1,6 @@
 {
-  "_leaflet-src-6G8p_n41.js": {
-    "file": "assets/leaflet-src-6G8p_n41.js",
+  "_leaflet-src-DIV5LNWe.js": {
+    "file": "assets/leaflet-src-DIV5LNWe.js",
     "name": "leaflet-src",
     "imports": [
       "resources/js/app.js"
@@ -19,7 +19,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BPIvjbL8.css",
+    "file": "assets/app-5xNGZYPJ.css",
     "name": "app",
     "names": [
       "app.css"
@@ -33,7 +33,7 @@
     ]
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-B5_pk2v1.js",
+    "file": "assets/Login-QXTTSXaK.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isDynamicEntry": true,
@@ -42,47 +42,47 @@
     ]
   },
   "resources/js/Pages/Supervisor/Index.vue": {
-    "file": "assets/Index-D-izdg6Q.js",
+    "file": "assets/Index-De9o1RHK.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Index.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_leaflet-src-6G8p_n41.js",
+      "_leaflet-src-DIV5LNWe.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo.vue": {
-    "file": "assets/Ruteo-QcYeqruf.js",
+    "file": "assets/Ruteo-yG0Fwg26.js",
     "name": "Ruteo",
     "src": "resources/js/Pages/Supervisor/Ruteo.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_leaflet-src-6G8p_n41.js",
+      "_leaflet-src-DIV5LNWe.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/Pages/Supervisor/Tracking.vue": {
-    "file": "assets/Tracking-Cm-0FmIf.js",
+    "file": "assets/Tracking-BLSsjFnw.js",
     "name": "Tracking",
     "src": "resources/js/Pages/Supervisor/Tracking.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_leaflet-src-6G8p_n41.js",
+      "_leaflet-src-DIV5LNWe.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/Pages/Supervisor/Visitas.vue": {
-    "file": "assets/Visitas-C97fSpYc.js",
+    "file": "assets/Visitas-B-cF4yZJ.js",
     "name": "Visitas",
     "src": "resources/js/Pages/Supervisor/Visitas.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_leaflet-src-6G8p_n41.js",
+      "_leaflet-src-DIV5LNWe.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-C3H38nwj.js",
+    "file": "assets/app-DxpJEVWF.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

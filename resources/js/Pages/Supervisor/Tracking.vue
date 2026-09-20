@@ -80,6 +80,36 @@
           </div>
         </div>
 
+        <!-- Panel de Control de Jornada Laboral (Solo cuando se selecciona un vendedor) -->
+        <div v-if="selectedUser" class="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-bold text-slate-700">Estado de Jornada:</span>
+            <span
+              class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wide"
+              :class="currentWorkdayClass"
+            >
+              {{ currentWorkdayLabel }}
+            </span>
+            <span v-if="currentWorkday?.started_at" class="text-[11px] text-slate-500 font-medium">
+              (Inicio: {{ formatTime(currentWorkday.started_at) }}
+              <span v-if="currentWorkday.ended_at"> | Fin: {{ formatTime(currentWorkday.ended_at) }}</span>)
+            </span>
+          </div>
+
+          <div v-if="currentWorkday?.status === 'OPEN'">
+            <button
+              @click="confirmCloseWorkday"
+              :disabled="isClosingWorkday"
+              class="w-full sm:w-auto px-3.5 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              <span>{{ isClosingWorkday ? 'Finalizando...' : 'Finalizar Jornada Remotamente' }}</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Resumen de Telemetría -->
         <div v-if="puntos.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
           <div class="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-100">
@@ -115,7 +145,7 @@
           class="absolute inset-0 bg-white/85 backdrop-blur-xs z-[500] flex flex-col items-center justify-center p-4 text-center rounded-lg"
         >
           <p class="text-xs sm:text-sm font-bold text-gray-600">No hay telemetría registrada para este criterio.</p>
-          <p class="text-[11px] text-gray-400 mt-0.5">Verifica la fecha seleccionada o el estado del GPS en el dispositivo móvil.</p>
+          <p class="text-[11px] text-gray-400 mt-0.5">Verifica la fecha seleccionada o el estado de la jornada laboral.</p>
         </div>
       </div>
 
@@ -140,7 +170,6 @@
                 <th class="py-2 px-3">Estado</th>
                 <th class="py-2 px-3 text-right">Vel.</th>
                 <th class="py-2 px-3 text-right">Varianza</th>
-                <th class="py-2 px-3 text-right">Pasos</th>
                 <th class="py-2 px-3 text-center">Batería</th>
                 <th class="py-2 px-3 text-center">Acción</th>
               </tr>
@@ -172,9 +201,6 @@
                 <td class="py-1.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
                   {{ parseFloat(p.motion_variance || 0).toFixed(4) }}
                 </td>
-                <td class="py-1.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
-                  {{ p.step_count || 0 }}
-                </td>
                 <td class="py-1.5 px-3 text-center whitespace-nowrap">
                   <span
                     class="font-mono font-bold"
@@ -193,7 +219,7 @@
                 </td>
               </tr>
               <tr v-if="puntos.length === 0">
-                <td colspan="8" class="py-8 text-center text-gray-400">
+                <td colspan="7" class="py-8 text-center text-gray-400">
                   Sin datos registrados.
                 </td>
               </tr>
@@ -216,12 +242,14 @@ const props = defineProps({
   selected_date: String,
   selected_user_id: [Number, String, null],
   puntos: Array,
+  workdays: Object,
 });
 
 const selectedUser = ref(props.selected_user_id ? Number(props.selected_user_id) : null);
 const selectedDate = ref(props.selected_date);
 const livePolling = ref(false);
 const isRefreshing = ref(false);
+const isClosingWorkday = ref(false);
 
 let map = null;
 let trackingLayers = null;
@@ -229,6 +257,33 @@ let pollTimer = null;
 const pointMarkersMap = new Map();
 
 const reversedPuntos = computed(() => [...props.puntos].reverse());
+
+const currentWorkday = computed(() => {
+  if (!selectedUser.value || !props.workdays) return null;
+  return props.workdays[selectedUser.value] || null;
+});
+
+const currentWorkdayLabel = computed(() => {
+  if (!currentWorkday.value) return 'Sin Iniciar';
+  switch (currentWorkday.value.status) {
+    case 'OPEN': return 'Jornada Activa';
+    case 'CLOSED_SELLER': return 'Cerrada por Vendedor';
+    case 'CLOSED_SUPERVISOR': return 'Cerrada por Supervisor';
+    case 'CLOSED_TIMEOUT': return 'Cerrada por Horario';
+    default: return currentWorkday.value.status;
+  }
+});
+
+const currentWorkdayClass = computed(() => {
+  if (!currentWorkday.value) return 'bg-gray-100 text-gray-600';
+  switch (currentWorkday.value.status) {
+    case 'OPEN': return 'bg-emerald-100 text-emerald-800 border border-emerald-300';
+    case 'CLOSED_SELLER': return 'bg-blue-100 text-blue-800 border border-blue-200';
+    case 'CLOSED_SUPERVISOR': return 'bg-red-100 text-red-800 border border-red-200';
+    case 'CLOSED_TIMEOUT': return 'bg-amber-100 text-amber-800 border border-amber-200';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+});
 
 const totalDistanceKm = computed(() => {
   if (!props.puntos || props.puntos.length < 2) return '0.00';
@@ -305,7 +360,7 @@ function applyFilter() {
     {
       preserveState: true,
       preserveScroll: true,
-      only: ['puntos', 'selected_user_id', 'selected_date'],
+      only: ['puntos', 'selected_user_id', 'selected_date', 'workdays'],
     }
   );
 }
@@ -313,11 +368,28 @@ function applyFilter() {
 function manualRefresh() {
   isRefreshing.value = true;
   router.reload({
-    only: ['puntos'],
+    only: ['puntos', 'workdays'],
     onFinish: () => {
       isRefreshing.value = false;
     },
   });
+}
+
+function confirmCloseWorkday() {
+  if (!selectedUser.value) return;
+  if (confirm('¿Estás seguro de que deseas finalizar remotamente la jornada de este vendedor? El dispositivo móvil detendrá el rastreo GPS inmediatamente.')) {
+    isClosingWorkday.value = true;
+    router.post(
+      route('supervisor.tracking.workday.close', { userId: selectedUser.value }),
+      {},
+      {
+        preserveScroll: true,
+        onFinish: () => {
+          isClosingWorkday.value = false;
+        },
+      }
+    );
+  }
 }
 
 function renderTracking() {
@@ -420,7 +492,7 @@ watch(
 watch(livePolling, (enabled) => {
   if (enabled) {
     pollTimer = setInterval(() => {
-      router.reload({ only: ['puntos'] });
+      router.reload({ only: ['puntos', 'workdays'] });
     }, 15000);
   } else {
     if (pollTimer) clearInterval(pollTimer);
