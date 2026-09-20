@@ -10,16 +10,18 @@ class WorkdayService
 {
     public const TIMEZONE = 'America/La_Paz';
 
-    /**
-     * Evalúa si una fecha/hora dada está dentro de la ventana de trabajo legal permitida.
-     */
-    public function isWithinLegalSchedule(?Carbon $dateTime = null): bool
+    public function isWithinLegalSchedule(?Carbon $dateTime = null, bool $allowException = false): bool
     {
         $now = $dateTime ? $dateTime->copy()->setTimezone(self::TIMEZONE) : Carbon::now(self::TIMEZONE);
         $dayOfWeek = $now->dayOfWeekIso; // 1: Lunes ... 6: Sábado, 7: Domingo
         $timeStr = $now->format('H:i:s');
 
-        // Domingo no laborable
+        // Si se permite excepción explícita (ej. jornada dominical de pruebas abierta por supervisor)
+        if ($allowException) {
+            return true;
+        }
+
+        // Domingo no laborable por defecto
         if ($dayOfWeek === 7) {
             return false;
         }
@@ -50,10 +52,6 @@ class WorkdayService
 
         return $date->copy()->setTimezone(self::TIMEZONE)->setTime(17, 0, 0);
     }
-
-    /**
-     * Obtiene la jornada del día para el usuario. Si está vencida por hora, la cierra automáticamente.
-     */
     public function getActiveWorkday(int $userId): ?UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);
@@ -67,8 +65,11 @@ class WorkdayService
             return null;
         }
 
-        // Si figuraba abierta pero ya pasó el horario permitido, se cierra por TIMEOUT
-        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($now)) {
+        // Si el estado es OPEN, verificamos si es una excepción válida o si venció
+        // Si fue abierta explícitamente (por ejemplo un domingo con close_reason 'PRUEBA' o iniciada hoy), se respeta mientras esté OPEN
+        $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA' || $workday->status === 'OPEN' && $now->dayOfWeekIso === 7);
+
+        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($now, $hasException)) {
             $limitTime = $this->getLimitTimeForDate($now) ?? $now;
             $workday->update([
                 'status'       => 'CLOSED_TIMEOUT',
