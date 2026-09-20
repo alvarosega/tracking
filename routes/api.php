@@ -13,6 +13,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Endpoints protegidos por token Sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Tracking periódico de ubicación
@@ -33,4 +34,5 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- Endpoints para el Panel del Supervisor ---
     Route::get('/supervisor/workdays/today', [WorkdayController::class, 'todayWorkdays']);
     Route::post('/supervisor/workdays/{userId}/close', [WorkdayController::class, 'forceCloseBySupervisor']);
+    Route::post('/tracking/sync', [TrackingController::class, 'sync'])->middleware('workday.active');
 });
