@@ -21,7 +21,7 @@ class WorkdayController extends Controller
 
     /**
      * GET /api/workday/status
-     * Polling ligero que consulta Android para saber si debe apagar el GPS.
+     * Polling ligero que consulta Android para verificar si la jornada sigue abierta.
      */
     public function status(Request $request): JsonResponse
     {
@@ -30,7 +30,10 @@ class WorkdayController extends Controller
         $isWithinSchedule = $this->workdayService->isWithinLegalSchedule();
 
         $isActive = ($workday && $workday->status === 'OPEN' && $isWithinSchedule);
-        $limitTime = $workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
+        
+        // Corrección: Usar la propiedad de instancia $this->workdayService
+        $limitTime = $this->workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
+
         return response()->json([
             'is_active'       => $isActive,
             'status'          => $workday ? $workday->status : 'NOT_STARTED',
@@ -39,14 +42,14 @@ class WorkdayController extends Controller
             'started_at'      => $workday?->started_at?->toIso8601String(),
             'ended_at'        => $workday?->ended_at?->toIso8601String(),
             'close_reason'    => $workday?->close_reason,
-            'limit_time' => $limitTime ? $limitTime->format('H:i:s') : null,
+            'limit_time'      => $limitTime ? $limitTime->format('H:i:s') : null,
             'within_schedule' => $isWithinSchedule
         ], 200);
     }
 
     /**
      * POST /api/workday/start
-     * Inicia la jornada desde la app del vendedor.
+     * Inicia la jornada desde la app del vendedor entregando límites de una vez.
      */
     public function start(Request $request): JsonResponse
     {
@@ -54,15 +57,22 @@ class WorkdayController extends Controller
 
         try {
             $workday = $this->workdayService->startWorkday($user);
+            $limitTime = $this->workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
 
             return response()->json([
-                'message' => 'Jornada iniciada correctamente.',
-                'workday' => $workday
+                'message'    => 'Jornada iniciada correctamente.',
+                'is_active'  => true,
+                'status'     => $workday->status,
+                'action'     => 'START_TRACKING',
+                'limit_time' => $limitTime ? $limitTime->format('H:i:s') : null,
+                'workday'    => $workday
             ], 200);
         } catch (\DomainException $e) {
             return response()->json([
-                'message' => $e->getMessage(),
-                'action'  => 'STOP_TRACKING'
+                'message'   => $e->getMessage(),
+                'is_active' => false,
+                'status'    => 'CLOSED',
+                'action'    => 'STOP_TRACKING'
             ], 422);
         }
     }
@@ -77,8 +87,11 @@ class WorkdayController extends Controller
         $workday = $this->workdayService->closeWorkdayBySeller($user->id);
 
         return response()->json([
-            'message' => 'Jornada finalizada por el vendedor.',
-            'workday' => $workday
+            'message'   => 'Jornada finalizada por el vendedor.',
+            'is_active' => false,
+            'status'    => $workday ? $workday->status : 'CLOSED_SELLER',
+            'action'    => 'STOP_TRACKING',
+            'workday'   => $workday
         ], 200);
     }
 
