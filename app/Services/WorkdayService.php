@@ -25,13 +25,13 @@ class WorkdayService
             return true;
         }
 
-        // Sábado: 08:00 a 12:00
+        // Sábado: 07:20 a 15:00 (3:00 PM)
         if ($dayOfWeek === 6) {
-            return ($timeStr >= '08:00:00' && $timeStr <= '12:00:00');
+            return ($timeStr >= '07:20:00' && $timeStr <= '15:00:00');
         }
 
-        // Lunes a Viernes: 08:00 a 17:00
-        return ($timeStr >= '08:00:00' && $timeStr <= '17:00:00');
+        // Lunes a Viernes: 07:20 a 19:00 (7:00 PM)
+        return ($timeStr >= '07:20:00' && $timeStr <= '21:00:00');
     }
 
     /**
@@ -45,12 +45,15 @@ class WorkdayService
             return null;
         }
 
+        // Sábado hasta las 15:00:00
         if ($dayOfWeek === 6) {
-            return $date->copy()->setTimezone(self::TIMEZONE)->setTime(12, 0, 0);
+            return $date->copy()->setTimezone(self::TIMEZONE)->setTime(15, 0, 0);
         }
 
-        return $date->copy()->setTimezone(self::TIMEZONE)->setTime(17, 0, 0);
+        // Lunes a Viernes hasta las 19:00:00
+        return $date->copy()->setTimezone(self::TIMEZONE)->setTime(19, 0, 0);
     }
+
     public function getActiveWorkday(int $userId): ?UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);
@@ -65,8 +68,7 @@ class WorkdayService
         }
 
         // Si el estado es OPEN, verificamos si es una excepción válida o si venció
-        // Si fue abierta explícitamente (por ejemplo un domingo con close_reason 'PRUEBA' o iniciada hoy), se respeta mientras esté OPEN
-        $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA' || $workday->status === 'OPEN' && $now->dayOfWeekIso === 7);
+        $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA' || ($workday->status === 'OPEN' && $now->dayOfWeekIso === 7));
 
         if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($now, $hasException)) {
             $limitTime = $this->getLimitTimeForDate($now) ?? $now;
@@ -89,7 +91,7 @@ class WorkdayService
         $todayStr = $now->toDateString();
 
         if (!$this->isWithinLegalSchedule($now)) {
-            throw new \DomainException('No se puede iniciar jornada fuera del horario legal permitido.');
+            throw new \DomainException('No se puede iniciar jornada fuera del horario legal permitido (07:20 - 19:00 L-V, 07:20 - 15:00 Sáb).');
         }
 
         return UserWorkday::updateOrCreate(
