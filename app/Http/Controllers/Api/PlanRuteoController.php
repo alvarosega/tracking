@@ -37,13 +37,12 @@ class PlanRuteoController extends Controller
         $nowBolivia = Carbon::now('America/La_Paz');
         $diaActual = $diasMap[$nowBolivia->dayOfWeekIso];
 
-        // 3. Consulta directa contra u967339252_supervisor.pan_ruteo
+        // 3. Consulta contra u967339252_supervisor.pan_ruteo
         $query = DB::connection('supervisor')
             ->table('pan_ruteo')
             ->where('estado', 'Activo')
             ->where('ruta', $rutaUsuario);
 
-        // Filtrado insensible a mayúsculas y acentos sobre 'dia_norm' y 'dia'
         $query->where(function ($q) use ($diaActual) {
             if ($diaActual === 'Miércoles') {
                 $q->whereIn('dia_norm', ['Miercoles', 'Miércoles', 'MIERCOLES'])
@@ -58,21 +57,24 @@ class PlanRuteoController extends Controller
             }
         });
 
-        // 4. Mapeo con COALESCE para evitar campos nulos en strings obligatorios
+        // 4. Mapeo alineado exactamente con PlanRuteoDto en Android
         $planRuteo = $query->orderBy('cliente_id', 'asc')
             ->select([
-                'cliente_id as client_id',
-                DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as client_name"),
-                DB::raw("COALESCE(vendedor, '') as seller_name"),
-                DB::raw("COALESCE(tipo_negocio, '') as business_type"),
-                DB::raw("COALESCE(territorio, '') as territory"),
-                DB::raw("COALESCE(direccion, '') as address"),
-                DB::raw("COALESCE(referencia, '') as reference"),
-                'latitud as latitude',
-                'longitud as longitude',
-                DB::raw("COALESCE(estado, 'Activo') as status"),
-                'ruta as route',
-                'dia as day',
+                'cliente_id',
+                DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as cliente"),
+                'ruta',
+                'dia',
+                DB::raw("COALESCE(direccion, '') as direccion"),
+                'latitud',
+                'longitud',
+                DB::raw("COALESCE(estado, 'Activo') as estado"),
+                DB::raw("COALESCE(tipo_negocio, '') as tipo_negocio"),
+                DB::raw("COALESCE(contacto, '') as contacto"),
+                DB::raw("COALESCE(telefono, '') as telefono"),
+                DB::raw("COALESCE(celular, '') as celular"),
+                DB::raw("COALESCE(referencia, '') as referencia"),
+                DB::raw("COALESCE(nombre_factura, '') as nombre_factura"),
+                DB::raw("COALESCE(nit, '') as nit"),
             ])
             ->get();
 

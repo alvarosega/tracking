@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\VisitaController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OportunidadesController;
 use App\Http\Controllers\Api\WorkdayController;
+use App\Http\Controllers\Api\SaneamientoController;
+
 
 // Autenticación
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,4 +37,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/supervisor/workdays/today', [WorkdayController::class, 'todayWorkdays']);
     Route::post('/supervisor/workdays/{userId}/close', [WorkdayController::class, 'forceCloseBySupervisor']);
     Route::post('/tracking/sync', [TrackingController::class, 'sync'])->middleware('workday.active');
+
+    Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
 });
