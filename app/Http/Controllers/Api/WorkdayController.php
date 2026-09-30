@@ -30,7 +30,7 @@ class WorkdayController extends Controller
         $isWithinSchedule = $this->workdayService->isWithinLegalSchedule();
 
         $isActive = ($workday && $workday->status === 'OPEN' && $isWithinSchedule);
-
+        $limitTime = $workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
         return response()->json([
             'is_active'       => $isActive,
             'status'          => $workday ? $workday->status : 'NOT_STARTED',
@@ -39,6 +39,7 @@ class WorkdayController extends Controller
             'started_at'      => $workday?->started_at?->toIso8601String(),
             'ended_at'        => $workday?->ended_at?->toIso8601String(),
             'close_reason'    => $workday?->close_reason,
+            'limit_time' => $limitTime ? $limitTime->format('H:i:s') : null,
             'within_schedule' => $isWithinSchedule
         ], 200);
     }
