@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/supervisor/workdays/today', [WorkdayController::class, 'todayWorkdays']);
     Route::post('/supervisor/workdays/{userId}/close', [WorkdayController::class, 'forceCloseBySupervisor']);
     Route::post('/tracking/sync', [TrackingController::class, 'sync'])->middleware('workday.active');
-
+    Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
+    
 });
