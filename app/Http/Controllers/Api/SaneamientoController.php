@@ -83,14 +83,14 @@ class SaneamientoController extends Controller
                     }
                 },
             ],
+            'zona' => ['required', 'string'],
             'contacto' => ['nullable', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:50'],
-            'celular' => ['nullable', 'string', 'max:50'],
+            'celular' => [$esAlta ? 'nullable' : 'required', 'string', 'max:50'],
             'direccion' => ['nullable', 'string', 'max:255'],
             'referencia' => ['nullable', 'string', 'max:255'],
-            'nombre_factura' => ['nullable', 'string', 'max:255'],
-            'nit' => ['nullable', 'string', 'max:50'],
-            'zona' => ['required', 'string'],
+            'nombre_factura' => [$esAlta ? 'nullable' : 'required', 'string', 'max:255'],
+            'nit' => [$esAlta ? 'nullable' : 'required', 'string', 'max:50'],
             'latitude' => [
                 Rule::requiredIf($esAlta),
                 'nullable',
@@ -120,33 +120,33 @@ class SaneamientoController extends Controller
 
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         $fechaCreacion = $validated['created_at'] ?? $nowBolivia;
-
         $zona = !empty($validated['zona']) ? trim($validated['zona']) : 'SIN ZONA';
 
         $insertData = [
-            'cliente_id'     => $esAlta ? null : (int) $validated['cliente_id'],
-            'tipo_registro'  => $tipoRegistro,
-            'route'          => trim($validated['route']),
-            'cliente'        => trim($validated['cliente']),
-            'tipo_negocio'   => trim($validated['tipo_negocio']),
-            'zona'           => $zona,
-            'lista_precios'  => null,
-            'contacto'       => !empty($validated['contacto']) ? trim($validated['contacto']) : null,
-            'telefono'       => !empty($validated['telefono']) ? trim($validated['telefono']) : null,
-            'celular'        => !empty($validated['celular']) ? trim($validated['celular']) : null,
-            'direccion'      => !empty($validated['direccion']) ? trim($validated['direccion']) : null,
-            'referencia'     => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
-            'nombre_factura' => !empty($validated['nombre_factura']) ? trim($validated['nombre_factura']) : null,
-            'nit'            => !empty($validated['nit']) ? trim($validated['nit']) : null,
-            'latitude'       => $validated['latitude'] ?? null,
-            'longitude'      => $validated['longitude'] ?? null,
-            'accuracy'       => $validated['accuracy'] ?? null,
-            'photo_path'     => $photoPath,
-            'created_at'     => $fechaCreacion,
-            'updated_at'     => $nowBolivia,
+            'user_id'         => $user->id,
+            'cliente_id'      => $esAlta ? null : (int) $validated['cliente_id'],
+            'tipo_registro'   => $tipoRegistro,
+            'route'           => trim($validated['route']),
+            'cliente'         => trim($validated['cliente']),
+            'tipo_negocio'    => trim($validated['tipo_negocio']),
+            'zona'            => $zona,
+            'contacto'        => !empty($validated['contacto']) ? trim($validated['contacto']) : null,
+            'telefono'        => !empty($validated['telefono']) ? trim($validated['telefono']) : null,
+            'celular'         => !empty($validated['celular']) ? trim($validated['celular']) : null,
+            'direccion'       => !empty($validated['direccion']) ? trim($validated['direccion']) : null,
+            'referencia'      => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
+            'nombre_factura'  => !empty($validated['nombre_factura']) ? trim($validated['nombre_factura']) : null,
+            'nit'             => !empty($validated['nit']) ? trim($validated['nit']) : null,
+            // En edición se ignoran las coordenadas; solo aplican al alta
+            'latitude'        => $esAlta ? ($validated['latitude'] ?? null) : null,
+            'longitude'       => $esAlta ? ($validated['longitude'] ?? null) : null,
+            'accuracy'        => $esAlta ? ($validated['accuracy'] ?? 0.0) : 0.0,
+            'photo_path'      => $photoPath,
+            'estado_revision' => 'PENDIENTE',
+            'created_at'      => $fechaCreacion,
+            'updated_at'      => $nowBolivia,
         ];
 
-        // Inserción directa en u967339252_supervisor.saneamiento_base
         $saneamientoId = DB::connection('supervisor')
             ->table('saneamiento_base')
             ->insertGetId($insertData);

@@ -37,47 +37,72 @@ class PlanRuteoController extends Controller
         $nowBolivia = Carbon::now('America/La_Paz');
         $diaActual = $diasMap[$nowBolivia->dayOfWeekIso];
 
-        // 3. Consulta contra u967339252_supervisor.pan_ruteo
+        // 3. Subconsulta: obtener el ID más reciente de edición pendiente por cliente
+        $latestPendingEdits = DB::connection('supervisor')
+            ->table('saneamiento_base')
+            ->select('cliente_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_registro', 'EDICION')
+            ->where('estado_revision', 'PENDIENTE')
+            ->whereNotNull('cliente_id')
+            ->groupBy('cliente_id');
+
+        // 4. Consulta principal contra pan_ruteo unida a la última edición pendiente
         $query = DB::connection('supervisor')
-            ->table('pan_ruteo')
-            ->where('estado', 'Activo')
-            ->where('ruta', $rutaUsuario);
+            ->table('pan_ruteo as p')
+            ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join) {
+                $join->on('p.cliente_id', '=', 'latest_sb.cliente_id');
+            })
+            ->leftJoin('saneamiento_base as sb', 'sb.id', '=', 'latest_sb.max_id')
+            ->where('p.estado', 'Activo')
+            ->where('p.ruta', $rutaUsuario);
 
         $query->where(function ($q) use ($diaActual) {
             if ($diaActual === 'Miércoles') {
-                $q->whereIn('dia_norm', ['Miercoles', 'Miércoles', 'MIERCOLES'])
-                  ->orWhereIn('dia', ['Miercoles', 'Miércoles', 'MIERCOLES']);
+                $q->whereIn('p.dia_norm', ['Miercoles', 'Miércoles', 'MIERCOLES'])
+                  ->orWhereIn('p.dia', ['Miercoles', 'Miércoles', 'MIERCOLES']);
             } elseif ($diaActual === 'Sábado') {
-                $q->whereIn('dia_norm', ['Sabado', 'Sábado', 'SABADO'])
-                  ->orWhereIn('dia', ['Sabado', 'Sábado', 'SABADO']);
+                $q->whereIn('p.dia_norm', ['Sabado', 'Sábado', 'SABADO'])
+                  ->orWhereIn('p.dia', ['Sabado', 'Sábado', 'SABADO']);
             } else {
-                $q->where('dia_norm', $diaActual)
-                  ->orWhere('dia_norm', mb_strtoupper($diaActual, 'UTF-8'))
-                  ->orWhere('dia', $diaActual);
+                $q->where('p.dia_norm', $diaActual)
+                  ->orWhere('p.dia_norm', mb_strtoupper($diaActual, 'UTF-8'))
+                  ->orWhere('p.dia', $diaActual);
             }
         });
 
-        // 4. Mapeo alineado exactamente con PlanRuteoDto en Android
-        $planRuteo = $query->orderBy('cliente_id', 'asc')
+        // 5. Mapeo: si sb.id existe, se muestran los datos de la edición pendiente; coordenadas siempre de pan_ruteo
+        $planRuteo = $query->orderBy('p.cliente_id', 'asc')
             ->select([
-                'cliente_id',
-                DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as cliente"),
-                'ruta',
-                'dia',
-                DB::raw("COALESCE(direccion, '') as direccion"),
-                'latitud',
-                'longitud',
-                DB::raw("COALESCE(estado, 'Activo') as estado"),
-                DB::raw("COALESCE(tipo_negocio, '') as tipo_negocio"),
-                DB::raw("COALESCE(contacto, '') as contacto"),
-                DB::raw("COALESCE(telefono, '') as telefono"),
-                DB::raw("COALESCE(celular, '') as celular"),
-                DB::raw("COALESCE(referencia, '') as referencia"),
-                DB::raw("COALESCE(nombre_factura, '') as nombre_factura"),
-                DB::raw("COALESCE(nit, '') as nit"),
+                'p.cliente_id',
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL THEN sb.cliente 
+                    ELSE COALESCE(NULLIF(p.cliente, ''), p.cliente_norm, 'Cliente Sin Nombre') 
+                END as cliente"),
+                'p.ruta',
+                'p.dia',
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.direccion, '') ELSE COALESCE(p.direccion, '') END as direccion"),
+                // Inmutabilidad absoluta: coordenadas tomadas únicamente de pan_ruteo
+                'p.latitud',
+                'p.longitud',
+                DB::raw("COALESCE(p.estado, 'Activo') as estado"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN sb.tipo_negocio ELSE COALESCE(p.tipo_negocio, '') END as tipo_negocio"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') ELSE COALESCE(p.zona_venta, '') END as zona"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.contacto, '') ELSE COALESCE(p.contacto, '') END as contacto"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.telefono, '') ELSE COALESCE(p.telefono, '') END as telefono"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.celular, '') ELSE COALESCE(p.celular, '') END as celular"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.referencia, '') ELSE COALESCE(p.referencia, '') END as referencia"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.nombre_factura, '') ELSE COALESCE(p.nombre_factura, '') END as nombre_factura"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.nit, '') ELSE COALESCE(p.nit, '') END as nit"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN 1 ELSE 0 END as tiene_edicion_pendiente"),
             ])
             ->get();
 
-        return response()->json($planRuteo, 200);
+        // Castear explicitamente el flag a booleano real
+        $response = $planRuteo->map(function ($item) {
+            $item->tiene_edicion_pendiente = (bool) $item->tiene_edicion_pendiente;
+            return $item;
+        });
+
+        return response()->json($response, 200);
     }
 }
