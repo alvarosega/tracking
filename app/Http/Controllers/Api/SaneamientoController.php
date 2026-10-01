@@ -90,6 +90,7 @@ class SaneamientoController extends Controller
             'referencia' => ['nullable', 'string', 'max:255'],
             'nombre_factura' => ['nullable', 'string', 'max:255'],
             'nit' => ['nullable', 'string', 'max:50'],
+            'zona' => ['required', 'string'],
             'latitude' => [
                 Rule::requiredIf($esAlta),
                 'nullable',
@@ -120,25 +121,29 @@ class SaneamientoController extends Controller
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         $fechaCreacion = $validated['created_at'] ?? $nowBolivia;
 
+        $zona = !empty($validated['zona']) ? trim($validated['zona']) : 'SIN ZONA';
+
         $insertData = [
-            'cliente_id' => $esAlta ? null : (int) $validated['cliente_id'],
-            'tipo_registro' => $tipoRegistro,
-            'route' => trim($validated['route']),
-            'cliente' => trim($validated['cliente']),
-            'tipo_negocio' => trim($validated['tipo_negocio']),
-            'contacto' => !empty($validated['contacto']) ? trim($validated['contacto']) : null,
-            'telefono' => !empty($validated['telefono']) ? trim($validated['telefono']) : null,
-            'celular' => !empty($validated['celular']) ? trim($validated['celular']) : null,
-            'direccion' => !empty($validated['direccion']) ? trim($validated['direccion']) : null,
-            'referencia' => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
+            'cliente_id'     => $esAlta ? null : (int) $validated['cliente_id'],
+            'tipo_registro'  => $tipoRegistro,
+            'route'          => trim($validated['route']),
+            'cliente'        => trim($validated['cliente']),
+            'tipo_negocio'   => trim($validated['tipo_negocio']),
+            'zona'           => $zona,
+            'lista_precios'  => null,
+            'contacto'       => !empty($validated['contacto']) ? trim($validated['contacto']) : null,
+            'telefono'       => !empty($validated['telefono']) ? trim($validated['telefono']) : null,
+            'celular'        => !empty($validated['celular']) ? trim($validated['celular']) : null,
+            'direccion'      => !empty($validated['direccion']) ? trim($validated['direccion']) : null,
+            'referencia'     => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
             'nombre_factura' => !empty($validated['nombre_factura']) ? trim($validated['nombre_factura']) : null,
-            'nit' => !empty($validated['nit']) ? trim($validated['nit']) : null,
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
-            'accuracy' => $validated['accuracy'] ?? null,
-            'photo_path' => $photoPath,
-            'created_at' => $fechaCreacion,
-            'updated_at' => $nowBolivia,
+            'nit'            => !empty($validated['nit']) ? trim($validated['nit']) : null,
+            'latitude'       => $validated['latitude'] ?? null,
+            'longitude'      => $validated['longitude'] ?? null,
+            'accuracy'       => $validated['accuracy'] ?? null,
+            'photo_path'     => $photoPath,
+            'created_at'     => $fechaCreacion,
+            'updated_at'     => $nowBolivia,
         ];
 
         // Inserción directa en u967339252_supervisor.saneamiento_base
