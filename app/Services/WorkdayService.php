@@ -31,7 +31,7 @@ class WorkdayService
         }
 
         // Lunes a Viernes: 07:20 a 19:00 (7:00 PM)
-        return ($timeStr >= '07:20:00' && $timeStr <= '21:00:00');
+        return ($timeStr >= '07:20:00' && $timeStr <= '23:00:00');
     }
 
     /**
@@ -51,7 +51,7 @@ class WorkdayService
         }
 
         // Lunes a Viernes hasta las 19:00:00
-        return $date->copy()->setTimezone(self::TIMEZONE)->setTime(21, 0, 0);
+        return $date->copy()->setTimezone(self::TIMEZONE)->setTime(23, 0, 0);
     }
 
     public function getActiveWorkday(int $userId): ?UserWorkday
