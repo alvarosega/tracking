@@ -203,7 +203,27 @@ public function cercanos(): Response
 
         $canales = $catalogo->pluck('canal')->filter()->unique()->values()->toArray();
 
-        // Extraer los años disponibles de forma indexada usando fecha_norm
+        // Extraer los últimos 3 meses que realmente tienen compras registradas
+        $ultimosMesesConDatos = FactVenta::query()
+            ->validas()
+            ->whereNotNull('fecha_norm')
+            ->whereNotNull('mes')
+            ->selectRaw('YEAR(fecha_norm) as anio, mes')
+            ->distinct()
+            ->orderByDesc('anio')
+            ->orderByDesc('mes')
+            ->limit(3)
+            ->get();
+
+        $anioPorDefecto = !empty($ultimosMesesConDatos) && $ultimosMesesConDatos->isNotEmpty()
+            ? (int)$ultimosMesesConDatos->first()->anio
+            : (int)date('Y');
+
+        $mesesPorDefecto = !empty($ultimosMesesConDatos) && $ultimosMesesConDatos->isNotEmpty()
+            ? $ultimosMesesConDatos->pluck('mes')->map(fn($m) => (int)$m)->values()->toArray()
+            : [1, 2, 3];
+
+        // Todos los años registrados para el selector
         $aniosDisponibles = FactVenta::query()
             ->validas()
             ->whereNotNull('fecha_norm')
@@ -212,14 +232,12 @@ public function cercanos(): Response
             ->pluck('anio')
             ->toArray();
 
-        // Meses disponibles para el catálogo inicial
-        $mesesDisponibles = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
         return Inertia::render('Supervisor/Ruteo/Cercanos', [
             'catalogo_rutas' => $catalogo,
             'canales' => $canales,
-            'anios_disponibles' => !empty($aniosDisponibles) ? $aniosDisponibles : [(int)date('Y')],
-            'meses_disponibles' => $mesesDisponibles,
+            'anios_disponibles' => !empty($aniosDisponibles) ? $aniosDisponibles : [$anioPorDefecto],
+            'anio_default' => $anioPorDefecto,
+            'meses_default' => $mesesPorDefecto,
         ]);
     }
 

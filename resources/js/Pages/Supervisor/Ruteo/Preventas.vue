@@ -1,11 +1,20 @@
 <template>
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 bg-[#F5F5F7]">
-      <!-- Barra Superior de Filtros (sin overflow-hidden para permitir despliegue de popups) -->
-      <header class="bg-white border-b border-[#E5E5EA] px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 relative z-[1001]">
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- Selector de Fecha de Preventa (Ultima fecha con datos por defecto) -->
-          <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
+      <!-- Barra Superior de Filtros Compacta -->
+      <header class="bg-white border-b border-[#E5E5EA] px-3 md:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">
+        
+        <!-- Backdrop invisible para cerrar menús flotantes al tocar afuera -->
+        <div
+          v-if="menuAbierto !== null"
+          @click="menuAbierto = null"
+          class="fixed inset-0 z-[99990]"
+        ></div>
+
+        <!-- Contenedor con Scroll Horizontal de Filtros -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <!-- Selector de Fecha de Preventa -->
+          <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA] shrink-0">
             <span class="text-[10px] text-[#86868B] font-mono px-1.5">Fecha:</span>
             <input
               type="date"
@@ -20,18 +29,18 @@
             type="button"
             @click="obtenerUbicacionActual"
             :disabled="obteniendoGps"
-            class="h-7 px-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-[6px] text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+            class="h-7 px-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-[6px] text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
             title="Ubicarme para ver entregas a mi alrededor"
           >
             <span
               class="w-2 h-2 rounded-full"
               :class="obteniendoGps ? 'bg-[#FF9500] animate-ping' : (ubicacionSupervisor ? 'bg-[#248A3D]' : 'bg-[#0071E3]')"
             ></span>
-            <span>{{ obteniendoGps ? 'Localizando...' : (ubicacionSupervisor ? 'Ubicado' : 'Mi Ubicación') }}</span>
+            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : (ubicacionSupervisor ? 'Ubicado' : 'Mi Ubicación') }}</span>
           </button>
 
           <!-- Selector de Radio de Auditoría -->
-          <div v-if="ubicacionSupervisor" class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
+          <div v-if="ubicacionSupervisor" class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA] shrink-0">
             <span class="text-[10px] text-[#86868B] font-mono px-1.5">Halo:</span>
             <button
               v-for="r in [150, 300, 500, 1000]"
@@ -53,156 +62,171 @@
             </button>
           </div>
 
-          <!-- Filtro Dropdown: Canales -->
-          <div class="relative dropdown-root">
-            <button
-              type="button"
-              @click.stop="toggleMenu('canales')"
-              class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <span>Canal:</span>
-              <span class="font-semibold">{{ labelCanales }}</span>
-              <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          <!-- Botón Disparador: Canales -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('canales', $event)"
+            class="h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+          >
+            <span>Canal:</span>
+            <span class="font-semibold">{{ labelCanales }}</span>
+            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-            <!-- Menú Flotante Canales -->
-            <div
-              v-show="menuAbierto === 'canales'"
-              @click.stop
-              class="absolute left-0 top-full mt-1 w-52 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[100] text-xs"
-            >
-              <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
-                <button type="button" @click="seleccionarTodosCanales" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">
-                  Todos
-                </button>
-                <button type="button" @click="limpiarCanales" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">
-                  Ninguno
-                </button>
-              </div>
-              <div class="max-h-48 overflow-y-auto space-y-1">
-                <label
-                  v-for="c in canales"
-                  :key="c"
-                  class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none"
-                >
-                  <input
-                    type="checkbox"
-                    :value="c"
-                    v-model="filtroCanales"
-                    @change="onCanalesModificados"
-                    class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer"
-                  />
-                  <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
-                  <span class="truncate">{{ c }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Filtro Dropdown: Rutas -->
-          <div class="relative dropdown-root">
-            <button
-              type="button"
-              @click.stop="toggleMenu('rutas')"
-              class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <span>Rutas:</span>
-              <span class="font-semibold">{{ labelRutas }}</span>
-              <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            <!-- Menú Flotante Rutas -->
-            <div
-              v-show="menuAbierto === 'rutas'"
-              @click.stop
-              class="absolute left-0 top-full mt-1 w-64 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[100] text-xs"
-            >
-              <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
-                <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">
-                  Todas ({{ rutasDisponibles.length }})
-                </button>
-                <button type="button" @click="limpiarRutas" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">
-                  Ninguna
-                </button>
-              </div>
-
-              <input
-                v-model="busquedaRuta"
-                type="text"
-                placeholder="Filtrar ruta..."
-                class="w-full h-6 px-2 mb-1.5 text-xs bg-[#FBFBFD] border border-[#E5E5EA] rounded-[4px] focus:outline-none focus:border-[#86868B]"
-              />
-
-              <div class="max-h-56 overflow-y-auto space-y-1">
-                <div v-if="rutasFiltradasEnDropdown.length === 0" class="text-center text-[11px] text-[#86868B] py-2">
-                  No hay rutas disponibles
-                </div>
-                <label
-                  v-for="r in rutasFiltradasEnDropdown"
-                  :key="r.ruta"
-                  class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none"
-                >
-                  <input
-                    type="checkbox"
-                    :value="r.ruta"
-                    v-model="filtroRutas"
-                    @change="cargarPreventas"
-                    class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer"
-                  />
-                  <div class="truncate flex items-center gap-1.5">
-                    <span
-                      class="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20"
-                      :style="{ backgroundColor: getRutaColor(r.ruta) }"
-                    ></span>
-                    <span class="font-medium">{{ r.ruta }}</span>
-                    <span class="text-[#86868B] text-[10px]">({{ r.canal }})</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
+          <!-- Botón Disparador: Rutas -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('rutas', $event)"
+            class="h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+          >
+            <span>Rutas:</span>
+            <span class="font-semibold">{{ labelRutas }}</span>
+            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
 
-        <!-- KPIs y Métricas en Línea -->
-        <div class="flex items-center space-x-2 text-xs font-mono">
-          <span v-if="cargando" class="text-[11px] text-[#6E6E73] flex items-center gap-1 animate-pulse">
+        <!-- Indicador de Carga, Control Móvil y Métricas -->
+        <div class="flex items-center gap-2 text-xs font-mono shrink-0">
+          <span v-if="cargando" class="text-[11px] text-[#6E6E73] hidden sm:flex items-center gap-1 animate-pulse">
             <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
             Cargando...
           </span>
 
+          <!-- Control Segmentado Exclusivo para Móviles (< 768px) -->
+          <div class="flex md:hidden items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
+            <button
+              type="button"
+              @click="vistaMovil = 'mapa'"
+              class="px-2 py-1 text-[11px] font-semibold rounded-[4px] transition-all cursor-pointer flex items-center gap-1"
+              :class="vistaMovil === 'mapa' ? 'bg-white text-[#1D1D1F] shadow-2xs' : 'text-[#6E6E73]'"
+            >
+              Mapa
+            </button>
+            <button
+              type="button"
+              @click="vistaMovil = 'lista'"
+              class="px-2 py-1 text-[11px] font-semibold rounded-[4px] transition-all cursor-pointer flex items-center gap-1"
+              :class="vistaMovil === 'lista' ? 'bg-white text-[#1D1D1F] shadow-2xs' : 'text-[#6E6E73]'"
+            >
+              Lista ({{ clientesFiltrados.length }})
+            </button>
+          </div>
+
           <div
             v-if="ubicacionSupervisor && kpis.en_radio_conteo > 0"
-            class="px-2 py-0.5 bg-[#EBF9EF] text-[#248A3D] border border-[#E5E5EA] rounded-[6px] flex items-center gap-1"
+            class="hidden lg:flex px-2 py-0.5 bg-[#EBF9EF] text-[#248A3D] border border-[#E5E5EA] rounded-[6px] items-center gap-1"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-[#248A3D]"></span>
-            <span class="font-bold tabular-nums">En radio: {{ kpis.en_radio_conteo }} (Bs. {{ kpis.en_radio_monto.toFixed(2) }})</span>
+            <span class="font-bold tabular-nums">En radio: {{ kpis.en_radio_conteo }}</span>
           </div>
 
-          <div class="px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] flex items-center gap-1">
-            <span class="text-[#86868B]">Preventas:</span>
-            <span class="font-semibold text-[#1D1D1F] tabular-nums">{{ kpis.total_preventas }}</span>
-          </div>
-
-          <div class="px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] flex items-center gap-1">
-            <span class="text-[#86868B]">Monto:</span>
+          <div class="hidden sm:flex px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] items-center gap-1">
+            <span class="text-[#86868B]">Total:</span>
             <span class="font-semibold text-[#1D1D1F] tabular-nums">Bs. {{ kpis.monto_total.toFixed(2) }}</span>
-          </div>
-
-          <div v-if="kpis.sin_gps > 0" class="px-2 py-0.5 bg-[#FFF5E5] text-[#B25E00] border border-[#E5E5EA] rounded-[6px]">
-            <span class="tabular-nums">{{ kpis.sin_gps }} sin GPS</span>
           </div>
         </div>
       </header>
 
-      <!-- Split Screen Principal -->
-      <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+      <!-- Menús Desplegables con Teleport (Flotan encima de todo) -->
+      <Teleport to="body">
+        <!-- Menú Flotante: Canales -->
+        <div
+          v-if="menuAbierto === 'canales'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-52 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[99999] text-xs"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
+            <button type="button" @click="seleccionarTodosCanales" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">
+              Todos
+            </button>
+            <button type="button" @click="limpiarCanales" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">
+              Ninguno
+            </button>
+          </div>
+          <div class="max-h-48 overflow-y-auto space-y-1">
+            <label
+              v-for="c in canales"
+              :key="c"
+              class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                :value="c"
+                v-model="filtroCanales"
+                @change="onCanalesModificados"
+                class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer"
+              />
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
+              <span class="truncate">{{ c }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Menú Flotante: Rutas -->
+        <div
+          v-if="menuAbierto === 'rutas'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-64 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[99999] text-xs"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
+            <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">
+              Todas ({{ rutasDisponibles.length }})
+            </button>
+            <button type="button" @click="limpiarRutas" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">
+              Ninguna
+            </button>
+          </div>
+
+          <input
+            v-model="busquedaRuta"
+            type="text"
+            placeholder="Filtrar ruta..."
+            class="w-full h-6 px-2 mb-1.5 text-xs bg-[#FBFBFD] border border-[#E5E5EA] rounded-[4px] focus:outline-none focus:border-[#86868B]"
+          />
+
+          <div class="max-h-56 overflow-y-auto space-y-1">
+            <div v-if="rutasFiltradasEnDropdown.length === 0" class="text-center text-[11px] text-[#86868B] py-2">
+              No hay rutas disponibles
+            </div>
+            <label
+              v-for="r in rutasFiltradasEnDropdown"
+              :key="r.ruta"
+              class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                :value="r.ruta"
+                v-model="filtroRutas"
+                @change="cargarPreventas"
+                class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer"
+              />
+              <div class="truncate flex items-center gap-1.5">
+                <span
+                  class="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20"
+                  :style="{ backgroundColor: getRutaColor(r.ruta) }"
+                ></span>
+                <span class="font-medium">{{ r.ruta }}</span>
+                <span class="text-[#86868B] text-[10px]">({{ r.canal }})</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Split Screen Principal Responsivo -->
+      <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative z-10">
         <!-- Panel Izquierdo: Lista de Preventas / Entregas -->
-        <aside class="w-full md:w-[420px] bg-white border-r border-[#E5E5EA] flex flex-col shrink-0 relative z-20">
-          <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center gap-2">
+        <aside
+          class="w-full md:w-[420px] bg-white border-r border-[#E5E5EA] flex flex-col shrink-0 relative z-20 overflow-hidden"
+          :class="vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex-1 md:flex-initial flex'"
+        >
+          <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center gap-2 shrink-0">
             <input
               v-model="busquedaTexto"
               type="text"
@@ -250,7 +274,7 @@
                   <div class="flex items-center gap-1.5">
                     <span class="text-xs font-bold text-[#1D1D1F] line-clamp-1">{{ c.cliente }}</span>
                     <span
-                      class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded text-white shrink-0"
+                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white shrink-0"
                       :style="{ backgroundColor: getCanalColor(rutaToCanalMap[c.ruta]) }"
                     >
                       {{ rutaToCanalMap[c.ruta] || 'PRT' }}
@@ -265,7 +289,7 @@
                   </span>
                   <span
                     v-if="c.distancia_metros !== null"
-                    class="text-[10px] font-mono font-semibold px-1 py-0.2 rounded inline-block"
+                    class="text-[10px] font-mono font-semibold px-1 py-0.5 rounded inline-block"
                     :class="c.en_radio ? 'bg-[#EBF9EF] text-[#248A3D]' : 'text-[#86868B]'"
                   >
                     a {{ c.distancia_metros }} m
@@ -300,7 +324,7 @@
                   <div class="flex items-center justify-between text-[11px] font-mono pb-1 border-b border-[#E5E5EA]/60 mb-1">
                     <span class="font-bold text-[#0071E3]">Preventa #{{ p.nro_preventa }}</span>
                     <div class="flex items-center gap-1.5 text-[10px]">
-                      <span v-if="p.nro_carga" class="px-1 py-0.2 bg-[#E5E5EA] rounded">Carga: {{ p.nro_carga }}</span>
+                      <span v-if="p.nro_carga" class="px-1 py-0.5 bg-[#E5E5EA] rounded">Carga: {{ p.nro_carga }}</span>
                       <span class="font-bold text-[#1D1D1F]">Bs. {{ p.monto_pedido.toFixed(2) }}</span>
                     </div>
                   </div>
@@ -325,24 +349,38 @@
         </aside>
 
         <!-- Panel Derecho: Visor Cartográfico Leaflet -->
-        <main class="flex-1 relative min-h-[350px] md:min-h-0 bg-[#E5E5EA]">
+        <main
+          class="flex-1 relative min-h-0 bg-[#E5E5EA]"
+          :class="vistaMovil === 'lista' ? 'hidden md:block' : 'block h-full w-full'"
+        >
           <div id="map-preventas" class="absolute inset-0 w-full h-full"></div>
 
-          <div class="absolute top-3 left-3 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] px-3 py-1.5 shadow-md z-400 text-[11px] pointer-events-none">
+          <div class="hidden sm:block absolute top-3 left-3 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] px-3 py-1.5 shadow-md z-[500] text-[11px] pointer-events-none">
             <span class="text-[#1D1D1F] font-medium">Auditoría:</span>
-            <span class="text-[#6E6E73] ml-1">Haz clic en el mapa para situar tu punto físico o usa "Mi Ubicación".</span>
+            <span class="text-[#6E6E73] ml-1">Toca el mapa o usa "Mi Ubicación".</span>
           </div>
 
-          <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] p-2.5 shadow-md z-400 text-[11px]">
+          <!-- Leyenda en el Mapa -->
+          <div class="hidden sm:block absolute bottom-4 right-4 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] p-2.5 shadow-md z-[500] text-[11px] max-w-[240px]">
             <p class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider mb-1.5">Canal de Preventa</p>
-            <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+            <div class="grid grid-cols-2 gap-x-3 gap-y-1 pb-1.5 border-b border-[#E5E5EA]">
               <div v-for="c in canales" :key="c" class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
                 <span class="text-[#1D1D1F] font-mono text-[10px]">{{ c }}</span>
               </div>
             </div>
-            <div class="border-t border-[#E5E5EA] mt-1.5 pt-1.5 text-[10px] text-[#86868B]">
-              Borde = Ruta | Halo azul = Ubicación supervisor
+            
+            <div class="mt-1.5">
+              <p class="text-[9px] font-semibold text-[#86868B] uppercase tracking-wider mb-1">Borde = Ruta</p>
+              <div class="max-h-24 overflow-y-auto space-y-0.5 no-scrollbar">
+                <div v-for="r in filtroRutas.slice(0, 8)" :key="r" class="flex items-center gap-1.5 text-[10px] font-mono text-[#1D1D1F]">
+                  <span class="w-2 h-2 rounded-full shrink-0 border border-black/20" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                  <span class="truncate">{{ r }}</span>
+                </div>
+                <div v-if="filtroRutas.length > 8" class="text-[9px] text-[#86868B] italic">
+                  +{{ filtroRutas.length - 8 }} rutas más...
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -352,7 +390,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, Teleport } from 'vue';
 import axios from 'axios';
 import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
 import L from 'leaflet';
@@ -414,7 +452,9 @@ const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));
 const busquedaRuta = ref('');
 const busquedaTexto = ref('');
 const menuAbierto = ref(null);
+const posicionMenu = ref({ top: 0, left: 0 });
 const pestañaLista = ref('gps');
+const vistaMovil = ref('mapa');
 
 // Ubicación del Supervisor
 const ubicacionSupervisor = ref(null);
@@ -490,15 +530,29 @@ const clientesFiltrados = computed(() => {
   );
 });
 
-function toggleMenu(nombre) {
-  menuAbierto.value = menuAbierto.value === nombre ? null : nombre;
+function toggleMenu(nombre, event) {
+  if (menuAbierto.value === nombre) {
+    menuAbierto.value = null;
+    return;
+  }
+  const rect = event.currentTarget.getBoundingClientRect();
+  const anchoMenu = nombre === 'rutas' ? 256 : 208;
+  
+  let leftPos = rect.left;
+  if (leftPos + anchoMenu > window.innerWidth - 8) {
+    leftPos = Math.max(8, window.innerWidth - anchoMenu - 8);
+  }
+
+  posicionMenu.value = {
+    top: rect.bottom + 4,
+    left: leftPos,
+  };
+  menuAbierto.value = nombre;
 }
 
 function onCanalesModificados() {
   const rutasValidas = new Set(rutasDisponibles.value.map(r => r.ruta));
-  // Mantener solo las rutas que aún pertenezcan a los canales seleccionados
   filtroRutas.value = filtroRutas.value.filter(r => rutasValidas.has(r));
-  // Si no quedó ninguna pero hay canales activos, seleccionar todas las disponibles
   if (filtroRutas.value.length === 0 && rutasDisponibles.value.length > 0) {
     filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
   }
@@ -648,6 +702,7 @@ function enfocarEnMapa(c) {
   clienteActivoId.value = c.cliente_id;
   if (!c.tiene_gps || !map) return;
 
+  vistaMovil.value = 'mapa';
   map.flyTo([c.latitud, c.longitud], 18, { duration: 0.6 });
   const marker = markersMap.get(c.cliente_id);
   if (marker) {
@@ -705,6 +760,7 @@ function obtenerUbicacionActual() {
       const { latitude, longitude } = pos.coords;
       map.flyTo([latitude, longitude], 16, { duration: 0.8 });
       situarSupervisor(latitude, longitude);
+      vistaMovil.value = 'mapa';
     },
     () => {
       obteniendoGps.value = false;
@@ -735,19 +791,18 @@ function initMap() {
   });
 }
 
-function cerrarMenusGlobal(e) {
-  if (!e.target.closest('.dropdown-root')) {
-    menuAbierto.value = null;
-  }
-}
-
 onMounted(() => {
   initMap();
   cargarPreventas();
-  window.addEventListener('click', cerrarMenusGlobal);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('click', cerrarMenusGlobal);
 });
 </script>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

@@ -1,165 +1,207 @@
 <template>
   <RuteoLayout>
-    <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F5F5F7]">
-      <!-- Barra Superior de Control de Proximidad y Filtros -->
-      <div class="bg-white border-b border-[#E5E5EA] px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 z-30">
-        <div class="flex flex-wrap items-center gap-2">
+    <div class="flex-1 flex flex-col min-h-0 bg-[#F5F5F7]">
+      <!-- Barra Superior de Control -->
+      <header class="bg-white border-b border-[#E5E5EA] px-3 md:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">
+        
+        <!-- Backdrop invisible para cerrar menús al tocar afuera -->
+        <div
+          v-if="menuAbierto !== null"
+          @click="menuAbierto = null"
+          class="fixed inset-0 z-[99990]"
+        ></div>
+
+        <!-- Contenedor con Scroll Horizontal de Filtros -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          
           <!-- Botón de GPS Actual -->
           <button
             type="button"
             @click="obtenerUbicacionActual"
             :disabled="obteniendoGps"
-            class="h-7 px-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-[6px] text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors disabled:opacity-50"
-            title="Usar ubicación GPS del dispositivo"
+            class="h-7 px-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-[6px] text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
+            title="Usar ubicación satelital"
           >
             <span class="w-2 h-2 rounded-full" :class="obteniendoGps ? 'bg-[#FF9500] animate-ping' : 'bg-[#0071E3]'"></span>
-            <span>{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
+            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
           </button>
 
-          <!-- Selector de Radio -->
-          <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
-            <span class="text-[10px] text-[#86868B] font-mono px-2">Radio:</span>
-            <button
-              v-for="r in opcionesRadio"
-              :key="r.valor"
-              type="button"
-              @click="seleccionarRadio(r.valor)"
-              class="px-2 py-0.5 text-[11px] font-medium rounded-[4px] transition-all"
-              :class="radioSeleccionado === r.valor ? 'bg-white text-[#1D1D1F] shadow-2xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+          <!-- Filtro Radio: Nativo Compacto -->
+          <div class="flex items-center h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] shrink-0">
+            <span class="text-[#86868B] mr-1">Radio:</span>
+            <select
+              v-model="radioSeleccionado"
+              @change="seleccionarRadio(Number(radioSeleccionado))"
+              class="bg-transparent font-semibold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer"
             >
-              {{ r.etiqueta }}
-            </button>
+              <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
+            </select>
           </div>
 
-          <!-- Selector de Año -->
-          <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
-            <span class="text-[10px] text-[#86868B] font-mono px-1.5">Año:</span>
+          <!-- Filtro Año: Nativo Compacto -->
+          <div class="flex items-center h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] shrink-0">
+            <span class="text-[#86868B] mr-1">Año:</span>
             <select
               v-model="anioSeleccionado"
               @change="reconsultar"
-              class="h-5 pl-1.5 pr-5 text-[10px] font-mono font-bold bg-white text-[#1D1D1F] border-0 rounded-[4px] focus:ring-0 cursor-pointer shadow-2xs"
+              class="bg-transparent font-semibold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer"
             >
               <option v-for="a in anios_disponibles" :key="a" :value="a">{{ a }}</option>
             </select>
           </div>
 
-          <!-- Selector de Meses Históricos -->
-          <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
-            <span class="text-[10px] text-[#86868B] font-mono px-1.5">Mes:</span>
-            <button
-              v-for="m in mesesLista"
-              :key="m.numero"
-              type="button"
-              @click="toggleMes(m.numero)"
-              class="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-[4px] transition-all"
-              :class="filtroMeses.includes(m.numero) ? 'bg-white text-[#1D1D1F] shadow-2xs font-bold' : 'text-[#86868B] hover:text-[#1D1D1F]'"
-              :title="`Mes ${m.nombre}`"
-            >
-              {{ m.corto }}
-            </button>
-            <button
-              type="button"
-              @click="toggleTodosMeses"
-              class="px-1.5 py-0.5 text-[10px] text-[#6E6E73] hover:text-[#1D1D1F] font-mono border-l border-[#E5E5EA] ml-0.5"
-            >
-              {{ filtroMeses.length === 12 ? 'Reset' : 'Todos' }}
-            </button>
-          </div>
+          <!-- Botón Disparador: Meses -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('meses', $event)"
+            class="h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+          >
+            <span>Meses:</span>
+            <span class="font-semibold">{{ labelMeses }}</span>
+            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-          <!-- Filtro Dropdown: Canales -->
-          <div class="relative">
-            <button
-              type="button"
-              @click="toggleDropdown('canales')"
-              class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1.5 transition-colors"
-            >
-              <span>Canal:</span>
-              <span class="font-semibold">{{ labelCanales }}</span>
-              <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          <!-- Botón Disparador: Canales -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('canales', $event)"
+            class="h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+          >
+            <span>Canal:</span>
+            <span class="font-semibold">{{ labelCanales }}</span>
+            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-            <div
-              v-if="activeDropdown === 'canales'"
-              class="absolute left-0 mt-1 w-52 bg-white border border-[#E5E5EA] rounded-[8px] shadow-lg p-2 z-50 text-xs"
-            >
-              <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
-                <button type="button" @click="seleccionarTodosCanales" class="text-[11px] text-[#0071E3] font-medium hover:underline">Todos</button>
-                <button type="button" @click="limpiarCanales" class="text-[11px] text-[#6E6E73] font-medium hover:underline">Ninguno</button>
-              </div>
-              <div class="max-h-48 overflow-y-auto space-y-1">
-                <label v-for="c in canales" :key="c" class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer">
-                  <input type="checkbox" :value="c" v-model="filtroCanales" @change="reconsultar" class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0" />
-                  <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
-                  <span class="truncate">{{ c }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
+          <!-- Botón Disparador: Rutas -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('rutas', $event)"
+            class="h-7 px-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+          >
+            <span>Rutas:</span>
+            <span class="font-semibold">{{ labelRutas }}</span>
+            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-          <!-- Filtro Dropdown: Rutas -->
-          <div class="relative">
-            <button
-              type="button"
-              @click="toggleDropdown('rutas')"
-              class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1.5 transition-colors"
-            >
-              <span>Rutas:</span>
-              <span class="font-semibold">{{ labelRutas }}</span>
-              <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            <div
-              v-if="activeDropdown === 'rutas'"
-              class="absolute left-0 mt-1 w-64 bg-white border border-[#E5E5EA] rounded-[8px] shadow-lg p-2 z-50 text-xs"
-            >
-              <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
-                <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-[#0071E3] font-medium hover:underline">Todas ({{ rutasDisponibles.length }})</button>
-                <button type="button" @click="limpiarRutas" class="text-[11px] text-[#6E6E73] font-medium hover:underline">Ninguna</button>
-              </div>
-              <input
-                v-model="busquedaRuta"
-                type="text"
-                placeholder="Buscar ruta..."
-                class="w-full h-6 px-2 mb-1.5 text-xs bg-[#FBFBFD] border border-[#E5E5EA] rounded-[4px] focus:outline-none focus:border-[#86868B]"
-              />
-              <div class="max-h-56 overflow-y-auto space-y-1">
-                <label v-for="r in rutasFiltradasEnDropdown" :key="r.ruta" class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer">
-                  <input type="checkbox" :value="r.ruta" v-model="filtroRutas" @change="reconsultar" class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0" />
-                  <div class="truncate flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20" :style="{ backgroundColor: getRutaColor(r.ruta) }"></span>
-                    <span class="font-medium">{{ r.ruta }}</span>
-                    <span class="text-[#86868B] text-[10px]">({{ r.canal }})</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- Indicador de Carga y KPIs -->
-        <div class="flex items-center space-x-2 text-xs font-mono">
-          <span v-if="cargando" class="text-[11px] text-[#6E6E73] flex items-center gap-1 animate-pulse">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
-            Calculando proximidad...
-          </span>
-          <div class="px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] flex items-center gap-1">
+        <!-- Selector Móvil Segmentado y Contador de Clientes -->
+        <div class="flex items-center gap-2 text-xs font-mono shrink-0">
+          <div class="flex md:hidden items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
+            <button
+              type="button"
+              @click="vistaMovil = 'mapa'"
+              class="px-2 py-1 text-[11px] font-semibold rounded-[4px] transition-all cursor-pointer flex items-center gap-1"
+              :class="vistaMovil === 'mapa' ? 'bg-white text-[#1D1D1F] shadow-2xs' : 'text-[#6E6E73]'"
+            >
+              Mapa
+            </button>
+            <button
+              type="button"
+              @click="vistaMovil = 'lista'"
+              class="px-2 py-1 text-[11px] font-semibold rounded-[4px] transition-all cursor-pointer flex items-center gap-1"
+              :class="vistaMovil === 'lista' ? 'bg-white text-[#1D1D1F] shadow-2xs' : 'text-[#6E6E73]'"
+            >
+              Lista ({{ clientesCercanos.length }})
+            </button>
+          </div>
+
+          <div class="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px]">
             <span class="text-[#86868B]">Encontrados:</span>
             <span class="font-semibold text-[#1D1D1F] tabular-nums">{{ clientesCercanos.length }}</span>
           </div>
         </div>
-      </div>
+      </header>
+
+      <!-- Menús Desplegables Flotantes con Teleport al Body (Se abren justo debajo del botón y flotan sobre todo) -->
+      <Teleport to="body">
+        <!-- Menú Flotante: Meses -->
+        <div
+          v-if="menuAbierto === 'meses'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-56 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[99999] text-xs"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
+            <button type="button" @click="seleccionarTodosMeses" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">Todos</button>
+            <button type="button" @click="limpiarMeses" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">Ninguno</button>
+          </div>
+          <div class="max-h-56 overflow-y-auto space-y-1">
+            <label v-for="m in mesesLista" :key="m.numero" class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none">
+              <input type="checkbox" :value="m.numero" v-model="filtroMeses" @change="reconsultar" class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer" />
+              <span class="font-mono text-[#86868B] w-5">{{ m.corto }}</span>
+              <span class="truncate font-medium">{{ m.nombre }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Menú Flotante: Canales -->
+        <div
+          v-if="menuAbierto === 'canales'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-52 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[99999] text-xs"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
+            <button type="button" @click="seleccionarTodosCanales" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">Todos</button>
+            <button type="button" @click="limpiarCanales" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">Ninguno</button>
+          </div>
+          <div class="max-h-48 overflow-y-auto space-y-1">
+            <label v-for="c in canales" :key="c" class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none">
+              <input type="checkbox" :value="c" v-model="filtroCanales" @change="onCanalesChange" class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer" />
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
+              <span class="truncate">{{ c }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Menú Flotante: Rutas -->
+        <div
+          v-if="menuAbierto === 'rutas'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-64 bg-white border border-[#E5E5EA] rounded-[8px] shadow-2xl p-2 z-[99999] text-xs"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#E5E5EA]">
+            <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-[#0071E3] font-medium hover:underline cursor-pointer">Todas ({{ rutasDisponibles.length }})</button>
+            <button type="button" @click="limpiarRutas" class="text-[11px] text-[#6E6E73] font-medium hover:underline cursor-pointer">Ninguna</button>
+          </div>
+          <input
+            v-model="busquedaRuta"
+            type="text"
+            placeholder="Buscar ruta..."
+            class="w-full h-6 px-2 mb-1.5 text-xs bg-[#FBFBFD] border border-[#E5E5EA] rounded-[4px] focus:outline-none focus:border-[#86868B]"
+          />
+          <div class="max-h-56 overflow-y-auto space-y-1">
+            <label v-for="r in rutasFiltradasEnDropdown" :key="r.ruta" class="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F2F2F7] rounded-[4px] cursor-pointer select-none">
+              <input type="checkbox" :value="r.ruta" v-model="filtroRutas" @change="reconsultar" class="rounded border-[#E5E5EA] text-[#1D1D1F] focus:ring-0 cursor-pointer" />
+              <div class="truncate flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20" :style="{ backgroundColor: getRutaColor(r.ruta) }"></span>
+                <span class="font-medium">{{ r.ruta }}</span>
+                <span class="text-[#86868B] text-[10px]">({{ r.canal }})</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Split Screen Principal -->
-      <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
-        <!-- Panel Izquierdo: Lista Densa O Expediente del Cliente -->
-        <div class="w-full md:w-[420px] bg-white border-r border-[#E5E5EA] flex flex-col shrink-0 relative z-20">
-          <!-- VISTA A: Listado General de Clientes en Radio -->
+      <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative z-10">
+        
+        <!-- Panel Izquierdo: Lista o Expediente -->
+        <aside
+          class="w-full md:w-[420px] bg-white border-r border-[#E5E5EA] flex flex-col shrink-0 relative z-20 overflow-hidden"
+          :class="vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex-1 md:flex-initial flex'"
+        >
+          <!-- Listado General de Clientes -->
           <template v-if="!clienteSeleccionado">
-            <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center justify-between">
+            <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center justify-between shrink-0">
               <span class="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider">Clientes en Radio</span>
               <span v-if="origenConsulta" class="text-[10px] font-mono text-[#6E6E73]">
                 {{ origenConsulta.lat.toFixed(4) }}, {{ origenConsulta.lng.toFixed(4) }}
@@ -172,7 +214,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                 </svg>
-                <p>Haz clic en cualquier punto del mapa o pulsa <strong>"Mi Ubicación"</strong> para buscar clientes.</p>
+                <p>Toca el mapa o pulsa <strong>"Mi Ubicación"</strong> para buscar clientes cercanos.</p>
               </div>
 
               <div v-else-if="clientesCercanos.length === 0 && !cargando" class="p-8 text-center text-xs text-[#86868B]">
@@ -184,7 +226,7 @@
                 :key="c.id"
                 type="button"
                 @click="abrirExpedienteCliente(c)"
-                class="w-full text-left p-3 hover:bg-[#FBFBFD] transition-colors focus:outline-none"
+                class="w-full text-left p-3 hover:bg-[#FBFBFD] transition-colors focus:outline-none cursor-pointer"
               >
                 <div class="flex items-start justify-between gap-1.5">
                   <span class="text-xs font-semibold text-[#1D1D1F] line-clamp-1">{{ c.cliente }}</span>
@@ -219,21 +261,28 @@
             </div>
           </template>
 
-          <!-- VISTA B: Expediente del Cliente -->
+          <!-- Expediente del Cliente -->
           <template v-else>
-            <div class="p-2.5 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center justify-between">
+            <div class="p-2.5 border-b border-[#E5E5EA] bg-[#FBFBFD] flex items-center justify-between shrink-0">
               <button
                 type="button"
                 @click="cerrarExpediente"
-                class="text-xs font-semibold text-[#0071E3] hover:underline flex items-center gap-1"
+                class="text-xs font-semibold text-[#0071E3] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>&larr;</span> Volver al listado
               </button>
-              <span class="text-[10px] font-mono text-[#86868B] uppercase">Expediente Cliente</span>
+              
+              <button
+                type="button"
+                @click="vistaMovil = 'mapa'"
+                class="md:hidden text-xs text-[#1D1D1F] font-semibold bg-white border border-[#E5E5EA] px-2 py-0.5 rounded-[4px]"
+              >
+                Ver en mapa
+              </button>
             </div>
 
-            <!-- Ficha Resumen del Cliente -->
-            <div class="p-3 bg-white border-b border-[#E5E5EA]">
+            <!-- Ficha Resumen -->
+            <div class="p-3 bg-white border-b border-[#E5E5EA] shrink-0">
               <div class="flex items-start justify-between gap-2">
                 <div>
                   <h3 class="text-xs font-bold text-[#1D1D1F] leading-tight">{{ clienteSeleccionado.cliente }}</h3>
@@ -247,12 +296,12 @@
                 </span>
               </div>
 
-              <!-- Pestañas de Navegación del Expediente -->
+              <!-- Pestañas del Expediente -->
               <div class="flex items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA] mt-3">
                 <button
                   type="button"
                   @click="pestañaExpediente = 'ventas'"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all text-center"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all text-center cursor-pointer"
                   :class="pestañaExpediente === 'ventas' ? 'bg-white text-[#1D1D1F] shadow-2xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
                 >
                   Histórico Compras
@@ -260,7 +309,7 @@
                 <button
                   type="button"
                   @click="pestañaExpediente = 'visitas'"
-                  class="flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all text-center flex items-center justify-center gap-1"
+                  class="flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
                   :class="pestañaExpediente === 'visitas' ? 'bg-white text-[#1D1D1F] shadow-2xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
                 >
                   <span>Fotos y Visitas</span>
@@ -271,7 +320,7 @@
               </div>
             </div>
 
-            <!-- CONTENIDO PESTAÑA 1: VENTAS -->
+            <!-- Ventas -->
             <div v-if="pestañaExpediente === 'ventas'" class="flex-1 overflow-y-auto p-2 space-y-2">
               <div class="grid grid-cols-2 gap-2 mb-2">
                 <div class="p-2 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px]">
@@ -304,7 +353,7 @@
                 <button
                   type="button"
                   @click="toggleTicket(v.venta_id)"
-                  class="w-full text-left p-2.5 hover:bg-[#FBFBFD] transition-colors flex items-center justify-between"
+                  class="w-full text-left p-2.5 hover:bg-[#FBFBFD] transition-colors flex items-center justify-between cursor-pointer"
                 >
                   <div>
                     <div class="flex items-center gap-1.5 text-xs font-semibold text-[#1D1D1F]">
@@ -346,7 +395,7 @@
               </div>
             </div>
 
-            <!-- CONTENIDO PESTAÑA 2: VISITAS Y CARRUSEL DE FOTOS -->
+            <!-- Visitas y Fotos -->
             <div v-else class="flex-1 overflow-y-auto p-2 space-y-2">
               <div v-if="cargandoVisitas" class="p-8 text-center text-xs text-[#6E6E73] animate-pulse">
                 Cargando histórico de fotografías...
@@ -375,11 +424,6 @@
                   <div v-else class="w-full h-full flex items-center justify-center text-[10px] text-[#86868B]">
                     Sin foto
                   </div>
-                  <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                    </svg>
-                  </div>
                 </div>
 
                 <div class="flex-1 min-w-0">
@@ -402,35 +446,47 @@
               </div>
             </div>
           </template>
-        </div>
+        </aside>
 
         <!-- Panel Derecho: Visor Cartográfico Leaflet -->
-        <div class="flex-1 relative min-h-[350px] md:min-h-0 bg-[#E5E5EA]">
+        <main
+          class="flex-1 relative min-h-0 bg-[#E5E5EA]"
+          :class="vistaMovil === 'lista' ? 'hidden md:block' : 'block h-full w-full'"
+        >
           <div id="map-cercanos" class="absolute inset-0 w-full h-full"></div>
 
-          <!-- Leyenda Flotante -->
-          <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] p-2.5 shadow-md z-400 text-[11px]">
-            <p class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider mb-1.5">Canales (Color Pin)</p>
-            <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+          <!-- Leyenda en el Mapa -->
+          <div class="hidden sm:block absolute bottom-4 right-4 bg-white/95 backdrop-blur-xs border border-[#E5E5EA] rounded-[8px] p-2.5 shadow-md z-[500] text-[11px] max-w-[240px]">
+            <p class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider mb-1.5">Leyenda (Relleno = Canal)</p>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 pb-1.5 border-b border-[#E5E5EA]">
               <div v-for="c in canales" :key="c" class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
                 <span class="text-[#1D1D1F] font-mono text-[10px]">{{ c }}</span>
               </div>
             </div>
-            <div class="border-t border-[#E5E5EA] mt-1.5 pt-1.5 text-[10px] text-[#86868B]">
-              Borde del pin = Ruta asignada
+            
+            <div class="mt-1.5">
+              <p class="text-[9px] font-semibold text-[#86868B] uppercase tracking-wider mb-1">Borde = Ruta</p>
+              <div class="max-h-24 overflow-y-auto space-y-0.5 no-scrollbar">
+                <div v-for="r in filtroRutas.slice(0, 8)" :key="r" class="flex items-center gap-1.5 text-[10px] font-mono text-[#1D1D1F]">
+                  <span class="w-2 h-2 rounded-full shrink-0 border border-black/20" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                  <span class="truncate">{{ r }}</span>
+                </div>
+                <div v-if="filtroRutas.length > 8" class="text-[9px] text-[#86868B] italic">
+                  +{{ filtroRutas.length - 8 }} rutas más...
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
 
-      <!-- MODAL / CARRUSEL LIGHTBOX (Teleport al Body) -->
+      <!-- Modal de Fotos Lightbox -->
       <Teleport to="body">
         <div
           v-if="modalCarruselAbierto && fotoActiva"
-          class="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex flex-col items-center justify-between p-4 select-none"
+          class="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex flex-col items-center justify-between p-4 select-none"
         >
-          <!-- Barra Superior del Modal -->
           <div class="w-full max-w-4xl flex items-center justify-between text-white pb-2 border-b border-white/10">
             <div>
               <span class="text-xs font-bold uppercase tracking-wider text-[#86868B]">Auditoría Fotográfica</span>
@@ -450,7 +506,6 @@
             </div>
           </div>
 
-          <!-- Contenedor Central con Fotografía y Flechas -->
           <div class="relative w-full max-w-4xl flex-1 flex items-center justify-center my-3 overflow-hidden">
             <button
               v-if="visitasHistoricas.length > 1"
@@ -485,7 +540,6 @@
             </button>
           </div>
 
-          <!-- Barra Inferior de Metadatos -->
           <div class="w-full max-w-4xl bg-white/10 backdrop-blur-sm rounded-[8px] p-3 text-white text-xs border border-white/10 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <span
@@ -524,10 +578,26 @@ import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
 import L from 'leaflet';
 
 const props = defineProps({
-  catalogo_rutas: Array,
-  canales: Array,
-  meses_disponibles: Array,
-  anios_disponibles: Array,
+  catalogo_rutas: {
+    type: Array,
+    default: () => [],
+  },
+  canales: {
+    type: Array,
+    default: () => [],
+  },
+  anios_disponibles: {
+    type: Array,
+    default: () => [],
+  },
+  anio_default: {
+    type: Number,
+    default: 2024,
+  },
+  meses_default: {
+    type: Array,
+    default: () => [4, 5, 6],
+  },
 });
 
 const CANAL_COLORS = {
@@ -589,25 +659,26 @@ const opcionesRadio = [
   { etiqueta: '2km', valor: 2000 },
 ];
 
+// Estado de Filtros
 const radioSeleccionado = ref(300);
-const anioSeleccionado = ref(props.anios_disponibles?.[0] || new Date().getFullYear());
-const filtroCanales = ref([...(props.canales || [])]);
-const filtroRutas = ref((props.catalogo_rutas || []).map(r => r.ruta));
-const filtroMeses = ref(props.meses_disponibles && props.meses_disponibles.length > 0 ? props.meses_disponibles.slice(0, 3) : [6, 7, 8]);
+const anioSeleccionado = ref(props.anio_default || 2024);
+const filtroCanales = ref([...props.canales]);
+const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));
+const filtroMeses = ref([...props.meses_default]);
 
-const activeDropdown = ref(null);
+const menuAbierto = ref(null);
+const posicionMenu = ref({ top: 0, left: 0 });
 const busquedaRuta = ref('');
+const vistaMovil = ref('mapa');
 
 const cargando = ref(false);
 const obteniendoGps = ref(false);
 const origenConsulta = ref(null);
 const clientesCercanos = ref([]);
 
-// Estado del Inspector
+// Estado del Inspector de Cliente
 const clienteSeleccionado = ref(null);
 const pestañaExpediente = ref('ventas');
-
-// Estado de Ventas
 const cargandoVentas = ref(false);
 const detalleVentasCliente = ref({ total_general: 0, total_ventas: 0, ventas: [] });
 const ticketAbiertoId = ref(null);
@@ -643,50 +714,79 @@ const rutasFiltradasEnDropdown = computed(() => {
   );
 });
 
+const labelMeses = computed(() => {
+  if (filtroMeses.value.length === 12) return 'Todos';
+  if (filtroMeses.value.length === 0) return 'Ninguno';
+  if (filtroMeses.value.length <= 3) {
+    return filtroMeses.value.map(m => String(m).padStart(2, '0')).join(', ');
+  }
+  return `${filtroMeses.value.length} sel.`;
+});
+
 const labelCanales = computed(() => {
-  if (!props.canales) return 'Todos';
+  if (!props.canales || props.canales.length === 0) return 'Todos';
   if (filtroCanales.value.length === props.canales.length) return 'Todos';
   if (filtroCanales.value.length === 0) return 'Ninguno';
-  return `${filtroCanales.value.length} seleccionados`;
+  return `${filtroCanales.value.length} sel.`;
 });
 
 const labelRutas = computed(() => {
+  if (!rutasDisponibles.value || rutasDisponibles.value.length === 0) return 'Ninguna';
   if (filtroRutas.value.length === rutasDisponibles.value.length) return 'Todas';
   if (filtroRutas.value.length === 0) return 'Ninguna';
-  return `${filtroRutas.value.length} seleccionadas`;
+  return `${filtroRutas.value.length} sel.`;
 });
 
-function toggleDropdown(name) {
-  activeDropdown.value = activeDropdown.value === name ? null : name;
+// Calcula dinámicamente la posición exacta debajo del botón disparador
+function toggleMenu(nombre, event) {
+  if (menuAbierto.value === nombre) {
+    menuAbierto.value = null;
+    return;
+  }
+  const rect = event.currentTarget.getBoundingClientRect();
+  const anchoMenu = nombre === 'rutas' ? 256 : (nombre === 'meses' ? 224 : 208);
+  
+  // Evitar que el menú desborde el margen derecho de la pantalla
+  let leftPos = rect.left;
+  if (leftPos + anchoMenu > window.innerWidth - 8) {
+    leftPos = Math.max(8, window.innerWidth - anchoMenu - 8);
+  }
+
+  posicionMenu.value = {
+    top: rect.bottom + 4,
+    left: leftPos,
+  };
+  menuAbierto.value = nombre;
 }
 
-function toggleMes(numero) {
-  const index = filtroMeses.value.indexOf(numero);
-  if (index > -1) {
-    filtroMeses.value.splice(index, 1);
-  } else {
-    filtroMeses.value.push(numero);
-  }
+function seleccionarTodosMeses() {
+  filtroMeses.value = mesesLista.map(m => m.numero);
   reconsultar();
 }
 
-function toggleTodosMeses() {
-  if (filtroMeses.value.length === 12) {
-    filtroMeses.value = [];
-  } else {
-    filtroMeses.value = mesesLista.map(m => m.numero);
-  }
+function limpiarMeses() {
+  filtroMeses.value = [];
   reconsultar();
 }
 
 function seleccionarTodosCanales() {
-  filtroCanales.value = [...(props.canales || [])];
+  filtroCanales.value = [...props.canales];
+  filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
   reconsultar();
 }
 
 function limpiarCanales() {
   filtroCanales.value = [];
   filtroRutas.value = [];
+  reconsultar();
+}
+
+function onCanalesChange() {
+  const rutasValidas = new Set(rutasDisponibles.value.map(r => r.ruta));
+  filtroRutas.value = filtroRutas.value.filter(r => rutasValidas.has(r));
+  if (filtroRutas.value.length === 0 && rutasDisponibles.value.length > 0) {
+    filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
+  }
   reconsultar();
 }
 
@@ -921,6 +1021,7 @@ function obtenerUbicacionActual() {
       const { latitude, longitude } = position.coords;
       map.flyTo([latitude, longitude], 16, { duration: 0.8 });
       ejecutarBusqueda(latitude, longitude);
+      vistaMovil.value = 'mapa';
     },
     () => {
       obteniendoGps.value = false;
@@ -946,18 +1047,13 @@ function initMap() {
   markersLayer = L.featureGroup().addTo(map);
 
   map.on('click', (e) => {
-    activeDropdown.value = null;
+    menuAbierto.value = null;
     ejecutarBusqueda(e.latlng.lat, e.latlng.lng);
   });
 }
 
 onMounted(() => {
   initMap();
-  window.addEventListener('click', (e) => {
-    if (!e.target.closest('.relative')) {
-      activeDropdown.value = null;
-    }
-  });
   window.addEventListener('keydown', manejarTeclado);
 });
 
@@ -965,3 +1061,13 @@ onUnmounted(() => {
   window.removeEventListener('keydown', manejarTeclado);
 });
 </script>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>
