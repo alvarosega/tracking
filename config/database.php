@@ -44,8 +44,8 @@ return [
         ],
         'supervisor' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_URL'),
-            'host' => env('DB_SUPERVISOR_HOST', '127.0.0.1'),
+            'url' => env('DB_SUPERVISOR_URL'),
+            'host' => env('DB_SUPERVISOR_HOST', 'srv1894.hstgr.io'),
             'port' => env('DB_SUPERVISOR_PORT', '3306'),
             'database' => env('DB_SUPERVISOR_DATABASE', 'u967339252_supervisor'),
             'username' => env('DB_SUPERVISOR_USERNAME', 'u967339252_supervisor'),
@@ -57,6 +57,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci, time_zone = '-04:00'",
+            ]) : [],
         ],
         'mariadb' => [
             'driver' => 'mariadb',

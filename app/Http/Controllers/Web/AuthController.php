@@ -16,7 +16,7 @@ class AuthController extends Controller
     {
         if (Auth::check()) {
             if (Auth::user()->role?->name === 'supervisor') {
-                return redirect()->route('supervisor.visitas.index');
+                return redirect()->route('supervisor.index');
             }
             Auth::logout();
         }
@@ -53,7 +53,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('supervisor.visitas.index'));
+        return redirect()->intended(route('supervisor.index'));
     }
 
     public function logout(Request $request): RedirectResponse

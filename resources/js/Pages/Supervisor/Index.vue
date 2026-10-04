@@ -1,132 +1,124 @@
 <template>
   <SupervisorLayout>
     <div class="space-y-6">
-      <!-- Tarjetas KPI -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <p class="text-xs font-semibold text-gray-500 uppercase">Fuerza Activa Hoy</p>
-          <div class="flex items-baseline space-x-2 mt-2">
-            <span class="text-3xl font-extrabold text-gray-900">{{ kpis.vendedores_activos }}</span>
-            <span class="text-xs text-gray-400">de {{ kpis.vendedores_total }} rutas</span>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <p class="text-xs font-semibold text-gray-500 uppercase">Visitas Realizadas</p>
-          <div class="flex items-baseline space-x-2 mt-2">
-            <span class="text-3xl font-extrabold text-blue-600">{{ kpis.visitas_hoy }}</span>
-            <span class="text-xs text-gray-400">de {{ kpis.clientes_planificados }} planificadas</span>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <p class="text-xs font-semibold text-gray-500 uppercase">Avance Cobertura</p>
-          <p class="text-3xl font-extrabold text-amber-600 mt-2">
-            {{ kpis.clientes_planificados > 0 ? Math.round((kpis.visitas_hoy / kpis.clientes_planificados) * 100) : 0 }}%
+      <!-- Encabezado de Bienvenida -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-[#E5E5EA] gap-2">
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight text-[#1D1D1F]">
+            Panel de Control
+          </h1>
+          <p class="text-xs text-[#6E6E73] mt-0.5">
+            Sesión iniciada como {{ $page.props.auth?.user?.username || 'Supervisor' }}
           </p>
         </div>
-
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <p class="text-xs font-semibold text-gray-500 uppercase">Alertas GPS Falso</p>
-          <p class="text-3xl font-extrabold text-red-600 mt-2">{{ kpis.alertas_mock }}</p>
+        <div class="flex items-center space-x-2 text-xs font-mono text-[#6E6E73]">
+          <span class="px-2 py-1 bg-white border border-[#E5E5EA] rounded-[6px]">
+            {{ contexto.dia_semana }}, {{ contexto.fecha }}
+          </span>
+          <span class="px-2 py-1 bg-white border border-[#E5E5EA] rounded-[6px] tabular-nums">
+            {{ contexto.hora }}
+          </span>
         </div>
       </div>
 
-      <!-- Mapa Flota en Vivo -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Última Posición Transmitida en Vivo</h3>
-          <span class="text-xs text-gray-500 font-mono">{{ kpis.dia_actual }}, {{ kpis.fecha_actual }}</span>
+      <!-- Estado Operativo de Plataforma -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-4">
+          <p class="text-[11px] font-semibold tracking-wide uppercase text-[#86868B]">Fuerza Comercial</p>
+          <div class="mt-2 flex items-baseline space-x-2">
+            <span class="text-2xl font-semibold text-[#1D1D1F] tabular-nums">{{ contexto.total_fuerza_ventas }}</span>
+            <span class="text-xs text-[#6E6E73]">vendedores activos</span>
+          </div>
         </div>
-        <div id="map-live" class="h-96 w-full rounded-lg border border-gray-200"></div>
+
+        <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-4">
+          <p class="text-[11px] font-semibold tracking-wide uppercase text-[#86868B]">Conexión Primaria</p>
+          <div class="mt-2 flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-[#248A3D]"></span>
+            <span class="text-xs font-mono font-medium text-[#1D1D1F]">u967339252_alva</span>
+          </div>
+          <p class="text-[10px] text-[#86868B] mt-1">Hostinger srv1894.hstgr.io (Producción)</p>
+        </div>
+
+        <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-4">
+          <p class="text-[11px] font-semibold tracking-wide uppercase text-[#86868B]">Conexión Supervisión</p>
+          <div class="mt-2 flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-[#248A3D]"></span>
+            <span class="text-xs font-mono font-medium text-[#1D1D1F]">u967339252_supervisor</span>
+          </div>
+          <p class="text-[10px] text-[#86868B] mt-1">Hostinger srv1894.hstgr.io (Transaccional)</p>
+        </div>
       </div>
 
-      <!-- Tabla Detallada -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-4 border-b border-gray-100">
-          <h3 class="text-sm font-bold text-gray-800 uppercase">Estado de Conexión de Vendedores</h3>
+      <!-- Accesos Directos a Submódulos Operativos -->
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-[#86868B] mb-3">Módulos de Operación</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Link
+            :href="route('supervisor.ruteo.index')"
+            class="bg-white border border-[#E5E5EA] rounded-[8px] p-4 hover:border-[#86868B] transition-colors flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-sm font-semibold text-[#1D1D1F]">Ruteo</p>
+              <p class="text-xs text-[#6E6E73] mt-1">Planes de visita, clientes asignados y cobertura.</p>
+            </div>
+            <span class="text-xs font-medium text-[#1D1D1F] mt-4 flex items-center gap-1">
+              Abrir módulo &rarr;
+            </span>
+          </Link>
+
+          <Link
+            :href="route('supervisor.tracking.index')"
+            class="bg-white border border-[#E5E5EA] rounded-[8px] p-4 hover:border-[#86868B] transition-colors flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-sm font-semibold text-[#1D1D1F]">Tracking</p>
+              <p class="text-xs text-[#6E6E73] mt-1">Histórico de trayectorias, distancias y puntos GPS.</p>
+            </div>
+            <span class="text-xs font-medium text-[#1D1D1F] mt-4 flex items-center gap-1">
+              Abrir módulo &rarr;
+            </span>
+          </Link>
+
+          <Link
+            :href="route('supervisor.visitas.index')"
+            class="bg-white border border-[#E5E5EA] rounded-[8px] p-4 hover:border-[#86868B] transition-colors flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-sm font-semibold text-[#1D1D1F]">Visitas</p>
+              <p class="text-xs text-[#6E6E73] mt-1">Auditoría fotográfica y registro de visitas en terreno.</p>
+            </div>
+            <span class="text-xs font-medium text-[#1D1D1F] mt-4 flex items-center gap-1">
+              Abrir módulo &rarr;
+            </span>
+          </Link>
+
+          <Link
+            :href="route('supervisor.jornadas.index')"
+            class="bg-white border border-[#E5E5EA] rounded-[8px] p-4 hover:border-[#86868B] transition-colors flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-sm font-semibold text-[#1D1D1F]">Jornadas</p>
+              <p class="text-xs text-[#6E6E73] mt-1">Control de turnos, aperturas y cierres de fuerza de ventas.</p>
+            </div>
+            <span class="text-xs font-medium text-[#1D1D1F] mt-4 flex items-center gap-1">
+              Abrir módulo &rarr;
+            </span>
+          </Link>
         </div>
-        <table class="w-full text-left text-sm text-gray-600">
-          <thead class="bg-gray-50 text-xs text-gray-500 uppercase border-b border-gray-100">
-            <tr>
-              <th class="p-4">Ruta / Vendedor</th>
-              <th class="p-4">Último Reporte</th>
-              <th class="p-4">Batería</th>
-              <th class="p-4">Movimiento</th>
-              <th class="p-4">Precisión GPS</th>
-              <th class="p-4">Integridad</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 font-medium">
-            <tr v-for="v in vendedores_en_vivo" :key="v.user_id" class="hover:bg-gray-50">
-              <td class="p-4 font-bold text-gray-900">{{ v.vendedor_ruta }}</td>
-              <td class="p-4 font-mono text-xs">{{ v.recorded_at }}</td>
-              <td class="p-4">
-                <span :class="v.battery_level <= 15 ? 'text-red-600 font-bold' : 'text-gray-700'">
-                  {{ v.battery_level }}%
-                </span>
-              </td>
-              <td class="p-4">
-                <span class="px-2 py-1 text-xs rounded-full font-bold" :class="v.is_moving ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'">
-                  {{ v.is_moving ? 'En Movimiento' : 'Detenido' }}
-                </span>
-              </td>
-              <td class="p-4">±{{ Math.round(v.accuracy) }}m</td>
-              <td class="p-4">
-                <span v-if="v.is_mock" class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full font-bold">MOCK DETECTADO</span>
-                <span v-else class="text-xs text-green-600 font-bold">Genuino</span>
-              </td>
-            </tr>
-            <tr v-if="vendedores_en_vivo.length === 0">
-              <td colspan="6" class="p-6 text-center text-gray-400">Sin transmisiones satelitales recibidas hoy.</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </SupervisorLayout>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
-import L from 'leaflet';
 
-const props = defineProps({
-  kpis: Object,
-  vendedores_en_vivo: Array,
-});
-
-onMounted(() => {
-  const map = L.map('map-live').setView([-16.5000, -68.1500], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
-
-  if (props.vendedores_en_vivo.length > 0) {
-    const group = [];
-    props.vendedores_en_vivo.forEach(v => {
-      const marker = L.circleMarker([v.latitude, v.longitude], {
-        radius: 8,
-        fillColor: v.is_mock ? '#dc2626' : (v.is_moving ? '#16a34a' : '#2563eb'),
-        color: '#ffffff',
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.9
-      }).addTo(map);
-
-      marker.bindPopup(`
-        <div class="font-sans text-xs">
-          <strong>Ruta:</strong> ${v.vendedor_ruta}<br/>
-          <strong>Hora:</strong> ${v.recorded_at}<br/>
-          <strong>Batería:</strong> ${v.battery_level}%<br/>
-          <strong>Precisión:</strong> ±${Math.round(v.accuracy)}m
-        </div>
-      `);
-      group.push([v.latitude, v.longitude]);
-    });
-    map.fitBounds(group, { padding: [40, 40] });
-  }
+defineProps({
+  contexto: {
+    type: Object,
+    required: true,
+  },
 });
 </script>
