@@ -33,8 +33,12 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::get('/tracking', [SupervisorTrackingController::class, 'index'])->name('tracking.index');
     Route::post('/tracking/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('tracking.workday.close');
 
-    // Módulo Visitas
     Route::get('/visitas', [SupervisorVisitasController::class, 'index'])->name('visitas.index');
+    Route::post('/visitas/data', [SupervisorVisitasController::class, 'data'])->name('visitas.data');
+    Route::post('/visitas/fotos/{clienteId}', [SupervisorVisitasController::class, 'fotosCliente'])->name('visitas.fotos');
+    
+    Route::get('/visitas/avance', [SupervisorVisitasController::class, 'avance'])->name('visitas.avance');
+    Route::post('/visitas/avance/data', [SupervisorVisitasController::class, 'avanceData'])->name('visitas.avance.data');
 
     // Módulo Jornadas
     Route::get('/jornadas', [SupervisorJornadasController::class, 'index'])->name('jornadas.index');
