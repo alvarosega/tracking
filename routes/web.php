@@ -25,7 +25,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/ruteo/cercanos/cliente/{clienteId}/ventas', [SupervisorRuteoController::class, 'getVentasCliente'])->name('ruteo.cercanos.cliente.ventas');
     Route::post('/ruteo/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('ruteo.cercanos.cliente.visitas');
 
-    
+    // Submódulo Auditoría Preventas
+    Route::get('/ruteo/preventas', [SupervisorRuteoController::class, 'preventas'])->name('ruteo.preventas');
+    Route::post('/ruteo/preventas/data', [SupervisorRuteoController::class, 'getPreventasData'])->name('ruteo.preventas.data');
+
     // Módulo Tracking
     Route::get('/tracking', [SupervisorTrackingController::class, 'index'])->name('tracking.index');
     Route::post('/tracking/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('tracking.workday.close');

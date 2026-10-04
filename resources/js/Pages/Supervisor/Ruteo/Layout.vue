@@ -2,7 +2,7 @@
   <SupervisorLayout>
     <div class="h-[calc(100vh-3rem)] md:h-[calc(100vh-2rem)] flex flex-col -m-5 md:-m-8 overflow-hidden bg-[#F5F5F7]">
       <!-- Pestañas de Submódulo -->
-      <div class="bg-white border-b border-[#E5E5EA] px-4 pt-2.5 pb-0 flex items-center justify-between shrink-0">
+      <div class="bg-white border-b border-[#E5E5EA] px-4 pt-2 pb-0 flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-1">
           <Link
             :href="route('supervisor.ruteo.index')"
@@ -30,6 +30,19 @@
             </svg>
             Clientes Cercanos
           </Link>
+
+          <Link
+            :href="route('supervisor.ruteo.preventas')"
+            class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5"
+            :class="$page.component === 'Supervisor/Ruteo/Preventas'
+              ? 'border-[#1D1D1F] text-[#1D1D1F] font-semibold'
+              : 'border-transparent text-[#6E6E73] hover:text-[#1D1D1F]'"
+          >
+            <svg class="w-3.5 h-3.5 stroke-[1.8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25H4.875c-.621 0-1.125.504-1.125 1.125v6.75m10.5-7.875V14.25" />
+            </svg>
+            Auditoría Preventas
+          </Link>
         </div>
 
         <span class="text-[10px] font-mono text-[#86868B] pb-1.5 hidden sm:inline">
@@ -37,7 +50,6 @@
         </span>
       </div>
 
-      <!-- Contenido Específico -->
       <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
         <slot />
       </div>
