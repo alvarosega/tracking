@@ -7,6 +7,8 @@ use App\Http\Controllers\Web\SupervisorRuteoController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
+
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -40,7 +42,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/data', [SupervisorTrackingController::class, 'data'])->name('data');
         Route::post('/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('workday.close');
     });
-
+    Route::prefix('altas-ediciones')->name('altas-ediciones.')->group(function () {
+        Route::get('/', [SupervisorAltasEdicionesController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
+    });
     // Módulo Visitas
     Route::get('/visitas', [SupervisorVisitasController::class, 'index'])->name('visitas.index');
     Route::post('/visitas/data', [SupervisorVisitasController::class, 'data'])->name('visitas.data');

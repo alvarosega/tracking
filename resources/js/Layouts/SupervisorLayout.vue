@@ -110,7 +110,19 @@
             </svg>
             Visitas
           </Link>
-
+          <Link
+            :href="route('supervisor.altas-ediciones.index')"
+            class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"
+            :class="$page.component.startsWith('Supervisor/AltasEdiciones')
+              ? 'bg-[#F2F2F7] text-[#1D1D1F] font-semibold'
+              : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#FBFBFD]'"
+            @click="isMobileMenuOpen = false"
+          >
+            <svg class="w-4 h-4 mr-3 stroke-[1.8]" :class="$page.component.startsWith('Supervisor/AltasEdiciones') ? 'text-[#1D1D1F]' : 'text-[#86868B] group-hover:text-[#1D1D1F]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.765z" />
+            </svg>
+            Altas / Ediciones
+          </Link>
           <Link
             :href="route('supervisor.jornadas.index')"
             class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"

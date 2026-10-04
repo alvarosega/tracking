@@ -23,7 +23,7 @@ class PlanRuteoController extends Controller
         // 1. Ruta del usuario autenticado (ej: "TDB 99")
         $rutaUsuario = trim($user->username);
 
-        // 2. Determinar día actual en Bolivia (UTC-4)
+        // 2. Determinar día actual y fecha en Bolivia (UTC-4)
         $diasMap = [
             1 => 'Lunes',
             2 => 'Martes',
@@ -36,6 +36,7 @@ class PlanRuteoController extends Controller
 
         $nowBolivia = Carbon::now('America/La_Paz');
         $diaActual = $diasMap[$nowBolivia->dayOfWeekIso];
+        $fechaHoy = $nowBolivia->toDateString();
 
         // 3. Subconsulta: obtener el ID más reciente de edición pendiente por cliente
         $latestPendingEdits = DB::connection('supervisor')
@@ -70,7 +71,7 @@ class PlanRuteoController extends Controller
             }
         });
 
-        // 5. Mapeo: si sb.id existe, se muestran los datos de la edición pendiente; coordenadas siempre de pan_ruteo
+        // 5. Clientes obtenidos de supervisor
         $planRuteo = $query->orderBy('p.cliente_id', 'asc')
             ->select([
                 'p.cliente_id',
@@ -97,9 +98,22 @@ class PlanRuteoController extends Controller
             ])
             ->get();
 
-        // Castear explicitamente el flag a booleano real
-        $response = $planRuteo->map(function ($item) {
+        // 6. Consultar las visitas realizadas hoy por este usuario desde la conexión mysql
+        $visitasHoy = DB::table('visitas')
+            ->where('user_id', $user->id)
+            ->whereDate('visited_at', $fechaHoy)
+            ->get(['client_id', 'status'])
+            ->keyBy('client_id');
+
+        // 7. Mapeo final cruzando con el estado de visita
+        $response = $planRuteo->map(function ($item) use ($visitasHoy) {
+            $haSidoVisitado = $visitasHoy->has($item->cliente_id);
+            $visita = $visitasHoy->get($item->cliente_id);
+
             $item->tiene_edicion_pendiente = (bool) $item->tiene_edicion_pendiente;
+            $item->is_visited = $haSidoVisitado;
+            $item->visita_estado = $haSidoVisitado ? $visita->status : 'PENDIENTE';
+
             return $item;
         });
 
