@@ -2,10 +2,10 @@
 
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\SupervisorIndexController;
+use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorRuteoController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
-use App\Http\Controllers\Web\SupervisorJornadasController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -30,13 +30,22 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/ruteo/preventas/data', [SupervisorRuteoController::class, 'getPreventasData'])->name('ruteo.preventas.data');
 
     // Módulo Tracking
-    Route::get('/tracking', [SupervisorTrackingController::class, 'index'])->name('tracking.index');
-    Route::post('/tracking/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('tracking.workday.close');
+    Route::prefix('tracking')->name('tracking.')->group(function () {
+        // Submódulo 1: Histórico de Patrones Semanales
+        Route::get('/historico', [SupervisorTrackingController::class, 'historico'])->name('historico');
+        Route::post('/historico/data', [SupervisorTrackingController::class, 'historicoData'])->name('historico.data');
 
+        // Submódulo 2: Monitoreo en el Día (Recorrido + Telemetría en Vivo)
+        Route::get('/', [SupervisorTrackingController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorTrackingController::class, 'data'])->name('data');
+        Route::post('/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('workday.close');
+    });
+
+    // Módulo Visitas
     Route::get('/visitas', [SupervisorVisitasController::class, 'index'])->name('visitas.index');
     Route::post('/visitas/data', [SupervisorVisitasController::class, 'data'])->name('visitas.data');
     Route::post('/visitas/fotos/{clienteId}', [SupervisorVisitasController::class, 'fotosCliente'])->name('visitas.fotos');
-    
+
     Route::get('/visitas/avance', [SupervisorVisitasController::class, 'avance'])->name('visitas.avance');
     Route::post('/visitas/avance/data', [SupervisorVisitasController::class, 'avanceData'])->name('visitas.avance.data');
 
