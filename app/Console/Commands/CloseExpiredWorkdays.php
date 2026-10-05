@@ -10,31 +10,51 @@ use Illuminate\Console\Command;
 class CloseExpiredWorkdays extends Command
 {
     protected $signature = 'workday:close-expired';
-    protected $description = 'Cierra automáticamente todas las jornadas laborales abiertas fuera del horario legal';
+    protected $description = 'Cierra automáticamente las jornadas laborales que hayan superado su horario límite según su ruta';
 
     public function handle(WorkdayService $workdayService): int
     {
         $now = Carbon::now(WorkdayService::TIMEZONE);
+        $today = $now->toDateString();
 
-        // Si estamos en horario laboral válido, no hay nada que forzar
-        if ($workdayService->isWithinLegalSchedule($now)) {
-            $this->info('Dentro de horario laboral legal. Sin cierres forzados.');
+        // 1. Obtener todas las jornadas abiertas para la fecha de hoy con la relación del usuario
+        $openWorkdays = UserWorkday::with('user:id,username')
+            ->where('work_date', $today)
+            ->where('status', 'OPEN')
+            ->get();
+
+        if ($openWorkdays->isEmpty()) {
+            $this->info('No existen jornadas abiertas pendientes de validación.');
             return Command::SUCCESS;
         }
 
-        $today = $now->toDateString();
-        $limitTime = $workdayService->getLimitTimeForDate($now) ?? $now;
+        $closedCount = 0;
 
-        $affected = UserWorkday::where('work_date', $today)
-            ->where('status', 'OPEN')
-            ->update([
-                'status'       => 'CLOSED_TIMEOUT',
-                'ended_at'     => $limitTime,
-                'close_reason' => 'Cierre automático programado: límite de jornada legal alcanzado',
-                'updated_at'   => $now,
-            ]);
+        foreach ($openWorkdays as $workday) {
+            $user = $workday->user;
+            if (!$user) {
+                continue;
+            }
 
-        $this->info("Jornadas vencidas cerradas automáticamente: {$affected}");
+            $route = trim($user->username);
+
+            // Validar si la jornada de esta ruta ya venció
+            if (!$workdayService->isWithinLegalSchedule($route, $now)) {
+                $limitTime = $workdayService->getLimitTimeForDate($route, $now) ?? $now;
+
+                $workday->update([
+                    'status'       => 'CLOSED_TIMEOUT',
+                    'ended_at'     => $limitTime,
+                    'close_reason' => 'Cierre automático programado: límite de jornada alcanzado para la ruta',
+                    'updated_at'   => $now,
+                ]);
+
+                $closedCount++;
+                $this->line("Jornada cerrada para la ruta [{$route}]. Hora límite: {$limitTime->format('H:i:s')}");
+            }
+        }
+
+        $this->info("Total de jornadas vencidas cerradas: {$closedCount}");
         return Command::SUCCESS;
     }
 }

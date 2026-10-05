@@ -60,7 +60,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/jornadas/close-all', [SupervisorJornadasController::class, 'closeAllActive'])->name('jornadas.close.all');
     
     
+// Submódulo Horarios y Control en Vivo
     Route::get('/horarios', [SupervisorHorariosController::class, 'index'])->name('horarios.index');
     Route::post('/horarios/data', [SupervisorHorariosController::class, 'data'])->name('horarios.data');
     Route::post('/horarios/update', [SupervisorHorariosController::class, 'update'])->name('horarios.update');
+    Route::post('/horarios/active-workdays', [SupervisorHorariosController::class, 'activeWorkdays'])->name('horarios.active-workdays');
+    Route::post('/horarios/close/{userId}', [SupervisorHorariosController::class, 'forceCloseWorkday'])->name('horarios.close');
 });

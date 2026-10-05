@@ -90,4 +90,39 @@ class SupervisorHorariosController extends Controller
             'schedule' => $schedule,
         ], 200);
     }
+    /**
+     * Retorna la lista en vivo de usuarios con jornada iniciada hoy.
+     */
+    public function activeWorkdays(): JsonResponse
+    {
+        $today = \Carbon\Carbon::now(\App\Services\WorkdayService::TIMEZONE)->toDateString();
+
+        $workdays = \App\Models\UserWorkday::with(['user:id,username'])
+            ->where('work_date', $today)
+            ->where('status', 'OPEN')
+            ->orderBy('started_at', 'desc')
+            ->get();
+
+        return response()->json($workdays, 200);
+    }
+
+    /**
+     * Cierre remoto individual ejecutado desde el panel de horarios.
+     */
+    public function forceCloseWorkday(Request $request, int $userId, \App\Services\WorkdayService $workdayService): JsonResponse
+    {
+        $supervisor = $request->user();
+        $reason = $request->input('reason', 'Cierre manual ejecutado por el supervisor desde el panel de horarios');
+
+        $workday = $workdayService->closeWorkdayBySupervisor($userId, $supervisor->id, $reason);
+
+        if (!$workday) {
+            return response()->json(['message' => 'El usuario no tiene una jornada abierta hoy.'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Jornada finalizada exitosamente.',
+            'workday' => $workday,
+        ], 200);
+    }
 }
