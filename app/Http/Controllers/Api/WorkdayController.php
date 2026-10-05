@@ -19,6 +19,9 @@ class WorkdayController extends Controller
         $this->workdayService = $workdayService;
     }
 
+    /**
+     * GET /api/workday/status
+     */
     public function status(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -43,6 +46,9 @@ class WorkdayController extends Controller
         ], 200);
     }
 
+    /**
+     * POST /api/workday/start
+     */
     public function start(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -69,6 +75,9 @@ class WorkdayController extends Controller
         }
     }
 
+    /**
+     * POST /api/workday/stop
+     */
     public function stop(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -82,23 +91,9 @@ class WorkdayController extends Controller
             'workday'   => $workday
         ], 200);
     }
-    public function stop(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $workday = $this->workdayService->closeWorkdayBySeller($user->id);
-
-        return response()->json([
-            'message'   => 'Jornada finalizada por el vendedor.',
-            'is_active' => false,
-            'status'    => $workday ? $workday->status : 'CLOSED_SELLER',
-            'action'    => 'STOP_TRACKING',
-            'workday'   => $workday
-        ], 200);
-    }
 
     /**
      * POST /api/supervisor/workdays/{userId}/close
-     * El supervisor finaliza remotamente la jornada de un vendedor.
      */
     public function forceCloseBySupervisor(Request $request, int $userId): JsonResponse
     {
@@ -133,7 +128,6 @@ class WorkdayController extends Controller
 
     /**
      * GET /api/supervisor/workdays/today
-     * Lista para el panel web del supervisor con el estado de todas las rutas de hoy.
      */
     public function todayWorkdays(Request $request): JsonResponse
     {
