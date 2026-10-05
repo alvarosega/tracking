@@ -40,11 +40,8 @@ class VisitaController extends Controller
 
         $uuid = trim($validated['uuid']);
 
-        // 1. Verificación de Idempotencia por UUID usando la conexión 'alva'
-        $existingVisita = DB::connection('alva')
-            ->table('visitas')
-            ->where('uuid', $uuid)
-            ->first();
+        // 1. Verificación de Idempotencia por UUID usando la conexión por defecto (mysql)
+        $existingVisita = DB::table('visitas')->where('uuid', $uuid)->first();
 
         if ($existingVisita) {
             return response()->json([
@@ -88,28 +85,25 @@ class VisitaController extends Controller
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
 
         try {
-            // USAR CONEXIÓN 'alva' PARA INSERTAR EN LA TABLA 'visitas'
-            $visitaId = DB::connection('alva')
-                ->table('visitas')
-                ->insertGetId([
-                    'uuid' => $uuid,
-                    'user_id' => $user->id,
-                    'client_id' => !empty($validated['client_id']) ? (int) $validated['client_id'] : null,
-                    'route' => trim($validated['route']),
-                    'status' => trim($validated['status']),
-                    'is_opportunity' => $isOpportunity,
-                    'opportunity_client_name' => $validated['opportunity_client_name'] ?? null,
-                    'distance_to_client' => $calculatedDistance,
-                    'is_mock_location' => $isMock, // Nombre de columna en la tabla 'visitas' de 'alva'
-                    'latitude' => $validated['latitude'],
-                    'longitude' => $validated['longitude'],
-                    'accuracy' => $validated['accuracy'],
-                    'photo_path' => $photoPath,
-                    'comments' => $validated['comments'] ?? null,
-                    'visited_at' => $validated['visited_at'],
-                    'created_at' => $nowBolivia,
-                    'updated_at' => $nowBolivia,
-                ]);
+            $visitaId = DB::table('visitas')->insertGetId([
+                'uuid'                    => $uuid,
+                'user_id'                 => $user->id,
+                'client_id'               => !empty($validated['client_id']) ? (int) $validated['client_id'] : null,
+                'route'                   => trim($validated['route']),
+                'status'                  => trim($validated['status']),
+                'is_opportunity'          => $isOpportunity,
+                'opportunity_client_name' => $validated['opportunity_client_name'] ?? null,
+                'distance_to_client'      => $calculatedDistance,
+                'is_mock'                 => $isMock, // Columna correcta en MySQL
+                'latitude'                => $validated['latitude'],
+                'longitude'               => $validated['longitude'],
+                'accuracy'                => $validated['accuracy'],
+                'photo_path'              => $photoPath,
+                'comments'                => $validated['comments'] ?? null,
+                'visited_at'              => $validated['visited_at'],
+                'created_at'              => $nowBolivia,
+                'updated_at'              => $nowBolivia,
+            ]);
         } catch (\Throwable $e) {
             Storage::disk('public')->delete($photoPath);
             throw $e;
