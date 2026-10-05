@@ -94,7 +94,7 @@ class VisitaController extends Controller
                 'is_opportunity'          => $isOpportunity,
                 'opportunity_client_name' => $validated['opportunity_client_name'] ?? null,
                 'distance_to_client'      => $calculatedDistance,
-                'is_mock'                 => $isMock, // Columna correcta en MySQL
+                'is_mock'                 => $isMock, // Columna real en tu MySQL
                 'latitude'                => $validated['latitude'],
                 'longitude'               => $validated['longitude'],
                 'accuracy'                => $validated['accuracy'],

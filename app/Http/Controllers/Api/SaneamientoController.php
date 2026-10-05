@@ -137,7 +137,7 @@ class SaneamientoController extends Controller
             'referencia'      => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
             'nombre_factura'  => !empty($validated['nombre_factura']) ? trim($validated['nombre_factura']) : null,
             'nit'             => !empty($validated['nit']) ? trim($validated['nit']) : null,
-            // En edición se ignoran las coordenadas; solo aplican al alta
+            // Inmutabilidad: en edición jamás se tocan coordenadas
             'latitude'        => $esAlta ? ($validated['latitude'] ?? null) : null,
             'longitude'       => $esAlta ? ($validated['longitude'] ?? null) : null,
             'accuracy'        => $esAlta ? ($validated['accuracy'] ?? 0.0) : 0.0,
@@ -147,15 +147,23 @@ class SaneamientoController extends Controller
             'updated_at'      => $nowBolivia,
         ];
 
-        $saneamientoId = DB::connection('supervisor')
-            ->table('saneamiento_base')
-            ->insertGetId($insertData);
+        try {
+            $saneamientoId = DB::connection('supervisor')
+                ->table('saneamiento_base')
+                ->insertGetId($insertData);
+        } catch (\Throwable $e) {
+            // Purgar la imagen si la base de datos rechaza la operación
+            if ($photoPath) {
+                Storage::disk('public')->delete($photoPath);
+            }
+            throw $e;
+        }
 
         return response()->json([
             'message' => 'Registro de saneamiento procesado correctamente.',
             'id' => $saneamientoId,
             'tipo_registro' => $tipoRegistro,
-            'photo_url' => $photoPath ? Storage::url($photoPath) : null,
+            'photo_url' => $photoPath ? Storage::disk('public')->url($photoPath) : null,
         ], 201);
     }
 }
