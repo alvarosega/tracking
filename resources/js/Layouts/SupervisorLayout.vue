@@ -138,9 +138,9 @@
             Jornadas
           </Link>
 
-          <!-- Nuevo Módulo Horarios -->
+          <!-- Enlace Horarios sin dependencia estática de Ziggy -->
           <Link
-            :href="route('supervisor.horarios.index')"
+            href="/supervisor/horarios"
             class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"
             :class="$page.component.startsWith('Supervisor/Horarios')
               ? 'bg-[#F2F2F7] text-[#1D1D1F] font-semibold'
