@@ -19,26 +19,22 @@ class WorkdayController extends Controller
         $this->workdayService = $workdayService;
     }
 
-    /**
-     * GET /api/workday/status
-     * Polling ligero que consulta Android para verificar si la jornada sigue abierta.
-     */
     public function status(Request $request): JsonResponse
     {
         $user = $request->user();
-        $workday = $this->workdayService->getActiveWorkday($user->id);
-        $isWithinSchedule = $this->workdayService->isWithinLegalSchedule();
+        $now = Carbon::now(WorkdayService::TIMEZONE);
+        
+        $workday = $this->workdayService->getActiveWorkday($user);
+        $isWithinSchedule = $this->workdayService->isWithinLegalSchedule($user->username, $now);
+        $limitTime = $this->workdayService->getLimitTimeForDate($user->username, $now);
 
         $isActive = ($workday && $workday->status === 'OPEN' && $isWithinSchedule);
-        
-        // Corrección: Usar la propiedad de instancia $this->workdayService
-        $limitTime = $this->workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
 
         return response()->json([
             'is_active'       => $isActive,
             'status'          => $workday ? $workday->status : 'NOT_STARTED',
             'action'          => $isActive ? 'KEEP_TRACKING' : 'STOP_TRACKING',
-            'work_date'       => Carbon::now(WorkdayService::TIMEZONE)->toDateString(),
+            'work_date'       => $now->toDateString(),
             'started_at'      => $workday?->started_at?->toIso8601String(),
             'ended_at'        => $workday?->ended_at?->toIso8601String(),
             'close_reason'    => $workday?->close_reason,
@@ -47,17 +43,13 @@ class WorkdayController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/workday/start
-     * Inicia la jornada desde la app del vendedor entregando límites de una vez.
-     */
     public function start(Request $request): JsonResponse
     {
         $user = $request->user();
 
         try {
             $workday = $this->workdayService->startWorkday($user);
-            $limitTime = $this->workdayService->getLimitTimeForDate(Carbon::now(WorkdayService::TIMEZONE));
+            $limitTime = $this->workdayService->getLimitTimeForDate($user->username, Carbon::now(WorkdayService::TIMEZONE));
 
             return response()->json([
                 'message'    => 'Jornada iniciada correctamente.',
@@ -77,10 +69,19 @@ class WorkdayController extends Controller
         }
     }
 
-    /**
-     * POST /api/workday/stop
-     * El vendedor detiene voluntariamente su jornada.
-     */
+    public function stop(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $workday = $this->workdayService->closeWorkdayBySeller($user);
+
+        return response()->json([
+            'message'   => 'Jornada finalizada por el vendedor.',
+            'is_active' => false,
+            'status'    => $workday ? $workday->status : 'CLOSED_SELLER',
+            'action'    => 'STOP_TRACKING',
+            'workday'   => $workday
+        ], 200);
+    }
     public function stop(Request $request): JsonResponse
     {
         $user = $request->user();

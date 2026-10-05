@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\RouteSchedule;
 use App\Models\User;
 use App\Models\UserWorkday;
 use Carbon\Carbon;
@@ -10,56 +11,72 @@ class WorkdayService
 {
     public const TIMEZONE = 'America/La_Paz';
 
-    public function isWithinLegalSchedule(?Carbon $dateTime = null, bool $allowException = false): bool
+    /**
+     * Obtiene el horario configurado para una ruta y fecha.
+     */
+    public function getScheduleForRoute(string $route, ?Carbon $dateTime = null): object
     {
         $now = $dateTime ? $dateTime->copy()->setTimezone(self::TIMEZONE) : Carbon::now(self::TIMEZONE);
-        $dayOfWeek = $now->dayOfWeekIso; // 1: Lunes ... 6: Sábado, 7: Domingo
-        $timeStr = $now->format('H:i:s');
+        $dayOfWeek = $now->dayOfWeekIso;
 
-        // Excepción de pruebas: permitir domingos
-        if ($dayOfWeek === 7) {
-            return true;
+        $dbSchedule = RouteSchedule::where('route', trim($route))
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if ($dbSchedule) {
+            return (object) [
+                'is_working_day' => (bool) $dbSchedule->is_working_day,
+                'start_time'     => $dbSchedule->start_time,
+                'end_time'       => $dbSchedule->end_time,
+                'limit_time'     => $dbSchedule->is_working_day 
+                    ? Carbon::parse($now->toDateString() . ' ' . $dbSchedule->end_time, self::TIMEZONE)
+                    : null
+            ];
         }
 
+        // Fallback histórico si la ruta no tiene configuración registrada
+        $isSaturday = ($dayOfWeek === 6);
+        $isSunday = ($dayOfWeek === 7);
+
+        return (object) [
+            'is_working_day' => !$isSunday,
+            'start_time'     => '07:20:00',
+            'end_time'       => $isSaturday ? '15:00:00' : '19:00:00',
+            'limit_time'     => $isSunday ? null : Carbon::parse($now->toDateString() . ' ' . ($isSaturday ? '15:00:00' : '19:00:00'), self::TIMEZONE)
+        ];
+    }
+
+    /**
+     * Valida si el momento actual está dentro del horario laboral de la ruta.
+     */
+    public function isWithinLegalSchedule(string $route, ?Carbon $dateTime = null, bool $allowException = false): bool
+    {
         if ($allowException) {
             return true;
         }
 
-        // Sábado: 07:20 a 15:00 (3:00 PM)
-        if ($dayOfWeek === 6) {
-            return ($timeStr >= '07:20:00' && $timeStr <= '15:00:00');
+        $now = $dateTime ? $dateTime->copy()->setTimezone(self::TIMEZONE) : Carbon::now(self::TIMEZONE);
+        $schedule = $this->getScheduleForRoute($route, $now);
+
+        if (!$schedule->is_working_day) {
+            return false;
         }
 
-        // Lunes a Viernes: 07:20 a 19:00 (7:00 PM)
-        return ($timeStr >= '07:20:00' && $timeStr <= '23:00:00');
+        $timeStr = $now->format('H:i:s');
+        return ($timeStr >= $schedule->start_time && $timeStr <= $schedule->end_time);
     }
 
-    /**
-     * Retorna la hora límite de finalización para la fecha actual.
-     */
-    public function getLimitTimeForDate(Carbon $date): ?Carbon
+    public function getLimitTimeForDate(string $route, Carbon $date): ?Carbon
     {
-        $dayOfWeek = $date->dayOfWeekIso;
-
-        if ($dayOfWeek === 7) {
-            return null;
-        }
-
-        // Sábado hasta las 15:00:00
-        if ($dayOfWeek === 6) {
-            return $date->copy()->setTimezone(self::TIMEZONE)->setTime(15, 0, 0);
-        }
-
-        // Lunes a Viernes hasta las 19:00:00
-        return $date->copy()->setTimezone(self::TIMEZONE)->setTime(23, 0, 0);
+        return $this->getScheduleForRoute($route, $date)->limit_time;
     }
 
-    public function getActiveWorkday(int $userId): ?UserWorkday
+    public function getActiveWorkday(User $user): ?UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);
         $todayStr = $now->toDateString();
 
-        $workday = UserWorkday::where('user_id', $userId)
+        $workday = UserWorkday::where('user_id', $user->id)
             ->where('work_date', $todayStr)
             ->first();
 
@@ -67,11 +84,10 @@ class WorkdayService
             return null;
         }
 
-        // Si el estado es OPEN, verificamos si es una excepción válida o si venció
-        $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA' || ($workday->status === 'OPEN' && $now->dayOfWeekIso === 7));
+        $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA');
 
-        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($now, $hasException)) {
-            $limitTime = $this->getLimitTimeForDate($now) ?? $now;
+        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($user->username, $now, $hasException)) {
+            $limitTime = $this->getLimitTimeForDate($user->username, $now) ?? $now;
             $workday->update([
                 'status'       => 'CLOSED_TIMEOUT',
                 'ended_at'     => $limitTime,
@@ -82,16 +98,17 @@ class WorkdayService
         return $workday;
     }
 
-    /**
-     * Inicia una jornada para el usuario si está en horario permitido.
-     */
     public function startWorkday(User $user): UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);
         $todayStr = $now->toDateString();
 
-        if (!$this->isWithinLegalSchedule($now)) {
-            throw new \DomainException('No se puede iniciar jornada fuera del horario legal permitido (07:20 - 19:00 L-V, 07:20 - 15:00 Sáb).');
+        if (!$this->isWithinLegalSchedule($user->username, $now)) {
+            $schedule = $this->getScheduleForRoute($user->username, $now);
+            if (!$schedule->is_working_day) {
+                throw new \DomainException("La ruta {$user->username} no tiene programada jornada laboral para hoy.");
+            }
+            throw new \DomainException("Fuera de horario laboral permitido para la ruta {$user->username} ({$schedule->start_time} - {$schedule->end_time}).");
         }
 
         return UserWorkday::updateOrCreate(
@@ -109,13 +126,10 @@ class WorkdayService
         );
     }
 
-    /**
-     * Cierra la jornada iniciada por el propio vendedor.
-     */
-    public function closeWorkdayBySeller(int $userId): ?UserWorkday
+    public function closeWorkdayBySeller(User $user): ?UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);
-        $workday = $this->getActiveWorkday($userId);
+        $workday = $this->getActiveWorkday($user);
 
         if ($workday && $workday->status === 'OPEN') {
             $workday->update([
@@ -128,9 +142,6 @@ class WorkdayService
         return $workday;
     }
 
-    /**
-     * Cierre remoto ejecutado por el supervisor.
-     */
     public function closeWorkdayBySupervisor(int $targetUserId, int $supervisorId, ?string $reason = null): ?UserWorkday
     {
         $now = Carbon::now(self::TIMEZONE);

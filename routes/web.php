@@ -8,7 +8,7 @@ use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
-
+use App\Http\Controllers\Web\SupervisorHorariosController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -58,4 +58,9 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::get('/jornadas', [SupervisorJornadasController::class, 'index'])->name('jornadas.index');
     Route::post('/jornadas/{userId}/close', [SupervisorJornadasController::class, 'closeSingle'])->name('jornadas.close.single');
     Route::post('/jornadas/close-all', [SupervisorJornadasController::class, 'closeAllActive'])->name('jornadas.close.all');
+    
+    
+    Route::get('/horarios', [SupervisorHorariosController::class, 'index'])->name('horarios.index');
+    Route::post('/horarios/data', [SupervisorHorariosController::class, 'data'])->name('horarios.data');
+    Route::post('/horarios/update', [SupervisorHorariosController::class, 'update'])->name('horarios.update');
 });

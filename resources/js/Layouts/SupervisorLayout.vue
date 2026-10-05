@@ -28,12 +28,11 @@
       class="fixed inset-0 bg-black/25 z-40 md:hidden backdrop-blur-xs transition-opacity"
     ></div>
 
-    <!-- Sidebar (Fijo en Desktop / Off-Canvas Drawer en Mobile) -->
+    <!-- Sidebar -->
     <aside
       class="fixed md:sticky top-0 left-0 bottom-0 z-50 w-64 bg-white border-r border-[#E5E5EA] flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0"
       :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
     >
-      <!-- Cabecera Sidebar -->
       <div>
         <div class="h-14 px-5 border-b border-[#E5E5EA] flex items-center justify-between">
           <div class="flex items-center space-x-2.5">
@@ -110,6 +109,7 @@
             </svg>
             Visitas
           </Link>
+
           <Link
             :href="route('supervisor.altas-ediciones.index')"
             class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"
@@ -123,6 +123,7 @@
             </svg>
             Altas / Ediciones
           </Link>
+
           <Link
             :href="route('supervisor.jornadas.index')"
             class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"
@@ -136,10 +137,25 @@
             </svg>
             Jornadas
           </Link>
+
+          <!-- Nuevo Módulo Horarios -->
+          <Link
+            :href="route('supervisor.horarios.index')"
+            class="group flex items-center px-3 py-2 text-[13px] font-medium rounded-[8px] transition-colors"
+            :class="$page.component.startsWith('Supervisor/Horarios')
+              ? 'bg-[#F2F2F7] text-[#1D1D1F] font-semibold'
+              : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#FBFBFD]'"
+            @click="isMobileMenuOpen = false"
+          >
+            <svg class="w-4 h-4 mr-3 stroke-[1.8]" :class="$page.component.startsWith('Supervisor/Horarios') ? 'text-[#1D1D1F]' : 'text-[#86868B] group-hover:text-[#1D1D1F]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
+            Horarios
+          </Link>
         </nav>
       </div>
 
-      <!-- Footer de Sesión del Sidebar -->
+      <!-- Footer de Sesión -->
       <div class="p-3 border-t border-[#E5E5EA]">
         <div class="px-3 py-2.5 rounded-[8px] bg-[#FBFBFD] border border-[#E5E5EA] flex items-center justify-between">
           <div class="overflow-hidden pr-2">
@@ -163,9 +179,9 @@
       </div>
     </aside>
 
-    <!-- Contenedor Principal de Contenido -->
+    <!-- Contenedor Principal -->
     <main class="flex-1 min-w-0 flex flex-col">
-      <div class="flex-1 p-5 md:p-8 max-w-6xl w-full mx-auto">
+      <div class="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto">
         <slot />
       </div>
     </main>
