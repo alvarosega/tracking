@@ -1,7 +1,7 @@
 <template>
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 text-slate-900 font-sans">
-      <!-- Barra Superior de Filtros y Capas (Con Backdrop Invisible para cerrar dropdowns) -->
+      <!-- Barra Superior de Filtros y Capas -->
       <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 relative z-30">
         
         <!-- Backdrop invisible para cerrar menú al hacer click afuera -->
@@ -13,7 +13,7 @@
 
         <div class="flex flex-wrap items-center gap-2">
           
-          <!-- Filtro Dropdown: Canales (Teleport al Body para estar encima de todo) -->
+          <!-- Filtro Dropdown: Canales (Teleport al Body) -->
           <button
             type="button"
             @click.stop="toggleMenu('canales', $event)"
@@ -58,15 +58,58 @@
             </button>
           </div>
 
+          <!-- Selector de Modo de Coloración -->
+          <div class="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+            <span class="text-[10px] font-mono text-slate-400 px-1.5">Color por:</span>
+            <button
+              type="button"
+              @click="setModoColor('ruta')"
+              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
+              :class="modoColor === 'ruta' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              Ruta
+            </button>
+            <button
+              type="button"
+              @click="setModoColor('dia')"
+              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
+              :class="modoColor === 'dia' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              Día
+            </button>
+            <button
+              type="button"
+              @click="setModoColor('canal')"
+              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
+              :class="modoColor === 'canal' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              Canal
+            </button>
+          </div>
+
+          <!-- Toggle: Solo Activos vs Todos -->
+          <button
+            type="button"
+            @click="toggleSoloActivos"
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs"
+            :class="soloActivos
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
+            :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes (activos e inactivos). Clic para filtrar solo activos.'"
+          >
+            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+            <span>{{ soloActivos ? 'Solo Activos' : 'Todos (Inc. Inactivos)' }}</span>
+          </button>
+
           <!-- Checkboxes de Fronteras GIS -->
-          <div class="hidden lg:flex items-center space-x-3 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700">
+          <div class="hidden xl:flex items-center space-x-3 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" v-model="verFronteraRutas" @change="cargarDatos" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <span>Polígono Rutas</span>
+              <span>Frontera Rutas</span>
             </label>
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" v-model="verFronteraDias" @change="cargarDatos" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <span>Polígono Días</span>
+              <span>Frontera Días</span>
             </label>
           </div>
         </div>
@@ -116,7 +159,7 @@
         </div>
       </div>
 
-      <!-- Menús Desplegables Flotantes con Teleport (Z-INDEX 99999 absoluto sobre el mapa) -->
+      <!-- Menús Desplegables Flotantes con Teleport -->
       <Teleport to="body">
         <!-- Menú Canales -->
         <div
@@ -182,7 +225,7 @@
               <input
                 v-model="busquedaCliente"
                 type="text"
-                placeholder="Filtrar por nombre o ID..."
+                placeholder="Filtrar por nombre, ruta o ID..."
                 class="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all shadow-2xs"
               />
               <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -215,17 +258,25 @@
                 <span class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1">
                   {{ c.nombre }}
                 </span>
-                <span
-                  class="text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 border"
-                  :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
-                >
-                  {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
-                </span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <span
+                    v-if="c.estado && c.estado.toLowerCase() !== 'activo'"
+                    class="text-[9px] font-mono px-1 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200"
+                  >
+                    INACTIVO
+                  </span>
+                  <span
+                    class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
+                    :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
+                  >
+                    {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
+                  </span>
+                </div>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{{ c.direccion }}</p>
               <div class="flex items-center space-x-2 mt-1.5 text-[10px] text-slate-400 font-mono">
                 <span class="flex items-center gap-1 font-medium text-slate-700">
-                  <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
+                  <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
                   {{ formatRuta(c.ruta) }}
                 </span>
                 <span>•</span>
@@ -244,7 +295,7 @@
         >
           <div id="map-ruteo" class="absolute inset-0 w-full h-full z-10"></div>
 
-          <!-- Selector de Capas de Mapa (Minimalist Tile Switcher Libre de API Key) -->
+          <!-- Selector de Capas de Mapa -->
           <div class="absolute top-3 left-3 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
             <button
               v-for="(layer, key) in mapsConfig.tileLayers"
@@ -258,17 +309,29 @@
             </button>
           </div>
 
-          <!-- Leyenda Flotante Minimalista -->
-          <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-lg z-30 text-xs">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-2">Convención Visual</p>
+          <!-- Leyenda Dinámica Inteligente (Muestra exactamente los colores asignados en el mapa) -->
+          <div
+            v-if="clientes.length > 0"
+            class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-64 overflow-y-auto"
+          >
+            <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                Codificación: {{ modoColor.toUpperCase() }}
+              </p>
+              <span class="text-[10px] font-mono text-slate-500">{{ elementosLeyenda.length }} tipos</span>
+            </div>
+
             <div class="space-y-1.5 text-[11px]">
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-sky-500 border border-slate-300"></span>
-                <span class="text-slate-700 font-medium">Color Relleno = Día de Visita</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-white border-2 border-slate-900"></span>
-                <span class="text-slate-700 font-medium">Borde = Ruta Asignada</span>
+              <div
+                v-for="item in elementosLeyenda"
+                :key="item.id"
+                class="flex items-center justify-between gap-2 px-1.5 py-0.5 rounded hover:bg-slate-50 font-mono"
+              >
+                <div class="flex items-center gap-2 truncate">
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: item.color }"></span>
+                  <span class="text-slate-800 font-medium truncate">{{ item.nombre }}</span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-semibold tabular-nums shrink-0">{{ item.conteo }} pts</span>
               </div>
             </div>
           </div>
@@ -305,9 +368,13 @@ const filtroRutas = ref([]);
 const filtroDias = ref([]);
 const verFronteraRutas = ref(true);
 const verFronteraDias = ref(true);
+const soloActivos = ref(true);
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
 const capaActual = ref(mapsConfig.defaultTileLayer || 'openStreetMap');
+
+// Modo de coloración: 'ruta' | 'dia' | 'canal'
+const modoColor = ref('ruta');
 
 const menuAbierto = ref(null);
 const posicionMenu = ref({ top: 0, left: 0 });
@@ -363,6 +430,45 @@ const clientesFiltradosLista = computed(() => {
     (c.ruta && c.ruta.toLowerCase().includes(q))
   );
 });
+
+// Elementos dinámicos para la leyenda del mapa
+const elementosLeyenda = computed(() => {
+  if (clientes.value.length === 0) return [];
+  const mapCounts = new Map();
+
+  clientes.value.forEach(c => {
+    if (!c.tiene_gps) return;
+    let key, nombre, color;
+
+    if (modoColor.value === 'ruta') {
+      key = c.ruta || 'Sin Ruta';
+      nombre = formatRuta(c.ruta);
+      color = getRutaColor(c.ruta);
+    } else if (modoColor.value === 'dia') {
+      key = c.dia_norm || 'Sin Día';
+      nombre = c.dia_norm || 'Sin Día';
+      color = getDiaColor(c.dia_norm);
+    } else {
+      const rutaInfo = props.catalogo_rutas.find(r => r.ruta === c.ruta);
+      const canal = rutaInfo ? rutaInfo.canal : 'General';
+      key = canal;
+      nombre = canal;
+      color = getCanalColor(canal);
+    }
+
+    if (!mapCounts.has(key)) {
+      mapCounts.set(key, { id: key, nombre, color, conteo: 0 });
+    }
+    mapCounts.get(key).conteo++;
+  });
+
+  return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+});
+
+function setModoColor(modo) {
+  modoColor.value = modo;
+  renderizarEnMapa();
+}
 
 function toggleMenu(nombre, e) {
   if (menuAbierto.value === nombre) {
@@ -422,6 +528,11 @@ function toggleTodosDias() {
   cargarDatos();
 }
 
+function toggleSoloActivos() {
+  soloActivos.value = !soloActivos.value;
+  cargarDatos();
+}
+
 async function cargarDatos() {
   if (filtroRutas.value.length === 0 && filtroCanales.value.length === 0) {
     clientes.value = [];
@@ -432,6 +543,13 @@ async function cargarDatos() {
     return;
   }
 
+  // Ajustar automáticamente el modo de color óptimo
+  if (filtroRutas.value.length === 1) {
+    modoColor.value = 'dia';
+  } else if (filtroRutas.value.length > 1) {
+    modoColor.value = 'ruta';
+  }
+
   cargando.value = true;
   try {
     const res = await axios.post(route('supervisor.ruteo.data'), {
@@ -440,6 +558,7 @@ async function cargarDatos() {
       dias: filtroDias.value,
       ver_frontera_rutas: verFronteraRutas.value,
       ver_frontera_dias: verFronteraDias.value,
+      solo_activos: soloActivos.value,
     });
 
     clientes.value = res.data.clientes || [];
@@ -480,7 +599,6 @@ function initMap() {
   }).setView([defaultLoc.lat, defaultLoc.lng], defaultLoc.zoom);
 
   L.control.zoom({ position: 'topright' }).addTo(map);
-
   cambiarCapaMapa(capaActual.value);
 
   fronterasRutasLayer = L.featureGroup().addTo(map);
@@ -490,6 +608,20 @@ function initMap() {
   map.on('click', () => {
     menuAbierto.value = null;
   });
+}
+
+function getMarkerColor(c) {
+  if (modoColor.value === 'ruta') {
+    return getRutaColor(c.ruta);
+  }
+  if (modoColor.value === 'dia') {
+    return getDiaColor(c.dia_norm);
+  }
+  if (modoColor.value === 'canal') {
+    const rutaInfo = props.catalogo_rutas.find(r => r.ruta === c.ruta);
+    return getCanalColor(rutaInfo ? rutaInfo.canal : 'DEFAULT');
+  }
+  return getRutaColor(c.ruta);
 }
 
 function renderizarEnMapa() {
@@ -502,6 +634,7 @@ function renderizarEnMapa() {
 
   const boundsList = [];
 
+  // Polígonos de Rutas (Sutiles y limpios)
   if (verFronteraRutas.value && fronterasRutas.value.length > 0) {
     fronterasRutas.value.forEach(fr => {
       const rutaColor = getRutaColor(fr.ruta);
@@ -511,13 +644,16 @@ function renderizarEnMapa() {
           weight: 2,
           opacity: 0.85,
           fillColor: rutaColor,
-          fillOpacity: 0.05,
+          fillOpacity: 0.03,
+          dashArray: '5, 5',
         }
       }).addTo(fronterasRutasLayer);
+      layer.bindTooltip(`Ruta: <b>${formatRuta(fr.ruta)}</b> (${fr.canal || 'Canal'})`, { sticky: true });
       boundsList.push(layer.getBounds());
     });
   }
 
+  // Polígonos de Días (Sutiles y punteados)
   if (verFronteraDias.value && fronterasDias.value.length > 0) {
     fronterasDias.value.forEach(fd => {
       const diaColor = getDiaColor(fd.dia);
@@ -525,40 +661,42 @@ function renderizarEnMapa() {
         style: {
           color: diaColor,
           weight: 1.5,
-          dashArray: '4, 4',
-          opacity: 0.9,
+          dashArray: '3, 4',
+          opacity: 0.8,
           fillColor: diaColor,
-          fillOpacity: 0.08,
+          fillOpacity: 0.04,
         }
       }).addTo(fronterasDiasLayer);
+      layer.bindTooltip(`Día: <b>${fd.dia}</b>`, { sticky: true });
       boundsList.push(layer.getBounds());
     });
   }
 
-  const unicaRuta = filtroRutas.value.length === 1;
-
+  // Marcadores de Clientes (Color sólido unificado sin conflicto de doble color)
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
-      const fillColor = getDiaColor(c.dia_norm);
-      const strokeColor = unicaRuta ? '#FFFFFF' : getRutaColor(c.ruta);
+      const markerColor = getMarkerColor(c);
 
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: 5,
-        fillColor: fillColor,
-        color: strokeColor,
-        weight: unicaRuta ? 1.5 : 2.5,
+        radius: 5.5,
+        fillColor: markerColor,
+        color: '#FFFFFF',
+        weight: 1.5,
         opacity: 1,
         fillOpacity: 0.95,
       });
 
       marker.bindPopup(`
         <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 220px;">
-          <div style="font-weight: 700; font-size: 12px; margin-bottom: 2px;">${c.nombre}</div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+            <span style="font-weight: 700; font-size: 12px;">${c.nombre}</span>
+            <span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; ${c.estado && c.estado.toLowerCase() === 'activo' ? 'background: #ECFDF5; color: #047857;' : 'background: #FFF1F2; color: #BE123C;'}">${c.estado || 'Activo'}</span>
+          </div>
           <div style="color: #64748B; margin-bottom: 5px;">${c.direccion}</div>
           <div style="display: flex; gap: 5px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px;">
             <span style="font-weight: bold; color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</span>
             <span>•</span>
-            <span style="font-weight: bold; color: ${fillColor}">${c.dia_norm || 'S/D'}</span>
+            <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)}">${c.dia_norm || 'S/D'}</span>
             <span>•</span>
             <span>ID: ${c.cliente_id}</span>
           </div>

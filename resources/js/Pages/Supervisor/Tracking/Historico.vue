@@ -458,6 +458,7 @@
 import { ref, computed, onMounted, onUnmounted, Teleport } from 'vue';
 import axios from 'axios';
 import TrackingLayout from '@/Pages/Supervisor/Tracking/Layout.vue';
+import { mapsConfig } from '@/Config/maps';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -736,16 +737,18 @@ function fotoAnterior() {
 }
 
 function initMap() {
+  const defaultLoc = mapsConfig.defaultLocation;
   map = L.map('map-tracking-historico', {
     zoomControl: false,
     preferCanvas: true,
-  }).setView([-16.5000, -68.1500], 13);
+  }).setView([defaultLoc.lat, defaultLoc.lng], defaultLoc.zoom);
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer(mapsConfig.tileLayers.openStreetMap.url, {
     maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
+    attribution: mapsConfig.tileLayers.openStreetMap.attribution,
+    subdomains: mapsConfig.tileLayers.openStreetMap.subdomains || 'abc',
   }).addTo(map);
 
   linesGroup = L.featureGroup().addTo(map);

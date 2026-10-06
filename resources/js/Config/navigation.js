@@ -41,15 +41,19 @@ export const navigationConfig = {
           route: 'supervisor.ruteo.cercanos',
           component: 'Supervisor/Ruteo/Cercanos',
           icon: 'RadarIcon'
-        },
-        {
-          id: 'preventas',
-          name: 'Auditoría Preventas',
-          route: 'supervisor.ruteo.preventas',
-          component: 'Supervisor/Ruteo/Preventas',
-          icon: 'ClipboardCheckIcon'
         }
       ]
+    },
+    {
+      id: 'preventas',
+      name: 'Auditoría Preventas',
+      shortName: 'Preventas',
+      route: 'supervisor.preventas.index',
+      componentPrefix: 'Supervisor/Preventas',
+      icon: 'ClipboardCheckIcon',
+      badge: 'PEDIDOS',
+      badgeColor: 'sky',
+      description: 'Auditoría geográfica de pedidos y control en terreno'
     },
     {
       id: 'tracking',

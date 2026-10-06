@@ -5,50 +5,88 @@
 
 // Paleta fija y distintiva para Canales Comerciales
 export const CANAL_COLORS = {
-  'TRADICIONAL': {
+  // Canales Reales de Producción (DB u967339252_supervisor)
+  'TDB': {
     color: '#0D9488', // Teal 600
+    bg: '#CCFBF1',
+    text: '#115E59',
+    border: '#99F6E4',
+    name: 'Tiendas de Barrio (TDB)'
+  },
+  'MAY': {
+    color: '#7C3AED', // Violet 600
+    bg: '#EDE9FE',
+    text: '#5B21B6',
+    border: '#DDD6FE',
+    name: 'Mayoristas (MAY)'
+  },
+  'MZO': {
+    color: '#0284C7', // Sky 600
+    bg: '#E0F2FE',
+    text: '#075985',
+    border: '#BAE6FD',
+    name: 'Microzonas (MZO)'
+  },
+  'PROV': {
+    color: '#D97706', // Amber 600
+    bg: '#FEF3C7',
+    text: '#92400E',
+    border: '#FDE68A',
+    name: 'Provincias (PROV)'
+  },
+  'PRT': {
+    color: '#E11D48', // Rose 600
+    bg: '#FFE4E6',
+    text: '#9F1239',
+    border: '#FECDD3',
+    name: 'Preventa (PRT)'
+  },
+
+  // Alias y Canales Tradicionales
+  'TRADICIONAL': {
+    color: '#0D9488',
     bg: '#CCFBF1',
     text: '#115E59',
     border: '#99F6E4',
     name: 'Tradicional'
   },
   'SUPERMERCADOS': {
-    color: '#0284C7', // Sky 600
+    color: '#0284C7',
     bg: '#E0F2FE',
     text: '#075985',
     border: '#BAE6FD',
     name: 'Supermercados'
   },
   'MAYORISTAS': {
-    color: '#7C3AED', // Violet 600
+    color: '#7C3AED',
     bg: '#EDE9FE',
     text: '#5B21B6',
     border: '#DDD6FE',
     name: 'Mayoristas'
   },
   'HORECA': {
-    color: '#E11D48', // Rose 600
+    color: '#E11D48',
     bg: '#FFE4E6',
     text: '#9F1239',
     border: '#FECDD3',
     name: 'Horeca'
   },
   'INSTITUCIONAL': {
-    color: '#D97706', // Amber 600
+    color: '#D97706',
     bg: '#FEF3C7',
     text: '#92400E',
     border: '#FDE68A',
     name: 'Institucional'
   },
   'AUTOVENTA': {
-    color: '#2563EB', // Blue 600
+    color: '#2563EB',
     bg: '#DBEAFE',
     text: '#1E40AF',
     border: '#BFDBFE',
     name: 'Autoventa'
   },
   'DEFAULT': {
-    color: '#475569', // Slate 600
+    color: '#475569',
     bg: '#F1F5F9',
     text: '#334155',
     border: '#E2E8F0',

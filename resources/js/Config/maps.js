@@ -16,21 +16,14 @@ export const mapsConfig = {
   // Capas de mapas soportadas (Tiles 100% públicos y sin API key)
   tileLayers: {
     openStreetMap: {
-      name: 'Calles (OSM)',
+      name: 'Calles',
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       subdomains: 'abc',
       maxZoom: 19
     },
-    cleanPositron: {
-      name: 'Minimal Light',
-      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20
-    },
     satellite: {
-      name: 'Satélite HD (Esri)',
+      name: 'Satélite HD',
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: 'Tiles &copy; Esri',
       maxZoom: 19

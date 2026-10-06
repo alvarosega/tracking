@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
 
+use App\Http\Controllers\Web\SupervisorPreventasController;
+
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -19,7 +21,7 @@ Route::get('/', fn() => redirect()->route('login'));
 Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('supervisor.')->group(function () {
     Route::get('/', [SupervisorIndexController::class, 'index'])->name('index');
 
-    // Módulo Ruteo
+    // Módulo Ruteo & Cobertura
     Route::get('/ruteo', [SupervisorRuteoController::class, 'index'])->name('ruteo.index');
     Route::post('/ruteo/data', [SupervisorRuteoController::class, 'getData'])->name('ruteo.data');
     Route::get('/ruteo/cercanos', [SupervisorRuteoController::class, 'cercanos'])->name('ruteo.cercanos');
@@ -27,9 +29,11 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/ruteo/cercanos/cliente/{clienteId}/ventas', [SupervisorRuteoController::class, 'getVentasCliente'])->name('ruteo.cercanos.cliente.ventas');
     Route::post('/ruteo/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('ruteo.cercanos.cliente.visitas');
 
-    // Submódulo Auditoría Preventas
-    Route::get('/ruteo/preventas', [SupervisorRuteoController::class, 'preventas'])->name('ruteo.preventas');
-    Route::post('/ruteo/preventas/data', [SupervisorRuteoController::class, 'getPreventasData'])->name('ruteo.preventas.data');
+    // Módulo Independiente: Auditoría Preventas
+    Route::prefix('preventas')->name('preventas.')->group(function () {
+        Route::get('/', [SupervisorPreventasController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorPreventasController::class, 'data'])->name('data');
+    });
 
     // Módulo Tracking
     Route::prefix('tracking')->name('tracking.')->group(function () {
