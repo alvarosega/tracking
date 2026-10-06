@@ -243,7 +243,7 @@
               <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-500">
                 <div class="flex items-center gap-1.5">
                   <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
-                  <span class="font-semibold text-slate-800">{{ c.ruta }}</span>
+                  <span class="font-semibold text-slate-800">{{ formatRuta(c.ruta) }}</span>
                   <span>•</span>
                   <span>ID: {{ c.cliente_id }}</span>
                 </div>
@@ -293,30 +293,16 @@
           <div id="map-preventas" class="absolute inset-0 w-full h-full z-10"></div>
 
           <!-- Selector de Capas de Mapa -->
-          <div class="absolute top-3 left-3 z-400 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
+          <div class="absolute top-3 left-3 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
             <button
+              v-for="(layer, key) in mapsConfig.tileLayers"
+              :key="key"
               type="button"
-              @click="cambiarCapaMapa('minimalLight')"
+              @click="cambiarCapaMapa(key)"
               class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition-all cursor-pointer"
-              :class="capaActual === 'minimalLight' ? 'bg-slate-900 text-white font-semibold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              :class="capaActual === key ? 'bg-slate-900 text-white font-semibold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
             >
-              Minimal
-            </button>
-            <button
-              type="button"
-              @click="cambiarCapaMapa('openStreetMap')"
-              class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition-all cursor-pointer"
-              :class="capaActual === 'openStreetMap' ? 'bg-slate-900 text-white font-semibold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
-            >
-              Calles
-            </button>
-            <button
-              type="button"
-              @click="cambiarCapaMapa('satellite')"
-              class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition-all cursor-pointer"
-              :class="capaActual === 'satellite' ? 'bg-slate-900 text-white font-semibold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
-            >
-              Satélite
+              {{ layer.name }}
             </button>
           </div>
         </div>
@@ -331,6 +317,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
 import { mapsConfig } from '@/Config/maps';
+import { getCanalColor, getRutaColor, formatRuta } from '@/Config/colors';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -347,18 +334,6 @@ const props = defineProps({
     default: () => new Date().toISOString().split('T')[0],
   },
 });
-
-const RUTA_PALETTE = ['#0F172A', '#0284C7', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6'];
-const rutaColorCache = new Map();
-
-function getRutaColor(ruta) {
-  if (!ruta) return '#0F172A';
-  if (!rutaColorCache.has(ruta)) {
-    const idx = rutaColorCache.size % RUTA_PALETTE.length;
-    rutaColorCache.set(ruta, RUTA_PALETTE[idx]);
-  }
-  return rutaColorCache.get(ruta);
-}
 
 // Estados
 const filtroFecha = ref(props.fecha_default);

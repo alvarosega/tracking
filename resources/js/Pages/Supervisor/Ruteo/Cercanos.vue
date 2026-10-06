@@ -250,7 +250,7 @@
                 <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono">
                   <div class="flex items-center gap-1.5 text-slate-500">
                     <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
-                    <span class="font-semibold text-slate-800">{{ c.ruta }}</span>
+                    <span class="font-semibold text-slate-800">{{ formatRuta(c.ruta) }}</span>
                     <span>•</span>
                     <span class="text-slate-400">ID: {{ c.cliente_id }}</span>
                   </div>
@@ -420,6 +420,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
 import { mapsConfig } from '@/Config/maps';
+import { getCanalColor, getRutaColor, formatRuta } from '@/Config/colors';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -468,33 +469,6 @@ const mesesLista = [
   { numero: 11, corto: 'NOV', nombre: 'Noviembre' },
   { numero: 12, corto: 'DIC', nombre: 'Diciembre' },
 ];
-
-const CANAL_COLORS = {
-  'SUPERMERCADOS': '#0284C7',
-  'TRADICIONAL': '#10B981',
-  'MAYORISTAS': '#8B5CF6',
-  'INSTITUCIONAL': '#F59E0B',
-  'HORECA': '#EC4899',
-  'DEFAULT': '#0F172A',
-};
-
-function getCanalColor(canal) {
-  if (!canal) return CANAL_COLORS.DEFAULT;
-  const c = canal.toUpperCase().trim();
-  return CANAL_COLORS[c] || CANAL_COLORS.DEFAULT;
-}
-
-const RUTA_PALETTE = ['#0F172A', '#0284C7', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6'];
-const rutaColorCache = new Map();
-
-function getRutaColor(ruta) {
-  if (!ruta) return '#0F172A';
-  if (!rutaColorCache.has(ruta)) {
-    const idx = rutaColorCache.size % RUTA_PALETTE.length;
-    rutaColorCache.set(ruta, RUTA_PALETTE[idx]);
-  }
-  return rutaColorCache.get(ruta);
-}
 
 // Estados reactivos
 const radioSeleccionado = ref(500);

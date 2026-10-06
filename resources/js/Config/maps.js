@@ -1,6 +1,7 @@
 /**
  * Configuración centralizada de mapas (Leaflet / GIS) para el panel de supervisión.
  * Ubicación por defecto: El Alto, Bolivia.
+ * Capas públicas 100% libres sin necesidad de API Key.
  */
 export const mapsConfig = {
   // Coordenadas base por defecto: El Alto, Bolivia
@@ -12,90 +13,60 @@ export const mapsConfig = {
     maxZoom: 19
   },
 
-  // Capas de mapas soportadas (Tiles)
+  // Capas de mapas soportadas (Tiles 100% públicos y sin API key)
   tileLayers: {
-    minimalLight: {
-      name: 'Futurista Minimal (CartoDB)',
-      url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-      subdomains: 'abcd',
-      maxZoom: 20
+    openStreetMap: {
+      name: 'Calles (OSM)',
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      subdomains: 'abc',
+      maxZoom: 19
     },
     cleanPositron: {
-      name: 'Clean Slate (Positron)',
+      name: 'Minimal Light',
       url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 20
-    },
-    openStreetMap: {
-      name: 'OpenStreetMap Estándar',
-      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
     },
     satellite: {
       name: 'Satélite HD (Esri)',
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      attribution: 'Tiles &copy; Esri',
       maxZoom: 19
     }
   },
 
-  // Capa por defecto seleccionada
-  defaultTileLayer: 'minimalLight',
+  // Capa por defecto
+  defaultTileLayer: 'openStreetMap',
 
-  // Configuración de marcadores y colores
+  // Configuración de marcadores
   markers: {
     vendedor: {
-      color: '#0284C7', // Cyan / Sky Blue futurista
+      color: '#0284C7',
       pulseColor: 'rgba(2, 132, 199, 0.4)',
       size: [32, 32],
       iconAnchor: [16, 32]
     },
     clienteEnRuta: {
-      color: '#10B981', // Esmeralda / Green
+      color: '#059669',
       size: [10, 10]
     },
     clienteFueraRuta: {
-      color: '#F59E0B', // Amber / Naranja
+      color: '#D97706',
       size: [10, 10]
     },
     visitaRealizada: {
-      color: '#059669', // Emerald Dark
+      color: '#059669',
       size: [12, 12]
     },
     visitaPendiente: {
-      color: '#64748B', // Slate Muted
+      color: '#64748B',
       size: [8, 8]
     },
-    alertaSinGps: {
-      color: '#EF4444', // Red
-      size: [14, 14]
-    }
-  },
-
-  // Estilos de geometrías (Polígonos de zonas y líneas de ruta)
-  polygons: {
-    boundary: {
-      color: '#2563EB',
-      weight: 2,
-      fillColor: '#3B82F6',
-      fillOpacity: 0.08,
-      dashArray: '4, 6'
-    },
-    activePath: {
-      color: '#0284C7',
-      weight: 3.5,
-      opacity: 0.85,
-      smoothFactor: 1.2
-    },
-    historicalPath: {
-      color: '#64748B',
-      weight: 2.5,
-      opacity: 0.6,
-      dashArray: '3, 5'
+    sinGps: {
+      color: '#DC2626',
+      size: [10, 10]
     }
   }
 };
-
