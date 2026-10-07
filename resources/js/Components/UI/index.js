@@ -8,4 +8,5 @@ export { default as BaseModal } from './BaseModal.vue';
 export { default as PageHeader } from './PageHeader.vue';
 export { default as SubNavTabs } from './SubNavTabs.vue';
 export { default as DataTable } from './DataTable.vue';
+export { default as PhotoLightboxModal } from './PhotoLightboxModal.vue';
 

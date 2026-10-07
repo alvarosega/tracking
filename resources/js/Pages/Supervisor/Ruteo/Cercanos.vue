@@ -438,8 +438,23 @@
                     </span>
                   </div>
                   <p v-if="vis.comments" class="text-[11px] text-slate-600 italic">"{{ vis.comments }}"</p>
-                  <div v-if="vis.photo_url" class="mt-1.5">
-                    <img :src="vis.photo_url" alt="Foto de visita" class="w-full h-32 object-cover rounded-lg border border-slate-200" />
+                  <div
+                    v-if="vis.photo_url"
+                    class="mt-1.5 group/photo relative cursor-pointer overflow-hidden rounded-lg border border-slate-200"
+                    @click="abrirLightboxFoto(vis)"
+                    title="Clic para ampliar y rotar foto"
+                  >
+                    <img
+                      :src="vis.photo_url"
+                      alt="Foto de visita"
+                      class="w-full h-36 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                    />
+                    <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-[11px] font-semibold backdrop-blur-[1px]">
+                      <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                      </svg>
+                      <span>Ver & Girar</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -497,6 +512,16 @@
         </div>
 
       </div>
+
+      <!-- VISOR LIGHTBOX MODAL CON ROTACIÓN -->
+      <PhotoLightboxModal
+        :show="fotoLightbox.show"
+        :photo-url="fotoLightbox.url"
+        :title="fotoLightbox.title"
+        :subtitle="fotoLightbox.subtitle"
+        :comments="fotoLightbox.comments"
+        @close="fotoLightbox.show = false"
+      />
     </div>
   </RuteoLayout>
 </template>
@@ -505,6 +530,7 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
+import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
 import { getCanalColor, getRutaColor, formatRuta, getDiaColor } from '@/Config/colors';
 import L from 'leaflet';
@@ -531,6 +557,25 @@ const props = defineProps({
     default: () => [1, 2, 3],
   },
 });
+
+// Estado de Lightbox con Rotación
+const fotoLightbox = ref({
+  show: false,
+  url: '',
+  title: '',
+  subtitle: '',
+  comments: '',
+});
+
+function abrirLightboxFoto(vis) {
+  fotoLightbox.value = {
+    show: true,
+    url: vis.photo_url,
+    title: clienteSeleccionado.value ? clienteSeleccionado.value.cliente : 'Evidencia de Visita',
+    subtitle: `${vis.fecha || ''} ${vis.hora || ''} • Ruta: ${formatRuta(vis.route)} • ${vis.status || 'VISITADO'}`,
+    comments: vis.comments || '',
+  };
+}
 
 const opcionesRadio = [
   { valor: 100, etiqueta: '100 m' },

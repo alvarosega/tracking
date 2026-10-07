@@ -214,79 +214,184 @@
       <!-- Contenedor Principal: Split Screen (Lista de Clientes + Mapa Leaflet) -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
         
-        <!-- Panel Lateral: Lista de Clientes -->
-        <div
-          class="w-full md:w-[350px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
+        <!-- Panel Lateral: Lista de Clientes / Expediente -->
+        <aside
+          class="w-full md:w-[360px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
           :class="vistaMovil === 'lista' ? 'flex' : 'hidden md:flex'"
         >
-          <!-- Buscador de Clientes -->
-          <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center space-x-2">
-            <div class="relative flex-1">
-              <input
-                v-model="busquedaCliente"
-                type="text"
-                placeholder="Filtrar por nombre, ruta o ID..."
-                class="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all shadow-2xs"
-              />
-              <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-            </div>
-          </div>
-
-          <!-- Lista Scrollable de Clientes -->
-          <div class="flex-1 overflow-y-auto divide-y divide-slate-100">
-            <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
-              <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+          <!-- Vista 1: Listado de Clientes Filtrables -->
+          <template v-if="!clienteSeleccionado">
+            <!-- Buscador de Clientes -->
+            <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center space-x-2">
+              <div class="relative flex-1">
+                <input
+                  v-model="busquedaCliente"
+                  type="text"
+                  placeholder="Filtrar por nombre, ruta o ID..."
+                  class="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all shadow-2xs"
+                />
+                <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
               </div>
-              <p class="font-medium text-slate-600">Sin datos de ruteo seleccionados</p>
-              <p class="text-[11px] text-slate-400">Selecciona al menos un canal o ruta comercial arriba para proyectar los puntos en El Alto.</p>
             </div>
 
-            <button
-              v-for="c in clientesFiltradosLista"
-              :key="c.id"
-              type="button"
-              @click="enfocarCliente(c)"
-              class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group cursor-pointer"
-              :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-l-2 border-sky-600' : ''"
-            >
+            <!-- Lista Scrollable de Clientes -->
+            <div class="flex-1 overflow-y-auto divide-y divide-slate-100">
+              <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
+                <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+                  </svg>
+                </div>
+                <p class="font-medium text-slate-600">Sin datos de ruteo seleccionados</p>
+                <p class="text-[11px] text-slate-400">Selecciona al menos un canal o ruta comercial arriba para proyectar los puntos en El Alto.</p>
+              </div>
+
+              <button
+                v-for="c in clientesFiltradosLista"
+                :key="c.id"
+                type="button"
+                @click="abrirExpedienteCliente(c)"
+                class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group cursor-pointer"
+                :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-l-2 border-sky-600' : ''"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1">
+                    {{ c.nombre }}
+                  </span>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <span
+                      v-if="c.estado && c.estado.toLowerCase() !== 'activo'"
+                      class="text-[9px] font-mono px-1 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200"
+                    >
+                      INACTIVO
+                    </span>
+                    <span
+                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
+                      :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
+                    >
+                      {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
+                    </span>
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{{ c.direccion }}</p>
+                <div class="flex items-center space-x-2 mt-1.5 text-[10px] text-slate-400 font-mono">
+                  <span class="flex items-center gap-1 font-medium text-slate-700">
+                    <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
+                    {{ formatRuta(c.ruta) }}
+                  </span>
+                  <span>•</span>
+                  <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">{{ c.dia_norm || 'Sin Día' }}</span>
+                  <span>•</span>
+                  <span>ID: {{ c.cliente_id }}</span>
+                </div>
+              </button>
+            </div>
+          </template>
+
+          <!-- Vista 2: Expediente y Visitas con Fotografías del Cliente -->
+          <template v-else>
+            <!-- Header de Retorno -->
+            <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                @click="cerrarExpediente"
+                class="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <span>&larr;</span> Volver al listado
+              </button>
+              
+              <button
+                type="button"
+                @click="vistaMovil = 'mapa'"
+                class="md:hidden text-xs text-slate-800 font-semibold bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs"
+              >
+                Ver en mapa
+              </button>
+            </div>
+
+            <!-- Ficha Resumen del Cliente -->
+            <div class="p-3.5 bg-white border-b border-slate-100 shrink-0 space-y-2">
               <div class="flex items-start justify-between gap-2">
-                <span class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1">
-                  {{ c.nombre }}
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.nombre }}</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">{{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}</p>
+                </div>
+                <span
+                  class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shrink-0 shadow-2xs"
+                  :style="{ backgroundColor: getRutaColor(clienteSeleccionado.ruta) }"
+                >
+                  {{ formatRuta(clienteSeleccionado.ruta) }}
                 </span>
-                <div class="flex items-center gap-1 shrink-0">
-                  <span
-                    v-if="c.estado && c.estado.toLowerCase() !== 'activo'"
-                    class="text-[9px] font-mono px-1 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200"
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] font-mono pt-1 text-slate-500 border-t border-slate-100">
+                <span>Día: <strong class="text-slate-800">{{ clienteSeleccionado.dia_norm || 'S/D' }}</strong></span>
+                <span>ID: {{ clienteSeleccionado.cliente_id }}</span>
+                <span v-if="clienteSeleccionado.celular || clienteSeleccionado.contacto" class="text-sky-600">
+                  {{ clienteSeleccionado.celular || clienteSeleccionado.contacto }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Cabecera de Visitas & Fotos -->
+            <div class="px-3.5 py-2 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between text-xs font-semibold text-slate-700 shrink-0">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                </svg>
+                Visitas & Fotografías
+              </span>
+              <span class="text-[11px] font-mono text-slate-500">{{ visitasCliente.length }} registradas</span>
+            </div>
+
+            <!-- Listado Scrollable de Visitas con Fotos -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-2.5">
+              <div v-if="cargandoVisitas" class="py-8 text-center text-xs text-slate-400 animate-pulse">
+                Cargando historial de visitas y fotos...
+              </div>
+              <div v-else-if="visitasCliente.length === 0" class="py-8 text-center text-xs text-slate-400">
+                Sin visitas registradas para este cliente.
+              </div>
+              <div v-else class="space-y-2.5">
+                <div
+                  v-for="vis in visitasCliente"
+                  :key="vis.id"
+                  class="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs space-y-2"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-mono text-slate-500 text-[11px]">{{ vis.fecha }} {{ vis.hora }}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-bold" :class="vis.status === 'VISITED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'">
+                      {{ vis.status || 'VISITADO' }}
+                    </span>
+                  </div>
+                  <p v-if="vis.comments" class="text-[11px] text-slate-600 italic">"{{ vis.comments }}"</p>
+                  
+                  <!-- Thumbnail con Visor Lightbox y Rotación -->
+                  <div
+                    v-if="vis.photo_url"
+                    class="mt-1.5 group/photo relative cursor-pointer overflow-hidden rounded-lg border border-slate-200"
+                    @click="abrirLightboxFoto(vis)"
+                    title="Clic para ampliar y rotar foto"
                   >
-                    INACTIVO
-                  </span>
-                  <span
-                    class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
-                    :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
-                  >
-                    {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
-                  </span>
+                    <img
+                      :src="vis.photo_url"
+                      alt="Foto de visita"
+                      class="w-full h-36 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                    />
+                    <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-[11px] font-semibold backdrop-blur-[1px]">
+                      <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                      </svg>
+                      <span>Ver & Girar</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{{ c.direccion }}</p>
-              <div class="flex items-center space-x-2 mt-1.5 text-[10px] text-slate-400 font-mono">
-                <span class="flex items-center gap-1 font-medium text-slate-700">
-                  <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
-                  {{ formatRuta(c.ruta) }}
-                </span>
-                <span>•</span>
-                <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">{{ c.dia_norm || 'Sin Día' }}</span>
-                <span>•</span>
-                <span>ID: {{ c.cliente_id }}</span>
-              </div>
-            </button>
-          </div>
-        </div>
+            </div>
+          </template>
+        </aside>
 
         <!-- Panel del Mapa Leaflet -->
         <div
@@ -338,6 +443,16 @@
         </div>
 
       </div>
+
+      <!-- VISOR LIGHTBOX MODAL CON ROTACIÓN -->
+      <PhotoLightboxModal
+        :show="fotoLightbox.show"
+        :photo-url="fotoLightbox.url"
+        :title="fotoLightbox.title"
+        :subtitle="fotoLightbox.subtitle"
+        :comments="fotoLightbox.comments"
+        @close="fotoLightbox.show = false"
+      />
     </div>
   </RuteoLayout>
 </template>
@@ -346,6 +461,7 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import RuteoLayout from '@/Pages/Supervisor/Ruteo/Layout.vue';
+import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
 import { getCanalColor, getRutaColor, formatRuta, getDiaColor, DIAS_SEMANA_CONFIG } from '@/Config/colors';
 import L from 'leaflet';
@@ -362,6 +478,57 @@ const props = defineProps({
 });
 
 const diasSemana = DIAS_SEMANA_CONFIG.filter(d => d.key !== 'DOMINGO');
+
+// Estado de Expediente & Fotos
+const clienteSeleccionado = ref(null);
+const visitasCliente = ref([]);
+const cargandoVisitas = ref(false);
+
+const fotoLightbox = ref({
+  show: false,
+  url: '',
+  title: '',
+  subtitle: '',
+  comments: '',
+});
+
+function abrirLightboxFoto(vis) {
+  fotoLightbox.value = {
+    show: true,
+    url: vis.photo_url,
+    title: clienteSeleccionado.value ? clienteSeleccionado.value.nombre : 'Evidencia de Visita',
+    subtitle: `${vis.fecha || ''} ${vis.hora || ''} • Ruta: ${formatRuta(vis.route)} • ${vis.status || 'VISITADO'}`,
+    comments: vis.comments || '',
+  };
+}
+
+async function abrirExpedienteCliente(c) {
+  clienteActivoId.value = c.id;
+  clienteSeleccionado.value = c;
+  visitasCliente.value = [];
+  cargandoVisitas.value = true;
+
+  if (map && c.latitud && c.longitud) {
+    map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
+    const m = markersMap.get(c.id);
+    if (m) m.openPopup();
+  }
+
+  try {
+    const res = await axios.post(`/supervisor/ruteo/cercanos/cliente/${c.cliente_id}/visitas`);
+    visitasCliente.value = res.data.visitas || [];
+  } catch (err) {
+    console.error('Error al cargar visitas:', err);
+  } finally {
+    cargandoVisitas.value = false;
+  }
+}
+
+function cerrarExpediente() {
+  clienteSeleccionado.value = null;
+  clienteActivoId.value = null;
+  visitasCliente.value = [];
+}
 
 const filtroCanales = ref([]);
 const filtroRutas = ref([]);
@@ -702,6 +869,10 @@ function renderizarEnMapa() {
           </div>
         </div>
       `);
+
+      marker.on('click', () => {
+        abrirExpedienteCliente(c);
+      });
 
       marker.addTo(markersLayer);
       markersMap.set(c.id, marker);
