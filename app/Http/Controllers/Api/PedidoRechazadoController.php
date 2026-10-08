@@ -158,23 +158,17 @@ class PedidoRechazadoController extends Controller
 
         $ventasPorItem = [];
         if (!empty($nrosPreventa)) {
-            $ventasQuery = DB::connection('supervisor')
+            $ventasFacturadas = DB::connection('supervisor')
                 ->table('fact_ventas')
                 ->where('revertida', '!=', 'Si')
-                ->whereIn('pre_venta_id', $nrosPreventa);
-
-            if (!empty($fechaVenta)) {
-                $ventasQuery->where('fecha_norm', $fechaVenta);
-            }
-
-            $ventasFacturadas = $ventasQuery
+                ->whereIn('pre_venta_id', $nrosPreventa)
                 ->select('pre_venta_id', 'producto_id', DB::raw('SUM(cantidad) as total_facturado'))
                 ->groupBy('pre_venta_id', 'producto_id')
                 ->get();
 
             foreach ($ventasFacturadas as $v) {
-                $key = $v->pre_venta_id . '_' . $v->producto_id;
-                $ventasPorItem[$key] = (int) $v->total_facturado;
+                $key = trim($v->pre_venta_id) . '_' . trim($v->producto_id);
+                $ventasPorItem[$key] = ($ventasPorItem[$key] ?? 0) + (int) $v->total_facturado;
             }
         }
 
@@ -197,27 +191,33 @@ class PedidoRechazadoController extends Controller
                     'monto_total_facturado'   => 0.0,
                     'monto_total_rechazado'   => 0.0,
                     'total_items_preventa'    => 0,
+                    'total_items_facturados'  => 0,
                     'total_items_rechazados'  => 0,
                     'items'                   => []
                 ];
             }
 
             $cantPreventa = (int) $item->cantidad_preventa;
-            $itemKey = $item->nro_preventa . '_' . $item->producto_id;
+            $montoItemPreventa = (float) $item->monto_final;
+            
+            // Cálculo real del precio unitario basado en monto_final / cantidad (precio_lista en el ERP es el código de lista 'TDB')
+            $precioUnit = ($cantPreventa > 0 && $montoItemPreventa > 0) ? ($montoItemPreventa / $cantPreventa) : 0.0;
+
+            $itemKey = trim($item->nro_preventa) . '_' . trim($item->producto_id);
             $cantFacturada = isset($ventasPorItem[$itemKey]) ? (int) $ventasPorItem[$itemKey] : 0;
             $cantRechazada = max(0, $cantPreventa - $cantFacturada);
 
-            $precioUnit = (float) ($item->precio_lista ?: ($cantPreventa > 0 ? $item->monto_final / $cantPreventa : 0));
             $montoRechazado = round($cantRechazada * $precioUnit, 2);
             $montoFacturado = round($cantFacturada * $precioUnit, 2);
 
-            $preventasTemp[$nro]['monto_total_preventa'] += (float) $item->monto_final;
+            $preventasTemp[$nro]['monto_total_preventa'] += $montoItemPreventa;
             $preventasTemp[$nro]['monto_total_facturado'] += $montoFacturado;
             $preventasTemp[$nro]['monto_total_rechazado'] += $montoRechazado;
             $preventasTemp[$nro]['total_items_preventa'] += $cantPreventa;
+            $preventasTemp[$nro]['total_items_facturados'] += $cantFacturada;
             $preventasTemp[$nro]['total_items_rechazados'] += $cantRechazada;
 
-            // Incluir el ítem con sus cantidades para que Android lo presente en la pantalla
+            // Incluir el ítem con sus cantidades reales y montos calculados
             $preventasTemp[$nro]['items'][] = [
                 'preventa_item_id'    => $item->preventa_item_id,
                 'producto_id'         => $item->producto_id,
@@ -226,10 +226,11 @@ class PedidoRechazadoController extends Controller
                 'categoria'           => $item->categoria,
                 'cantidad_preventa'   => $cantPreventa,
                 'cantidad_facturada'  => $cantFacturada,
-                'cantidad_rechazada'  => $cantRechazada, // Cantidad sugerida a justificar
+                'cantidad_rechazada'  => $cantRechazada,
                 'precio_unitario'     => round($precioUnit, 2),
-                'monto_preventa'      => (float) $item->monto_final,
-                'monto_rechazado'     => $montoRechazado,
+                'monto_preventa'      => round($montoItemPreventa, 2),
+                'monto_facturado'     => round($montoFacturado, 2),
+                'monto_rechazado'     => round($montoRechazado, 2),
                 'es_parcial'          => ($cantFacturada > 0 && $cantRechazada > 0),
                 'es_totalmente_rechazado' => ($cantFacturada == 0 && $cantRechazada > 0),
             ];
@@ -239,8 +240,8 @@ class PedidoRechazadoController extends Controller
         $preventasPendientes = [];
         foreach ($preventasTemp as $nro => $prev) {
             if ($prev['total_items_rechazados'] > 0) {
-                // Si se facturó algo > 0 es un rechazo PARCIAL, si se facturó 0 es TOTAL
-                $prev['tipo_sugerido'] = ($prev['monto_total_facturado'] > 0) ? 'PARCIAL' : 'TOTAL';
+                // Si se entregó/facturó al menos 1 ítem del pedido, es un rechazo PARCIAL; si no se entregó nada, es TOTAL
+                $prev['tipo_sugerido'] = ($prev['total_items_facturados'] > 0) ? 'PARCIAL' : 'TOTAL';
                 $prev['monto_total_preventa'] = round($prev['monto_total_preventa'], 2);
                 $prev['monto_total_facturado'] = round($prev['monto_total_facturado'], 2);
                 $prev['monto_total_rechazado'] = round($prev['monto_total_rechazado'], 2);
