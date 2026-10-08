@@ -100,23 +100,7 @@ class PedidoRechazadoController extends Controller
             ->pluck('nro_preventa')
             ->toArray();
 
-        // 2. Obtener cantidades facturadas en fact_ventas (del día de despacho D-1) por preventa_item_id
-        $ventasQuery = DB::connection('supervisor')
-            ->table('fact_ventas')
-            ->where('revertida', '!=', 'Si');
-
-        if (!empty($fechaVenta)) {
-            $ventasQuery->where('fecha_norm', $fechaVenta);
-        }
-
-        $ventasFacturadas = $ventasQuery
-            ->whereNotNull('pre_venta_id')
-            ->select('pre_venta_id', DB::raw('SUM(cantidad) as total_facturado'))
-            ->groupBy('pre_venta_id')
-            ->pluck('total_facturado', 'pre_venta_id')
-            ->toArray();
-
-        // 3. Consultar las preventas tomadas en fecha D-2 asignadas al vendedor
+        // 2. Consultar las preventas tomadas en fecha D-2 asignadas al vendedor
         $query = DB::connection('supervisor')
             ->table('fact_preventas as p');
 
@@ -125,6 +109,7 @@ class PedidoRechazadoController extends Controller
         } else {
             $query->where(function ($q) use ($user) {
                 $q->where('p.vendedor', $user->name)
+                  ->orWhere('p.username_vendedor', $user->username)
                   ->orWhere('p.ruta', $user->username)
                   ->orWhere('p.ruta', $user->ruta ?? null);
             });
@@ -160,6 +145,39 @@ class PedidoRechazadoController extends Controller
             'p.monto_final'
         ])->get();
 
+        if ($items->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'total'   => 0,
+                'data'    => []
+            ], 200);
+        }
+
+        // 3. Obtener cantidades facturadas en fact_ventas (pre_venta_id = nro_preventa + producto_id)
+        $nrosPreventa = $items->pluck('nro_preventa')->filter()->unique()->toArray();
+
+        $ventasPorItem = [];
+        if (!empty($nrosPreventa)) {
+            $ventasQuery = DB::connection('supervisor')
+                ->table('fact_ventas')
+                ->where('revertida', '!=', 'Si')
+                ->whereIn('pre_venta_id', $nrosPreventa);
+
+            if (!empty($fechaVenta)) {
+                $ventasQuery->where('fecha_norm', $fechaVenta);
+            }
+
+            $ventasFacturadas = $ventasQuery
+                ->select('pre_venta_id', 'producto_id', DB::raw('SUM(cantidad) as total_facturado'))
+                ->groupBy('pre_venta_id', 'producto_id')
+                ->get();
+
+            foreach ($ventasFacturadas as $v) {
+                $key = $v->pre_venta_id . '_' . $v->producto_id;
+                $ventasPorItem[$key] = (int) $v->total_facturado;
+            }
+        }
+
         // 4. Agrupar ítems por nro_preventa y calcular rechazos totales vs parciales
         $preventasTemp = [];
         foreach ($items as $item) {
@@ -185,7 +203,8 @@ class PedidoRechazadoController extends Controller
             }
 
             $cantPreventa = (int) $item->cantidad_preventa;
-            $cantFacturada = isset($ventasFacturadas[$item->preventa_item_id]) ? (int) $ventasFacturadas[$item->preventa_item_id] : 0;
+            $itemKey = $item->nro_preventa . '_' . $item->producto_id;
+            $cantFacturada = isset($ventasPorItem[$itemKey]) ? (int) $ventasPorItem[$itemKey] : 0;
             $cantRechazada = max(0, $cantPreventa - $cantFacturada);
 
             $precioUnit = (float) ($item->precio_lista ?: ($cantPreventa > 0 ? $item->monto_final / $cantPreventa : 0));
