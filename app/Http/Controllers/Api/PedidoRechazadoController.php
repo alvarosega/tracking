@@ -193,6 +193,7 @@ class PedidoRechazadoController extends Controller
                     'total_items_preventa'    => 0,
                     'total_items_facturados'  => 0,
                     'total_items_rechazados'  => 0,
+                    'items_rechazados'        => [],
                     'items'                   => []
                 ];
             }
@@ -200,7 +201,7 @@ class PedidoRechazadoController extends Controller
             $cantPreventa = (int) $item->cantidad_preventa;
             $montoItemPreventa = (float) $item->monto_final;
             
-            // Cálculo real del precio unitario basado en monto_final / cantidad (precio_lista en el ERP es el código de lista 'TDB')
+            // Cálculo real del precio unitario basado en monto_final / cantidad
             $precioUnit = ($cantPreventa > 0 && $montoItemPreventa > 0) ? ($montoItemPreventa / $cantPreventa) : 0.0;
 
             $itemKey = trim($item->nro_preventa) . '_' . trim($item->producto_id);
@@ -217,8 +218,7 @@ class PedidoRechazadoController extends Controller
             $preventasTemp[$nro]['total_items_facturados'] += $cantFacturada;
             $preventasTemp[$nro]['total_items_rechazados'] += $cantRechazada;
 
-            // Incluir el ítem con sus cantidades reales y montos calculados
-            $preventasTemp[$nro]['items'][] = [
+            $itemData = [
                 'preventa_item_id'    => $item->preventa_item_id,
                 'producto_id'         => $item->producto_id,
                 'codigo_producto'     => $item->codigo_producto,
@@ -234,6 +234,14 @@ class PedidoRechazadoController extends Controller
                 'es_parcial'          => ($cantFacturada > 0 && $cantRechazada > 0),
                 'es_totalmente_rechazado' => ($cantFacturada == 0 && $cantRechazada > 0),
             ];
+
+            // Todos los productos del pedido
+            $preventasTemp[$nro]['items'][] = $itemData;
+
+            // Únicamente los productos que tuvieron rechazo (faltante de entrega)
+            if ($cantRechazada > 0) {
+                $preventasTemp[$nro]['items_rechazados'][] = $itemData;
+            }
         }
 
         // 5. Filtrar solo preventas que tengan AL MENOS un ítem con cantidad rechazada > 0
