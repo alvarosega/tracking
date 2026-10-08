@@ -100,7 +100,7 @@ class PedidoRechazadoController extends Controller
             ->pluck('nro_preventa')
             ->toArray();
 
-        // 2. Obtener preventas que SÍ fueron facturadas en fact_ventas (del día de despacho D-1)
+        // 2. Obtener cantidades facturadas en fact_ventas (del día de despacho D-1) por preventa_item_id
         $ventasQuery = DB::connection('supervisor')
             ->table('fact_ventas')
             ->where('revertida', '!=', 'Si');
@@ -109,9 +109,11 @@ class PedidoRechazadoController extends Controller
             $ventasQuery->where('fecha_norm', $fechaVenta);
         }
 
-        $preventasFacturadas = $ventasQuery
+        $ventasFacturadas = $ventasQuery
             ->whereNotNull('pre_venta_id')
-            ->pluck('pre_venta_id')
+            ->select('pre_venta_id', DB::raw('SUM(cantidad) as total_facturado'))
+            ->groupBy('pre_venta_id')
+            ->pluck('total_facturado', 'pre_venta_id')
             ->toArray();
 
         // 3. Consultar las preventas tomadas en fecha D-2 asignadas al vendedor
@@ -140,10 +142,6 @@ class PedidoRechazadoController extends Controller
             $query->whereNotIn('p.nro_preventa', $preventasYaJustificadas);
         }
 
-        if (!empty($preventasFacturadas)) {
-            $query->whereNotIn('p.nro_preventa', $preventasFacturadas);
-        }
-
         $items = $query->select([
             'p.id as preventa_item_id',
             'p.nro_preventa',
@@ -162,47 +160,80 @@ class PedidoRechazadoController extends Controller
             'p.monto_final'
         ])->get();
 
-        // 4. Agrupar ítems por nro_preventa
-        $preventasAgrupadas = [];
+        // 4. Agrupar ítems por nro_preventa y calcular rechazos totales vs parciales
+        $preventasTemp = [];
         foreach ($items as $item) {
             $nro = (string) ($item->nro_preventa ?: $item->preventa_item_id);
 
-            if (!isset($preventasAgrupadas[$nro])) {
-                $preventasAgrupadas[$nro] = [
-                    'nro_preventa'   => $nro,
-                    'fecha_preventa' => $item->fecha_preventa,
-                    'cliente_id'     => (string) $item->cliente_id,
-                    'codigo_cliente' => $item->codigo_cliente,
-                    'cliente_nombre' => $item->cliente_nombre,
-                    'ruta'           => $item->ruta,
-                    'vendedor'       => $item->vendedor,
-                    'monto_total'    => 0.0,
-                    'total_items'    => 0,
-                    'items'          => []
+            if (!isset($preventasTemp[$nro])) {
+                $preventasTemp[$nro] = [
+                    'nro_preventa'            => $nro,
+                    'fecha_preventa'          => $item->fecha_preventa,
+                    'cliente_id'              => (string) $item->cliente_id,
+                    'codigo_cliente'          => $item->codigo_cliente,
+                    'cliente_nombre'          => $item->cliente_nombre,
+                    'ruta'                    => $item->ruta,
+                    'vendedor'                => $item->vendedor,
+                    'tipo_sugerido'           => 'TOTAL',
+                    'monto_total_preventa'    => 0.0,
+                    'monto_total_facturado'   => 0.0,
+                    'monto_total_rechazado'   => 0.0,
+                    'total_items_preventa'    => 0,
+                    'total_items_rechazados'  => 0,
+                    'items'                   => []
                 ];
             }
 
-            $preventasAgrupadas[$nro]['monto_total'] += (float) $item->monto_final;
-            $preventasAgrupadas[$nro]['total_items'] += (int) $item->cantidad_preventa;
+            $cantPreventa = (int) $item->cantidad_preventa;
+            $cantFacturada = isset($ventasFacturadas[$item->preventa_item_id]) ? (int) $ventasFacturadas[$item->preventa_item_id] : 0;
+            $cantRechazada = max(0, $cantPreventa - $cantFacturada);
 
-            $precioUnit = (float) ($item->precio_lista ?: ($item->cantidad_preventa > 0 ? $item->monto_final / $item->cantidad_preventa : 0));
+            $precioUnit = (float) ($item->precio_lista ?: ($cantPreventa > 0 ? $item->monto_final / $cantPreventa : 0));
+            $montoRechazado = round($cantRechazada * $precioUnit, 2);
+            $montoFacturado = round($cantFacturada * $precioUnit, 2);
 
-            $preventasAgrupadas[$nro]['items'][] = [
-                'preventa_item_id'  => $item->preventa_item_id,
-                'producto_id'       => $item->producto_id,
-                'codigo_producto'   => $item->codigo_producto,
-                'producto_nombre'   => $item->producto_nombre,
-                'categoria'         => $item->categoria,
-                'cantidad_preventa' => (int) $item->cantidad_preventa,
-                'precio_unitario'   => round($precioUnit, 2),
-                'monto_total'       => (float) $item->monto_final,
+            $preventasTemp[$nro]['monto_total_preventa'] += (float) $item->monto_final;
+            $preventasTemp[$nro]['monto_total_facturado'] += $montoFacturado;
+            $preventasTemp[$nro]['monto_total_rechazado'] += $montoRechazado;
+            $preventasTemp[$nro]['total_items_preventa'] += $cantPreventa;
+            $preventasTemp[$nro]['total_items_rechazados'] += $cantRechazada;
+
+            // Incluir el ítem con sus cantidades para que Android lo presente en la pantalla
+            $preventasTemp[$nro]['items'][] = [
+                'preventa_item_id'    => $item->preventa_item_id,
+                'producto_id'         => $item->producto_id,
+                'codigo_producto'     => $item->codigo_producto,
+                'producto_nombre'     => $item->producto_nombre,
+                'categoria'           => $item->categoria,
+                'cantidad_preventa'   => $cantPreventa,
+                'cantidad_facturada'  => $cantFacturada,
+                'cantidad_rechazada'  => $cantRechazada, // Cantidad sugerida a justificar
+                'precio_unitario'     => round($precioUnit, 2),
+                'monto_preventa'      => (float) $item->monto_final,
+                'monto_rechazado'     => $montoRechazado,
+                'es_parcial'          => ($cantFacturada > 0 && $cantRechazada > 0),
+                'es_totalmente_rechazado' => ($cantFacturada == 0 && $cantRechazada > 0),
             ];
+        }
+
+        // 5. Filtrar solo preventas que tengan AL MENOS un ítem con cantidad rechazada > 0
+        $preventasPendientes = [];
+        foreach ($preventasTemp as $nro => $prev) {
+            if ($prev['total_items_rechazados'] > 0) {
+                // Si se facturó algo > 0 es un rechazo PARCIAL, si se facturó 0 es TOTAL
+                $prev['tipo_sugerido'] = ($prev['monto_total_facturado'] > 0) ? 'PARCIAL' : 'TOTAL';
+                $prev['monto_total_preventa'] = round($prev['monto_total_preventa'], 2);
+                $prev['monto_total_facturado'] = round($prev['monto_total_facturado'], 2);
+                $prev['monto_total_rechazado'] = round($prev['monto_total_rechazado'], 2);
+
+                $preventasPendientes[] = $prev;
+            }
         }
 
         return response()->json([
             'success' => true,
-            'total'   => count($preventasAgrupadas),
-            'data'    => array_values($preventasAgrupadas)
+            'total'   => count($preventasPendientes),
+            'data'    => $preventasPendientes
         ], 200);
     }
 
