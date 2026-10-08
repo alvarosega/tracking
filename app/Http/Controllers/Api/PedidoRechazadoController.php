@@ -9,6 +9,7 @@ use App\Models\PedidoRechazado;
 use App\Models\Supervisor\FactPreventa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PedidoRechazadoController extends Controller
 {
@@ -33,6 +34,7 @@ class PedidoRechazadoController extends Controller
     public function motivos(): JsonResponse
     {
         return response()->json([
+            'success' => true,
             'motivos' => self::MOTIVOS_RECHAZO,
         ]);
     }
@@ -52,6 +54,7 @@ class PedidoRechazadoController extends Controller
         );
 
         return response()->json([
+            'success' => true,
             'message' => 'Pedido rechazado registrado exitosamente',
             'id' => $pedidoRechazado->id,
             'uuid' => $pedidoRechazado->uuid,
@@ -63,81 +66,120 @@ class PedidoRechazadoController extends Controller
     }
 
     /**
-     * Permite a la app Android consultar las preventas y sus productos asociados para auditar el rechazo.
+     * Devuelve las preventas pendientes de justificar del vendedor autenticado,
+     * excluyendo las ya justificadas y las que sí fueron facturadas.
      */
     public function preventasPendientes(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'cliente_id' => ['nullable', 'integer'],
-            'ruta' => ['nullable', 'string', 'max:50'],
-            'fecha' => ['nullable', 'date'],
-        ]);
+        $user = $request->user();
+        $clienteId = $request->query('cliente_id');
+        $ruta = $request->query('ruta');
+        $fecha = $request->query('fecha');
 
-        $query = FactPreventa::query();
+        // 1. Obtener preventas ya justificadas en la BD local por este vendedor
+        $preventasYaJustificadas = PedidoRechazado::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('nro_preventa')
+            ->pluck('nro_preventa')
+            ->toArray();
 
-        if (!empty($validated['cliente_id'])) {
-            $query->where('cliente_id', $validated['cliente_id']);
-        }
+        // 2. Obtener preventas que sí fueron facturadas en fact_ventas
+        $preventasFacturadas = DB::connection('supervisor')
+            ->table('fact_ventas')
+            ->whereNotNull('pre_venta_id')
+            ->pluck('pre_venta_id')
+            ->toArray();
 
-        if (!empty($validated['ruta'])) {
-            $query->where('ruta', $validated['ruta']);
-        }
+        // 3. Consultar preventas asignadas al vendedor
+        $query = DB::connection('supervisor')
+            ->table('fact_preventas as p');
 
-        if (!empty($validated['fecha'])) {
-            $query->where('fecha_norm', $validated['fecha']);
+        if (!empty($ruta)) {
+            $query->where('p.ruta', $ruta);
         } else {
-            // Por defecto, buscar la fecha más reciente con preventas
-            $maxFecha = FactPreventa::query()->max('fecha_norm');
-            if ($maxFecha) {
-                $query->where('fecha_norm', $maxFecha);
-            }
+            $query->where(function ($q) use ($user) {
+                $q->where('p.vendedor', $user->name)
+                  ->orWhere('p.ruta', $user->username)
+                  ->orWhere('p.ruta', $user->ruta ?? null);
+            });
+        }
+
+        if (!empty($fecha)) {
+            $query->where('p.fecha_norm', $fecha);
+        }
+
+        if (!empty($clienteId)) {
+            $query->where('p.cliente_id', $clienteId);
+        }
+
+        if (!empty($preventasYaJustificadas)) {
+            $query->whereNotIn('p.nro_preventa', $preventasYaJustificadas);
+        }
+
+        if (!empty($preventasFacturadas)) {
+            $query->whereNotIn('p.nro_preventa', $preventasFacturadas);
         }
 
         $items = $query->select([
-            'id', 'nro_preventa', 'cliente_id', 'codigo_cliente', 'cliente',
-            'vendedor', 'ruta', 'producto_id', 'codigo_producto', 'producto',
-            'categoria', 'cantidad', 'precio_lista', 'monto', 'descuento', 'monto_final',
-            'fecha_norm', 'facturar', 'nro_carga'
+            'p.id as preventa_item_id',
+            'p.nro_preventa',
+            'p.fecha_norm as fecha_preventa',
+            'p.cliente_id',
+            'p.codigo_cliente',
+            'p.cliente as cliente_nombre',
+            'p.ruta',
+            'p.vendedor',
+            'p.producto_id',
+            'p.codigo_producto',
+            'p.producto as producto_nombre',
+            'p.categoria',
+            'p.cantidad as cantidad_preventa',
+            'p.precio_lista',
+            'p.monto_final'
         ])->get();
 
-        // Agrupar por nro_preventa
+        // 4. Agrupar ítems por nro_preventa
         $preventasAgrupadas = [];
         foreach ($items as $item) {
-            $nro = $item->nro_preventa ?: $item->id;
+            $nro = (string) ($item->nro_preventa ?: $item->preventa_item_id);
+
             if (!isset($preventasAgrupadas[$nro])) {
                 $preventasAgrupadas[$nro] = [
-                    'nro_preventa' => $nro,
-                    'cliente_id' => $item->cliente_id,
+                    'nro_preventa'   => $nro,
+                    'fecha_preventa' => $item->fecha_preventa,
+                    'cliente_id'     => (string) $item->cliente_id,
                     'codigo_cliente' => $item->codigo_cliente,
-                    'cliente' => $item->cliente,
-                    'vendedor' => $item->vendedor,
-                    'ruta' => $item->ruta,
-                    'fecha_preventa' => $item->fecha_norm,
-                    'monto_total' => 0.0,
-                    'total_items' => 0,
-                    'items' => [],
+                    'cliente_nombre' => $item->cliente_nombre,
+                    'ruta'           => $item->ruta,
+                    'vendedor'       => $item->vendedor,
+                    'monto_total'    => 0.0,
+                    'total_items'    => 0,
+                    'items'          => []
                 ];
             }
 
             $preventasAgrupadas[$nro]['monto_total'] += (float) $item->monto_final;
-            $preventasAgrupadas[$nro]['total_items'] += (int) $item->cantidad;
+            $preventasAgrupadas[$nro]['total_items'] += (int) $item->cantidad_preventa;
+
+            $precioUnit = (float) ($item->precio_lista ?: ($item->cantidad_preventa > 0 ? $item->monto_final / $item->cantidad_preventa : 0));
 
             $preventasAgrupadas[$nro]['items'][] = [
-                'preventa_item_id' => $item->id,
-                'producto_id' => $item->producto_id,
-                'codigo_producto' => $item->codigo_producto,
-                'producto_nombre' => $item->producto,
-                'categoria' => $item->categoria,
-                'cantidad_preventa' => (int) $item->cantidad,
-                'precio_unitario' => (float) ($item->precio_lista ?: ($item->cantidad > 0 ? $item->monto_final / $item->cantidad : 0.0)),
-                'monto_final' => (float) $item->monto_final,
+                'preventa_item_id'  => $item->preventa_item_id,
+                'producto_id'       => $item->producto_id,
+                'codigo_producto'   => $item->codigo_producto,
+                'producto_nombre'   => $item->producto_nombre,
+                'categoria'         => $item->categoria,
+                'cantidad_preventa' => (int) $item->cantidad_preventa,
+                'precio_unitario'   => round($precioUnit, 2),
+                'monto_total'       => (float) $item->monto_final,
             ];
         }
 
         return response()->json([
-            'total_preventas' => count($preventasAgrupadas),
-            'preventas' => array_values($preventasAgrupadas),
-        ]);
+            'success' => true,
+            'total'   => count($preventasAgrupadas),
+            'data'    => array_values($preventasAgrupadas)
+        ], 200);
     }
 
     /**
