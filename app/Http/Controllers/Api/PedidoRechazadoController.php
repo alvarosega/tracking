@@ -66,15 +66,32 @@ class PedidoRechazadoController extends Controller
     }
 
     /**
-     * Devuelve las preventas pendientes de justificar del vendedor autenticado,
-     * excluyendo las ya justificadas y las que sí fueron facturadas.
+     * Devuelve las preventas pendientes de justificar del vendedor autenticado.
+     * Ciclo operativo:
+     * - Si hoy es Día D (ej. 7):
+     * - Ventas Facturadas (Reparto) = Día D-1 (ej. 6)
+     * - Preventas Tomadas = Día D-2 (ej. 5)
      */
     public function preventasPendientes(Request $request): JsonResponse
     {
         $user = $request->user();
         $clienteId = $request->query('cliente_id');
         $ruta = $request->query('ruta');
-        $fecha = $request->query('fecha');
+
+        // Cálculo de fechas por defecto considerando ciclo operativo D-2 (preventa) vs D-1 (facturación)
+        $now = now('America/La_Paz');
+        
+        // Manejo de días hábiles si hoy es Lunes
+        if ($now->isMonday()) {
+            $defaultFechaVenta = $now->copy()->subDays(2)->toDateString();    // Sábado
+            $defaultFechaPreventa = $now->copy()->subDays(3)->toDateString(); // Viernes
+        } else {
+            $defaultFechaVenta = $now->copy()->subDay()->toDateString();      // Ayer (D-1)
+            $defaultFechaPreventa = $now->copy()->subDays(2)->toDateString(); // Anteayer (D-2)
+        }
+
+        $fechaPreventa = $request->query('fecha_preventa', $request->query('fecha', $defaultFechaPreventa));
+        $fechaVenta = $request->query('fecha_venta', $defaultFechaVenta);
 
         // 1. Obtener preventas ya justificadas en la BD local por este vendedor
         $preventasYaJustificadas = PedidoRechazado::query()
@@ -83,14 +100,21 @@ class PedidoRechazadoController extends Controller
             ->pluck('nro_preventa')
             ->toArray();
 
-        // 2. Obtener preventas que sí fueron facturadas en fact_ventas
-        $preventasFacturadas = DB::connection('supervisor')
+        // 2. Obtener preventas que SÍ fueron facturadas en fact_ventas (del día de despacho D-1)
+        $ventasQuery = DB::connection('supervisor')
             ->table('fact_ventas')
+            ->where('revertida', '!=', 'Si');
+
+        if (!empty($fechaVenta)) {
+            $ventasQuery->where('fecha_norm', $fechaVenta);
+        }
+
+        $preventasFacturadas = $ventasQuery
             ->whereNotNull('pre_venta_id')
             ->pluck('pre_venta_id')
             ->toArray();
 
-        // 3. Consultar preventas asignadas al vendedor
+        // 3. Consultar las preventas tomadas en fecha D-2 asignadas al vendedor
         $query = DB::connection('supervisor')
             ->table('fact_preventas as p');
 
@@ -104,8 +128,8 @@ class PedidoRechazadoController extends Controller
             });
         }
 
-        if (!empty($fecha)) {
-            $query->where('p.fecha_norm', $fecha);
+        if (!empty($fechaPreventa)) {
+            $query->where('p.fecha_norm', $fechaPreventa);
         }
 
         if (!empty($clienteId)) {
