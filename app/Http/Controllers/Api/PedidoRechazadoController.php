@@ -280,8 +280,10 @@ class PedidoRechazadoController extends Controller
             ->get();
 
         return response()->json([
+            'success' => true,
             'fecha' => $fecha,
             'total' => $rechazos->count(),
+            'data' => $rechazos,
             'rechazos' => $rechazos,
         ]);
     }

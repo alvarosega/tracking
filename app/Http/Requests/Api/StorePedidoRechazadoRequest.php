@@ -26,6 +26,10 @@ class StorePedidoRechazadoRequest extends FormRequest
                 $this->merge(['items' => $decoded]);
             }
         }
+
+        if (empty($this->input('fecha_rechazo'))) {
+            $this->merge(['fecha_rechazo' => now('America/La_Paz')->format('Y-m-d H:i:s')]);
+        }
     }
 
     /**
@@ -37,12 +41,12 @@ class StorePedidoRechazadoRequest extends FormRequest
     {
         return [
             'uuid' => ['required', 'string', 'max:64'],
-            'cliente_id' => ['required', 'integer'],
+            'nro_preventa' => ['required_without:cliente_id', 'nullable', 'integer'],
+            'cliente_id' => ['required_without:nro_preventa', 'nullable', 'integer'],
             'codigo_cliente' => ['nullable', 'string', 'max:50'],
             'cliente_nombre' => ['nullable', 'string', 'max:255'],
-            'nro_preventa' => ['nullable', 'integer'],
             'fecha_preventa' => ['nullable', 'date'],
-            'fecha_rechazo' => ['required', 'date_format:Y-m-d H:i:s'],
+            'fecha_rechazo' => ['nullable', 'date'],
             'ruta' => ['nullable', 'string', 'max:50'],
             'motivo' => ['required', 'string', 'max:150'],
             'tipo_rechazo' => ['nullable', 'string', 'in:TOTAL,PARCIAL'],
@@ -52,14 +56,14 @@ class StorePedidoRechazadoRequest extends FormRequest
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
             'is_mock_location' => ['nullable', 'boolean'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['nullable', 'array'],
             'items.*.preventa_item_id' => ['nullable', 'integer'],
             'items.*.producto_id' => ['nullable', 'integer'],
             'items.*.codigo_producto' => ['nullable', 'string', 'max:50'],
             'items.*.producto_nombre' => ['nullable', 'string', 'max:255'],
             'items.*.categoria' => ['nullable', 'string', 'max:100'],
             'items.*.cantidad_preventa' => ['nullable', 'integer', 'min:0'],
-            'items.*.cantidad_rechazada' => ['required', 'integer', 'min:1'],
+            'items.*.cantidad_rechazada' => ['nullable', 'integer', 'min:0'],
             'items.*.precio_unitario' => ['nullable', 'numeric', 'min:0'],
             'items.*.monto_rechazado' => ['nullable', 'numeric', 'min:0'],
             'items.*.motivo_especifico' => ['nullable', 'string', 'max:150'],
