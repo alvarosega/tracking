@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\ForceCloseWorkdayRequest;
 use App\Models\User;
 use App\Models\UserWorkday;
 use App\Services\WorkdayService;
@@ -12,14 +13,12 @@ use Illuminate\Http\Request;
 
 class WorkdayController extends Controller
 {
-    protected WorkdayService $workdayService;
-
-    public function __construct(WorkdayService $workdayService)
-    {
-        $this->workdayService = $workdayService;
-    }
+    public function __construct(
+        protected WorkdayService $workdayService
+    ) {}
 
     /**
+     * Consulta el estado de la jornada laboral del usuario autenticado.
      * GET /api/workday/status
      */
     public function status(Request $request): JsonResponse
@@ -34,19 +33,20 @@ class WorkdayController extends Controller
         $isActive = ($workday && $workday->status === 'OPEN' && $isWithinSchedule);
 
         return response()->json([
-            'is_active'       => $isActive,
-            'status'          => $workday ? $workday->status : 'NOT_STARTED',
-            'action'          => $isActive ? 'KEEP_TRACKING' : 'STOP_TRACKING',
-            'work_date'       => $now->toDateString(),
-            'started_at'      => $workday?->started_at?->toIso8601String(),
-            'ended_at'        => $workday?->ended_at?->toIso8601String(),
-            'close_reason'    => $workday?->close_reason,
-            'limit_time'      => $limitTime ? $limitTime->format('H:i:s') : null,
+            'is_active' => $isActive,
+            'status' => $workday ? $workday->status : 'NOT_STARTED',
+            'action' => $isActive ? 'KEEP_TRACKING' : 'STOP_TRACKING',
+            'work_date' => $now->toDateString(),
+            'started_at' => $workday?->started_at?->toIso8601String(),
+            'ended_at' => $workday?->ended_at?->toIso8601String(),
+            'close_reason' => $workday?->close_reason,
+            'limit_time' => $limitTime ? $limitTime->format('H:i:s') : null,
             'within_schedule' => $isWithinSchedule
         ], 200);
     }
 
     /**
+     * Inicia la jornada laboral diaria del vendedor.
      * POST /api/workday/start
      */
     public function start(Request $request): JsonResponse
@@ -58,24 +58,25 @@ class WorkdayController extends Controller
             $limitTime = $this->workdayService->getLimitTimeForDate($user->username, Carbon::now(WorkdayService::TIMEZONE));
 
             return response()->json([
-                'message'    => 'Jornada iniciada correctamente.',
-                'is_active'  => true,
-                'status'     => $workday->status,
-                'action'     => 'START_TRACKING',
+                'message' => 'Jornada iniciada correctamente.',
+                'is_active' => true,
+                'status' => $workday->status,
+                'action' => 'START_TRACKING',
                 'limit_time' => $limitTime ? $limitTime->format('H:i:s') : null,
-                'workday'    => $workday
+                'workday' => $workday
             ], 200);
         } catch (\DomainException $e) {
             return response()->json([
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
                 'is_active' => false,
-                'status'    => 'CLOSED',
-                'action'    => 'STOP_TRACKING'
+                'status' => 'CLOSED',
+                'action' => 'STOP_TRACKING'
             ], 422);
         }
     }
 
     /**
+     * Cierre voluntario de jornada por parte del vendedor.
      * POST /api/workday/stop
      */
     public function stop(Request $request): JsonResponse
@@ -84,26 +85,23 @@ class WorkdayController extends Controller
         $workday = $this->workdayService->closeWorkdayBySeller($user);
 
         return response()->json([
-            'message'   => 'Jornada finalizada por el vendedor.',
+            'message' => 'Jornada finalizada por el vendedor.',
             'is_active' => false,
-            'status'    => $workday ? $workday->status : 'CLOSED_SELLER',
-            'action'    => 'STOP_TRACKING',
-            'workday'   => $workday
+            'status' => $workday ? $workday->status : 'CLOSED_SELLER',
+            'action' => 'STOP_TRACKING',
+            'workday' => $workday
         ], 200);
     }
 
     /**
+     * Cierre forzado de jornada ejecutado por el supervisor.
      * POST /api/supervisor/workdays/{userId}/close
      */
-    public function forceCloseBySupervisor(Request $request, int $userId): JsonResponse
+    public function forceCloseBySupervisor(ForceCloseWorkdayRequest $request, int $userId): JsonResponse
     {
         $supervisor = $request->user();
-
-        $request->validate([
-            'reason' => 'nullable|string|max:255'
-        ]);
-
         $targetUser = User::find($userId);
+
         if (!$targetUser) {
             return response()->json(['message' => 'Usuario no encontrado.'], 404);
         }
@@ -111,7 +109,7 @@ class WorkdayController extends Controller
         $workday = $this->workdayService->closeWorkdayBySupervisor(
             $targetUser->id,
             $supervisor->id,
-            $request->input('reason')
+            $request->validated('reason')
         );
 
         if (!$workday) {
@@ -127,6 +125,7 @@ class WorkdayController extends Controller
     }
 
     /**
+     * Lista de jornadas del día actual para monitoreo de supervisión.
      * GET /api/supervisor/workdays/today
      */
     public function todayWorkdays(Request $request): JsonResponse

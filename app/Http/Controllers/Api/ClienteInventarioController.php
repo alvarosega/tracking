@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Api\GetClienteInventariosHistorialAction;
 use App\Actions\Api\GetClienteProductosHistorialAction;
 use App\Actions\Api\StoreClienteInventarioAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreClienteInventarioRequest;
-use App\Models\ClienteInventario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,30 +45,16 @@ class ClienteInventarioController extends Controller
      * Devuelve el historial de inventarios registrados por el vendedor autenticado.
      * GET /api/inventarios-cliente/historial
      */
-    public function historial(Request $request): JsonResponse
-    {
+    public function historial(
+        Request $request,
+        GetClienteInventariosHistorialAction $action
+    ): JsonResponse {
         $user = $request->user();
+        $fecha = $request->query('fecha');
+        $clienteId = $request->query('cliente_id') ? (int) $request->query('cliente_id') : null;
+        $perPage = (int) $request->query('per_page', 20);
 
-        $query = ClienteInventario::with('items')
-            ->orderByDesc('fecha_registro');
-
-        // Filtrar por vendedor / ruta si no es administrador global
-        if ($user && $user->ruta) {
-            $query->where('ruta', $user->ruta);
-        } elseif ($user) {
-            $query->where('user_id', $user->id);
-        }
-
-        if ($request->filled('fecha')) {
-            $query->whereDate('fecha_registro', $request->query('fecha'));
-        }
-
-        if ($request->filled('cliente_id')) {
-            $query->where('cliente_id', $request->query('cliente_id'));
-        }
-
-        $perPage = min(50, max(1, (int) $request->query('per_page', 20)));
-        $inventarios = $query->paginate($perPage);
+        $inventarios = $action->execute($user, $fecha, $clienteId, $perPage);
 
         return response()->json([
             'success' => true,
@@ -79,4 +65,3 @@ class ClienteInventarioController extends Controller
         ], 200);
     }
 }
-
