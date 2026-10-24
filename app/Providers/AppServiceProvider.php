@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,7 +21,11 @@ class AppServiceProvider extends ServiceProvider
         date_default_timezone_set('America/La_Paz');
         Carbon::setLocale('es');
 
-        // Forzar timezone a nivel de la sesión de MySQL
-        DB::statement("SET time_zone = '-04:00'");
+        // Forzar timezone a nivel de sesión MySQL de forma segura
+        try {
+            DB::statement("SET time_zone = '-04:00'");
+        } catch (\Throwable) {
+            // Previene caídas en entornos de consola o deployments sin red activa
+        }
     }
 }

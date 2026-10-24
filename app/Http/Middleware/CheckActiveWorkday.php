@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Services\WorkdayService;
 use Closure;
 use Illuminate\Http\Request;
@@ -9,22 +12,19 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckActiveWorkday
 {
-    protected WorkdayService $workdayService;
-
-    public function __construct(WorkdayService $workdayService)
-    {
-        $this->workdayService = $workdayService;
-    }
+    public function __construct(
+        protected WorkdayService $workdayService
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (!($user instanceof User)) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
 
-        $workday = $this->workdayService->getActiveWorkday($user->id);
+        $workday = $this->workdayService->getActiveWorkday($user);
 
         if (!$workday || $workday->status !== 'OPEN') {
             return response()->json([
