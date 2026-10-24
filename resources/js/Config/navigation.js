@@ -133,6 +133,17 @@ export const navigationConfig = {
       componentPrefix: 'Supervisor/Horarios',
       icon: 'CalendarIcon',
       description: 'Configuración semanal de turnos por ruta'
+    },
+    {
+      id: 'modulos',
+      name: 'Módulos & Ajustes',
+      shortName: 'Módulos',
+      route: 'supervisor.modulos.index',
+      componentPrefix: 'Supervisor/Modulos',
+      icon: 'AdjustmentsHorizontalIcon',
+      badge: 'APP',
+      badgeColor: 'amber',
+      description: 'Control de acceso a módulos móviles y parámetros'
     }
   ],
 

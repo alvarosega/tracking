@@ -30,6 +30,10 @@ class LoginUserAction
         $token = $user->createToken('auth_token')->plainTextToken;
         $user->load('role');
 
+        if (empty($user->username)) {
+            $user->username = $user->ruta ?? '';
+        }
+
         return [
             'user' => $user,
             'token' => $token,

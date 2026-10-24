@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\OportunidadesController;
 use App\Http\Controllers\Api\WorkdayController;
 use App\Http\Controllers\Api\SaneamientoController;
 use App\Http\Controllers\Api\PedidoRechazadoController;
+use App\Http\Controllers\Api\ClienteInventarioController;
+use App\Http\Controllers\Api\AppModuleController;
 
 
 // Autenticación
@@ -48,6 +50,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [PedidoRechazadoController::class, 'store']);
         Route::post('/store', [PedidoRechazadoController::class, 'store']); // Alias para Retrofit
         Route::get('/historial', [PedidoRechazadoController::class, 'historial']);
+    });
+
+    // --- Control Dinámico de Módulos (Android App) ---
+    Route::get('/app/modulos', [AppModuleController::class, 'index']);
+
+    // --- Módulo Inventario de Clientes en PDV (Android App) ---
+    Route::prefix('inventarios-cliente')->group(function () {
+        Route::get('/historial-productos/{clienteId}', [ClienteInventarioController::class, 'historialProductos']);
+        Route::post('/', [ClienteInventarioController::class, 'store']);
+        Route::post('/store', [ClienteInventarioController::class, 'store']); // Alias para Retrofit
+        Route::get('/historial', [ClienteInventarioController::class, 'historial']);
     });
     
 });

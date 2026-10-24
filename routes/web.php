@@ -9,8 +9,8 @@ use App\Http\Controllers\Web\SupervisorVisitasController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
-
 use App\Http\Controllers\Web\SupervisorPreventasController;
+use App\Http\Controllers\Web\SupervisorModulosController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -64,10 +64,18 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/jornadas/close-all', [SupervisorJornadasController::class, 'closeAllActive'])->name('jornadas.close.all');
     
     
-// Submódulo Horarios y Control en Vivo
+    // Submódulo Horarios y Control en Vivo
     Route::get('/horarios', [SupervisorHorariosController::class, 'index'])->name('horarios.index');
     Route::post('/horarios/data', [SupervisorHorariosController::class, 'data'])->name('horarios.data');
     Route::post('/horarios/update', [SupervisorHorariosController::class, 'update'])->name('horarios.update');
     Route::post('/horarios/active-workdays', [SupervisorHorariosController::class, 'activeWorkdays'])->name('horarios.active-workdays');
     Route::post('/horarios/close/{userId}', [SupervisorHorariosController::class, 'forceCloseWorkday'])->name('horarios.close');
+
+    // Gestión de Módulos Móviles y Parámetros
+    Route::prefix('modulos')->name('modulos.')->group(function () {
+        Route::get('/', [SupervisorModulosController::class, 'index'])->name('index');
+        Route::post('/{id}/toggle', [SupervisorModulosController::class, 'toggle'])->name('toggle');
+        Route::post('/{id}/config', [SupervisorModulosController::class, 'updateConfig'])->name('config');
+        Route::post('/inventarios/data', [SupervisorModulosController::class, 'inventariosData'])->name('inventarios.data');
+    });
 });
