@@ -17,10 +17,12 @@ class ClienteInventarioController extends Controller
      * GET /api/inventarios-cliente/historial-productos/{clienteId}
      */
     public function historialProductos(
+        Request $request,
         int|string $clienteId,
         GetClienteProductosHistorialAction $action
     ): JsonResponse {
-        $result = $action->execute($clienteId);
+        $ruta = $request->user()?->ruta;
+        $result = $action->execute($clienteId, $ruta);
 
         return response()->json($result, 200);
     }

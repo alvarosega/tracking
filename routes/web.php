@@ -74,8 +74,11 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     // Gestión de Módulos Móviles y Parámetros
     Route::prefix('modulos')->name('modulos.')->group(function () {
         Route::get('/', [SupervisorModulosController::class, 'index'])->name('index');
-        Route::post('/{id}/toggle', [SupervisorModulosController::class, 'toggle'])->name('toggle');
-        Route::post('/{id}/config', [SupervisorModulosController::class, 'updateConfig'])->name('config');
+        Route::post('/global/{id}/toggle', [SupervisorModulosController::class, 'toggleGlobal'])->name('toggle.global');
+        Route::post('/global/{id}/config', [SupervisorModulosController::class, 'updateGlobalConfig'])->name('config.global');
+        Route::post('/route/toggle', [SupervisorModulosController::class, 'toggleRoute'])->name('toggle.route');
+        Route::post('/route/config', [SupervisorModulosController::class, 'updateRouteConfig'])->name('config.route');
+        Route::post('/route/apply-all', [SupervisorModulosController::class, 'applyToAllRoutes'])->name('apply.all');
         Route::post('/inventarios/data', [SupervisorModulosController::class, 'inventariosData'])->name('inventarios.data');
     });
 });

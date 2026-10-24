@@ -12,19 +12,31 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Tabla para control dinámico de módulos y configuraciones móviles/supervisor
+        // 1. Tabla para control dinámico de módulos y configuraciones móviles/supervisor (Global)
         Schema::create('app_modules', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->unique()->comment('Código único del módulo (ej: inventario_cliente, pedidos_rechazados)');
             $table->string('name', 100)->comment('Nombre visible');
             $table->string('description', 255)->nullable();
-            $table->boolean('is_active')->default(true)->comment('Habilita o deshabilita el acceso en Android');
+            $table->boolean('is_active')->default(true)->comment('Habilita o deshabilita el acceso global por defecto en Android');
             $table->integer('order')->default(0)->comment('Orden de visualización');
             $table->json('config')->nullable()->comment('Parámetros variables en formato JSON (ej: {"dias_historial": 30})');
             $table->timestamps();
         });
 
-        // 2. Tabla cabecera para la toma de inventario en cliente (PDV)
+        // 2. Tabla para control de acceso y configuración por RUTA COMERCIAL
+        Schema::create('app_module_routes', function (Blueprint $table) {
+            $table->id();
+            $table->string('module_code', 50)->index();
+            $table->string('ruta', 50)->index()->comment('Código de la ruta comercial (ej: TDB 6A, MZO 12)');
+            $table->boolean('is_active')->default(true)->comment('Estado específico para esta ruta');
+            $table->json('config')->nullable()->comment('Parámetros específicos para esta ruta (anula el global si existe)');
+            $table->timestamps();
+
+            $table->unique(['module_code', 'ruta'], 'app_module_routes_code_ruta_unique');
+        });
+
+        // 3. Tabla cabecera para la toma de inventario en cliente (PDV)
         Schema::create('cliente_inventarios', function (Blueprint $table) {
             $table->id();
             $table->string('uuid', 64)->unique()->comment('Identificador único para idempotencia y sync offline');
@@ -156,6 +168,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('cliente_inventario_items');
         Schema::dropIfExists('cliente_inventarios');
+        Schema::dropIfExists('app_module_routes');
         Schema::dropIfExists('app_modules');
     }
 };

@@ -3,6 +3,7 @@
 namespace App\Actions\Api;
 
 use App\Models\AppModule;
+use App\Models\AppModuleRoute;
 use App\Models\Supervisor\FactVenta;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,15 +15,29 @@ class GetClienteProductosHistorialAction
      * Incluye acumulado, última compra y desglose detallado para el vendedor en Android.
      *
      * @param int|string $clienteId
+     * @param string|null $ruta
      * @return array
      */
-    public function execute(int|string $clienteId): array
+    public function execute(int|string $clienteId, ?string $ruta = null): array
     {
-        // 1. Obtener los días de historial configurados por el supervisor (default 30)
-        $modulo = AppModule::where('code', 'inventario_cliente')->first();
+        // 1. Obtener los días de historial configurados para la ruta o por defecto global (default 30)
         $diasHistorial = 30;
-        if ($modulo && isset($modulo->config['dias_historial'])) {
-            $diasHistorial = max(1, (int) $modulo->config['dias_historial']);
+
+        if (!empty($ruta)) {
+            $routeOverride = AppModuleRoute::where('ruta', $ruta)
+                ->where('module_code', 'inventario_cliente')
+                ->first();
+
+            if ($routeOverride && isset($routeOverride->config['dias_historial'])) {
+                $diasHistorial = max(1, (int) $routeOverride->config['dias_historial']);
+            }
+        }
+
+        if ($diasHistorial === 30) {
+            $modulo = AppModule::where('code', 'inventario_cliente')->first();
+            if ($modulo && isset($modulo->config['dias_historial'])) {
+                $diasHistorial = max(1, (int) $modulo->config['dias_historial']);
+            }
         }
 
         $hoy = Carbon::now();

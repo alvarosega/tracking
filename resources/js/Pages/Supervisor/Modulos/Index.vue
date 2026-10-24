@@ -4,25 +4,35 @@
       <!-- Encabezado Principal y Pestañas -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 class="text-xl font-semibold tracking-tight text-[#1D1D1F]">Módulos & Ajustes del Sistema</h1>
-          <p class="text-xs text-[#6E6E73] mt-0.5">Control de acceso a funciones móviles en Android y parámetros operativos del vendedor.</p>
+          <h1 class="text-xl font-semibold tracking-tight text-[#1D1D1F]">Control de Módulos por Ruta</h1>
+          <p class="text-xs text-[#6E6E73] mt-0.5">Habilita o deshabilita funciones en Android para cada vendedor/ruta comercial y define parámetros operativos.</p>
         </div>
 
         <!-- Segmented Control Apple Style -->
         <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA]">
           <button
-            @click="activeTab = 'modules'"
-            class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all"
-            :class="activeTab === 'modules' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+            @click="activeTab = 'matriz'"
+            class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all flex items-center gap-1.5"
+            :class="activeTab === 'matriz' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
           >
-            Módulos Móviles
+            <span>Matriz por Ruta</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-100 text-emerald-800 font-bold">
+              {{ rutas.length }} rutas
+            </span>
+          </button>
+          <button
+            @click="activeTab = 'global'"
+            class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all"
+            :class="activeTab === 'global' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+          >
+            Ajustes Globales
           </button>
           <button
             @click="activeTab = 'inventarios'"
             class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all flex items-center gap-1.5"
             :class="activeTab === 'inventarios' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
           >
-            <span>Toma de Stock PDV</span>
+            <span>Stock PDV</span>
             <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-sky-100 text-sky-800">
               Auditoría
             </span>
@@ -43,51 +53,161 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- TAB 1: GESTIÓN DE MÓDULOS MÓVILES           -->
+      <!-- TAB 1: MATRIZ DE MÓDULOS POR RUTA          -->
       <!-- ========================================== -->
-      <div v-if="activeTab === 'modules'" class="space-y-6">
-        <!-- Tarjeta Informativa -->
+      <div v-if="activeTab === 'matriz'" class="space-y-4">
+        <!-- Barra de Búsqueda y Filtros Rápidos -->
+        <div class="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="Buscar ruta o vendedor..."
+                class="w-64 text-xs rounded-lg border-slate-200 pl-8 pr-3 py-1.5 focus:border-slate-900 focus:ring-slate-900 font-mono"
+              />
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Filtro por Canal -->
+            <select
+              v-model="filterCanal"
+              class="text-xs rounded-lg border-slate-200 py-1.5 px-3 focus:border-slate-900 focus:ring-slate-900 font-mono text-slate-700"
+            >
+              <option value="">Todos los canales</option>
+              <option v-for="c in availableCanales" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-mono text-slate-500">
+              Mostrando <strong class="text-slate-900">{{ filteredRutas.length }}</strong> de {{ rutas.length }} rutas
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Matriz de Control por Ruta -->
+        <div class="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-2xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50/80 border-b border-slate-200/80 text-[10px] font-mono uppercase text-slate-500">
+                  <th class="py-3 px-4 font-semibold sticky left-0 bg-slate-50 z-10 w-56 border-r border-slate-200/60 shadow-xs">
+                    Ruta / Vendedor
+                  </th>
+                  <th
+                    v-for="mod in modules"
+                    :key="mod.id"
+                    class="py-3 px-3 font-semibold text-center whitespace-nowrap min-w-[130px]"
+                  >
+                    <div>{{ mod.name }}</div>
+                    <span class="text-[9px] font-normal text-slate-400 font-mono">{{ mod.code }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono">
+                <tr v-if="filteredRutas.length === 0">
+                  <td :colspan="modules.length + 1" class="py-8 text-center text-slate-400 text-xs">
+                    No se encontraron rutas con el filtro ingresado.
+                  </td>
+                </tr>
+                <tr
+                  v-for="item in filteredRutas"
+                  :key="item.ruta"
+                  class="hover:bg-slate-50/60 transition-colors"
+                >
+                  <!-- Celda Fija: Ruta y Vendedor -->
+                  <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200/60 shadow-xs">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-slate-900 text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {{ item.ruta }}
+                      </span>
+                      <span class="text-[10px] text-slate-400 uppercase font-sans">{{ item.canal }}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 truncate max-w-[200px] mt-0.5 font-sans">
+                      {{ item.vendedor }}
+                    </div>
+                  </td>
+
+                  <!-- Columnas de Cada Módulo -->
+                  <td
+                    v-for="mod in modules"
+                    :key="mod.id"
+                    class="py-2.5 px-3 text-center align-middle"
+                  >
+                    <div class="inline-flex flex-col items-center">
+                      <!-- Switch por Ruta -->
+                      <button
+                        type="button"
+                        @click="toggleRouteModule(item.ruta, mod.code)"
+                        :disabled="isUpdating(item.ruta, mod.code)"
+                        class="relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                        :class="isModuleActiveForRoute(item.ruta, mod) ? 'bg-slate-900' : 'bg-slate-300'"
+                        :title="isModuleActiveForRoute(item.ruta, mod) ? 'Habilitado' : 'Deshabilitado'"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                          :class="isModuleActiveForRoute(item.ruta, mod) ? 'translate-x-3.5' : 'translate-x-0'"
+                        />
+                      </button>
+
+                      <!-- Badge de Override / Heredado -->
+                      <span
+                        v-if="hasOverride(item.ruta, mod.code)"
+                        class="text-[8px] font-bold text-sky-600 uppercase mt-0.5"
+                      >
+                        Personalizado
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: AJUSTES GLOBALES Y POR DEFECTO      -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'global'" class="space-y-6">
         <div class="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs flex items-start justify-between gap-4">
           <div class="flex items-start gap-3">
-            <div class="p-2 rounded-lg bg-sky-50 text-sky-600 mt-0.5">
+            <div class="p-2 rounded-lg bg-slate-100 text-slate-700 mt-0.5">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-.778.099-1.533.284-2.253" />
               </svg>
             </div>
             <div>
-              <h2 class="text-sm font-bold text-slate-900">Control de Visibilidad y Permisos en Campo</h2>
+              <h2 class="text-sm font-bold text-slate-900">Comportamiento Global por Defecto</h2>
               <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Los módulos marcados como activos estarán disponibles inmediatamente en el menú de la aplicación Android.
-                Los módulos inactivos quedarán ocultos o restringidos para todos los vendedores.
+                Cuando una ruta no tenga una regla específica definida en la matriz, heredará automáticamente esta configuración base.
               </p>
             </div>
           </div>
-          <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 shrink-0">
-            {{ activeModulesCount }} / {{ localModules.length }} Activos
-          </span>
         </div>
 
-        <!-- Grid de Módulos -->
+        <!-- Grid de Módulos Globales -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div
             v-for="module in localModules"
             :key="module.id"
             class="bg-white border rounded-xl p-4 transition-all shadow-2xs flex flex-col justify-between"
-            :class="module.is_active ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200/60 bg-slate-50/60 opacity-80'"
+            :class="module.is_active ? 'border-slate-200' : 'border-slate-200/60 bg-slate-50/60 opacity-80'"
           >
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded"
                   :class="module.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'"
                 >
-                  {{ module.is_active ? 'ACTIVO EN ANDROID' : 'DESACTIVADO' }}
+                  {{ module.is_active ? 'GLOBALMENTE ACTIVO' : 'GLOBALMENTE DESACTIVADO' }}
                 </span>
 
-                <!-- Switch On/Off -->
                 <button
                   type="button"
-                  @click="toggleModule(module)"
-                  :disabled="loadingModuleId === module.id"
+                  @click="toggleGlobalModule(module)"
                   class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
                   :class="module.is_active ? 'bg-slate-900' : 'bg-slate-300'"
                 >
@@ -106,30 +226,26 @@
                 {{ module.description }}
               </p>
 
-              <!-- Panel Específico para Módulo: Inventario Cliente (Configuración de Días de Historial) -->
+              <!-- Configuración específica de inventario cliente -->
               <div
                 v-if="module.code === 'inventario_cliente'"
                 class="mt-3.5 pt-3 border-t border-slate-100 bg-sky-50/50 -mx-4 -mb-4 p-4 rounded-b-xl"
               >
                 <div class="flex items-center justify-between mb-1.5">
                   <label class="text-[11px] font-bold text-slate-800 uppercase tracking-wider font-mono">
-                    Historial de Ventas a Consultar
+                    Días Históricos de Ventas (Global)
                   </label>
                   <span class="text-[11px] font-mono font-semibold text-sky-700">
-                    Últimos {{ module.config?.dias_historial || 30 }} días
+                    {{ module.config?.dias_historial || 30 }} días
                   </span>
                 </div>
-                <p class="text-[11px] text-slate-600 mb-2">
-                  Define qué compras anteriores en <span class="font-mono font-semibold">fact_ventas</span> verá el vendedor en su pantalla para auditar el stock físico en la tienda.
-                </p>
-
                 <div class="flex items-center gap-2">
                   <select
-                    v-model="tempInventarioDias"
-                    class="text-xs font-mono rounded-lg border-slate-300 bg-white py-1.5 px-2.5 focus:border-slate-900 focus:ring-slate-900 text-slate-800"
+                    v-model="tempInventarioDiasGlobal"
+                    class="text-xs font-mono rounded-lg border-slate-300 bg-white py-1.5 px-2.5 text-slate-800"
                   >
                     <option :value="15">Últimos 15 días</option>
-                    <option :value="30">Últimos 30 días (Recomendado)</option>
+                    <option :value="30">Últimos 30 días</option>
                     <option :value="45">Últimos 45 días</option>
                     <option :value="60">Últimos 60 días (2 meses)</option>
                     <option :value="90">Últimos 90 días (3 meses)</option>
@@ -138,11 +254,10 @@
 
                   <button
                     type="button"
-                    @click="saveInventarioConfig(module)"
-                    :disabled="savingConfig"
-                    class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    @click="saveGlobalConfig(module)"
+                    class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
-                    {{ savingConfig ? 'Guardando...' : 'Aplicar' }}
+                    Guardar
                   </button>
                 </div>
               </div>
@@ -150,14 +265,13 @@
 
             <div class="mt-3 pt-2 text-[10px] font-mono text-slate-400 flex items-center justify-between">
               <span>Orden: #{{ module.order }}</span>
-              <span>Actualizado: {{ formatDate(module.updated_at) }}</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ========================================== -->
-      <!-- TAB 2: AUDITORÍA DE INVENTARIOS EN PDV     -->
+      <!-- TAB 3: AUDITORÍA DE INVENTARIOS EN PDV     -->
       <!-- ========================================== -->
       <div v-else-if="activeTab === 'inventarios'" class="space-y-4">
         <!-- Filtros Rápidos -->
@@ -265,7 +379,7 @@
                   <td class="py-3 px-4 text-right whitespace-nowrap">
                     <button
                       type="button"
-                      @click="openModal(inv)"
+                      @click="selectedInventario = inv"
                       class="px-2.5 py-1 text-[11px] font-semibold text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
                     >
                       Ver productos &rarr;
@@ -361,7 +475,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 
@@ -370,16 +484,137 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  rutas: {
+    type: Array,
+    default: () => [],
+  },
+  routeOverrides: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-const activeTab = ref('modules');
+const activeTab = ref('matriz');
 const localModules = ref([...props.modules]);
-const loadingModuleId = ref(null);
-const savingConfig = ref(false);
+const searchQuery = ref('');
+const filterCanal = ref('');
+const updatingKeys = ref(new Set());
 
-// Configuración específica de inventario
-const inventarioModule = computed(() => localModules.value.find(m => m.code === 'inventario_cliente'));
-const tempInventarioDias = ref(inventarioModule.value?.config?.dias_historial || 30);
+// Mapeo dinámico de overrides: "RUTA_MODULECODE" -> boolean
+const overridesMap = ref(new Map());
+
+props.routeOverrides.forEach((ro) => {
+  const key = `${ro.ruta.trim()}_${ro.module_code.trim()}`;
+  overridesMap.value.set(key, ro);
+});
+
+// Canales únicos
+const availableCanales = computed(() => {
+  const set = new Set(props.rutas.map(r => r.canal).filter(Boolean));
+  return Array.from(set).sort();
+});
+
+// Rutas filtradas
+const filteredRutas = computed(() => {
+  return props.rutas.filter((r) => {
+    const matchesSearch = !searchQuery.value
+      || r.ruta.toLowerCase().includes(searchQuery.value.toLowerCase())
+      || (r.vendedor && r.vendedor.toLowerCase().includes(searchQuery.value.toLowerCase()));
+
+    const matchesCanal = !filterCanal.value || r.canal === filterCanal.value;
+
+    return matchesSearch && matchesCanal;
+  });
+});
+
+// Verifica si un módulo está activo para una ruta dada
+const isModuleActiveForRoute = (ruta, mod) => {
+  const key = `${ruta.trim()}_${mod.code.trim()}`;
+  if (overridesMap.value.has(key)) {
+    return Boolean(overridesMap.value.get(key).is_active);
+  }
+  return Boolean(mod.is_active);
+};
+
+const hasOverride = (ruta, moduleCode) => {
+  const key = `${ruta.trim()}_${moduleCode.trim()}`;
+  return overridesMap.value.has(key);
+};
+
+const isUpdating = (ruta, moduleCode) => {
+  const key = `${ruta.trim()}_${moduleCode.trim()}`;
+  return updatingKeys.value.has(key);
+};
+
+// Toggle por ruta
+const toggleRouteModule = async (ruta, moduleCode) => {
+  const key = `${ruta.trim()}_${moduleCode.trim()}`;
+  const mod = props.modules.find(m => m.code === moduleCode);
+  const currentActive = isModuleActiveForRoute(ruta, mod);
+  const nextActive = !currentActive;
+
+  updatingKeys.value.add(key);
+
+  try {
+    const response = await axios.post('/supervisor/modulos/route/toggle', {
+      ruta: ruta.trim(),
+      module_code: moduleCode,
+      is_active: nextActive,
+    });
+
+    if (response.data.success) {
+      overridesMap.value.set(key, response.data.override);
+      showToast(`Ruta ${ruta}: Módulo ${moduleCode} ${nextActive ? 'activado' : 'desactivado'}`);
+    }
+  } catch (err) {
+    showToast('Error al modificar el módulo para esta ruta.', 'error');
+  } finally {
+    updatingKeys.value.delete(key);
+  }
+};
+
+// Global toggles
+const toggleGlobalModule = async (module) => {
+  try {
+    const response = await axios.post(`/supervisor/modulos/global/${module.id}/toggle`);
+    if (response.data.success) {
+      module.is_active = response.data.module.is_active;
+      showToast(response.data.message);
+    }
+  } catch (err) {
+    showToast('Error al cambiar configuración global.', 'error');
+  }
+};
+
+// Inventario global días
+const tempInventarioDiasGlobal = ref(
+  props.modules.find(m => m.code === 'inventario_cliente')?.config?.dias_historial || 30
+);
+
+const saveGlobalConfig = async (module) => {
+  try {
+    const response = await axios.post(`/supervisor/modulos/global/${module.id}/config`, {
+      config: {
+        dias_historial: parseInt(tempInventarioDiasGlobal.value, 10),
+      },
+    });
+    if (response.data.success) {
+      module.config = response.data.module.config;
+      showToast(`Días de historial global actualizados a ${tempInventarioDiasGlobal.value} días.`);
+    }
+  } catch (err) {
+    showToast('Error al guardar configuración global.', 'error');
+  }
+};
+
+// Toast
+const toast = ref({ show: false, message: '', type: 'success' });
+const showToast = (message, type = 'success') => {
+  toast.value = { show: true, message, type };
+  setTimeout(() => {
+    toast.value.show = false;
+  }, 3000);
+};
 
 // Auditoría de inventarios
 const inventariosList = ref([]);
@@ -388,55 +623,7 @@ const filterFecha = ref('');
 const filterRuta = ref('');
 const filterClienteId = ref('');
 const selectedInventario = ref(null);
-
 let debounceTimer = null;
-
-// Toast
-const toast = ref({ show: false, message: '', type: 'success' });
-const showToast = (message, type = 'success') => {
-  toast.value = { show: true, message, type };
-  setTimeout(() => {
-    toast.value.show = false;
-  }, 3500);
-};
-
-const activeModulesCount = computed(() => {
-  return localModules.value.filter(m => m.is_active).length;
-});
-
-const toggleModule = async (module) => {
-  loadingModuleId.value = module.id;
-  try {
-    const response = await axios.post(`/supervisor/modulos/${module.id}/toggle`);
-    if (response.data.success) {
-      module.is_active = response.data.module.is_active;
-      showToast(response.data.message);
-    }
-  } catch (err) {
-    showToast('Error al modificar el estado del módulo.', 'error');
-  } finally {
-    loadingModuleId.value = null;
-  }
-};
-
-const saveInventarioConfig = async (module) => {
-  savingConfig.value = true;
-  try {
-    const response = await axios.post(`/supervisor/modulos/${module.id}/config`, {
-      config: {
-        dias_historial: parseInt(tempInventarioDias.value, 10),
-      },
-    });
-    if (response.data.success) {
-      module.config = response.data.module.config;
-      showToast(`Parámetro actualizado: Se consultarán los últimos ${tempInventarioDias.value} días.`);
-    }
-  } catch (err) {
-    showToast('Error al actualizar la configuración.', 'error');
-  } finally {
-    savingConfig.value = false;
-  }
-};
 
 const loadInventarios = async () => {
   loadingInventarios.value = true;
@@ -463,16 +650,6 @@ const debounceLoadInventarios = () => {
   }, 400);
 };
 
-const openModal = (inv) => {
-  selectedInventario.value = inv;
-};
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('es-BO', { day: '2-digit', month: 'short' });
-};
-
 const formatDateTime = (dateStr) => {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -484,11 +661,4 @@ const formatDateTime = (dateStr) => {
     minute: '2-digit',
   });
 };
-
-onMounted(() => {
-  if (activeTab.value === 'inventarios') {
-    loadInventarios();
-  }
-});
 </script>
-
