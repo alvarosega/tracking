@@ -22,19 +22,46 @@ class SupervisorHorariosController extends Controller
      */
     public function data(): JsonResponse
     {
-        // 1. Obtener todas las rutas únicas desde pan_ruteo (conexión supervisor)
-        $rutas = DB::connection('supervisor')
+        // 1. Obtener catálogo maestro de rutas desde dim_rutas
+        $dimRows = DB::connection('supervisor')
+            ->table('dim_rutas')
+            ->whereNotNull('ruta')
+            ->where('ruta', '!=', '')
+            ->select('ruta', 'canal', 'vendedor')
+            ->get();
+
+        $metaRuta = $dimRows->keyBy('ruta');
+        $rutasDim = $dimRows->pluck('ruta');
+
+        // 2. Obtener rutas que existan en pan_ruteo
+        $rutasPan = DB::connection('supervisor')
             ->table('pan_ruteo')
             ->whereNotNull('ruta')
             ->where('ruta', '!=', '')
             ->distinct()
-            ->orderBy('ruta', 'asc')
             ->pluck('ruta');
 
-        // 2. Obtener todas las configuraciones de route_schedules (conexión supervisor)
+        // 3. Obtener rutas con horarios ya registrados en route_schedules
+        $rutasConfig = RouteSchedule::query()
+            ->whereNotNull('route')
+            ->where('route', '!=', '')
+            ->distinct()
+            ->pluck('route');
+
+        // 4. Unificar todas las rutas únicas
+        $rutas = $rutasDim
+            ->concat($rutasPan)
+            ->concat($rutasConfig)
+            ->map(fn($r) => trim($r))
+            ->filter()
+            ->unique()
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        // 5. Obtener todas las configuraciones de route_schedules
         $schedules = RouteSchedule::all()->groupBy('route');
 
-        $result = $rutas->map(function ($ruta) use ($schedules) {
+        $result = $rutas->map(function ($ruta) use ($schedules, $metaRuta) {
             $dias = [];
             $routeData = $schedules->get($ruta, collect());
 
@@ -52,8 +79,10 @@ class SupervisorHorariosController extends Controller
             }
 
             return [
-                'route' => $ruta,
-                'days'  => $dias,
+                'route'    => $ruta,
+                'canal'    => $metaRuta[$ruta]->canal ?? null,
+                'vendedor' => $metaRuta[$ruta]->vendedor ?? null,
+                'days'     => $dias,
             ];
         });
 

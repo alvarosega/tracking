@@ -10,7 +10,7 @@ class LoginUserAction
 {
     public function execute(array $data): array
     {
-        $user = User::where('username', $data['username'])->first();
+        $user = User::where('ruta', $data['username'])->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([

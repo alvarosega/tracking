@@ -91,8 +91,11 @@
               </tbody>
               <tbody v-else class="divide-y divide-[#E5E5EA] text-xs">
                 <tr v-for="item in filteredRoutes" :key="item.route" class="hover:bg-[#F9F9FB] transition-colors">
-                  <td class="py-3 px-4 font-semibold text-[#1D1D1F] font-mono tracking-tight whitespace-nowrap">
-                    {{ item.route }}
+                  <td class="py-2.5 px-4 whitespace-nowrap">
+                    <div class="font-semibold text-[#1D1D1F] font-mono tracking-tight">{{ item.route }}</div>
+                    <div v-if="item.vendedor" class="text-[10px] text-[#6E6E73] font-sans font-normal truncate max-w-[150px]" :title="item.vendedor">
+                      {{ item.vendedor }}
+                    </div>
                   </td>
                   <td v-for="d in diasSemana" :key="d.id" class="py-2 px-2 text-center">
                     <div
@@ -350,8 +353,12 @@ const forceClose = async (workday) => {
 
 const filteredRoutes = computed(() => {
   if (!searchQuery.value) return routes.value;
-  const q = searchQuery.value.toLowerCase();
-  return routes.value.filter((r) => r.route.toLowerCase().includes(q));
+  const q = searchQuery.value.toLowerCase().trim();
+  return routes.value.filter((r) => 
+    r.route.toLowerCase().includes(q) || 
+    (r.vendedor && r.vendedor.toLowerCase().includes(q)) ||
+    (r.canal && r.canal.toLowerCase().includes(q))
+  );
 });
 
 const openEditModal = (routeItem) => {
