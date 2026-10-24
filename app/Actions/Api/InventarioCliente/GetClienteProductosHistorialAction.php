@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\InventarioCliente;
 
 use App\Models\AppModule;
 use App\Models\AppModuleRoute;
 use App\Models\Supervisor\FactVenta;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class GetClienteProductosHistorialAction
 {
@@ -14,9 +15,7 @@ class GetClienteProductosHistorialAction
      * Obtiene el listado de productos que el cliente ha comprado en el periodo histórico configurable.
      * Incluye acumulado, última compra y desglose detallado para el vendedor en Android.
      *
-     * @param int|string $clienteId
-     * @param string|null $ruta
-     * @return array
+     * @return array<string, mixed>
      */
     public function execute(int|string $clienteId, ?string $ruta = null): array
     {
@@ -74,7 +73,7 @@ class GetClienteProductosHistorialAction
 
         foreach ($ventas as $v) {
             if (!$clienteNombre && !empty($v->cliente)) {
-                $clienteNombre = trim($v->cliente);
+                $clienteNombre = trim((string) $v->cliente);
             }
 
             $prodKey = $v->producto_id ? (string) $v->producto_id : trim((string) $v->codigo);
@@ -93,13 +92,12 @@ class GetClienteProductosHistorialAction
                         'nro_factura' => $v->nro_factura,
                     ],
                     'detalle_compras' => [],
-                    'stock_fisico' => null, // Espacio para captura en Android
+                    'stock_fisico' => null,
                 ];
             }
 
             $productosMap[$prodKey]['cantidad_historica'] += (int) $v->cantidad;
 
-            // Historial detallado de compras para desplegar en el móvil
             $productosMap[$prodKey]['detalle_compras'][] = [
                 'id' => $v->id,
                 'fecha' => $v->fecha_norm,
@@ -110,7 +108,6 @@ class GetClienteProductosHistorialAction
             ];
         }
 
-        // Ordenar productos por mayor volumen de compra histórica
         $productosList = array_values($productosMap);
         usort($productosList, fn($a, $b) => $b['cantidad_historica'] <=> $a['cantidad_historica']);
 

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\PedidosRechazados;
 
 use App\Models\PedidoRechazado;
 use App\Models\User;
@@ -10,6 +12,8 @@ class GetPreventasPendientesAction
 {
     /**
      * Calcula y devuelve las preventas tomadas (D-2) pendientes de justificar frente a las ventas facturadas (D-1).
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function execute(User $user, ?string $fechaPreventaParam = null, ?string $clienteId = null, ?string $ruta = null): array
     {
@@ -37,7 +41,7 @@ class GetPreventasPendientesAction
         if (!empty($ruta)) {
             $query->where('p.ruta', $ruta);
         } else {
-            $query->where(function ($q) use ($user) {
+            $query->where(function ($q) use ($user): void {
                 $q->where('p.vendedor', $user->name ?? $user->username)
                   ->orWhere('p.username_vendedor', $user->username)
                   ->orWhere('p.ruta', $user->username)
@@ -93,7 +97,7 @@ class GetPreventasPendientesAction
                 ->get();
 
             foreach ($ventasFacturadas as $v) {
-                $key = trim($v->pre_venta_id) . '_' . trim($v->producto_id);
+                $key = trim((string) $v->pre_venta_id) . '_' . trim((string) $v->producto_id);
                 $ventasPorItem[$key] = ($ventasPorItem[$key] ?? 0) + (int) $v->total_facturado;
             }
         }
@@ -128,9 +132,9 @@ class GetPreventasPendientesAction
             $montoItemPreventa = (float) $item->monto_final;
             $precioUnit = ($cantPreventa > 0 && $montoItemPreventa > 0) ? ($montoItemPreventa / $cantPreventa) : 0.0;
 
-            $itemKey = trim($item->nro_preventa) . '_' . trim($item->producto_id);
+            $itemKey = trim((string) $item->nro_preventa) . '_' . trim((string) $item->producto_id);
             $cantFacturada = isset($ventasPorItem[$itemKey]) ? (int) $ventasPorItem[$itemKey] : 0;
-            $cantRechazada = max(0, $cantPreventa - $cantFacturada);
+            $cantRechazada = max(0, $cantPrev = $cantPreventa - $cantFacturada);
 
             $montoRechazado = round($cantRechazada * $precioUnit, 2);
             $montoFacturado = round($cantFacturada * $precioUnit, 2);

@@ -1,16 +1,19 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\AppModules;
 
 use App\Models\AppModule;
 use App\Models\AppModuleRoute;
 use App\Models\User;
-use Illuminate\Support\Collection;
 
 class GetAppModulesAction
 {
     /**
      * Retorna los módulos móviles configurados para el usuario/ruta, aplicando los overrides correspondientes.
+     *
+     * @return array{ruta: string|null, modules: \Illuminate\Support\Collection<int, array<string, mixed>>}
      */
     public function execute(?User $user): array
     {
@@ -23,7 +26,7 @@ class GetAppModulesAction
             $routeOverrides = AppModuleRoute::where('ruta', $ruta)->get()->keyBy('module_code');
         }
 
-        $result = $modules->map(function ($mod) use ($routeOverrides) {
+        $result = $modules->map(function ($mod) use ($routeOverrides): array {
             $override = $routeOverrides->get($mod->code);
 
             $isActive = $override !== null ? (bool) $override->is_active : (bool) $mod->is_active;

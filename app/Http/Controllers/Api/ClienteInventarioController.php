@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Api\GetClienteInventariosHistorialAction;
-use App\Actions\Api\GetClienteProductosHistorialAction;
-use App\Actions\Api\StoreClienteInventarioAction;
+use App\Actions\Api\InventarioCliente\GetClienteInventariosHistorialAction;
+use App\Actions\Api\InventarioCliente\GetClienteProductosHistorialAction;
+use App\Actions\Api\InventarioCliente\StoreClienteInventarioAction;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StoreClienteInventarioRequest;
+use App\Http\Requests\Api\InventarioCliente\StoreClienteInventarioRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -54,7 +56,12 @@ class ClienteInventarioController extends Controller
         $clienteId = $request->query('cliente_id') ? (int) $request->query('cliente_id') : null;
         $perPage = (int) $request->query('per_page', 20);
 
-        $inventarios = $action->execute($user, $fecha, $clienteId, $perPage);
+        $inventarios = $action->execute(
+            $user,
+            is_string($fecha) ? $fecha : null,
+            $clienteId,
+            $perPage
+        );
 
         return response()->json([
             'success' => true,

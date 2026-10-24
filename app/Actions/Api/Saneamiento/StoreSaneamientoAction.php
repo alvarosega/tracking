@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\Saneamiento;
 
 use App\Models\User;
 use Carbon\Carbon;
@@ -12,10 +14,13 @@ class StoreSaneamientoAction
 {
     /**
      * Procesa y almacena un registro de saneamiento (ALTA o EDICION) en la conexión supervisor.
+     *
+     * @param array<string, mixed> $validated
+     * @return array{id: int, tipo_registro: string, photo_url: string|null}
      */
     public function execute(User $user, array $validated, ?UploadedFile $photo): array
     {
-        $tipoRegistro = strtoupper(trim($validated['tipo_registro']));
+        $tipoRegistro = strtoupper(trim((string) $validated['tipo_registro']));
         $esAlta = ($tipoRegistro === 'ALTA');
 
         $photoPath = null;
@@ -25,23 +30,23 @@ class StoreSaneamientoAction
 
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         $fechaCreacion = $validated['created_at'] ?? $nowBolivia;
-        $zona = !empty($validated['zona']) ? trim($validated['zona']) : 'SIN ZONA';
+        $zona = !empty($validated['zona']) ? trim((string) $validated['zona']) : 'SIN ZONA';
 
         $insertData = [
             'user_id' => $user->id,
             'cliente_id' => $esAlta ? null : (int) $validated['cliente_id'],
             'tipo_registro' => $tipoRegistro,
-            'route' => trim($validated['route']),
-            'cliente' => trim($validated['cliente']),
-            'tipo_negocio' => trim($validated['tipo_negocio']),
+            'route' => trim((string) $validated['route']),
+            'cliente' => trim((string) $validated['cliente']),
+            'tipo_negocio' => trim((string) $validated['tipo_negocio']),
             'zona' => $zona,
-            'contacto' => !empty($validated['contacto']) ? trim($validated['contacto']) : null,
-            'telefono' => !empty($validated['telefono']) ? trim($validated['telefono']) : null,
-            'celular' => !empty($validated['celular']) ? trim($validated['celular']) : null,
-            'direccion' => !empty($validated['direccion']) ? trim($validated['direccion']) : null,
-            'referencia' => !empty($validated['referencia']) ? trim($validated['referencia']) : null,
-            'nombre_factura' => !empty($validated['nombre_factura']) ? trim($validated['nombre_factura']) : null,
-            'nit' => !empty($validated['nit']) ? trim($validated['nit']) : null,
+            'contacto' => !empty($validated['contacto']) ? trim((string) $validated['contacto']) : null,
+            'telefono' => !empty($validated['telefono']) ? trim((string) $validated['telefono']) : null,
+            'celular' => !empty($validated['celular']) ? trim((string) $validated['celular']) : null,
+            'direccion' => !empty($validated['direccion']) ? trim((string) $validated['direccion']) : null,
+            'referencia' => !empty($validated['referencia']) ? trim((string) $validated['referencia']) : null,
+            'nombre_factura' => !empty($validated['nombre_factura']) ? trim((string) $validated['nombre_factura']) : null,
+            'nit' => !empty($validated['nit']) ? trim((string) $validated['nit']) : null,
             'latitude' => $esAlta ? ($validated['latitude'] ?? null) : null,
             'longitude' => $esAlta ? ($validated['longitude'] ?? null) : null,
             'accuracy' => $esAlta ? ($validated['accuracy'] ?? 0.0) : 0.0,
@@ -52,12 +57,12 @@ class StoreSaneamientoAction
         ];
 
         try {
-            $saneamientoId = DB::connection('supervisor')
+            $saneamientoId = (int) DB::connection('supervisor')
                 ->table('saneamiento_base')
                 ->insertGetId($insertData);
         } catch (\Throwable $e) {
             if ($photoPath) {
-                Storage::disk('public')->delete($photoPath);
+                Storage::disk('public')->delete((string) $photoPath);
             }
             throw $e;
         }

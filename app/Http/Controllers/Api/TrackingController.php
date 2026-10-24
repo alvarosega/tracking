@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Api\Tracking\SyncTrackingDataAction;
 use App\Http\Controllers\Controller;
-use App\Actions\Tracking\SyncTrackingDataAction;
-use App\Http\Requests\SyncTrackingRequest;
+use App\Http\Requests\Api\Tracking\SyncTrackingRequest;
 use Illuminate\Http\JsonResponse;
 
 class TrackingController extends Controller

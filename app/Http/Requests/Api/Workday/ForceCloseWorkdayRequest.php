@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Requests\Api;
+declare(strict_types=1);
+
+namespace App\Http\Requests\Api\Workday;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -11,6 +13,9 @@ class ForceCloseWorkdayRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Api\GetHistorialPedidosRechazadosAction;
-use App\Actions\Api\GetPreventasPendientesAction;
-use App\Actions\Api\StorePedidoRechazadoAction;
+use App\Actions\Api\PedidosRechazados\GetHistorialPedidosRechazadosAction;
+use App\Actions\Api\PedidosRechazados\GetPreventasPendientesAction;
+use App\Actions\Api\PedidosRechazados\StorePedidoRechazadoAction;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StorePedidoRechazadoRequest;
+use App\Http\Requests\Api\PedidosRechazados\StorePedidoRechazadoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -70,11 +72,15 @@ class PedidoRechazadoController extends Controller
         Request $request,
         GetPreventasPendientesAction $action
     ): JsonResponse {
+        $fecha = $request->query('fecha_preventa', $request->query('fecha'));
+        $clienteId = $request->query('cliente_id');
+        $ruta = $request->query('ruta');
+
         $preventas = $action->execute(
             user: $request->user(),
-            fechaPreventaParam: $request->query('fecha_preventa', $request->query('fecha')),
-            clienteId: $request->query('cliente_id'),
-            ruta: $request->query('ruta')
+            fechaPreventaParam: is_string($fecha) ? $fecha : null,
+            clienteId: is_string($clienteId) ? $clienteId : null,
+            ruta: is_string($ruta) ? $ruta : null
         );
 
         return response()->json([
@@ -92,7 +98,7 @@ class PedidoRechazadoController extends Controller
         Request $request,
         GetHistorialPedidosRechazadosAction $action
     ): JsonResponse {
-        $fecha = $request->input('fecha', date('Y-m-d'));
+        $fecha = (string) $request->input('fecha', date('Y-m-d'));
         $rechazos = $action->execute($request->user(), $fecha);
 
         return response()->json([

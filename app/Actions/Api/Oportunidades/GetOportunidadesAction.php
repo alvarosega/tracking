@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\Oportunidades;
 
 use App\Models\User;
 use Carbon\Carbon;
@@ -20,6 +22,8 @@ class GetOportunidadesAction
 
     /**
      * Obtiene las oportunidades comerciales georreferenciadas dentro del polígono activo de la ruta.
+     *
+     * @return array{ruta: string, dia: string, total: int, oportunidades: \Illuminate\Support\Collection<int, object>}
      */
     public function execute(User $user, ?string $diaParam = null): array
     {
@@ -38,10 +42,10 @@ class GetOportunidadesAction
         // 2. Validar frontera activa en supervisor
         $frontera = DB::connection('supervisor')
             ->table('dim_fronteras_dias')
-            ->where(function ($q) use ($rutaUsuario, $user) {
+            ->where(function ($q) use ($rutaUsuario, $user): void {
                 $q->where('ruta', $rutaUsuario);
                 if (!empty($user->ruta) && $user->ruta !== $user->username) {
-                    $q->orWhere('ruta', trim($user->username));
+                    $q->orWhere('ruta', trim((string) $user->username));
                 }
             })
             ->where('dia', $diaSolicitado)
@@ -54,14 +58,14 @@ class GetOportunidadesAction
                 'ruta' => $rutaUsuario,
                 'dia' => $diaSolicitado,
                 'total' => 0,
-                'oportunidades' => [],
+                'oportunidades' => collect(),
             ];
         }
 
         // 3. Consulta espacial ligera: solo geometría dentro del polígono
         $oportunidades = DB::connection('supervisor')
             ->table('fact_oportunidades as o')
-            ->join('dim_fronteras_dias as f', function ($join) use ($rutaUsuario, $diaSolicitado) {
+            ->join('dim_fronteras_dias as f', function ($join) use ($rutaUsuario, $diaSolicitado): void {
                 $join->on('f.ruta', '=', DB::raw("'" . addslashes($rutaUsuario) . "'"))
                      ->where('f.dia', '=', $diaSolicitado)
                      ->where('f.estado', '=', 'ACTIVO');

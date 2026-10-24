@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 class GeoService
@@ -27,4 +29,3 @@ class GeoService
         return round(self::EARTH_RADIUS_METERS * $c, 2);
     }
 }
-

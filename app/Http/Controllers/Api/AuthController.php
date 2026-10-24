@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Api\Auth\LoginUserAction;
+use App\Actions\Api\Auth\LogoutUserAction;
 use App\Http\Controllers\Controller;
-use App\Actions\Auth\LoginUserAction;
-use App\Actions\Auth\LogoutUserAction;
-use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Api\Auth\LoginRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,7 +19,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Autenticación exitosa',
-            'data' => $result
+            'data' => $result,
         ]);
     }
 
@@ -26,9 +28,7 @@ class AuthController extends Controller
         $action->execute($request);
 
         return response()->json([
-            'message' => 'Sesión cerrada correctamente'
+            'message' => 'Sesión cerrada correctamente',
         ]);
     }
 }
-
-

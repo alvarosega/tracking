@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\RouteSchedule;
@@ -26,9 +28,9 @@ class WorkdayService
         if ($dbSchedule) {
             return (object) [
                 'is_working_day' => (bool) $dbSchedule->is_working_day,
-                'start_time'     => $dbSchedule->start_time,
-                'end_time'       => $dbSchedule->end_time,
-                'limit_time'     => $dbSchedule->is_working_day 
+                'start_time' => $dbSchedule->start_time,
+                'end_time' => $dbSchedule->end_time,
+                'limit_time' => $dbSchedule->is_working_day 
                     ? Carbon::parse($now->toDateString() . ' ' . $dbSchedule->end_time, self::TIMEZONE)
                     : null
             ];
@@ -40,9 +42,9 @@ class WorkdayService
 
         return (object) [
             'is_working_day' => !$isSunday,
-            'start_time'     => '07:20:00',
-            'end_time'       => $isSaturday ? '15:00:00' : '19:00:00',
-            'limit_time'     => $isSunday ? null : Carbon::parse($now->toDateString() . ' ' . ($isSaturday ? '15:00:00' : '19:00:00'), self::TIMEZONE)
+            'start_time' => '07:20:00',
+            'end_time' => $isSaturday ? '15:00:00' : '19:00:00',
+            'limit_time' => $isSunday ? null : Carbon::parse($now->toDateString() . ' ' . ($isSaturday ? '15:00:00' : '19:00:00'), self::TIMEZONE)
         ];
     }
 
@@ -86,11 +88,11 @@ class WorkdayService
 
         $hasException = ($workday->close_reason === 'EXCEPCION_AUTORIZADA');
 
-        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule($user->username, $now, $hasException)) {
-            $limitTime = $this->getLimitTimeForDate($user->username, $now) ?? $now;
+        if ($workday->status === 'OPEN' && !$this->isWithinLegalSchedule((string) $user->username, $now, $hasException)) {
+            $limitTime = $this->getLimitTimeForDate((string) $user->username, $now) ?? $now;
             $workday->update([
-                'status'       => 'CLOSED_TIMEOUT',
-                'ended_at'     => $limitTime,
+                'status' => 'CLOSED_TIMEOUT',
+                'ended_at' => $limitTime,
                 'close_reason' => 'Cierre automático por límite de horario laboral legal',
             ]);
         }
@@ -103,8 +105,8 @@ class WorkdayService
         $now = Carbon::now(self::TIMEZONE);
         $todayStr = $now->toDateString();
 
-        if (!$this->isWithinLegalSchedule($user->username, $now)) {
-            $schedule = $this->getScheduleForRoute($user->username, $now);
+        if (!$this->isWithinLegalSchedule((string) $user->username, $now)) {
+            $schedule = $this->getScheduleForRoute((string) $user->username, $now);
             if (!$schedule->is_working_day) {
                 throw new \DomainException("La ruta {$user->username} no tiene programada jornada laboral para hoy.");
             }
@@ -113,14 +115,14 @@ class WorkdayService
 
         return UserWorkday::updateOrCreate(
             [
-                'user_id'   => $user->id,
+                'user_id' => $user->id,
                 'work_date' => $todayStr,
             ],
             [
-                'started_at'   => $now,
-                'ended_at'     => null,
-                'status'       => 'OPEN',
-                'closed_by'    => null,
+                'started_at' => $now,
+                'ended_at' => null,
+                'status' => 'OPEN',
+                'closed_by' => null,
                 'close_reason' => null,
             ]
         );
@@ -133,8 +135,8 @@ class WorkdayService
 
         if ($workday && $workday->status === 'OPEN') {
             $workday->update([
-                'status'       => 'CLOSED_SELLER',
-                'ended_at'     => $now,
+                'status' => 'CLOSED_SELLER',
+                'ended_at' => $now,
                 'close_reason' => 'Finalizado voluntariamente por el vendedor',
             ]);
         }
@@ -154,9 +156,9 @@ class WorkdayService
 
         if ($workday) {
             $workday->update([
-                'status'       => 'CLOSED_SUPERVISOR',
-                'ended_at'     => $now,
-                'closed_by'    => $supervisorId,
+                'status' => 'CLOSED_SUPERVISOR',
+                'ended_at' => $now,
+                'closed_by' => $supervisorId,
                 'close_reason' => $reason ?: 'Finalizado remotamente por el supervisor',
             ]);
         }

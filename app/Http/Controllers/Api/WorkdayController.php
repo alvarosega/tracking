@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\ForceCloseWorkdayRequest;
+use App\Http\Requests\Api\Workday\ForceCloseWorkdayRequest;
 use App\Models\User;
 use App\Models\UserWorkday;
 use App\Services\WorkdayService;
@@ -27,8 +29,8 @@ class WorkdayController extends Controller
         $now = Carbon::now(WorkdayService::TIMEZONE);
         
         $workday = $this->workdayService->getActiveWorkday($user);
-        $isWithinSchedule = $this->workdayService->isWithinLegalSchedule($user->username, $now);
-        $limitTime = $this->workdayService->getLimitTimeForDate($user->username, $now);
+        $isWithinSchedule = $this->workdayService->isWithinLegalSchedule((string) $user->username, $now);
+        $limitTime = $this->workdayService->getLimitTimeForDate((string) $user->username, $now);
 
         $isActive = ($workday && $workday->status === 'OPEN' && $isWithinSchedule);
 
@@ -55,7 +57,7 @@ class WorkdayController extends Controller
 
         try {
             $workday = $this->workdayService->startWorkday($user);
-            $limitTime = $this->workdayService->getLimitTimeForDate($user->username, Carbon::now(WorkdayService::TIMEZONE));
+            $limitTime = $this->workdayService->getLimitTimeForDate((string) $user->username, Carbon::now(WorkdayService::TIMEZONE));
 
             return response()->json([
                 'message' => 'Jornada iniciada correctamente.',

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\InventarioCliente;
 
 use App\Models\ClienteInventario;
 use App\Models\ClienteInventarioItem;
@@ -13,14 +15,15 @@ class StoreClienteInventarioAction
     /**
      * Guarda el inventario físico tomado en el cliente con garantía de idempotencia.
      *
-     * @param array $data
-     * @param User $user
-     * @return array
+     * @param array<string, mixed> $data
+     * @return array{success: bool, idempotent: bool, message: string, data: ClienteInventario}
      */
     public function execute(array $data, User $user): array
     {
+        $uuid = trim((string) $data['uuid']);
+
         // 1. Idempotencia: Si ya existe un registro con el mismo UUID, devolverlo sin duplicar
-        $existente = ClienteInventario::with('items')->where('uuid', $data['uuid'])->first();
+        $existente = ClienteInventario::with('items')->where('uuid', $uuid)->first();
         if ($existente) {
             return [
                 'success' => true,
@@ -49,15 +52,15 @@ class StoreClienteInventarioAction
         }
 
         $fechaRegistro = !empty($data['fecha_registro'])
-            ? Carbon::parse($data['fecha_registro'])
+            ? Carbon::parse((string) $data['fecha_registro'])
             : Carbon::now();
 
         // 3. Crear cabecera y detalle en transacción de BD app (mysql)
-        $inventario = DB::connection('mysql')->transaction(function () use ($data, $user, $clienteId, $clienteNombre, $codigoCliente, $fechaRegistro) {
+        $inventario = DB::connection('mysql')->transaction(function () use ($data, $user, $clienteId, $clienteNombre, $codigoCliente, $fechaRegistro, $uuid): ClienteInventario {
             $itemsData = $data['items'] ?? [];
 
             $cabecera = ClienteInventario::create([
-                'uuid' => $data['uuid'],
+                'uuid' => $uuid,
                 'user_id' => $user->id,
                 'ruta' => $user->ruta ?? null,
                 'vendedor' => $user->username ?? $user->ruta ?? null,

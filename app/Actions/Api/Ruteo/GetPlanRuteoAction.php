@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\Ruteo;
 
 use App\Models\User;
 use Carbon\Carbon;
@@ -21,6 +23,8 @@ class GetPlanRuteoAction
 
     /**
      * Obtiene el plan de ruteo del día para el vendedor, unificado con ediciones pendientes y visitas realizadas hoy.
+     *
+     * @return Collection<int, object>
      */
     public function execute(User $user): Collection
     {
@@ -44,19 +48,19 @@ class GetPlanRuteoAction
         // 4. Consulta principal contra pan_ruteo unida a la última edición pendiente
         $query = DB::connection('supervisor')
             ->table('pan_ruteo as p')
-            ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join) {
+            ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join): void {
                 $join->on('p.cliente_id', '=', 'latest_sb.cliente_id');
             })
             ->leftJoin('saneamiento_base as sb', 'sb.id', '=', 'latest_sb.max_id')
             ->where('p.estado', 'Activo')
-            ->where(function ($q) use ($rutaUsuario, $user) {
+            ->where(function ($q) use ($rutaUsuario, $user): void {
                 $q->where('p.ruta', $rutaUsuario);
                 if (!empty($user->ruta) && $user->ruta !== $user->username) {
-                    $q->orWhere('p.ruta', trim($user->username));
+                    $q->orWhere('p.ruta', trim((string) $user->username));
                 }
             });
 
-        $query->where(function ($q) use ($diaActual) {
+        $query->where(function ($q) use ($diaActual): void {
             if ($diaActual === 'Miércoles') {
                 $q->whereIn('p.dia_norm', ['Miercoles', 'Miércoles', 'MIERCOLES'])
                   ->orWhereIn('p.dia', ['Miercoles', 'Miércoles', 'MIERCOLES']);
@@ -104,7 +108,7 @@ class GetPlanRuteoAction
             ->keyBy('client_id');
 
         // 7. Cruzar estado de visita
-        return $planRuteo->map(function ($item) use ($visitasHoy) {
+        return $planRuteo->map(function ($item) use ($visitasHoy): object {
             $haSidoVisitado = $visitasHoy->has($item->cliente_id);
             $visita = $visitasHoy->get($item->cliente_id);
 

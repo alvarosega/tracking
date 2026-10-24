@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Requests\Api;
+declare(strict_types=1);
+
+namespace App\Http\Requests\Api\Saneamiento;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +27,9 @@ class StoreSaneamientoRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         $tipoRegistro = strtoupper(trim((string) $this->input('tipo_registro', '')));
@@ -39,7 +44,7 @@ class StoreSaneamientoRequest extends FormRequest
                 Rule::requiredIf(!$esAlta),
                 'nullable',
                 'integer',
-                function ($attribute, $value, $fail) use ($esAlta) {
+                function ($attribute, $value, $fail) use ($esAlta): void {
                     if (!$esAlta && $value) {
                         $exists = DB::connection('supervisor')
                             ->table('pan_ruteo')

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Requests\Api;
+declare(strict_types=1);
+
+namespace App\Http\Requests\Api\InventarioCliente;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -11,6 +13,9 @@ class StoreClienteInventarioRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -36,6 +41,9 @@ class StoreClienteInventarioRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function messages(): array
     {
         return [

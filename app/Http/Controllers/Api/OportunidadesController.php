@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Api\GetOportunidadesAction;
+use App\Actions\Api\Oportunidades\GetOportunidadesAction;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +20,7 @@ class OportunidadesController extends Controller
         $user = $request->user();
         $dia = $request->query('dia');
 
-        $result = $action->execute($user, $dia);
+        $result = $action->execute($user, is_string($dia) ? $dia : null);
 
         return response()->json($result, 200);
     }

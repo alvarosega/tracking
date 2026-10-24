@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\Visitas;
 
 use App\Models\User;
 use App\Services\GeoService;
@@ -17,10 +19,13 @@ class StoreVisitaAction
 
     /**
      * Procesa y almacena la visita en campo con idempotencia y cálculo geodésico de proximidad.
+     *
+     * @param array<string, mixed> $data
+     * @return array{idempotent: bool, status_code: int, message: string, id: int, uuid: string, photo_url: string}
      */
     public function execute(User $user, array $data, UploadedFile $photo): array
     {
-        $uuid = trim($data['uuid']);
+        $uuid = trim((string) $data['uuid']);
 
         // 1. Verificación de Idempotencia por UUID (mysql)
         $existingVisita = DB::table('visitas')->where('uuid', $uuid)->first();
@@ -29,8 +34,8 @@ class StoreVisitaAction
                 'idempotent' => true,
                 'status_code' => 200,
                 'message' => 'Visita previamente sincronizada',
-                'id' => $existingVisita->id,
-                'uuid' => $existingVisita->uuid,
+                'id' => (int) $existingVisita->id,
+                'uuid' => (string) $existingVisita->uuid,
                 'photo_url' => Storage::disk('public')->url($existingVisita->photo_path),
             ];
         }
@@ -54,26 +59,23 @@ class StoreVisitaAction
             }
         }
 
-        // Fallback al valor reportado por el dispositivo si no hubo coordenadas de referencia en servidor
         if (is_null($calculatedDistance) && isset($data['distance_to_client'])) {
             $calculatedDistance = (float) $data['distance_to_client'];
         }
 
-        // 3. Normalizar valores booleanos
         $isOpportunity = filter_var($data['is_opportunity'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         $isMock = filter_var($data['is_mock_location'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
-        // 4. Guardar archivo físico en almacenamiento
         $photoPath = $photo->store('visitas', 'public');
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
 
         try {
-            $visitaId = DB::table('visitas')->insertGetId([
+            $visitaId = (int) DB::table('visitas')->insertGetId([
                 'uuid' => $uuid,
                 'user_id' => $user->id,
                 'client_id' => !empty($data['client_id']) ? (int) $data['client_id'] : null,
-                'route' => trim($data['route']),
-                'status' => trim($data['status']),
+                'route' => trim((string) $data['route']),
+                'status' => trim((string) $data['status']),
                 'is_opportunity' => $isOpportunity,
                 'opportunity_client_name' => $data['opportunity_client_name'] ?? null,
                 'distance_to_client' => $calculatedDistance,
@@ -88,7 +90,7 @@ class StoreVisitaAction
                 'updated_at' => $nowBolivia,
             ]);
         } catch (\Throwable $e) {
-            Storage::disk('public')->delete($photoPath);
+            Storage::disk('public')->delete((string) $photoPath);
             throw $e;
         }
 

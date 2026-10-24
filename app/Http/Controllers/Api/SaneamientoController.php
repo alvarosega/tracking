@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Api\StoreSaneamientoAction;
+use App\Actions\Api\Saneamiento\StoreSaneamientoAction;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StoreSaneamientoRequest;
+use App\Http\Requests\Api\Saneamiento\StoreSaneamientoRequest;
 use Illuminate\Http\JsonResponse;
 
 class SaneamientoController extends Controller

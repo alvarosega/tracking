@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\PedidosRechazados;
 
 use App\Models\PedidoRechazado;
 use App\Models\User;
@@ -10,6 +12,8 @@ class GetHistorialPedidosRechazadosAction
 {
     /**
      * Consulta el historial de pedidos rechazados registrados por el usuario para una fecha determinada.
+     *
+     * @return Collection<int, PedidoRechazado>
      */
     public function execute(User $user, string $fecha): Collection
     {

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Actions\Api;
+declare(strict_types=1);
+
+namespace App\Actions\Api\InventarioCliente;
 
 use App\Models\ClienteInventario;
 use App\Models\User;
