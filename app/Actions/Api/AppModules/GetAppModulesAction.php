@@ -17,7 +17,7 @@ class GetAppModulesAction
      */
     public function execute(?User $user): array
     {
-        $ruta = $user ? trim((string) $user->ruta) : null;
+        $ruta = $user ? trim((string) ($user->ruta ?: $user->username)) : null;
 
         $modules = AppModule::orderBy('order')->get();
 
@@ -36,6 +36,9 @@ class GetAppModulesAction
                 $config = array_merge($config, $override->config);
             }
 
+            // Garantiza que en JSON siempre sea un objeto {} y nunca un array []
+            $configObject = !empty($config) ? $config : (object) [];
+
             return [
                 'id' => $mod->id,
                 'code' => $mod->code,
@@ -43,7 +46,7 @@ class GetAppModulesAction
                 'description' => $mod->description,
                 'is_active' => $isActive,
                 'order' => $mod->order,
-                'config' => $config,
+                'config' => $configObject,
             ];
         });
 
