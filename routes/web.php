@@ -26,6 +26,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::post('/ruteo/data', [SupervisorRuteoController::class, 'getData'])->name('ruteo.data');
     Route::get('/ruteo/cercanos', [SupervisorRuteoController::class, 'cercanos'])->name('ruteo.cercanos');
     Route::post('/ruteo/cercanos/data', [SupervisorRuteoController::class, 'getCercanosData'])->name('ruteo.cercanos.data');
+    Route::post('/ruteo/cercanos/resolver-enlace', [SupervisorRuteoController::class, 'resolverEnlaceMaps'])->name('ruteo.cercanos.resolver-enlace');
     Route::post('/ruteo/cercanos/cliente/{clienteId}/ventas', [SupervisorRuteoController::class, 'getVentasCliente'])->name('ruteo.cercanos.cliente.ventas');
     Route::post('/ruteo/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('ruteo.cercanos.cliente.visitas');
 

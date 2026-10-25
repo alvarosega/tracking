@@ -8,11 +8,13 @@ use App\Actions\Web\Supervisor\Ruteo\GetClientesCercanosAction;
 use App\Actions\Web\Supervisor\Ruteo\GetRuteoDataAction;
 use App\Actions\Web\Supervisor\Ruteo\GetVentasClienteAction;
 use App\Actions\Web\Supervisor\Ruteo\GetVisitasClienteAction;
+use App\Actions\Web\Supervisor\Ruteo\ResolveMapsUrlAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Ruteo\GetCercanosDataRequest;
 use App\Http\Requests\Web\Ruteo\GetRuteoDataRequest;
 use App\Http\Requests\Web\Ruteo\GetVentasClienteRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -79,6 +81,17 @@ class SupervisorRuteoController extends Controller
             anio: $request->anio(),
             soloActivos: $request->soloActivos()
         );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Resuelve y traduce un enlace de Google Maps (incluyendo acortadores) o coordenadas numéricas.
+     */
+    public function resolverEnlaceMaps(Request $request, ResolveMapsUrlAction $action): JsonResponse
+    {
+        $input = (string) ($request->input('url') ?? $request->input('input', ''));
+        $resultado = $action->execute($input);
 
         return response()->json($resultado);
     }

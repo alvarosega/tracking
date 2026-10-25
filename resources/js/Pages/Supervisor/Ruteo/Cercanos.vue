@@ -26,6 +26,44 @@
             <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
           </button>
 
+          <!-- Buscador / Pegar Enlace de Google Maps o Coordenadas -->
+          <div class="relative flex items-center h-8 shrink-0">
+            <div class="absolute left-2.5 text-slate-400 pointer-events-none flex items-center">
+              <svg class="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </div>
+            <input
+              type="text"
+              v-model="inputEnlaceMaps"
+              @keydown.enter.prevent="resolverEnlaceMaps"
+              placeholder="Pegar enlace Google Maps o coords..."
+              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-52 sm:w-64 transition-all"
+              title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-17.412, -66.154)"
+            />
+            <button
+              type="button"
+              @click="resolverEnlaceMaps"
+              :disabled="resolviendoEnlace || !inputEnlaceMaps.trim()"
+              class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
+              title="Traducir enlace e inspeccionar clientes cercanos"
+            >
+              <span v-if="resolviendoEnlace" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>{{ resolviendoEnlace ? '' : 'Ir' }}</span>
+            </button>
+          </div>
+
+          <!-- Toast / Feedback del Enlace de Maps -->
+          <div
+            v-if="mensajeEnlace"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            :class="mensajeEnlace.tipo === 'exito' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'"
+          >
+            <span>{{ mensajeEnlace.tipo === 'exito' ? '📍' : '⚠️' }}</span>
+            <span>{{ mensajeEnlace.texto }}</span>
+            <button type="button" @click="mensajeEnlace = null" class="ml-1 text-slate-400 hover:text-slate-600 font-bold cursor-pointer">&times;</button>
+          </div>
+
           <!-- Filtro Radio: Selector Compacto -->
           <div class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
             <span class="text-slate-400 mr-1.5 font-mono">Radio:</span>
@@ -630,6 +668,11 @@ const visitasCliente = ref([]);
 const cargandoVentas = ref(false);
 const cargandoVisitas = ref(false);
 
+// Traductor de Enlaces de Google Maps
+const inputEnlaceMaps = ref('');
+const resolviendoEnlace = ref(false);
+const mensajeEnlace = ref(null);
+
 let map = null;
 let currentTileLayer = null;
 let centerMarker = null;
@@ -801,6 +844,55 @@ function obtenerUbicacionActual() {
 function reconsultar() {
   if (origenConsulta.value) {
     consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+async function resolverEnlaceMaps() {
+  const val = inputEnlaceMaps.value.trim();
+  if (!val) return;
+
+  resolviendoEnlace.value = true;
+  mensajeEnlace.value = null;
+
+  try {
+    const url = typeof route === 'function' ? route('supervisor.ruteo.cercanos.resolver-enlace') : '/supervisor/ruteo/cercanos/resolver-enlace';
+    const res = await axios.post(url, {
+      url: val,
+    });
+
+    if (res.data && res.data.success) {
+      const lat = Number(res.data.latitud);
+      const lng = Number(res.data.longitud);
+
+      mensajeEnlace.value = {
+        tipo: 'exito',
+        texto: `Ubicación traducida: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+      };
+
+      if (map) {
+        map.flyTo([lat, lng], 16, { duration: 0.8 });
+      }
+
+      // Ejecutar la consulta espacial de clientes cercanos alrededor de esa ubicación
+      consultarCercanos(lat, lng);
+
+      setTimeout(() => {
+        mensajeEnlace.value = null;
+      }, 6000);
+    } else {
+      mensajeEnlace.value = {
+        tipo: 'error',
+        texto: res.data?.message || 'No se pudo extraer la ubicación del enlace.',
+      };
+    }
+  } catch (error) {
+    console.error('Error al resolver enlace de Maps:', error);
+    mensajeEnlace.value = {
+      tipo: 'error',
+      texto: error.response?.data?.message || 'Error de comunicación al traducir enlace.',
+    };
+  } finally {
+    resolviendoEnlace.value = false;
   }
 }
 
