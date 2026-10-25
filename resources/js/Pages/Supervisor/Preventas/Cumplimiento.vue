@@ -7,8 +7,8 @@
            ========================================== -->
       <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shrink-0 relative z-30">
         
-        <!-- Pestañas de Navegación del Módulo Preventas -->
-        <div class="flex items-center gap-3 overflow-x-auto no-scrollbar py-0.5">
+        <!-- Pestañas de Navegación del Módulo Preventas & Filtros -->
+        <div class="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-0.5">
           <SubNavTabs :tabs="preventasSubTabs" currentTab="cumplimiento" />
 
           <div class="h-5 w-px bg-slate-200 hidden sm:block shrink-0"></div>
@@ -29,16 +29,31 @@
             />
           </div>
 
-          <!-- Selector de Canal -->
+          <!-- Selector de Canal (Por defecto 'TDB') -->
           <div class="flex items-center bg-slate-50 px-2 rounded-lg border border-slate-200/90 shrink-0 h-8 text-xs">
             <span class="text-slate-400 mr-1.5 font-mono">Canal:</span>
             <select
               v-model="canalSeleccionado"
-              @change="cargarCumplimiento"
+              @change="alCambiarCanal"
               class="bg-transparent font-bold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer text-slate-900"
             >
               <option value="TODOS">Todos los Canales</option>
               <option v-for="c in canales" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <!-- Selector de Ruta -->
+          <div class="flex items-center bg-slate-50 px-2 rounded-lg border border-slate-200/90 shrink-0 h-8 text-xs">
+            <span class="text-slate-400 mr-1.5 font-mono">Ruta:</span>
+            <select
+              v-model="rutaFiltroSeleccionada"
+              @change="cargarCumplimiento"
+              class="bg-transparent font-bold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer text-slate-900 max-w-[190px]"
+            >
+              <option value="TODAS">Todas las Rutas</option>
+              <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
+                {{ r.ruta }} - {{ r.vendedor }}
+              </option>
             </select>
           </div>
 
@@ -55,7 +70,7 @@
               class="rounded border-slate-300 text-amber-600 focus:ring-0 w-3.5 h-3.5"
             />
             <span class="flex items-center gap-1">
-              <span>⏱️ Modo Estricto Horario</span>
+              <span>Modo Estricto Horario</span>
               <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-200/60 text-amber-800">App+Web</span>
             </span>
           </label>
@@ -65,7 +80,7 @@
         <div class="flex items-center gap-2 shrink-0 justify-end">
           <span v-if="cargando" class="text-[11px] font-mono text-slate-500 flex items-center gap-1.5 animate-pulse">
             <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-            Auditando KPIs...
+            Auditando...
           </span>
 
           <button
@@ -83,59 +98,7 @@
       </header>
 
       <!-- ==========================================
-           2. RESUMEN GLOBAL KPI (MODELO UNILEVER 100 PTS)
-           ========================================== -->
-      <div class="bg-slate-950 text-slate-200 border-b border-slate-800 px-3 sm:px-4 py-2 shrink-0">
-        <div class="flex items-center justify-between gap-4 overflow-x-auto no-scrollbar text-xs font-mono">
-          
-          <div class="flex items-center gap-4 sm:gap-6 shrink-0">
-            <!-- Puntuación Promedio -->
-            <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
-              <span class="text-[10px] text-slate-400 uppercase tracking-wider font-sans">Score Promedio:</span>
-              <span class="text-sm font-bold font-mono" :class="colorScore(kpisGlobales.score_promedio)">
-                {{ kpisGlobales.score_promedio }} <span class="text-[10px] text-slate-400">/ 100 pts</span>
-              </span>
-            </div>
-
-            <!-- Rutas 100 Pts -->
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span class="text-slate-400 text-[11px]">100 Pts Base:</span>
-              <span class="font-bold text-emerald-400">{{ kpisGlobales.rutas_100_pts }} rutas</span>
-            </div>
-
-            <!-- Rutas Aprobadas (>= 80 pts) -->
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-400 text-[11px]">Aprobadas (&ge; 80 pts):</span>
-              <span class="font-bold text-sky-400">{{ kpisGlobales.rutas_aprobadas_80 }} / {{ kpisGlobales.total_rutas }}</span>
-            </div>
-
-            <!-- Efectividad Global -->
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-400 text-[11px]">Efectividad Global:</span>
-              <span class="font-bold text-white">{{ kpisGlobales.efectividad_global }}%</span>
-              <span class="text-[10px] text-slate-500">(Meta: 55%)</span>
-            </div>
-
-            <!-- Facturación Preventa Hoy -->
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-400 text-[11px]">Preventa Hoy:</span>
-              <span class="font-bold text-emerald-300">Bs. {{ formatoMoneda(kpisGlobales.facturacion_total_dia) }}</span>
-            </div>
-          </div>
-
-          <div class="hidden lg:flex items-center gap-2 text-[10px] text-slate-400">
-            <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-bold text-slate-300">
-              Día Evaluado: {{ diaSemanaEvaluado }}
-            </span>
-            <span class="text-slate-500">•</span>
-            <span>Criterio Binario Unilever ("Todo o Nada")</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ==========================================
-           3. SUB-BARRA DE NAVEGACIÓN: 9 PESTAÑAS MONOGRÁFICAS
+           2. SUB-BARRA DE NAVEGACIÓN: 9 PESTAÑAS MONOGRÁFICAS (SIN EMOJIS)
            ========================================== -->
       <div class="bg-white border-b border-slate-200/90 px-3 sm:px-4 shrink-0 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs z-20">
         <div class="flex items-center space-x-1 py-1.5 shrink-0">
@@ -149,7 +112,6 @@
               ? 'bg-slate-900 text-white font-semibold shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
           >
-            <span>{{ t.icono }}</span>
             <span>{{ t.nombre }}</span>
             <span
               v-if="t.puntos"
@@ -161,12 +123,12 @@
           </button>
         </div>
 
-        <!-- Buscador rápido de ruta en la pestaña -->
+        <!-- Buscador rápido de texto en la pestaña -->
         <div class="relative w-40 sm:w-52 shrink-0 py-1">
           <input
             type="text"
             v-model="busquedaRuta"
-            placeholder="Filtrar ruta o vendedor..."
+            placeholder="Buscar ruta o preventista..."
             class="w-full h-7 pl-7 pr-6 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 font-mono"
           />
           <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -183,39 +145,12 @@
       </div>
 
       <!-- ==========================================
-           4. ÁREA DE CONTENIDO: LAS 9 PESTAÑAS
+           3. ÁREA DE CONTENIDO: LAS 9 PESTAÑAS (DIRECTAMENTE TABLAS Y MATRICES)
            ========================================== -->
       <div class="flex-1 min-h-0 overflow-y-auto bg-slate-100/70 p-3 sm:p-5">
         
-        <!-- PESTAÑA 0: PIZARRA UNILEVER GENERAL & RANKING -->
+        <!-- PESTAÑA 0: PIZARRA GENERAL & RANKING (DIRECTAMENTE TABLA CON SCORE TOTAL AL FINAL) -->
         <div v-if="tabActiva === 'general'" class="space-y-4">
-          <!-- Banner Explicativo de los 100 Puntos -->
-          <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-3.5 sm:p-4 rounded-xl shadow-md border border-slate-700/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 font-bold font-mono text-[11px] border border-sky-400/30">
-                  DSD UNILEVER
-                </span>
-                <h2 class="font-bold text-sm text-white">Pizarra General de Disciplina y Ejecución</h2>
-              </div>
-              <p class="text-slate-300 text-[11px] mt-0.5">
-                Evaluación Criterio Binario: se otorgan los puntos si la ruta alcanza el 100% de la meta exigida; de lo contrario suma 0 pts (—).
-              </p>
-            </div>
-
-            <!-- Desglose de los 8 KPIs en píldoras -->
-            <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">1. Horario (10p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">2. Visitas (5p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">3. Cuota (10p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">4. Efectiv. (30p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">5. Mín 70 (5p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">6. Repos. (15p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">7. Ampliac. (20p)</span>
-              <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">8. Covers (5p)</span>
-            </div>
-          </div>
-
           <!-- Tabla Leaderboard / Pizarra de Ranking -->
           <div class="bg-white rounded-xl shadow-xs border border-slate-200/90 overflow-hidden">
             <div class="overflow-x-auto">
@@ -225,30 +160,36 @@
                     <th class="py-2.5 px-3 font-semibold text-center w-12">Rank</th>
                     <th class="py-2.5 px-3 font-semibold">Ruta / Preventista</th>
                     <th class="py-2.5 px-2.5 font-semibold text-center">Canal</th>
-                    <th class="py-2.5 px-3 font-bold text-center bg-slate-100/80 text-slate-900">Score Total</th>
+                    
+                    <!-- Los 8 KPIs directamente nombrados sin K1, K2... -->
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'horario'" title="Ver auditoría Horario">
-                      K1 Horario<br><span class="text-[9px] text-slate-400 font-normal">10 pts</span>
+                      Horario<br><span class="text-[9px] text-slate-400 font-normal">10 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'visitas'" title="Ver auditoría Visitas">
-                      K2 Visitas<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
+                      Visitas<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
                     </th>
-                    <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'objetivo'" title="Ver auditoría Objetivo">
-                      K3 Cuota<br><span class="text-[9px] text-slate-400 font-normal">10 pts</span>
+                    <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'objetivo'" title="Ver auditoría Cuota Diaria">
+                      Cuota Diaria<br><span class="text-[9px] text-slate-400 font-normal">10 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'efectividad'" title="Ver auditoría Efectividad">
-                      K4 Efectiv.<br><span class="text-[9px] text-slate-400 font-normal">30 pts</span>
+                      Efectividad<br><span class="text-[9px] text-slate-400 font-normal">30 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'compra_minima'" title="Ver auditoría Compra Mínima">
-                      K5 Mín 70<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
+                      Mín. 70 Bs<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'reposicion'" title="Ver auditoría Reposición">
-                      K6 Repos.<br><span class="text-[9px] text-slate-400 font-normal">15 pts</span>
+                      Reposición<br><span class="text-[9px] text-slate-400 font-normal">15 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'ampliacion'" title="Ver auditoría Ampliación">
-                      K7 Ampliac.<br><span class="text-[9px] text-slate-400 font-normal">20 pts</span>
+                      Ampliación<br><span class="text-[9px] text-slate-400 font-normal">20 pts</span>
                     </th>
                     <th class="py-2.5 px-2 font-semibold text-center cursor-pointer hover:bg-slate-100" @click="tabActiva = 'covers'" title="Ver auditoría Covers">
-                      K8 Covers<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
+                      Covers<br><span class="text-[9px] text-slate-400 font-normal">5 pts</span>
+                    </th>
+
+                    <!-- Score Total AL FINAL -->
+                    <th class="py-2.5 px-3 font-bold text-center bg-slate-100/90 text-slate-900 border-l border-slate-200">
+                      Score Total<br><span class="text-[9px] text-slate-400 font-normal">100 pts</span>
                     </th>
                   </tr>
                 </thead>
@@ -284,17 +225,7 @@
                       </span>
                     </td>
 
-                    <!-- Score Total -->
-                    <td class="py-2 px-3 text-center bg-slate-50/60">
-                      <span
-                        class="px-2.5 py-1 rounded-lg text-xs font-bold inline-block min-w-[55px] shadow-2xs"
-                        :class="claseBadgeScore(r.score_total)"
-                      >
-                        {{ r.score_total }} pts
-                      </span>
-                    </td>
-
-                    <!-- Puntos KPI 1 -->
+                    <!-- Puntos Horario -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -305,7 +236,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 2 -->
+                    <!-- Puntos Visitas -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -316,7 +247,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 3 -->
+                    <!-- Puntos Cuota Diaria -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -327,7 +258,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 4 -->
+                    <!-- Puntos Efectividad -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -338,7 +269,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 5 -->
+                    <!-- Puntos Compra Mínima -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -349,7 +280,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 6 -->
+                    <!-- Puntos Reposición -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -360,7 +291,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 7 -->
+                    <!-- Puntos Ampliación -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -371,7 +302,7 @@
                       </span>
                     </td>
 
-                    <!-- Puntos KPI 8 -->
+                    <!-- Puntos Covers -->
                     <td class="py-2 px-2 text-center">
                       <span
                         class="px-2 py-0.5 rounded text-[11px] font-bold inline-block cursor-pointer"
@@ -381,6 +312,16 @@
                         {{ r.kpi8_covers.puntos > 0 ? r.kpi8_covers.puntos : '—' }}
                       </span>
                     </td>
+
+                    <!-- Score Total AL FINAL -->
+                    <td class="py-2 px-3 text-center bg-slate-50/70 border-l border-slate-200/60">
+                      <span
+                        class="px-2.5 py-1 rounded-lg text-xs font-bold inline-block min-w-[55px] shadow-2xs"
+                        :class="claseBadgeScore(r.score_total)"
+                      >
+                        {{ r.score_total }} pts
+                      </span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -388,11 +329,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 1: HORARIO DE INGRESO (10 PUNTOS) -->
+        <!-- PESTAÑA 1: HORARIO (10 PUNTOS) -->
         <div v-else-if="tabActiva === 'horario'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 1: Horario de Ingreso al Primer PDV (10 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Horario de Ingreso al Primer PDV (10 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Hora límite: <strong>08:10:00</strong>. Modo actual: <strong>{{ estrictoHorario ? 'Estricto (Web ERP + App Móvil)' : 'Normal (Primer marcaje central)' }}</strong>.
               </p>
@@ -453,11 +394,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 2: CLIENTES VISITADOS (5 PUNTOS) -->
+        <!-- PESTAÑA 2: VISITAS (5 PUNTOS) -->
         <div v-else-if="tabActiva === 'visitas'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 2: Clientes Visitados sobre Cartera Plan (5 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Clientes Visitados sobre Cartera Plan (5 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Condición: V<sub>activos</sub> &ge; C<sub>plan</sub>. Los clientes inactivos y visitas fuera de plan se contabilizan pero no suman a la meta activa.
               </p>
@@ -555,8 +496,7 @@
                             @click="abrirModalFotos(c)"
                             class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold text-[10px] cursor-pointer inline-flex items-center gap-1"
                           >
-                            <span>📷</span>
-                            <span>{{ c.fotos_count > 0 ? `${c.fotos_count} foto(s)` : 'Ver' }}</span>
+                            <span>{{ c.fotos_count > 0 ? `${c.fotos_count} foto(s)` : 'Ver fotos' }}</span>
                           </button>
                         </td>
                       </tr>
@@ -568,11 +508,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 3: CUMPLIMIENTO DE OBJETIVO DIARIO (10 PUNTOS) -->
+        <!-- PESTAÑA 3: CUOTA DIARIA (10 PUNTOS) -->
         <div v-else-if="tabActiva === 'objetivo'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 3: Cumplimiento de Objetivo Diario Dinámico (10 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Cumplimiento de Cuota Diaria (10 Puntos)</h3>
               <p class="text-slate-500 mt-0.5">
                 Cuota Diaria = Brecha (Meta Mensual - Facturado Previo) / Divisor Preventa (Días Hábiles Restantes - 2).
               </p>
@@ -629,11 +569,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 4: EFECTIVIDAD EN RUTA (30 PUNTOS) -->
+        <!-- PESTAÑA 4: EFECTIVIDAD (30 PUNTOS) -->
         <div v-else-if="tabActiva === 'efectividad'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 4: Efectividad en Ruta (30 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Efectividad en Ruta (30 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Umbral mínimo de calificación: <strong>55.0%</strong> de conversión sobre la cartera activa planificada del día.
               </p>
@@ -689,11 +629,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 5: COMPRA MÍNIMA 70 BS (5 PUNTOS) -->
+        <!-- PESTAÑA 5: MÍNIMO 70 BS (5 PUNTOS) -->
         <div v-else-if="tabActiva === 'compra_minima'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 5: Compra Mínima Diaria de 70 Bs (5 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Compra Mínima Diaria de 70 Bs (5 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Regla Estricta: El 100% de los compradores deben acumular &ge; 70.00 Bs. Si existe al menos 1 cliente con pedido &lt; 70 Bs, la ruta obtiene 0 pts.
               </p>
@@ -720,7 +660,7 @@
             </select>
           </div>
 
-          <!-- Tabla Resumen por Ruta si no hay ruta individual -->
+          <!-- Tabla Resumen por Ruta si no hay ruta individual seleccionada -->
           <div v-if="!rutaSeleccionadaDetalle" class="bg-white rounded-xl shadow-xs border border-slate-200/90 overflow-hidden">
             <table class="w-full text-left text-xs text-slate-700">
               <thead class="bg-slate-50 border-b border-slate-200 text-[11px] font-mono text-slate-500 uppercase">
@@ -729,7 +669,7 @@
                   <th class="py-2.5 px-3">Preventista</th>
                   <th class="py-2.5 px-3 text-center">Total Compradores</th>
                   <th class="py-2.5 px-3 text-center text-rose-700">Clientes &lt; 70 Bs</th>
-                  <th class="py-2.5 px-3 text-center">Semáforo Disciplina</th>
+                  <th class="py-2.5 px-3 text-center">Estado Disciplina</th>
                   <th class="py-2.5 px-3 text-center font-bold">Puntos</th>
                   <th class="py-2.5 px-3 text-center">Acción</th>
                 </tr>
@@ -747,7 +687,7 @@
                       class="px-2.5 py-0.5 rounded text-[10px] font-bold"
                       :class="r.kpi5_compra_minima.cumple ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
                     >
-                      {{ r.kpi5_compra_minima.cumple ? '✓ 100% Conforme' : '✗ Infracción Drop Size' }}
+                      {{ r.kpi5_compra_minima.cumple ? '100% Conforme' : 'Infracción Drop Size' }}
                     </span>
                   </td>
                   <td class="py-2 px-3 text-center font-bold">
@@ -808,7 +748,7 @@
                       class="px-2 py-0.5 rounded text-[10px] font-bold"
                       :class="t.conforme_70 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
                     >
-                      {{ t.conforme_70 ? '✓ Conforme (&ge; 70 Bs)' : `⚠️ Déficit de Bs. ${formatoMoneda(t.deficit_70)}` }}
+                      {{ t.conforme_70 ? 'Conforme (&ge; 70 Bs)' : `Déficit de Bs. ${formatoMoneda(t.deficit_70)}` }}
                     </span>
                   </td>
                 </tr>
@@ -817,11 +757,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 6: PEDIDO DE REPOSICIÓN (15 PUNTOS) -->
+        <!-- PESTAÑA 6: REPOSICIÓN (15 PUNTOS) -->
         <div v-else-if="tabActiva === 'reposicion'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 6: Pedido de Reposición de Portafolio Base (15 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Pedido de Reposición (15 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Ventana de análisis: <strong>13 semanas (90 días)</strong>. Umbral meta: <strong>60.0%</strong> de tiendas evaluables recomprando sus habituales.
               </p>
@@ -873,11 +813,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 7: AMPLIACIÓN DE PORTAFOLIO (20 PUNTOS) -->
+        <!-- PESTAÑA 7: AMPLIACIÓN (20 PUNTOS) -->
         <div v-else-if="tabActiva === 'ampliacion'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 7: Ampliación de Portafolio / Venta Cruzada (20 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Ampliación de Portafolio (20 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Regla por Tienda: Exige ordenar <strong>&ge; 2 SKUs nuevos</strong> respecto al historial de 90 días. Gatekeeper de Ruta: <strong>&ge; 60.0%</strong>.
               </p>
@@ -924,7 +864,7 @@
                       class="px-2 py-0.5 rounded text-[10px] font-bold"
                       :class="r.kpi7_ampliacion.cumple ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
                     >
-                      {{ r.kpi7_ampliacion.cumple ? '✓ Superado' : '✗ Bloqueado (< 60%)' }}
+                      {{ r.kpi7_ampliacion.cumple ? 'Superado' : 'Bloqueado (< 60%)' }}
                     </span>
                   </td>
                   <td class="py-2 px-3 text-center font-bold">
@@ -938,11 +878,11 @@
           </div>
         </div>
 
-        <!-- PESTAÑA 8: COVERS / MULTICATEGORÍA (5 PUNTOS) -->
+        <!-- PESTAÑA 8: COVERS (5 PUNTOS) -->
         <div v-else-if="tabActiva === 'covers'" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">KPI 8: Covers / Balance Multicategoría (5 Puntos)</h3>
+              <h3 class="text-sm font-bold text-slate-900">Covers / Multicategoría (5 Puntos)</h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 Objetivo: Evitar tickets monoproducto. Exige <strong>&ge; 2 categorías distintas</strong> por cliente. Meta de ruta: <strong>60.0%</strong>.
               </p>
@@ -1026,36 +966,29 @@ const preventasSubTabs = [
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
 ];
 
-// Pestañas Monográficas de Evaluación
+// Pestañas Monográficas de Evaluación (Sin emojis, nombres directos)
 const pestañasMonograficas = [
-  { id: 'general', nombre: 'Pizarra Unilever', icono: '🏆', puntos: '100 pts' },
-  { id: 'horario', nombre: '1. Horario', icono: '⏱️', puntos: '10 pts' },
-  { id: 'visitas', nombre: '2. Visitas', icono: '📍', puntos: '5 pts' },
-  { id: 'objetivo', nombre: '3. Cuota Diaria', icono: '🎯', puntos: '10 pts' },
-  { id: 'efectividad', nombre: '4. Efectividad', icono: '⚡', puntos: '30 pts' },
-  { id: 'compra_minima', nombre: '5. Mín 70 Bs', icono: '💰', puntos: '5 pts' },
-  { id: 'reposicion', nombre: '6. Reposición', icono: '🔄', puntos: '15 pts' },
-  { id: 'ampliacion', nombre: '7. Ampliación', icono: '📦', puntos: '20 pts' },
-  { id: 'covers', nombre: '8. Covers', icono: '🏷️', puntos: '5 pts' },
+  { id: 'general', nombre: 'Pizarra General', puntos: '100 pts' },
+  { id: 'horario', nombre: 'Horario', puntos: '10 pts' },
+  { id: 'visitas', nombre: 'Visitas', puntos: '5 pts' },
+  { id: 'objetivo', nombre: 'Cuota Diaria', puntos: '10 pts' },
+  { id: 'efectividad', nombre: 'Efectividad', puntos: '30 pts' },
+  { id: 'compra_minima', nombre: 'Mín. 70 Bs', puntos: '5 pts' },
+  { id: 'reposicion', nombre: 'Reposición', puntos: '15 pts' },
+  { id: 'ampliacion', nombre: 'Ampliación', puntos: '20 pts' },
+  { id: 'covers', nombre: 'Covers', puntos: '5 pts' },
 ];
 
 // Estado Reactivo
 const tabActiva = ref('general');
 const filtroFecha = ref(props.fecha_default);
-const canalSeleccionado = ref('TODOS');
+const canalSeleccionado = ref('TDB'); // Canal TDB por defecto
+const rutaFiltroSeleccionada = ref('TODAS'); // Filtro por rutas
 const estrictoHorario = ref(false);
 const busquedaRuta = ref('');
 const cargando = ref(false);
 
 const diaSemanaEvaluado = ref('');
-const kpisGlobales = ref({
-  total_rutas: 0,
-  score_promedio: 0.0,
-  rutas_100_pts: 0,
-  rutas_aprobadas_80: 0,
-  efectividad_global: 0.0,
-  facturacion_total_dia: 0.0,
-});
 const rutasData = ref([]);
 
 // Interacción Acordeón y Modal
@@ -1065,6 +998,19 @@ const modalFoto = ref({
   abierto: false,
   cliente: null,
 });
+
+// Rutas disponibles filtradas según el canal seleccionado
+const rutasDisponibles = computed(() => {
+  if (canalSeleccionado.value === 'TODOS') {
+    return props.catalogo_rutas;
+  }
+  return props.catalogo_rutas.filter(r => r.canal === canalSeleccionado.value);
+});
+
+function alCambiarCanal() {
+  rutaFiltroSeleccionada.value = 'TODAS';
+  cargarCumplimiento();
+}
 
 function toggleAcordeonRuta(r) {
   rutaExpandida.value = rutaExpandida.value === r ? null : r;
@@ -1082,7 +1028,7 @@ function getDetalleTicketsRuta(ruta) {
   return r ? r.detalle_compra_minima : [];
 }
 
-// Filtrado Reactivo por búsqueda rápida
+// Filtrado Reactivo por búsqueda de texto
 const rutasFiltradas = computed(() => {
   if (!busquedaRuta.value.trim()) {
     return rutasData.value;
@@ -1102,7 +1048,7 @@ async function cargarCumplimiento() {
     const payload = {
       fecha: filtroFecha.value,
       canales: canalSeleccionado.value === 'TODOS' ? [] : [canalSeleccionado.value],
-      rutas: [],
+      rutas: rutaFiltroSeleccionada.value === 'TODAS' ? [] : [rutaFiltroSeleccionada.value],
       estricto_horario: estrictoHorario.value,
     };
 
@@ -1114,7 +1060,6 @@ async function cargarCumplimiento() {
 
     if (res.data) {
       diaSemanaEvaluado.value = res.data.dia_semana || '';
-      kpisGlobales.value = res.data.kpis_globales || kpisGlobales.value;
       rutasData.value = res.data.rutas || [];
     }
   } catch (error) {
@@ -1128,13 +1073,6 @@ async function cargarCumplimiento() {
 function formatoMoneda(val) {
   if (!val) return '0.00';
   return Number(val).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function colorScore(score) {
-  if (score >= 90) return 'text-emerald-400 font-extrabold';
-  if (score >= 80) return 'text-sky-400 font-bold';
-  if (score >= 60) return 'text-amber-400 font-bold';
-  return 'text-rose-400 font-bold';
 }
 
 function claseBadgeScore(score) {
@@ -1161,4 +1099,3 @@ onMounted(() => {
   display: none;
 }
 </style>
-
