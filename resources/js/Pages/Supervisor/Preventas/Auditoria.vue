@@ -1,0 +1,63 @@
+<template>
+  <SupervisorLayout full-bleed>
+    <div class="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scroll font-sans text-ink space-y-3 p-3 sm:p-5 select-none">
+      
+      <!-- Barra Superior de Navegación -->
+      <header class="apple-glass-card rounded-[16px] p-2 sm:p-2.5 border border-white/60 flex flex-wrap items-center justify-between gap-2 shrink-0 z-30">
+        <SubNavTabs :tabs="preventasSubTabs" currentTab="auditoria" />
+        <span class="text-[11px] font-mono text-[#6E6E73] font-bold">Módulo Auditoría Preventa</span>
+      </header>
+
+      <!-- Tarjeta Apple Liquid Glass "En Construcción" -->
+      <div class="apple-glass-card rounded-[16px] p-12 text-center backdrop-blur-xl border border-white/60 select-none font-sans max-w-2xl mx-auto my-auto shadow-glass-card">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-white/70 border border-[#E5E5EA] flex items-center justify-center text-[#0071E3] mb-4 shadow-sm">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.8"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
+          </svg>
+        </div>
+        <h3 class="text-[14px] font-bold text-[#1D1D1F] uppercase tracking-wider">En construcción</h3>
+        <p class="text-[11px] text-[#6E6E73] font-medium mt-2 max-w-md mx-auto leading-relaxed">
+          Aquí vivirá el listado completo de invasiones de ruta, visitas huérfanas, discrepancias de vendedor y motivos de rechazo.
+        </p>
+
+        <div class="mt-6 flex justify-center">
+          <Link
+            :href="route('supervisor.preventas.index')"
+            class="px-4 py-2 rounded-[10px] text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(0,113,227,0.35)] flex items-center gap-1.5"
+          >
+            <span>Ir a Auditoría de Pedidos y Rechazos en Terreno</span>
+            <span>&rarr;</span>
+          </Link>
+        </div>
+      </div>
+
+    </div>
+  </SupervisorLayout>
+</template>
+
+<script setup>
+import { Link } from '@inertiajs/vue3';
+import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
+import SubNavTabs from '@/Components/UI/SubNavTabs.vue';
+
+defineProps({
+  catalogo_rutas: { type: Array, default: () => [] },
+  canales: { type: Array, default: () => [] },
+  fecha_default: { type: String, default: () => new Date().toISOString().split('T')[0] },
+});
+
+const preventasSubTabs = [
+  { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
+  { id: 'diaria', name: 'Preventa Diaria', route: 'supervisor.preventas.diaria' },
+  { id: 'productos', name: 'Productos', route: 'supervisor.preventas.productos' },
+  { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
+  { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
+  { id: 'mapa', name: 'Auditoría en Terreno', route: 'supervisor.preventas.index' },
+];
+</script>
+

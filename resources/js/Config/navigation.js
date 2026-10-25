@@ -46,25 +46,58 @@ export const navigationConfig = {
     },
     {
       id: 'preventas',
-      name: 'Auditoría Preventas',
-      shortName: 'Preventas',
-      route: 'supervisor.preventas.index',
-      componentPrefix: 'Supervisor/Preventas/Index',
-      icon: 'ClipboardCheckIcon',
-      badge: 'MAPA',
-      badgeColor: 'sky',
-      description: 'Auditoría geográfica de pedidos y control en terreno'
-    },
-    {
-      id: 'cumplimiento',
-      name: 'Cumplimiento Preventa',
-      shortName: 'Cumplimiento',
+      name: 'Módulo Preventa',
+      shortName: 'Preventa',
       route: 'supervisor.preventas.cumplimiento',
-      componentPrefix: 'Supervisor/Preventas/Cumplimiento',
+      componentPrefix: 'Supervisor/Preventas',
       icon: 'ChartBarIcon',
       badge: '100 PTS',
       badgeColor: 'amber',
-      description: 'Pizarra Unilever, 8 KPIs y matrices analíticas de datos'
+      description: 'Pizarra Unilever, Preventa Diaria, Productos y Auditoría',
+      submodules: [
+        {
+          id: 'cumplimiento',
+          name: 'Cumplimiento Unilever',
+          route: 'supervisor.preventas.cumplimiento',
+          component: 'Supervisor/Preventas/Cumplimiento',
+          icon: 'ChartBarIcon'
+        },
+        {
+          id: 'diaria',
+          name: 'Preventa Diaria',
+          route: 'supervisor.preventas.diaria',
+          component: 'Supervisor/Preventas/Diaria',
+          icon: 'MapPinIcon'
+        },
+        {
+          id: 'productos',
+          name: 'Productos & Heatmap',
+          route: 'supervisor.preventas.productos',
+          component: 'Supervisor/Preventas/Productos',
+          icon: 'TagIcon'
+        },
+        {
+          id: 'auditoria',
+          name: 'Auditoría',
+          route: 'supervisor.preventas.auditoria',
+          component: 'Supervisor/Preventas/Auditoria',
+          icon: 'ShieldCheckIcon'
+        },
+        {
+          id: 'comparativos',
+          name: 'Comparativos',
+          route: 'supervisor.preventas.comparativos',
+          component: 'Supervisor/Preventas/Comparativos',
+          icon: 'ScaleIcon'
+        },
+        {
+          id: 'mapa',
+          name: 'Auditoría en Terreno',
+          route: 'supervisor.preventas.index',
+          component: 'Supervisor/Preventas/Index',
+          icon: 'ClipboardCheckIcon'
+        }
+      ]
     },
     {
       id: 'tracking',

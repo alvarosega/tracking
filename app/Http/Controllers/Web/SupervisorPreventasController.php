@@ -6,6 +6,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\Preventas\GetCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaCategoriasAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaDetalleRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaDiariaDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaProductosDetalleAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaProductosHeatmapAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventaProductosRankingAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventasDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventasInitDataAction;
 use App\Actions\Web\Supervisor\Ruteo\ResolveMapsUrlAction;
@@ -20,7 +26,7 @@ use Inertia\Response;
 class SupervisorPreventasController extends Controller
 {
     /**
-     * Muestra la vista principal de Auditoría de Preventas.
+     * Muestra la vista principal de Auditoría de Preventas (Mapa y Pedidos).
      */
     public function index(GetPreventasInitDataAction $action): Response
     {
@@ -111,6 +117,169 @@ class SupervisorPreventasController extends Controller
         );
 
         return response()->json($resultado);
+    }
+
+    /**
+     * Muestra la vista de Preventa Diaria (Recorrido de paradas, mapa interactivo y secuencia).
+     */
+    public function diaria(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/Diaria', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
+    }
+
+    /**
+     * Devuelve el dashboard diario de preventa con matriz y KPIs de cumplimiento de ruta.
+     */
+    public function diariaData(Request $request, GetPreventaDiariaDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+
+        $resultado = $action->execute(fecha: $fecha, canal: $canal);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el itinerario, clientes secuenciados y evidencias fotográficas de una ruta específica.
+     */
+    public function rutaDetalle(string $ruta, Request $request, GetPreventaDetalleRutaAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Muestra la vista analítica de Productos en Preventa (Ranking, Desglose por ruta y Heatmap).
+     */
+    public function productos(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/Productos', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
+    }
+
+    /**
+     * Devuelve la lista de categorías registradas en preventas para los filtros.
+     */
+    public function productosCategorias(Request $request, GetPreventaCategoriasAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+
+        $categorias = $action->execute(fecha: $fecha, canal: $canal);
+
+        return response()->json([
+            'success' => true,
+            'categorias' => $categorias,
+        ]);
+    }
+
+    /**
+     * Devuelve el ranking de productos más vendidos.
+     */
+    public function productosRanking(Request $request, GetPreventaProductosRankingAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+        $rutas = $request->input('rutas');
+        $categoria = $request->input('categoria') ? (string) $request->input('categoria') : null;
+        $busqueda = $request->input('busqueda') ? (string) $request->input('busqueda') : null;
+        $limit = (int) $request->input('limit', 150);
+
+        $resultado = $action->execute(
+            fecha: $fecha,
+            canal: $canal,
+            rutas: $rutas,
+            categoria: $categoria,
+            busqueda: $busqueda,
+            limit: $limit
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el detalle de rutas que vendieron un SKU determinado.
+     */
+    public function productosDetalleRutas(Request $request, GetPreventaProductosDetalleAction $action): JsonResponse
+    {
+        $productoId = (int) $request->input('producto_id');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+        $rutas = $request->input('rutas');
+
+        $resultado = $action->execute(
+            productoId: $productoId,
+            fecha: $fecha,
+            canal: $canal,
+            rutas: $rutas
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve la matriz 2D (heatmap) de Top N SKUs vs Rutas.
+     */
+    public function productosHeatmap(Request $request, GetPreventaProductosHeatmapAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+        $rutas = $request->input('rutas');
+        $categoria = $request->input('categoria') ? (string) $request->input('categoria') : null;
+        $topSkus = (int) $request->input('top_skus', 30);
+
+        $resultado = $action->execute(
+            fecha: $fecha,
+            canal: $canal,
+            rutas: $rutas,
+            categoria: $categoria,
+            topSkus: $topSkus
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Muestra la vista de Auditoría de Preventa.
+     */
+    public function auditoria(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/Auditoria', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
+    }
+
+    /**
+     * Muestra la vista de Comparativos de Preventa.
+     */
+    public function comparativos(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/Comparativos', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
     }
 
     /**

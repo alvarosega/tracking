@@ -50,9 +50,23 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/data', [SupervisorPreventasController::class, 'data'])->name('data');
         Route::post('/resolver-enlace', [SupervisorPreventasController::class, 'resolverEnlaceMaps'])->name('resolver-enlace');
         Route::post('/rechazos/data', [SupervisorPreventasController::class, 'rechazosData'])->name('rechazos.data');
+
         Route::get('/cumplimiento', [SupervisorPreventasController::class, 'cumplimiento'])->name('cumplimiento');
         Route::post('/cumplimiento/data', [SupervisorPreventasController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/fotos/{clienteId}', [SupervisorPreventasController::class, 'fotosCliente'])->name('cumplimiento.fotos');
+
+        Route::get('/diaria', [SupervisorPreventasController::class, 'diaria'])->name('diaria');
+        Route::post('/diaria/data', [SupervisorPreventasController::class, 'diariaData'])->name('diaria.data');
+        Route::post('/diaria/ruta/{ruta}', [SupervisorPreventasController::class, 'rutaDetalle'])->name('diaria.ruta');
+
+        Route::get('/productos', [SupervisorPreventasController::class, 'productos'])->name('productos');
+        Route::post('/productos/categorias', [SupervisorPreventasController::class, 'productosCategorias'])->name('productos.categorias');
+        Route::post('/productos/ranking', [SupervisorPreventasController::class, 'productosRanking'])->name('productos.ranking');
+        Route::post('/productos/detalle', [SupervisorPreventasController::class, 'productosDetalleRutas'])->name('productos.detalle');
+        Route::post('/productos/heatmap', [SupervisorPreventasController::class, 'productosHeatmap'])->name('productos.heatmap');
+
+        Route::get('/auditoria', [SupervisorPreventasController::class, 'auditoria'])->name('auditoria');
+        Route::get('/comparativos', [SupervisorPreventasController::class, 'comparativos'])->name('comparativos');
     });
 
     // Módulo Tracking en Vivo y Patrones Históricos

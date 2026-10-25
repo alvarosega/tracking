@@ -16,7 +16,7 @@
 
         <!-- Scroll Horizontal de Filtros Principales -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-          <SubNavTabs :tabs="preventasSubTabs" currentTab="auditoria" />
+          <SubNavTabs :tabs="preventasSubTabs" currentTab="mapa" />
           <div class="h-5 w-px bg-slate-200 hidden sm:block shrink-0"></div>
           
           <!-- Selector de Fecha de Preventa -->
@@ -634,8 +634,12 @@ const props = defineProps({
 
 // Submódulos Preventas
 const preventasSubTabs = [
-  { id: 'auditoria', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' },
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
+  { id: 'diaria', name: 'Preventa Diaria', route: 'supervisor.preventas.diaria' },
+  { id: 'productos', name: 'Productos', route: 'supervisor.preventas.productos' },
+  { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
+  { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
+  { id: 'mapa', name: 'Auditoría en Terreno', route: 'supervisor.preventas.index' },
 ];
 
 // Filtros Reactivos
