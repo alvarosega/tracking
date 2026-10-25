@@ -23,8 +23,8 @@ class ClienteInventarioController extends Controller
         int|string $clienteId,
         GetClienteProductosHistorialAction $action
     ): JsonResponse {
-        $ruta = $request->user()?->ruta;
-        $result = $action->execute($clienteId, $ruta);
+        $ruta = $request->query('ruta') ?: $request->user()?->ruta;
+        $result = $action->execute($clienteId, is_string($ruta) ? $ruta : null);
 
         return response()->json($result, 200);
     }

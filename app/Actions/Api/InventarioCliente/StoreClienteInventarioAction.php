@@ -81,13 +81,17 @@ class StoreClienteInventarioAction
                 $itemsToInsert[] = [
                     'cliente_inventario_id' => $cabecera->id,
                     'producto_id' => isset($item['producto_id']) ? (int) $item['producto_id'] : null,
-                    'codigo_producto' => $item['codigo_producto'] ?? null,
-                    'producto_nombre' => $item['producto_nombre'] ?? null,
+                    'codigo_producto' => $item['codigo'] ?? $item['codigo_producto'] ?? null,
+                    'producto_nombre' => $item['producto'] ?? $item['producto_nombre'] ?? null,
                     'categoria' => $item['categoria'] ?? null,
                     'stock_fisico' => (int) ($item['stock_fisico'] ?? 0),
-                    'cantidad_historica' => (int) ($item['cantidad_historica'] ?? 0),
-                    'ultima_compra_fecha' => !empty($item['ultima_compra_fecha']) ? $item['ultima_compra_fecha'] : null,
-                    'ultima_compra_cantidad' => (int) ($item['ultima_compra_cantidad'] ?? 0),
+                    'cantidad_historica' => (int) ($item['total_comprado'] ?? $item['cantidad_historica'] ?? 0),
+                    'ultima_compra_fecha' => !empty($item['ultima_compra_fecha'])
+                        ? $item['ultima_compra_fecha']
+                        : ($item['ultima_compra']['fecha'] ?? null),
+                    'ultima_compra_cantidad' => (int) (
+                        $item['ultima_compra_cantidad'] ?? ($item['ultima_compra']['cantidad'] ?? 0)
+                    ),
                     'created_at' => now(),
                 ];
             }
