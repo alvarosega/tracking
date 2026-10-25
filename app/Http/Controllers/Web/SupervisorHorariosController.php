@@ -1,17 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\Horarios\ForceCloseWorkdayAction;
+use App\Actions\Web\Supervisor\Horarios\GetActiveWorkdaysAction;
+use App\Actions\Web\Supervisor\Horarios\GetHorariosDataAction;
+use App\Actions\Web\Supervisor\Horarios\UpdateRouteScheduleAction;
 use App\Http\Controllers\Controller;
-use App\Models\RouteSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupervisorHorariosController extends Controller
 {
+    /**
+     * Muestra la interfaz principal de la matriz de horarios de trabajo por ruta.
+     */
     public function index(): Response
     {
         return Inertia::render('Supervisor/Horarios/Index');
@@ -20,79 +27,15 @@ class SupervisorHorariosController extends Controller
     /**
      * Retorna la matriz de rutas activas junto a sus horarios por día de la semana.
      */
-    public function data(): JsonResponse
+    public function data(GetHorariosDataAction $action): JsonResponse
     {
-        // 1. Obtener catálogo maestro de rutas desde dim_rutas
-        $dimRows = DB::connection('supervisor')
-            ->table('dim_rutas')
-            ->whereNotNull('ruta')
-            ->where('ruta', '!=', '')
-            ->select('ruta', 'canal', 'vendedor')
-            ->get();
-
-        $metaRuta = $dimRows->keyBy('ruta');
-        $rutasDim = $dimRows->pluck('ruta');
-
-        // 2. Obtener rutas que existan en pan_ruteo
-        $rutasPan = DB::connection('supervisor')
-            ->table('pan_ruteo')
-            ->whereNotNull('ruta')
-            ->where('ruta', '!=', '')
-            ->distinct()
-            ->pluck('ruta');
-
-        // 3. Obtener rutas con horarios ya registrados en route_schedules
-        $rutasConfig = RouteSchedule::query()
-            ->whereNotNull('route')
-            ->where('route', '!=', '')
-            ->distinct()
-            ->pluck('route');
-
-        // 4. Unificar todas las rutas únicas
-        $rutas = $rutasDim
-            ->concat($rutasPan)
-            ->concat($rutasConfig)
-            ->map(fn($r) => trim($r))
-            ->filter()
-            ->unique()
-            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
-            ->values();
-
-        // 5. Obtener todas las configuraciones de route_schedules
-        $schedules = RouteSchedule::all()->groupBy('route');
-
-        $result = $rutas->map(function ($ruta) use ($schedules, $metaRuta) {
-            $dias = [];
-            $routeData = $schedules->get($ruta, collect());
-
-            for ($dia = 1; $dia <= 7; $dia++) {
-                $sched = $routeData->firstWhere('day_of_week', $dia);
-                $isSaturday = ($dia === 6);
-                $isSunday = ($dia === 7);
-
-                $dias[$dia] = [
-                    'day_of_week'    => $dia,
-                    'is_working_day' => $sched ? (bool) $sched->is_working_day : !$isSunday,
-                    'start_time'     => $sched ? substr($sched->start_time, 0, 5) : '07:20',
-                    'end_time'       => $sched ? substr($sched->end_time, 0, 5) : ($isSaturday ? '15:00' : '19:00'),
-                ];
-            }
-
-            return [
-                'route'    => $ruta,
-                'canal'    => $metaRuta[$ruta]->canal ?? null,
-                'vendedor' => $metaRuta[$ruta]->vendedor ?? null,
-                'days'     => $dias,
-            ];
-        });
-
-        return response()->json($result, 200);
+        return response()->json($action->execute(), 200);
     }
 
     /**
      * Guarda o actualiza la configuración de horario para una ruta y día específico.
      */
-    public function update(Request $request): JsonResponse
+    public function update(Request $request, UpdateRouteScheduleAction $action): JsonResponse
     {
         $validated = $request->validate([
             'route'          => 'required|string|max:50',
@@ -102,16 +45,12 @@ class SupervisorHorariosController extends Controller
             'is_working_day' => 'required|boolean',
         ]);
 
-        $schedule = RouteSchedule::updateOrCreate(
-            [
-                'route'       => trim($validated['route']),
-                'day_of_week' => $validated['day_of_week'],
-            ],
-            [
-                'start_time'     => $validated['start_time'] . ':00',
-                'end_time'       => $validated['end_time'] . ':00',
-                'is_working_day' => $validated['is_working_day'],
-            ]
+        $schedule = $action->execute(
+            route: (string) $validated['route'],
+            dayOfWeek: (int) $validated['day_of_week'],
+            startTime: (string) $validated['start_time'],
+            endTime: (string) $validated['end_time'],
+            isWorkingDay: (bool) $validated['is_working_day']
         );
 
         return response()->json([
@@ -119,31 +58,28 @@ class SupervisorHorariosController extends Controller
             'schedule' => $schedule,
         ], 200);
     }
+
     /**
      * Retorna la lista en vivo de usuarios con jornada iniciada hoy.
      */
-    public function activeWorkdays(): JsonResponse
+    public function activeWorkdays(GetActiveWorkdaysAction $action): JsonResponse
     {
-        $today = \Carbon\Carbon::now(\App\Services\WorkdayService::TIMEZONE)->toDateString();
-
-        $workdays = \App\Models\UserWorkday::with(['user:id,username'])
-            ->where('work_date', $today)
-            ->where('status', 'OPEN')
-            ->orderBy('started_at', 'desc')
-            ->get();
-
-        return response()->json($workdays, 200);
+        return response()->json($action->execute(), 200);
     }
 
     /**
      * Cierre remoto individual ejecutado desde el panel de horarios.
      */
-    public function forceCloseWorkday(Request $request, int $userId, \App\Services\WorkdayService $workdayService): JsonResponse
+    public function forceCloseWorkday(Request $request, int $userId, ForceCloseWorkdayAction $action): JsonResponse
     {
         $supervisor = $request->user();
         $reason = $request->input('reason', 'Cierre manual ejecutado por el supervisor desde el panel de horarios');
 
-        $workday = $workdayService->closeWorkdayBySupervisor($userId, $supervisor->id, $reason);
+        $workday = $action->execute(
+            userId: $userId,
+            supervisorId: $supervisor ? $supervisor->id : null,
+            reason: (string) $reason
+        );
 
         if (!$workday) {
             return response()->json(['message' => 'El usuario no tiene una jornada abierta hoy.'], 404);

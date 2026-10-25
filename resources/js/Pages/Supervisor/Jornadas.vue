@@ -19,13 +19,13 @@
               type="date"
               v-model="selectedDate"
               @change="applyFilter"
-              class="border border-slate-300 rounded-lg p-1.5 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
+              class="border border-slate-300 rounded-lg p-1.5 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
             />
 
             <select
               v-model="selectedStatus"
               @change="applyFilter"
-              class="border border-slate-300 rounded-lg p-1.5 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500"
+              class="border border-slate-300 rounded-lg p-1.5 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
             >
               <option value="TODOS">Todos los Estados</option>
               <option value="OPEN">Jornadas Abiertas</option>
@@ -37,7 +37,7 @@
               v-if="total_abiertas > 0"
               @click="confirmCloseAll"
               :disabled="isProcessing"
-              class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+              class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -64,8 +64,59 @@
         </div>
       </div>
 
-      <!-- Tabla de Vendedores y Estado de Jornada -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Vista Móvil en Tarjetas (< sm) -->
+      <div class="sm:hidden space-y-2.5">
+        <div
+          v-for="item in vendedores_jornadas"
+          :key="item.user_id"
+          class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2.5"
+        >
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-sm text-slate-800 font-mono">{{ item.vendedor_ruta }}</span>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+              :class="getStatusBadgeClass(item.status)"
+            >
+              {{ getStatusLabel(item.status) }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+            <div>
+              <span class="text-slate-400 block text-[9px]">Inicio:</span>
+              <span class="font-bold">{{ formatTime(item.started_at) }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[9px]">Fin:</span>
+              <span class="font-bold">{{ formatTime(item.ended_at) }}</span>
+            </div>
+          </div>
+
+          <p v-if="item.close_reason || item.supervisor_nombre" class="text-[11px] text-slate-500">
+            <span v-if="item.supervisor_nombre" class="font-semibold text-rose-600">Por: {{ item.supervisor_nombre }} - </span>
+            {{ item.close_reason }}
+          </p>
+
+          <button
+            v-if="item.status === 'OPEN'"
+            @click="confirmCloseSingle(item)"
+            :disabled="isProcessing"
+            class="w-full py-2 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span>Detener Jornada Remota</span>
+          </button>
+        </div>
+
+        <div v-if="vendedores_jornadas.length === 0" class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 text-xs">
+          No se encontraron registros para los filtros seleccionados.
+        </div>
+      </div>
+
+      <!-- Tabla Desktop (>= sm) -->
+      <div class="hidden sm:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs min-w-[650px]">
             <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
@@ -106,7 +157,7 @@
                     v-if="item.status === 'OPEN'"
                     @click="confirmCloseSingle(item)"
                     :disabled="isProcessing"
-                    class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded font-bold text-[11px] transition disabled:opacity-50"
+                    class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded font-bold text-[11px] transition disabled:opacity-50 cursor-pointer active:scale-95"
                   >
                     Detener Jornada
                   </button>

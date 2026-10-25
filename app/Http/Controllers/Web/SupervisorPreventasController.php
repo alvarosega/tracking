@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\Preventas\GetPreventasDataAction;
-use App\Actions\Web\Supervisor\Ruteo\GetCatalogoRutasAction;
+use App\Actions\Web\Supervisor\Preventas\GetPreventasInitDataAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Preventas\GetPreventasDataRequest;
-use App\Models\Supervisor\FactPreventa;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,17 +17,14 @@ class SupervisorPreventasController extends Controller
     /**
      * Muestra la vista principal de Auditoría de Preventas.
      */
-    public function index(GetCatalogoRutasAction $catalogoAction): Response
+    public function index(GetPreventasInitDataAction $action): Response
     {
-        $catalogoData = $catalogoAction->execute();
-
-        // Extraer la fecha más reciente con datos reales de preventa
-        $ultimaFecha = FactPreventa::query()->max('fecha_norm');
+        $initData = $action->execute();
 
         return Inertia::render('Supervisor/Preventas/Index', [
-            'catalogo_rutas' => $catalogoData['catalogo'],
-            'canales' => $catalogoData['canales'],
-            'fecha_default' => $ultimaFecha ?: date('Y-m-d'),
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
         ]);
     }
 
