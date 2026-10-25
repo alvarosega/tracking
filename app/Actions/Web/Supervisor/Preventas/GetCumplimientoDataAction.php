@@ -94,7 +94,7 @@ class GetCumplimientoDataAction
                     'pr.ruta',
                     'pr.cliente_id',
                     'pr.codigo_cliente',
-                    DB::raw("COALESCE(NULLIF(pr.cliente, ''), pr.cliente_norm, 'Cliente #' || pr.cliente_id) as cliente"),
+                    DB::raw("COALESCE(NULLIF(pr.cliente, ''), pr.cliente_norm, CONCAT('Cliente #', pr.cliente_id)) as cliente"),
                     'pr.estado',
                     'pr.dia_norm',
                     'pr.direccion',
@@ -112,16 +112,20 @@ class GetCumplimientoDataAction
         // B. fact_visitas: Marcajes del sistema central (web ERP)
         $factVisitasRaw = collect();
         try {
-            $factVisitasRaw = DB::connection('supervisor')->table('fact_visitas')
-                ->where(function ($q) use ($fecha): void {
-                    $q->whereDate('check_in', $fecha);
-                    if (DB::connection('supervisor')->getSchemaBuilder()->hasColumn('fact_visitas', 'fecha')) {
-                        $q->orWhere('fecha', $fecha);
-                    }
-                })
-                ->whereIn('ruta', $rutasFiltradas)
-                ->orderBy('check_in', 'asc')
-                ->get();
+            $baseVisitasQuery = DB::connection('supervisor')->table('fact_visitas')
+                ->whereIn('ruta', $rutasFiltradas);
+
+            try {
+                $factVisitasRaw = (clone $baseVisitasQuery)
+                    ->whereDate('check_in', $fecha)
+                    ->orderBy('check_in', 'asc')
+                    ->get();
+            } catch (\Throwable) {
+                $factVisitasRaw = (clone $baseVisitasQuery)
+                    ->where('fecha', $fecha)
+                    ->orderBy('check_in', 'asc')
+                    ->get();
+            }
         } catch (\Throwable $e) {
             Log::warning('Error consultando fact_visitas en Cumplimiento: ' . $e->getMessage());
         }
@@ -191,17 +195,19 @@ class GetCumplimientoDataAction
             $mes = (int) $carbonFecha->month;
             $anio = (int) $carbonFecha->year;
 
-            $metasQuery = DB::connection('supervisor')->table('fact_metas')
-                ->whereIn('ruta', $rutasFiltradas);
-
-            if (DB::connection('supervisor')->getSchemaBuilder()->hasColumn('fact_metas', 'mes')) {
-                $metasQuery->where('mes', $mes);
+            try {
+                $metasPorRuta = DB::connection('supervisor')->table('fact_metas')
+                    ->whereIn('ruta', $rutasFiltradas)
+                    ->where('mes', $mes)
+                    ->where('anio', $anio)
+                    ->get()
+                    ->keyBy('ruta');
+            } catch (\Throwable) {
+                $metasPorRuta = DB::connection('supervisor')->table('fact_metas')
+                    ->whereIn('ruta', $rutasFiltradas)
+                    ->get()
+                    ->keyBy('ruta');
             }
-            if (DB::connection('supervisor')->getSchemaBuilder()->hasColumn('fact_metas', 'anio')) {
-                $metasQuery->where('anio', $anio);
-            }
-
-            $metasPorRuta = $metasQuery->get()->keyBy('ruta');
         } catch (\Throwable $e) {
             Log::warning('Error consultando fact_metas en Cumplimiento: ' . $e->getMessage());
         }

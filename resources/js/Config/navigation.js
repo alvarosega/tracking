@@ -46,30 +46,25 @@ export const navigationConfig = {
     },
     {
       id: 'preventas',
-      name: 'Preventa & Cumplimiento',
+      name: 'Auditoría Preventas',
       shortName: 'Preventas',
       route: 'supervisor.preventas.index',
-      componentPrefix: 'Supervisor/Preventas',
+      componentPrefix: 'Supervisor/Preventas/Index',
       icon: 'ClipboardCheckIcon',
-      badge: 'UNILEVER',
+      badge: 'MAPA',
       badgeColor: 'sky',
-      description: 'Auditoría geográfica de pedidos y motor de cumplimiento Unilever',
-      submodules: [
-        {
-          id: 'auditoria',
-          name: 'Auditoría en Mapa',
-          route: 'supervisor.preventas.index',
-          component: 'Supervisor/Preventas/Index',
-          icon: 'MapPinIcon'
-        },
-        {
-          id: 'cumplimiento',
-          name: 'Cumplimiento Unilever',
-          route: 'supervisor.preventas.cumplimiento',
-          component: 'Supervisor/Preventas/Cumplimiento',
-          icon: 'ChartBarIcon'
-        }
-      ]
+      description: 'Auditoría geográfica de pedidos y control en terreno'
+    },
+    {
+      id: 'cumplimiento',
+      name: 'Cumplimiento Preventa',
+      shortName: 'Cumplimiento',
+      route: 'supervisor.preventas.cumplimiento',
+      componentPrefix: 'Supervisor/Preventas/Cumplimiento',
+      icon: 'ChartBarIcon',
+      badge: '100 PTS',
+      badgeColor: 'amber',
+      description: 'Pizarra Unilever, 8 KPIs y matrices analíticas de datos'
     },
     {
       id: 'tracking',
@@ -165,6 +160,7 @@ export const navigationConfig = {
 
   // Accesos Rápidos
   quickLinks: [
+    { label: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
     { label: 'Tracking Activo', route: 'supervisor.tracking.index' },
     { label: 'Matriz Horarios', route: 'supervisor.horarios.index' },
     { label: 'Cierre de Turnos', route: 'supervisor.jornadas.index' }
