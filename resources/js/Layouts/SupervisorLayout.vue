@@ -1,10 +1,10 @@
 <template>
   <div
-    class="bg-[#F8FAFC] font-sans text-slate-900 flex flex-col md:flex-row antialiased selection:bg-sky-500 selection:text-white"
+    class="bg-transparent font-sans text-ink flex flex-col md:flex-row antialiased selection:bg-app-accent selection:text-white"
     :class="fullBleed ? 'h-[100dvh] md:h-screen overflow-hidden' : 'min-h-screen'"
   >
     <!-- Header Mobile (Sticky) -->
-    <header class="md:hidden bg-white/95 backdrop-blur-md border-b border-slate-200/90 h-12 px-3 flex items-center justify-between sticky top-0 z-40 safe-top shrink-0">
+    <header class="md:hidden apple-glass-topbar h-12 px-3 flex items-center justify-between sticky top-0 z-40 safe-top shrink-0">
       <div class="flex items-center space-x-2 min-w-0">
         <button
           type="button"
@@ -41,24 +41,24 @@
 
     <!-- Sidebar Principal / Drawer Móvil -->
     <aside
-      class="fixed md:sticky top-0 left-0 bottom-0 z-50 w-72 md:w-64 bg-white/98 md:bg-white/95 backdrop-blur-md border-r border-slate-200/90 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 h-screen shadow-xl md:shadow-none"
+      class="fixed md:sticky top-0 left-0 bottom-0 z-50 w-72 md:w-64 apple-glass-sidebar flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 h-screen shadow-xl md:shadow-none"
       :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
     >
       <div class="flex flex-col flex-1 min-h-0 safe-top">
         <!-- Logo / Header de Marca -->
-        <div class="h-14 px-4 border-b border-slate-200/80 flex items-center justify-between shrink-0 bg-slate-50/40">
+        <div class="h-14 px-4 border-b border-white/60 flex items-center justify-between shrink-0 bg-white/40">
           <div class="flex items-center space-x-2.5">
-            <div class="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-mono text-xs font-bold shadow-xs">
+            <div class="w-7 h-7 rounded-lg bg-[#0071E3] text-white flex items-center justify-center font-mono text-xs font-bold shadow-xs">
               SV
             </div>
             <div>
               <div class="flex items-center space-x-1.5">
-                <span class="text-xs font-bold tracking-tight text-slate-900 font-mono">{{ navigationConfig.appName }}</span>
+                <span class="text-xs font-bold tracking-tight text-ink font-mono">{{ navigationConfig.appName }}</span>
                 <span class="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200">
                   {{ navigationConfig.badge }}
                 </span>
               </div>
-              <p class="text-[10px] text-slate-400 font-mono">Panel Central v2.0</p>
+              <p class="text-[10px] text-ink-tertiary font-mono">Panel Central v2.0</p>
             </div>
           </div>
 
@@ -75,15 +75,15 @@
         </div>
 
         <!-- Lista de Navegación Dinámica basada en Config -->
-        <nav class="p-3 space-y-1 overflow-y-auto flex-1 scroll-touch">
+        <nav class="p-3 space-y-1 overflow-y-auto flex-1 scroll-touch custom-scroll">
           <Link
             v-for="item in navigationConfig.mainMenu"
             :key="item.id"
             :href="getRouteHref(item)"
             class="group flex items-center justify-between px-3 py-2.5 md:py-2 text-xs font-medium rounded-lg transition-all active:scale-[0.99]"
             :class="isItemActive(item)
-              ? 'bg-slate-900 text-white shadow-xs font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+              ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)] font-semibold'
+              : 'text-ink-secondary hover:text-ink hover:bg-white/60'"
             @click="isMobileMenuOpen = false"
           >
             <div class="flex items-center space-x-2.5 truncate">
@@ -135,22 +135,22 @@
       </div>
 
       <!-- Footer de Sesión Minimalista -->
-      <div class="p-3 border-t border-slate-200/80 bg-slate-50/50 shrink-0 safe-bottom">
-        <div class="px-3 py-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+      <div class="p-3 border-t border-white/60 bg-white/30 shrink-0 safe-bottom">
+        <div class="apple-control-pill rounded-card p-2.5 flex items-center justify-between">
           <div class="overflow-hidden pr-2">
             <div class="flex items-center space-x-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <p class="text-xs font-semibold text-slate-900 truncate font-mono">
+              <p class="text-xs font-semibold text-ink truncate font-mono">
                 {{ $page.props.auth?.user?.username || 'Supervisor' }}
               </p>
             </div>
-            <p class="text-[10px] text-slate-400 font-mono mt-0.5">Operador Activo</p>
+            <p class="text-[10px] text-ink-tertiary font-mono mt-0.5">Operador Activo</p>
           </div>
           <Link
             href="/logout"
             method="post"
             as="button"
-            class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer active:scale-95"
+            class="p-2 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer active:scale-95"
             title="Cerrar Sesión"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

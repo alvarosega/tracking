@@ -18,6 +18,7 @@ class GetCumplimientoDataAction
     private const UMBRAL_REPOSICION_PCT = 60.0;
     private const UMBRAL_AMPLIACION_PCT = 60.0;
     private const UMBRAL_COVERS_PCT = 60.0;
+    private const EVALUAR_SOLO_HASTA_MINIMO_70 = true; // Por ahora evaluar sólo hasta mínimo 70 (KPIs 1 a 5). Reposición, Ampliación y Covers pausados (—)
 
     public function __construct(
         private readonly GetCatalogoRutasAction $catalogoAction
@@ -238,7 +239,7 @@ class GetCumplimientoDataAction
         $compradoresIds = $preventasRaw->pluck('cliente_id')->unique()->filter()->toArray();
         $historial90DiasPorCliente = [];
 
-        if (!empty($compradoresIds)) {
+        if (!self::EVALUAR_SOLO_HASTA_MINIMO_70 && !empty($compradoresIds)) {
             $fechaInicio90 = $carbonFecha->copy()->subDays(90)->toDateString();
             $fechaFin90 = $carbonFecha->copy()->subDays(1)->toDateString();
 
@@ -536,135 +537,160 @@ class GetCumplimientoDataAction
             $kpi5Puntos = $kpi5Cumple ? 5 : 0;
 
             // ----------------------------------------------------
-            // KPI 6: Pedido de Reposición (15 Puntos)
+            // KPIs 6, 7 y 8: Evaluados o Pausados (Por ahora sólo hasta Mínimo 70)
             // ----------------------------------------------------
-            $evaluablesReposicion = 0;
-            $sinBaseApertura = 0;
-            $cumplenReposicion = 0;
-            $detalleReposicionTiendas = [];
+            if (self::EVALUAR_SOLO_HASTA_MINIMO_70) {
+                $kpi6Cumple = false;
+                $kpi6Puntos = 0;
+                $evaluablesReposicion = 0;
+                $sinBaseApertura = 0;
+                $cumplenReposicion = 0;
+                $detalleReposicionTiendas = [];
+                $tasaReposicion = 0.0;
 
-            foreach ($preventasPorCliente as $cId => $itemsCliente) {
-                $cIdInt = (int) $cId;
-                $historial = $historial90DiasPorCliente[$cIdInt] ?? null;
-                $tieneBase = ($historial && !empty($historial['skus']));
+                $kpi7Cumple = false;
+                $kpi7Puntos = 0;
+                $cumplenAmpliacion = 0;
+                $detalleAmpliacionTiendas = [];
+                $tasaAmpliacion = 0.0;
 
-                $skusHoy = $itemsCliente->pluck('codigo_producto')->filter()->map(fn ($s) => trim((string) $s))->toArray();
-                $categoriasHoy = $itemsCliente->pluck('categoria')->filter()->map(fn ($c) => trim(strtoupper((string) $c)))->toArray();
+                $kpi8Cumple = false;
+                $kpi8Puntos = 0;
+                $cumplenCovers = 0;
+                $detalleCoversTiendas = [];
+                $tasaCovers = 0.0;
+            } else {
+                // ----------------------------------------------------
+                // KPI 6: Pedido de Reposición (15 Puntos)
+                // ----------------------------------------------------
+                $evaluablesReposicion = 0;
+                $sinBaseApertura = 0;
+                $cumplenReposicion = 0;
+                $detalleReposicionTiendas = [];
 
-                if (!$tieneBase) {
-                    $sinBaseApertura++;
-                    $cumpleTienda = false;
-                    $estadoTienda = 'Sin Base (Apertura)';
-                } else {
-                    $evaluablesReposicion++;
-                    $skusHabituales = array_keys($historial['skus']);
-                    $recomprados = array_intersect($skusHoy, $skusHabituales);
-                    $cumpleTienda = count($recomprados) > 0;
-                    $estadoTienda = $cumpleTienda ? 'Recompra Exitosa' : 'Omitió Habituales';
+                foreach ($preventasPorCliente as $cId => $itemsCliente) {
+                    $cIdInt = (int) $cId;
+                    $historial = $historial90DiasPorCliente[$cIdInt] ?? null;
+                    $tieneBase = ($historial && !empty($historial['skus']));
 
-                    if ($cumpleTienda) {
-                        $cumplenReposicion++;
+                    $skusHoy = $itemsCliente->pluck('codigo_producto')->filter()->map(fn ($s) => trim((string) $s))->toArray();
+                    $categoriasHoy = $itemsCliente->pluck('categoria')->filter()->map(fn ($c) => trim(strtoupper((string) $c)))->toArray();
+
+                    if (!$tieneBase) {
+                        $sinBaseApertura++;
+                        $cumpleTienda = false;
+                        $estadoTienda = 'Sin Base (Apertura)';
+                    } else {
+                        $evaluablesReposicion++;
+                        $skusHabituales = array_keys($historial['skus']);
+                        $recomprados = array_intersect($skusHoy, $skusHabituales);
+                        $cumpleTienda = count($recomprados) > 0;
+                        $estadoTienda = $cumpleTienda ? 'Recompra Exitosa' : 'Omitió Habituales';
+
+                        if ($cumpleTienda) {
+                            $cumplenReposicion++;
+                        }
                     }
+
+                    $primerItem = $itemsCliente->first();
+                    $detalleReposicionTiendas[] = [
+                        'cliente_id' => $cIdInt,
+                        'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
+                        'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
+                        'tiene_base_historica' => $tieneBase,
+                        'estado' => $estadoTienda,
+                        'cumple' => $cumpleTienda,
+                        'skus_pedidos_hoy' => count($skusHoy),
+                        'skus_habituales_historicos' => $tieneBase ? count($historial['skus']) : 0,
+                    ];
                 }
 
-                $primerItem = $itemsCliente->first();
-                $detalleReposicionTiendas[] = [
-                    'cliente_id' => $cIdInt,
-                    'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
-                    'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
-                    'tiene_base_historica' => $tieneBase,
-                    'estado' => $estadoTienda,
-                    'cumple' => $cumpleTienda,
-                    'skus_pedidos_hoy' => count($skusHoy),
-                    'skus_habituales_historicos' => $tieneBase ? count($historial['skus']) : 0,
-                ];
-            }
+                $tasaReposicion = ($evaluablesReposicion > 0)
+                    ? round(($cumplenReposicion / $evaluablesReposicion) * 100, 1)
+                    : ($totalCompradores > 0 ? 100.0 : 0.0);
 
-            $tasaReposicion = ($evaluablesReposicion > 0)
-                ? round(($cumplenReposicion / $evaluablesReposicion) * 100, 1)
-                : ($totalCompradores > 0 ? 100.0 : 0.0);
+                $kpi6Cumple = ($tasaReposicion >= self::UMBRAL_REPOSICION_PCT);
+                $kpi6Puntos = $kpi6Cumple ? 15 : 0;
 
-            $kpi6Cumple = ($tasaReposicion >= self::UMBRAL_REPOSICION_PCT);
-            $kpi6Puntos = $kpi6Cumple ? 15 : 0;
+                // ----------------------------------------------------
+                // KPI 7: Ampliación de Portafolio (20 Puntos)
+                // ----------------------------------------------------
+                $cumplenAmpliacion = 0;
+                $detalleAmpliacionTiendas = [];
 
-            // ----------------------------------------------------
-            // KPI 7: Ampliación de Portafolio (20 Puntos)
-            // ----------------------------------------------------
-            $cumplenAmpliacion = 0;
-            $detalleAmpliacionTiendas = [];
+                foreach ($preventasPorCliente as $cId => $itemsCliente) {
+                    $cIdInt = (int) $cId;
+                    $historial = $historial90DiasPorCliente[$cIdInt] ?? ['skus' => []];
+                    $skusHistoricos = array_keys($historial['skus']);
 
-            foreach ($preventasPorCliente as $cId => $itemsCliente) {
-                $cIdInt = (int) $cId;
-                $historial = $historial90DiasPorCliente[$cIdInt] ?? ['skus' => []];
-                $skusHistoricos = array_keys($historial['skus']);
+                    $skusHoyUnicos = $itemsCliente->pluck('codigo_producto')->filter()->map(fn ($s) => trim((string) $s))->unique()->toArray();
+                    $skusNuevos = array_diff($skusHoyUnicos, $skusHistoricos);
+                    $cantNuevos = count($skusNuevos);
 
-                $skusHoyUnicos = $itemsCliente->pluck('codigo_producto')->filter()->map(fn ($s) => trim((string) $s))->unique()->toArray();
-                $skusNuevos = array_diff($skusHoyUnicos, $skusHistoricos);
-                $cantNuevos = count($skusNuevos);
+                    $cumpleAmpliacionTienda = ($cantNuevos >= 2);
+                    if ($cumpleAmpliacionTienda) {
+                        $cumplenAmpliacion++;
+                    }
 
-                $cumpleAmpliacionTienda = ($cantNuevos >= 2);
-                if ($cumpleAmpliacionTienda) {
-                    $cumplenAmpliacion++;
+                    $primerItem = $itemsCliente->first();
+                    $detalleAmpliacionTiendas[] = [
+                        'cliente_id' => $cIdInt,
+                        'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
+                        'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
+                        'skus_hoy' => count($skusHoyUnicos),
+                        'skus_nuevos_count' => $cantNuevos,
+                        'skus_nuevos_lista' => array_values($skusNuevos),
+                        'cumple' => $cumpleAmpliacionTienda,
+                    ];
                 }
 
-                $primerItem = $itemsCliente->first();
-                $detalleAmpliacionTiendas[] = [
-                    'cliente_id' => $cIdInt,
-                    'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
-                    'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
-                    'skus_hoy' => count($skusHoyUnicos),
-                    'skus_nuevos_count' => $cantNuevos,
-                    'skus_nuevos_lista' => array_values($skusNuevos),
-                    'cumple' => $cumpleAmpliacionTienda,
-                ];
-            }
+                $tasaAmpliacion = ($totalCompradores > 0)
+                    ? round(($cumplenAmpliacion / $totalCompradores) * 100, 1)
+                    : 0.0;
 
-            $tasaAmpliacion = ($totalCompradores > 0)
-                ? round(($cumplenAmpliacion / $totalCompradores) * 100, 1)
-                : 0.0;
+                $kpi7Cumple = ($tasaAmpliacion >= self::UMBRAL_AMPLIACION_PCT);
+                $kpi7Puntos = $kpi7Cumple ? 20 : 0;
 
-            $kpi7Cumple = ($tasaAmpliacion >= self::UMBRAL_AMPLIACION_PCT);
-            $kpi7Puntos = $kpi7Cumple ? 20 : 0;
+                // ----------------------------------------------------
+                // KPI 8: Covers / Multicategoría (5 Puntos)
+                // ----------------------------------------------------
+                $cumplenCovers = 0;
+                $detalleCoversTiendas = [];
 
-            // ----------------------------------------------------
-            // KPI 8: Covers / Multicategoría (5 Puntos)
-            // ----------------------------------------------------
-            $cumplenCovers = 0;
-            $detalleCoversTiendas = [];
+                foreach ($preventasPorCliente as $cId => $itemsCliente) {
+                    $cIdInt = (int) $cId;
+                    $categoriasUnicas = $itemsCliente->pluck('categoria')->filter()
+                        ->map(fn ($c) => trim((string) $c))
+                        ->unique()
+                        ->values()
+                        ->toArray();
 
-            foreach ($preventasPorCliente as $cId => $itemsCliente) {
-                $cIdInt = (int) $cId;
-                $categoriasUnicas = $itemsCliente->pluck('categoria')->filter()
-                    ->map(fn ($c) => trim((string) $c))
-                    ->unique()
-                    ->values()
-                    ->toArray();
+                    $cantCategorias = count($categoriasUnicas);
+                    $cumpleCoversTienda = ($cantCategorias >= 2);
+                    if ($cumpleCoversTienda) {
+                        $cumplenCovers++;
+                    }
 
-                $cantCategorias = count($categoriasUnicas);
-                $cumpleCoversTienda = ($cantCategorias >= 2);
-                if ($cumpleCoversTienda) {
-                    $cumplenCovers++;
+                    $primerItem = $itemsCliente->first();
+                    $detalleCoversTiendas[] = [
+                        'cliente_id' => $cIdInt,
+                        'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
+                        'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
+                        'categorias' => $categoriasUnicas,
+                        'total_categorias' => $cantCategorias,
+                        'cumple' => $cumpleCoversTienda,
+                    ];
                 }
 
-                $primerItem = $itemsCliente->first();
-                $detalleCoversTiendas[] = [
-                    'cliente_id' => $cIdInt,
-                    'codigo_cliente' => $primerItem->codigo_cliente ?? $cId,
-                    'cliente' => $primerItem->cliente ?? "Cliente #{$cId}",
-                    'categorias' => $categoriasUnicas,
-                    'total_categorias' => $cantCategorias,
-                    'cumple' => $cumpleCoversTienda,
-                ];
+                $tasaCovers = ($totalCompradores > 0)
+                    ? round(($cumplenCovers / $totalCompradores) * 100, 1)
+                    : 0.0;
+
+                $kpi8Cumple = ($tasaCovers >= self::UMBRAL_COVERS_PCT);
+                $kpi8Puntos = $kpi8Cumple
+                    ? 5
+                    : (int) round(5 * ($tasaCovers / self::UMBRAL_COVERS_PCT));
             }
-
-            $tasaCovers = ($totalCompradores > 0)
-                ? round(($cumplenCovers / $totalCompradores) * 100, 1)
-                : 0.0;
-
-            $kpi8Cumple = ($tasaCovers >= self::UMBRAL_COVERS_PCT);
-            $kpi8Puntos = $kpi8Cumple
-                ? 5
-                : (int) round(5 * ($tasaCovers / self::UMBRAL_COVERS_PCT));
 
             // ----------------------------------------------------
             // Score Total Unilever (0 a 100 Puntos)
@@ -795,6 +821,7 @@ class GetCumplimientoDataAction
                     'puntos' => $kpi6Puntos,
                     'puntos_max' => 15,
                     'cumple' => $kpi6Cumple,
+                    'evaluado' => !self::EVALUAR_SOLO_HASTA_MINIMO_70,
                     'evaluables' => $evaluablesReposicion,
                     'sin_base_apertura' => $sinBaseApertura,
                     'cumplen' => $cumplenReposicion,
@@ -807,6 +834,7 @@ class GetCumplimientoDataAction
                     'puntos' => $kpi7Puntos,
                     'puntos_max' => 20,
                     'cumple' => $kpi7Cumple,
+                    'evaluado' => !self::EVALUAR_SOLO_HASTA_MINIMO_70,
                     'total_compradores' => $totalCompradores,
                     'cumplen' => $cumplenAmpliacion,
                     'tasa_pct' => $tasaAmpliacion,
@@ -818,6 +846,7 @@ class GetCumplimientoDataAction
                     'puntos' => $kpi8Puntos,
                     'puntos_max' => 5,
                     'cumple' => $kpi8Cumple,
+                    'evaluado' => !self::EVALUAR_SOLO_HASTA_MINIMO_70,
                     'total_compradores' => $totalCompradores,
                     'cumplen' => $cumplenCovers,
                     'tasa_pct' => $tasaCovers,

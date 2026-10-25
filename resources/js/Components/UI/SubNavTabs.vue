@@ -1,13 +1,13 @@
 <template>
-  <div class="inline-flex p-1 bg-slate-200/60 rounded-xl border border-slate-200/90 overflow-x-auto no-scrollbar scroll-touch max-w-full">
+  <div class="inline-flex p-1 apple-control-pill rounded-[12px] overflow-x-auto no-scrollbar scroll-touch max-w-full">
     <Link
       v-for="tab in tabs"
       :key="tab.id || tab.route"
       :href="tab.route ? route(tab.route) : tab.href"
-      class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap select-none active:scale-95"
+      class="px-3 py-1 text-xs font-medium rounded-[9px] transition-all flex items-center gap-1.5 whitespace-nowrap select-none active:scale-95"
       :class="isTabActive(tab)
-        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-        : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'"
+        ? 'glass-active-pill font-bold shadow-xs'
+        : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/50'"
     >
       <!-- Icono si viene provisto -->
       <span v-if="tab.icon" class="w-3.5 h-3.5 shrink-0 opacity-70">
@@ -19,8 +19,8 @@
       <!-- Badge de conteo si existe -->
       <span
         v-if="tab.count !== undefined"
-        class="px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums"
-        :class="isTabActive(tab) ? 'bg-slate-900 text-white' : 'bg-slate-300 text-slate-700'"
+        class="px-1.5 py-0.2 rounded-full text-[10px] font-num"
+        :class="isTabActive(tab) ? 'bg-[#0071E3] text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
       >
         {{ tab.count }}
       </span>
