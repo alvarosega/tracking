@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PedidosRechazados\StorePedidoRechazadoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PedidoRechazadoController extends Controller
 {
@@ -28,7 +29,7 @@ class PedidoRechazadoController extends Controller
 
     /**
      * Catálogo de motivos estandarizados para poblar el selector en Android.
-     * GET /api/pedidos-rechazados/motivos
+     * GET /api/pedidos-rechazados/motivos o GET /api/pedido-rechazado/motivos
      */
     public function motivos(): JsonResponse
     {
@@ -40,28 +41,43 @@ class PedidoRechazadoController extends Controller
 
     /**
      * Registra un pedido rechazado con sus ítems y evidencia fotográfica opcional.
-     * POST /api/pedidos-rechazados
+     * POST /api/pedidos-rechazados o POST /api/pedido-rechazado
      */
     public function store(
         StorePedidoRechazadoRequest $request,
         StorePedidoRechazadoAction $action
     ): JsonResponse {
-        $pedidoRechazado = $action->execute(
-            user: $request->user(),
-            data: $request->validated(),
-            photo: $request->file('photo')
-        );
+        try {
+            $user = $request->user();
+            $pedidoRechazado = $action->execute(
+                user: $user,
+                data: $request->validated(),
+                photo: $request->file('photo')
+            );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Pedido rechazado registrado exitosamente',
-            'id' => $pedidoRechazado->id,
-            'uuid' => $pedidoRechazado->uuid,
-            'photo_url' => $pedidoRechazado->photo_url,
-            'total_items_rechazados' => $pedidoRechazado->total_items_rechazados,
-            'monto_total_rechazado' => (float) $pedidoRechazado->monto_total_rechazado,
-            'data' => $pedidoRechazado,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido rechazado registrado exitosamente',
+                'id' => $pedidoRechazado->id,
+                'uuid' => $pedidoRechazado->uuid,
+                'photo_url' => $pedidoRechazado->photo_url,
+                'total_items_rechazados' => $pedidoRechazado->total_items_rechazados,
+                'monto_total_rechazado' => (float) $pedidoRechazado->monto_total_rechazado,
+                'data' => $pedidoRechazado,
+            ], 201);
+        } catch (\Throwable $e) {
+            Log::error('Error registrando pedido rechazado en servidor: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => $request->user()?->id,
+                'payload' => $request->except(['photo', 'items']),
+                'items_count' => count((array) $request->input('items', [])),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al registrar el pedido rechazado en el servidor: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -72,22 +88,35 @@ class PedidoRechazadoController extends Controller
         Request $request,
         GetPreventasPendientesAction $action
     ): JsonResponse {
-        $fecha = $request->query('fecha_preventa', $request->query('fecha'));
-        $clienteId = $request->query('cliente_id');
-        $ruta = $request->query('ruta');
+        try {
+            $fecha = $request->query('fecha_preventa', $request->query('fecha'));
+            $clienteId = $request->query('cliente_id');
+            $ruta = $request->query('ruta');
 
-        $preventas = $action->execute(
-            user: $request->user(),
-            fechaPreventaParam: is_string($fecha) ? $fecha : null,
-            clienteId: is_string($clienteId) ? $clienteId : null,
-            ruta: is_string($ruta) ? $ruta : null
-        );
+            $preventas = $action->execute(
+                user: $request->user(),
+                fechaPreventaParam: is_string($fecha) && $fecha !== 'null' ? $fecha : null,
+                clienteId: is_string($clienteId) || is_numeric($clienteId) ? $clienteId : null,
+                ruta: is_string($ruta) && $ruta !== 'null' ? $ruta : null
+            );
 
-        return response()->json([
-            'success' => true,
-            'total' => count($preventas),
-            'data' => $preventas,
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'total' => count($preventas),
+                'data' => $preventas,
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error consultando preventas pendientes: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener preventas pendientes: ' . $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
     }
 
     /**
@@ -98,15 +127,35 @@ class PedidoRechazadoController extends Controller
         Request $request,
         GetHistorialPedidosRechazadosAction $action
     ): JsonResponse {
-        $fecha = (string) $request->input('fecha', date('Y-m-d'));
-        $rechazos = $action->execute($request->user(), $fecha);
+        try {
+            $fechaInput = $request->input('fecha');
+            $fecha = (is_string($fechaInput) && $fechaInput !== 'null' && $fechaInput !== '') ? $fechaInput : date('Y-m-d');
+            $clienteId = $request->input('cliente_id');
 
-        return response()->json([
-            'success' => true,
-            'fecha' => $fecha,
-            'total' => $rechazos->count(),
-            'data' => $rechazos,
-            'rechazos' => $rechazos,
-        ], 200);
+            $rechazos = $action->execute(
+                user: $request->user(),
+                fecha: $fecha,
+                clienteId: is_string($clienteId) || is_numeric($clienteId) ? $clienteId : null
+            );
+
+            return response()->json([
+                'success' => true,
+                'fecha' => $fecha,
+                'total' => $rechazos->count(),
+                'data' => $rechazos,
+                'rechazos' => $rechazos,
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error consultando historial de pedidos rechazados: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener historial de pedidos rechazados: ' . $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
     }
 }

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventasDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventasInitDataAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Preventas\GetPreventasDataRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,5 +45,23 @@ class SupervisorPreventasController extends Controller
         );
 
         return response()->json($resultado);
+    }
+
+    /**
+     * Consulta paginada de pedidos rechazados para la auditoría de supervisión.
+     */
+    public function rechazosData(Request $request, GetPedidosRechazadosDataAction $action): JsonResponse
+    {
+        $rechazos = $action->execute(
+            fecha: $request->input('fecha'),
+            ruta: $request->input('ruta'),
+            motivo: $request->input('motivo'),
+            perPage: (int) $request->input('per_page', 25)
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $rechazos,
+        ]);
     }
 }

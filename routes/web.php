@@ -48,6 +48,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('preventas')->name('preventas.')->group(function () {
         Route::get('/', [SupervisorPreventasController::class, 'index'])->name('index');
         Route::post('/data', [SupervisorPreventasController::class, 'data'])->name('data');
+        Route::post('/rechazos/data', [SupervisorPreventasController::class, 'rechazosData'])->name('rechazos.data');
     });
 
     // Módulo Tracking en Vivo y Patrones Históricos

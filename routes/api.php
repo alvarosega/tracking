@@ -46,14 +46,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
 
-    // Módulo Pedidos Rechazados (Android App)
-    Route::prefix('pedidos-rechazados')->group(function (): void {
-        Route::get('/motivos', [PedidoRechazadoController::class, 'motivos']);
-        Route::get('/preventas-pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
-        Route::post('/', [PedidoRechazadoController::class, 'store']);
-        Route::post('/store', [PedidoRechazadoController::class, 'store']);
-        Route::get('/historial', [PedidoRechazadoController::class, 'historial']);
-    });
+    // Módulo Pedidos Rechazados (Android App - Soporte plural y singular para Retrofit)
+    foreach (['pedidos-rechazados', 'pedido-rechazado'] as $prefix) {
+        Route::prefix($prefix)->group(function (): void {
+            Route::get('/motivos', [PedidoRechazadoController::class, 'motivos']);
+            Route::get('/preventas-pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
+            Route::post('/', [PedidoRechazadoController::class, 'store']);
+            Route::post('/store', [PedidoRechazadoController::class, 'store']);
+            Route::get('/historial', [PedidoRechazadoController::class, 'historial']);
+        });
+    }
 
     // Módulo Inventario de Clientes en PDV (Android App - Soporte plural y singular para Retrofit)
     foreach (['inventarios-cliente', 'inventario-cliente'] as $prefix) {

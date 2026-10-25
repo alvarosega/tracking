@@ -162,6 +162,13 @@
             <span class="font-bold text-emerald-400 text-xs">Bs. {{ formatoMoneda(kpis.monto_total) }}</span>
           </div>
 
+          <!-- Pedidos Rechazados (si existen en el día) -->
+          <div v-if="kpis.total_rechazados > 0" class="flex items-center gap-1.5 bg-rose-950/60 border border-rose-500/40 px-2 py-0.5 rounded text-rose-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+            <span class="uppercase tracking-wider text-[10px]">Rechazos:</span>
+            <span class="font-bold text-rose-200 text-xs">{{ kpis.total_rechazados }} (Bs. {{ formatoMoneda(kpis.monto_total_rechazado) }})</span>
+          </div>
+
           <!-- Métricas en Radio si el supervisor está activo -->
           <div v-if="ubicacionSupervisor" class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded text-emerald-300">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -219,6 +226,16 @@
               <span>{{ clientesFiltrados.length }} cliente(s) con preventa</span>
               
               <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  @click="filtroSoloRechazos = !filtroSoloRechazos"
+                  v-if="kpis.total_rechazados > 0"
+                  class="px-1.5 py-0.5 rounded text-[10px] border transition-colors cursor-pointer flex items-center gap-1"
+                  :class="filtroSoloRechazos ? 'bg-rose-500 text-white border-rose-600 font-bold' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full" :class="filtroSoloRechazos ? 'bg-white' : 'bg-rose-500'"></span>
+                  Rechazos ({{ kpis.total_rechazados }})
+                </button>
                 <button
                   type="button"
                   @click="filtroSoloRadio = !filtroSoloRadio"
@@ -318,6 +335,31 @@
                       <span v-if="ped.facturar" class="px-1 py-0.2 bg-emerald-100 text-emerald-700 rounded text-[9px] font-semibold">Facturar</span>
                       <span v-if="ped.nro_carga" class="px-1 py-0.2 bg-slate-200 text-slate-700 rounded text-[9px]">Carga {{ ped.nro_carga }}</span>
                       <span class="font-bold text-slate-900">Bs. {{ formatoMoneda(ped.monto_pedido) }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Alerta de Rechazo Registrado en Campo -->
+                  <div v-if="ped.rechazo" class="mb-2 p-2 rounded-md bg-rose-50 border border-rose-200 text-[10px]">
+                    <div class="flex items-center justify-between font-bold text-rose-800">
+                      <span class="flex items-center gap-1 truncate pr-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0"></span>
+                        <span class="truncate">RECHAZO {{ ped.rechazo.tipo_rechazo }}: {{ ped.rechazo.motivo }}</span>
+                      </span>
+                      <span class="font-mono text-rose-900 font-bold shrink-0">Bs. {{ formatoMoneda(ped.rechazo.monto_total_rechazado) }}</span>
+                    </div>
+                    <p v-if="ped.rechazo.comentarios" class="text-slate-600 text-[9px] mt-1 italic">
+                      "{{ ped.rechazo.comentarios }}"
+                    </p>
+                    <div class="flex items-center justify-between mt-1 text-[9px] text-slate-500 font-mono pt-1 border-t border-rose-100">
+                      <span>{{ ped.rechazo.fecha_rechazo || 'Registrado en campo' }}</span>
+                      <button
+                        v-if="ped.rechazo.photo_url"
+                        type="button"
+                        @click.stop="abrirModalFoto(ped.rechazo.photo_url, ped.nro_preventa, ped.rechazo.motivo)"
+                        class="text-sky-600 hover:text-sky-800 font-semibold underline flex items-center gap-0.5 cursor-pointer"
+                      >
+                        📷 Ver Evidencia
+                      </button>
                     </div>
                   </div>
 
@@ -492,6 +534,44 @@
         </div>
       </Teleport>
 
+      <!-- Modal de Evidencia Fotográfica de Rechazo -->
+      <Teleport to="body">
+        <div
+          v-if="modalFoto.abierto"
+          class="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
+          @click="modalFoto.abierto = false"
+        >
+          <div
+            class="bg-white rounded-xl overflow-hidden max-w-lg w-full shadow-2xl border border-slate-200"
+            @click.stop
+          >
+            <div class="p-3 bg-slate-900 text-white flex items-center justify-between text-xs font-semibold">
+              <span class="truncate pr-2">Evidencia Preventa #{{ modalFoto.nroPreventa }} • {{ modalFoto.motivo }}</span>
+              <button @click="modalFoto.abierto = false" class="text-slate-400 hover:text-white text-base font-mono cursor-pointer">✕</button>
+            </div>
+            <div class="p-2 bg-slate-100 flex items-center justify-center max-h-[70vh] overflow-hidden">
+              <img :src="modalFoto.url" alt="Foto Evidencia" class="max-h-[65vh] w-auto object-contain rounded" />
+            </div>
+            <div class="p-2.5 bg-white border-t border-slate-100 flex items-center justify-between">
+              <a
+                :href="modalFoto.url"
+                target="_blank"
+                class="text-xs text-sky-600 hover:text-sky-800 font-medium underline font-mono"
+              >
+                Abrir en pestaña nueva ↗
+              </a>
+              <button
+                type="button"
+                @click="modalFoto.abierto = false"
+                class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
     </div>
   </SupervisorLayout>
 </template>
@@ -519,7 +599,25 @@ const rutasSeleccionadas = ref([]);
 const busquedaRuta = ref('');
 const busquedaTexto = ref('');
 const filtroSoloRadio = ref(false);
+const filtroSoloRechazos = ref(false);
 const clienteSeleccionado = ref(null);
+
+// Modal de Evidencia Fotográfica de Rechazo
+const modalFoto = ref({
+  abierto: false,
+  url: '',
+  nroPreventa: '',
+  motivo: '',
+});
+
+function abrirModalFoto(url, nroPreventa, motivo) {
+  modalFoto.value = {
+    abierto: true,
+    url,
+    nroPreventa,
+    motivo,
+  };
+}
 
 // Estado de UI
 const cargando = ref(false);
@@ -538,6 +636,8 @@ const kpis = ref({
   total_preventas: 0,
   total_clientes: 0,
   monto_total: 0,
+  total_rechazados: 0,
+  monto_total_rechazado: 0,
   con_gps: 0,
   sin_gps: 0,
   en_radio_conteo: 0,
@@ -590,6 +690,10 @@ const clientesFiltrados = computed(() => {
 
   if (filtroSoloRadio.value && ubicacionSupervisor.value) {
     list = list.filter(c => c.en_radio);
+  }
+
+  if (filtroSoloRechazos.value) {
+    list = list.filter(c => c.tiene_rechazos);
   }
 
   if (busquedaTexto.value) {
@@ -814,15 +918,17 @@ function renderizarMarcadoresEnMapa() {
     puntosConGps++;
 
     const colorRuta = getRutaColor(c.ruta);
-    const radioHaloClass = c.en_radio ? 'ring-4 ring-emerald-400 animate-pulse' : '';
+    const radioHaloClass = c.tiene_rechazos
+      ? 'ring-4 ring-rose-500 animate-pulse'
+      : (c.en_radio ? 'ring-4 ring-emerald-400 animate-pulse' : '');
 
     const icon = L.divIcon({
       className: 'custom-preventa-marker',
       html: `
         <div class="relative flex items-center justify-center cursor-pointer group">
           <div class="w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-[9px] text-white ${radioHaloClass}"
-               style="background-color: ${colorRuta}">
-            ${c.pedidos.length}
+               style="background-color: ${c.tiene_rechazos ? '#EF4444' : colorRuta}">
+            ${c.tiene_rechazos ? '✕' : c.pedidos.length}
           </div>
         </div>
       `,
@@ -844,6 +950,7 @@ function renderizarMarcadoresEnMapa() {
         <div class="font-bold text-slate-900 text-xs mb-0.5">${c.cliente}</div>
         <div class="text-[10px] text-slate-500 font-mono">Cód: ${c.codigo_cliente} • ${c.pedidos.length} pedido(s)</div>
         <div class="text-[10px] text-slate-500 font-mono mt-0.5">${c.direccion || 'Sin dirección'}</div>
+        ${c.tiene_rechazos ? `<div class="text-[10px] text-rose-600 font-bold font-mono mt-1 bg-rose-50 p-1 rounded border border-rose-200">⚠️ Rechazo en campo: Bs. ${formatoMoneda(c.total_monto_rechazado)}</div>` : ''}
         ${c.distancia_metros !== null ? `<div class="text-[10px] text-emerald-600 font-bold font-mono mt-1">Distancia: ${c.distancia_metros}m</div>` : ''}
       </div>
     `;
