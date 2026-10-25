@@ -264,30 +264,33 @@ function norm(str) {
 }
 
 const etiquetaCanales = computed(() => {
-  const total = store.canalesDisponibles.length
-  const sel = store.canalesSeleccionados.length
-  if (total === 0 || sel === total) return 'TODOS'
-  if (sel === 0) return 'NINGUNO'
-  if (sel === 1) return store.canalesSeleccionados[0]
-  return `${sel}/${total}`
+  const disp = Array.isArray(store.canalesDisponibles) ? store.canalesDisponibles : []
+  const sel = Array.isArray(store.canalesSeleccionados) ? store.canalesSeleccionados : []
+  const total = disp.length
+  const selCount = sel.length
+  if (total === 0 || selCount === total) return 'TODOS'
+  if (selCount === 0) return 'NINGUNO'
+  if (selCount === 1) return sel[0]
+  return `${selCount}/${total}`
 })
 
 const etiquetaRutas = computed(() => {
-  const permitidas = store.rutasPermitidasPorCanal
+  const permitidas = Array.isArray(store.rutasPermitidasPorCanal) ? store.rutasPermitidasPorCanal : []
   const totalActual = permitidas.length
   if (totalActual === 0) return 'NINGUNA'
-  const setR = new Set(store.rutasSeleccionadas)
+  const sel = Array.isArray(store.rutasSeleccionadas) ? store.rutasSeleccionadas : []
+  const setR = new Set(sel.map(norm))
   const activasVisibles = permitidas.filter(item => setR.has(norm(item.ruta))).length
   if (activasVisibles === totalActual) return 'TODAS'
   if (activasVisibles === 1) {
     const unica = permitidas.find(item => setR.has(norm(item.ruta)))
-    return unica ? unica.ruta : store.rutasSeleccionadas[0]
+    return unica ? unica.ruta : (sel[0] || '1')
   }
   return `${activasVisibles}/${totalActual}`
 })
 
 const rutasOpcionesFiltradas = computed(() => {
-  const permitidas = store.rutasPermitidasPorCanal || []
+  const permitidas = Array.isArray(store.rutasPermitidasPorCanal) ? store.rutasPermitidasPorCanal : []
   const q = filtroTextoRuta.value.trim().toUpperCase()
   if (!q) return permitidas
   return permitidas.filter(item => {
@@ -296,17 +299,20 @@ const rutasOpcionesFiltradas = computed(() => {
 })
 
 function esCanalMarcado(c) {
-  return store.canalesSeleccionados.includes(norm(c))
+  const sel = Array.isArray(store.canalesSeleccionados) ? store.canalesSeleccionados : []
+  return sel.includes(norm(c))
 }
 
 function marcarTodosCanales(marcar) {
-  store.canalesSeleccionados = marcar ? store.canalesDisponibles.map(norm) : []
+  const disp = Array.isArray(store.canalesDisponibles) ? store.canalesDisponibles : []
+  store.canalesSeleccionados = marcar ? disp.map(norm) : []
   store.sincronizarRutasAlCambiarCanal()
 }
 
 function toggleCanal(c) {
   const val = norm(c)
-  const actuales = new Set(store.canalesSeleccionados)
+  const sel = Array.isArray(store.canalesSeleccionados) ? store.canalesSeleccionados : []
+  const actuales = new Set(sel)
   if (actuales.has(val)) actuales.delete(val)
   else actuales.add(val)
   store.canalesSeleccionados = Array.from(actuales)
@@ -314,12 +320,14 @@ function toggleCanal(c) {
 }
 
 function esRutaMarcada(r) {
-  return store.rutasSeleccionadas.includes(norm(r))
+  const sel = Array.isArray(store.rutasSeleccionadas) ? store.rutasSeleccionadas : []
+  return sel.includes(norm(r))
 }
 
 function toggleRuta(r) {
   const val = norm(r)
-  const actuales = new Set(store.rutasSeleccionadas)
+  const sel = Array.isArray(store.rutasSeleccionadas) ? store.rutasSeleccionadas : []
+  const actuales = new Set(sel)
   if (actuales.has(val)) actuales.delete(val)
   else actuales.add(val)
   store.rutasSeleccionadas = Array.from(actuales)
@@ -327,7 +335,8 @@ function toggleRuta(r) {
 
 function marcarTodasLasRutas(marcar) {
   if (marcar) {
-    store.rutasSeleccionadas = store.rutasPermitidasPorCanal.map(item => norm(item.ruta))
+    const permitidas = Array.isArray(store.rutasPermitidasPorCanal) ? store.rutasPermitidasPorCanal : []
+    store.rutasSeleccionadas = permitidas.map(item => norm(item.ruta))
   } else {
     store.rutasSeleccionadas = []
   }
