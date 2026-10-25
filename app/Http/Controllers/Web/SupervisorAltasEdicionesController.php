@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,26 @@ use Inertia\Response;
 
 class SupervisorAltasEdicionesController extends Controller
 {
+    /**
+     * Consulta clientes cercanos en 200m a la redonda (todas las rutas) y diagnostica duplicados.
+     */
+    public function cercanos(Request $request, GetClientesCercanosAltasAction $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'latitud' => ['required', 'numeric', 'between:-90,90'],
+            'longitud' => ['required', 'numeric', 'between:-180,180'],
+            'radio' => ['nullable', 'integer', 'min:10', 'max:1000'],
+            'cliente' => ['nullable', 'string', 'max:255'],
+            'celular' => ['nullable', 'string', 'max:50'],
+            'telefono' => ['nullable', 'string', 'max:50'],
+            'nit' => ['nullable', 'string', 'max:50'],
+            'exclude_id' => ['nullable', 'integer'],
+        ]);
+
+        $result = $action->execute($validated);
+
+        return response()->json($result);
+    }
     public function index(): Response
     {
         // 1. Catálogo de Rutas y Canales desde supervisor.dim_rutas

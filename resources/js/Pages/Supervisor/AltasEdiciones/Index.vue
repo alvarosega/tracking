@@ -404,6 +404,118 @@
                 </div>
               </div>
 
+              <!-- 1.5. Detección de Duplicados & Clientes Cercanos (Radio 200m - Todas las Rutas) -->
+              <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider">
+                      Clientes Cercanos (Radio 200m)
+                    </span>
+                  </div>
+                  <span
+                    v-if="datosCercanos"
+                    class="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded"
+                    :class="datosCercanos.tiene_duplicados ? 'bg-[#FF3B30] text-white' : 'bg-[#EBF9EF] text-[#248A3D]'"
+                  >
+                    {{ datosCercanos.tiene_duplicados ? 'ALERTA DUPLICADO' : `${datosCercanos.total_cercanos} en 200m` }}
+                  </span>
+                </div>
+
+                <!-- Cargando -->
+                <div v-if="cargandoCercanos" class="py-3 flex items-center justify-center gap-2 text-xs text-[#6E6E73]">
+                  <span class="w-3 h-3 rounded-full border-2 border-[#0071E3] border-t-transparent animate-spin"></span>
+                  <span>Escaneando clientes de cualquier ruta en 200m...</span>
+                </div>
+
+                <div v-else-if="datosCercanos" class="space-y-2">
+                  <!-- Banner de Alertas si hay Duplicados -->
+                  <div
+                    v-if="datosCercanos.tiene_duplicados"
+                    class="bg-[#FFF2F2] border border-[#FF3B30]/30 rounded-[6px] p-2.5 text-xs text-[#D70015]"
+                  >
+                    <div class="font-bold flex items-center gap-1 mb-1 text-[11px]">
+                      <span>⚠️</span> Coincidencias detectadas con punto alta:
+                    </div>
+                    <ul class="space-y-1 text-[10px] font-sans pl-1">
+                      <li v-for="(alerta, aIdx) in datosCercanos.alertas_duplicidad" :key="aIdx" class="leading-tight">
+                        • {{ alerta }}
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div
+                    v-else
+                    class="bg-[#EBF9EF] border border-[#34C759]/30 rounded-[6px] p-2 text-xs text-[#248A3D] flex items-center gap-1.5"
+                  >
+                    <span>✓</span>
+                    <span class="text-[11px] font-medium">
+                      Sin datos repetidos con los {{ datosCercanos.total_cercanos }} puntos vecinos a la redonda.
+                    </span>
+                  </div>
+
+                  <!-- Lista de clientes en 200m -->
+                  <div v-if="datosCercanos.clientes_cercanos && datosCercanos.clientes_cercanos.length > 0" class="pt-1">
+                    <div class="flex items-center justify-between text-[10px] text-[#86868B] mb-1.5 font-medium">
+                      <span>Puntos encontrados ({{ datosCercanos.clientes_cercanos.length }}):</span>
+                      <button
+                        type="button"
+                        @click="mostrarListaCercanos = !mostrarListaCercanos"
+                        class="text-[#0071E3] hover:underline cursor-pointer"
+                      >
+                        {{ mostrarListaCercanos ? 'Ocultar' : 'Ver lista' }}
+                      </button>
+                    </div>
+
+                    <div v-if="mostrarListaCercanos" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      <div
+                        v-for="(c, cIdx) in datosCercanos.clientes_cercanos"
+                        :key="cIdx"
+                        class="p-2 rounded-[6px] border text-[11px] transition-colors"
+                        :class="c.tiene_duplicidad ? 'bg-[#FFF8F8] border-[#FF3B30]/30' : 'bg-[#FBFBFD] border-[#E5E5EA]'"
+                      >
+                        <div class="flex items-start justify-between gap-1">
+                          <div class="min-w-0">
+                            <div class="font-bold text-[#1D1D1F] truncate" :title="c.cliente">
+                              {{ c.cliente }}
+                            </div>
+                            <div class="text-[10px] text-[#6E6E73] flex items-center gap-1 mt-0.5">
+                              <span class="px-1 py-0.2 bg-[#E5E5EA] rounded font-mono font-bold text-[#1D1D1F]">
+                                Ruta {{ c.ruta }}
+                              </span>
+                              <span>• a {{ c.distancia_metros }}m</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            @click="enfocarCercano(c)"
+                            class="shrink-0 px-1.5 py-0.5 text-[9px] font-bold text-[#0071E3] bg-white border border-[#0071E3]/30 rounded hover:bg-[#EFF6FF] cursor-pointer"
+                            title="Centrar en el mapa"
+                          >
+                            Ver en mapa
+                          </button>
+                        </div>
+
+                        <!-- Badges de Coincidencia -->
+                        <div v-if="c.coincidencias && c.coincidencias.length > 0" class="flex flex-wrap gap-1 mt-1.5">
+                          <span
+                            v-for="coinc in c.coincidencias"
+                            :key="coinc"
+                            class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#FF3B30] text-white"
+                          >
+                            {{ coinc === 'proximidad_extrema' ? 'Proximidad <20m' : (coinc === 'telefono_duplicado' ? 'Mismo Teléfono' : (coinc === 'nit_duplicado' ? 'Mismo NIT' : 'Nombre Similar')) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- 2. Comunicación y Contacto -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
                 <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider block">Contacto y Comunicación</span>
@@ -605,6 +717,14 @@
                 <span class="w-3 h-0.5 border-b-2 border-dashed border-[#0071E3] shrink-0"></span>
                 <span class="text-[#6E6E73] text-[10px]">Desplazamiento GPS</span>
               </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-[#8E8E93] border border-white shrink-0"></span>
+                <span class="text-[#1D1D1F] font-medium">Clientes en 200m</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-[#FF3B30] border border-white shrink-0"></span>
+                <span class="text-[#D70015] font-bold">Duplicado / Coincidencia</span>
+              </div>
             </div>
             <div class="mt-1.5 text-[10px] text-[#86868B]">
               Toca un pin para ver el popup y acceder a la ficha técnica.
@@ -731,6 +851,10 @@ const kpis = ref({
 const registroActivoId = ref(null);
 const registroSeleccionado = ref(null);
 const lightboxUrl = ref(null);
+
+const cargandoCercanos = ref(false);
+const datosCercanos = ref(null);
+const mostrarListaCercanos = ref(true);
 
 let map = null;
 let markersLayer = null;
@@ -965,6 +1089,9 @@ function abrirExpediente(r) {
       marker.openPopup();
     }
 
+    // Consultar clientes cercanos en 200m a la redonda y analizar duplicados
+    consultarCercanos(r);
+
     // Si es edición y tiene GPS original, dibujar el punto anterior y la línea conectora
     if (r.es_edicion && r.original && r.original.latitud && r.original.longitud) {
       L.circleMarker([r.original.latitud, r.original.longitud], {
@@ -989,6 +1116,87 @@ function abrirExpediente(r) {
 function limpiarLienasAuxiliares() {
   if (auxLinesLayer) {
     auxLinesLayer.clearLayers();
+  }
+  datosCercanos.value = null;
+}
+
+function consultarCercanos(r) {
+  datosCercanos.value = null;
+  if (!r.tiene_gps || !r.latitud || !r.longitud) {
+    return;
+  }
+
+  cargandoCercanos.value = true;
+  axios.post(route('supervisor.altas-ediciones.cercanos'), {
+    latitud: r.latitud,
+    longitud: r.longitud,
+    radio: 200,
+    cliente: r.cliente,
+    celular: r.celular || r.telefono,
+    telefono: r.telefono,
+    nit: r.nit,
+    exclude_id: r.id,
+  }).then(res => {
+    datosCercanos.value = res.data;
+    if (res.data && res.data.success) {
+      dibujarCercanosEnMapa(r, res.data);
+    }
+  }).catch(err => {
+    console.error('Error al consultar clientes cercanos en 200m:', err);
+  }).finally(() => {
+    cargandoCercanos.value = false;
+  });
+}
+
+function dibujarCercanosEnMapa(r, data) {
+  if (!map || !auxLinesLayer) return;
+
+  // 1. Círculo de 200m alrededor del punto de inspección
+  const circleColor = data.tiene_duplicados ? '#FF3B30' : '#FF9500';
+  L.circle([r.latitud, r.longitud], {
+    radius: 200,
+    color: circleColor,
+    fillColor: circleColor,
+    fillOpacity: 0.05,
+    weight: 1.5,
+    dashArray: '5, 5',
+  }).bindTooltip('Radio de inspección: 200 metros (Todas las rutas)', { permanent: false, direction: 'top' }).addTo(auxLinesLayer);
+
+  // 2. Marcadores para clientes cercanos
+  if (Array.isArray(data.clientes_cercanos)) {
+    data.clientes_cercanos.forEach(c => {
+      if (!c.latitud || !c.longitud) return;
+
+      const esDupe = c.tiene_duplicidad;
+      const markerColor = esDupe ? '#FF3B30' : '#8E8E93';
+
+      const nearMarker = L.circleMarker([c.latitud, c.longitud], {
+        radius: esDupe ? 7.5 : 5,
+        fillColor: markerColor,
+        color: '#FFFFFF',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      });
+
+      nearMarker.bindTooltip(`
+        <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; line-height: 1.3;">
+          <strong style="color: ${esDupe ? '#D70015' : '#1D1D1F'}">${c.cliente}</strong> (${c.distancia_metros}m)<br/>
+          <span style="color: #6E6E73;">Ruta: <strong>${c.ruta}</strong></span><br/>
+          <span style="color: #86868B;">${c.tipo_negocio || ''}</span>
+          ${esDupe ? '<div style="color: #FF3B30; font-weight: 700; margin-top: 2px;">⚠️ Posible duplicado</div>' : ''}
+        </div>
+      `, { direction: 'top' });
+
+      nearMarker.addTo(auxLinesLayer);
+    });
+  }
+}
+
+function enfocarCercano(c) {
+  if (map && c.latitud && c.longitud) {
+    map.flyTo([c.latitud, c.longitud], 19, { duration: 0.5 });
+    vistaMovil.value = 'mapa';
   }
 }
 

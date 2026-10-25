@@ -49,6 +49,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('altas-ediciones')->name('altas-ediciones.')->group(function () {
         Route::get('/', [SupervisorAltasEdicionesController::class, 'index'])->name('index');
         Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
+        Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
     });
     // Módulo Visitas
     Route::get('/visitas', [SupervisorVisitasController::class, 'index'])->name('visitas.index');

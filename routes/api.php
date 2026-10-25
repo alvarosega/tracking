@@ -42,9 +42,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Oportunidades comerciales
     Route::get('/oportunidades', [OportunidadesController::class, 'index']);
 
-    // Saneamiento de Clientes en Campo (Altas, Ediciones y Detección de Duplicados en 200m)
-    Route::match(['get', 'post'], '/saneamiento/clientes-cercanos', [SaneamientoController::class, 'clientesCercanos']);
-    Route::post('/saneamiento/verificar-duplicados', [SaneamientoController::class, 'clientesCercanos']);
+    // Saneamiento de Clientes en Campo (Altas y Ediciones)
     Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
 
