@@ -1,6 +1,6 @@
 <template>
-  <SupervisorLayout>
-    <div class="h-[calc(100vh-3rem)] md:h-[calc(100vh-3.5rem)] flex flex-col -m-5 md:-m-8 overflow-hidden bg-[#F5F5F7]">
+  <SupervisorLayout full-bleed>
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F5F5F7]">
       
       <!-- Barra Superior de Control Apple Pro -->
       <header class="bg-white border-b border-[#E5E5EA] px-3 md:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">

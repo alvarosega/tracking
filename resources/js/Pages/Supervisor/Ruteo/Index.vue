@@ -2,7 +2,7 @@
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 text-slate-900 font-sans">
       <!-- Barra Superior de Filtros y Capas -->
-      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 relative z-30">
+      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 shrink-0 relative z-30">
         
         <!-- Backdrop invisible para cerrar menú al hacer click afuera -->
         <div
@@ -11,7 +11,7 @@
           class="fixed inset-0 z-[99990]"
         ></div>
 
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
           
           <!-- Filtro Dropdown: Canales (Teleport al Body) -->
           <button
@@ -147,12 +147,12 @@
             <span class="font-bold text-slate-900 tabular-nums">{{ kpis.total }}</span>
           </div>
 
-          <div class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md flex items-center gap-1.5">
+          <div class="hidden sm:flex px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
           </div>
 
-          <div v-if="kpis.sin_gps > 0" class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md flex items-center gap-1.5">
+          <div v-if="kpis.sin_gps > 0" class="hidden md:flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.sin_gps }} sin GPS</span>
           </div>

@@ -1,6 +1,6 @@
 <template>
-  <SupervisorLayout>
-    <div class="h-[calc(100vh-3rem)] md:h-[calc(100vh-3.5rem)] flex flex-col -m-4 sm:-m-6 lg:-m-7 overflow-hidden bg-slate-900 font-sans text-slate-900">
+  <SupervisorLayout full-bleed>
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 font-sans text-slate-900">
       
       <!-- ==========================================
            1. BARRA SUPERIOR DE FILTROS & TELEMETRÍA

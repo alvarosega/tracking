@@ -1,7 +1,7 @@
 <template>
-  <SupervisorLayout>
+  <SupervisorLayout full-bleed>
     <!-- Contenedor Viewport Fullscreen para Dashboards de Mapa -->
-    <div class="h-[calc(100vh-3rem)] md:h-[calc(100vh-3.5rem)] flex flex-col -m-4 sm:-m-6 lg:-m-7 overflow-hidden bg-slate-900">
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
       <!-- Barra Superior de Sub-Navegación Futurista -->
       <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 h-11 flex items-center justify-between shrink-0 relative z-30">
         <div class="flex items-center space-x-2">

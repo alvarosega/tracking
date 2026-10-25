@@ -1,10 +1,10 @@
 <template>
-  <div class="inline-flex p-1 bg-slate-200/60 rounded-xl border border-slate-200/90 overflow-x-auto max-w-full">
+  <div class="inline-flex p-1 bg-slate-200/60 rounded-xl border border-slate-200/90 overflow-x-auto no-scrollbar scroll-touch max-w-full">
     <Link
       v-for="tab in tabs"
       :key="tab.id || tab.route"
       :href="tab.route ? route(tab.route) : tab.href"
-      class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap select-none"
+      class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap select-none active:scale-95"
       :class="isTabActive(tab)
         ? 'bg-white text-slate-900 shadow-2xs font-semibold'
         : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'"

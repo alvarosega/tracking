@@ -2,7 +2,7 @@
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 font-sans text-slate-900">
       <!-- Barra Superior de Control & Filtros -->
-      <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 relative z-30">
+      <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">
         
         <!-- Backdrop invisible para menús flotantes -->
         <div
@@ -12,7 +12,7 @@
         ></div>
 
         <!-- Filtros Principales -->
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
           
           <!-- Botón de GPS Actual -->
           <button
