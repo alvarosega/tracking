@@ -73,7 +73,7 @@ class GetCercanosDataRequest extends FormRequest
 
     public function soloActivos(): bool
     {
-        return (bool) $this->input('solo_activos', true);
+        return (bool) $this->input('solo_activos', false);
     }
 }
 

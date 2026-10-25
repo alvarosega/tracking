@@ -31,7 +31,7 @@ class GetClientesCercanosAction
         array $rutas = [],
         array $meses = [],
         int $anio = 2026,
-        bool $soloActivos = true
+        bool $soloActivos = false
     ): array {
         if (empty($rutas) && !empty($canales)) {
             $rutas = Ruta::query()

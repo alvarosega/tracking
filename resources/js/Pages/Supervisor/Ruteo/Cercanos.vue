@@ -1,19 +1,121 @@
 <template>
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 font-sans text-slate-900">
-      <!-- Barra Superior de Control & Filtros -->
-      <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">
-        
-        <!-- Backdrop invisible para menús flotantes -->
-        <div
-          v-if="menuAbierto !== null"
-          @click="menuAbierto = null"
-          class="fixed inset-0 z-[99990]"
-        ></div>
+      <!-- ========================================== -->
+      <!-- MOBILE HEADER (< md): 2 FILAS RESPONSIVAS -->
+      <!-- ========================================== -->
+      <div class="flex md:hidden flex-col gap-2 p-2.5 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shrink-0 relative z-30">
+        <!-- Fila 1: [ Mapa | Lista (N) ] a la izquierda y [ En radio: N pts ] a la derecha -->
+        <div class="flex items-center justify-between gap-2">
+          <!-- Bloque 1: Selector Vista Mapa / Lista -->
+          <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
+            <button
+              type="button"
+              @click="vistaMovil = 'mapa'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+              </svg>
+              Mapa
+            </button>
+            <button
+              type="button"
+              @click="vistaMovil = 'lista'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              Lista ({{ clientesCercanos.length }})
+            </button>
+          </div>
 
-        <!-- Filtros Principales -->
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
-          
+          <!-- Bloque 2: Total en Radio & Estado -->
+          <div class="flex items-center gap-1.5 text-xs font-mono">
+            <span v-if="cargando" class="flex items-center gap-1 text-[11px] text-sky-600 animate-pulse font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+              Rastreando...
+            </span>
+            <div class="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
+              <span class="text-slate-400 font-normal text-[11px]">En radio:</span>
+              <span class="tabular-nums text-xs">{{ clientesCercanos.length }} pts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fila 2: Mi Ubicación, Buscador Maps / Coordenadas, Selector de Radio -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pt-0.5">
+          <!-- Botón de GPS Actual -->
+          <button
+            type="button"
+            @click="obtenerUbicacionActual"
+            :disabled="obteniendoGps"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200/90 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-2xs"
+            title="Usar ubicación GPS del dispositivo"
+          >
+            <span class="w-2 h-2 rounded-full" :class="obteniendoGps ? 'bg-amber-500 animate-ping' : 'bg-sky-500'"></span>
+            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
+          </button>
+
+          <!-- Buscador / Pegar Enlace de Google Maps o Coordenadas -->
+          <div class="relative flex items-center h-8 shrink-0 flex-1 min-w-[190px]">
+            <div class="absolute left-2.5 text-slate-400 pointer-events-none flex items-center">
+              <svg class="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </div>
+            <input
+              type="text"
+              v-model="inputEnlaceMaps"
+              @keydown.enter.prevent="resolverEnlaceMaps"
+              placeholder="Pegar enlace Maps o coords..."
+              class="w-full h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+              title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-17.412, -66.154)"
+            />
+            <button
+              type="button"
+              @click="resolverEnlaceMaps"
+              :disabled="resolviendoEnlace || !inputEnlaceMaps.trim()"
+              class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
+              title="Traducir enlace e inspeccionar clientes cercanos"
+            >
+              <span v-if="resolviendoEnlace" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>{{ resolviendoEnlace ? '' : 'Ir' }}</span>
+            </button>
+          </div>
+
+          <!-- Selector Radio -->
+          <div class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
+            <span class="text-slate-400 mr-1.5 font-mono">Radio:</span>
+            <select
+              v-model="radioSeleccionado"
+              @change="seleccionarRadio(Number(radioSeleccionado))"
+              class="bg-transparent font-bold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer text-slate-900"
+            >
+              <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Toast / Feedback del Enlace de Maps en Móvil -->
+        <div
+          v-if="mensajeEnlace"
+          class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center justify-between gap-1.5 transition-all shadow-xs"
+          :class="mensajeEnlace.tipo === 'exito' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'"
+        >
+          <span class="truncate">{{ mensajeEnlace.tipo === 'exito' ? '📍' : '⚠️' }} {{ mensajeEnlace.texto }}</span>
+          <button type="button" @click="mensajeEnlace = null" class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer shrink-0">&times;</button>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- DESKTOP HEADER (>= md): 1 FILA COMPLETA   -->
+      <!-- ========================================== -->
+      <div class="hidden md:flex bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2 items-center justify-between gap-2.5 shrink-0 relative z-30">
+        <div class="flex items-center gap-2.5 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
           <!-- Botón de GPS Actual -->
           <button
             type="button"
@@ -38,7 +140,7 @@
               v-model="inputEnlaceMaps"
               @keydown.enter.prevent="resolverEnlaceMaps"
               placeholder="Pegar enlace Google Maps o coords..."
-              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-52 sm:w-64 transition-all"
+              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-64 lg:w-72 transition-all"
               title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-17.412, -66.154)"
             />
             <button
@@ -64,7 +166,7 @@
             <button type="button" @click="mensajeEnlace = null" class="ml-1 text-slate-400 hover:text-slate-600 font-bold cursor-pointer">&times;</button>
           </div>
 
-          <!-- Filtro Radio: Selector Compacto -->
+          <!-- Selector Radio -->
           <div class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
             <span class="text-slate-400 mr-1.5 font-mono">Radio:</span>
             <select
@@ -76,59 +178,8 @@
             </select>
           </div>
 
-          <!-- Filtro Dropdown: Canales -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('canales', $event)"
-            class="h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
-          >
-            <span class="text-slate-400 font-normal">Canal:</span>
-            <span class="font-semibold text-slate-900">{{ labelCanales }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <!-- Filtro Dropdown: Rutas -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
-          >
-            <span class="text-slate-400 font-normal">Rutas:</span>
-            <span class="font-semibold text-slate-900">{{ labelRutas }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <!-- Filtro Año & Meses de Venta -->
-          <div class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
-            <span class="text-slate-400 mr-1.5 font-mono">Año:</span>
-            <select
-              v-model="anioSeleccionado"
-              @change="reconsultar"
-              class="bg-transparent font-bold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer text-slate-900"
-            >
-              <option v-for="a in anios_disponibles" :key="a" :value="a">{{ a }}</option>
-            </select>
-          </div>
-
-          <!-- Botón Disparador: Meses -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('meses', $event)"
-            class="h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
-          >
-            <span class="text-slate-400">Meses:</span>
-            <span class="font-semibold text-slate-900">{{ labelMeses }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <!-- Selector de Modo de Coloración (Coherente con Visor y Fronteras) -->
-          <div class="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+          <!-- Selector de Modo de Coloración (Ruta | Canal | Día) -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <span class="text-[10px] font-mono text-slate-400 px-1.5">Color:</span>
             <button
               type="button"
@@ -155,126 +206,21 @@
               Día
             </button>
           </div>
-
-          <!-- Toggle: Solo Activos -->
-          <button
-            type="button"
-            @click="toggleSoloActivos"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
-            :class="soloActivos
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
-            :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes. Clic para filtrar solo activos.'"
-          >
-            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
-            <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
-          </button>
         </div>
 
-        <!-- Contador y Selector Móvil -->
+        <!-- Indicador de Carga y Contador de Puntos en Radio -->
         <div class="flex items-center gap-2 text-xs font-mono shrink-0">
-          <span v-if="cargando" class="text-[11px] text-slate-500 hidden sm:flex items-center gap-1.5 animate-pulse mr-1">
+          <span v-if="cargando" class="text-[11px] text-slate-500 flex items-center gap-1.5 animate-pulse mr-1">
             <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
             Rastreando...
           </span>
 
-          <div class="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              @click="vistaMovil = 'mapa'"
-              class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer"
-              :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'"
-            >
-              Mapa
-            </button>
-            <button
-              type="button"
-              @click="vistaMovil = 'lista'"
-              class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer"
-              :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'"
-            >
-              Lista ({{ clientesCercanos.length }})
-            </button>
-          </div>
-
-          <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg shadow-2xs">
+          <div class="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
             <span class="text-slate-400">En radio:</span>
             <span class="font-bold text-slate-900 tabular-nums">{{ clientesCercanos.length }} pts</span>
           </div>
         </div>
-      </header>
-
-      <!-- Menús Desplegables Flotantes con Teleport al Body (Z-INDEX 99999) -->
-      <Teleport to="body">
-        <!-- Menú: Meses -->
-        <div
-          v-if="menuAbierto === 'meses'"
-          @click.stop
-          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
-          class="fixed w-56 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
-        >
-          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
-            <button type="button" @click="seleccionarTodosMeses" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todos</button>
-            <button type="button" @click="limpiarMeses" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
-          </div>
-          <div class="max-h-56 overflow-y-auto space-y-1">
-            <label v-for="m in mesesLista" :key="m.numero" class="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
-              <input type="checkbox" :value="m.numero" v-model="filtroMeses" @change="reconsultar" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <span class="font-mono text-slate-400 text-[11px] w-6">{{ m.corto }}</span>
-              <span class="truncate font-medium text-slate-700">{{ m.nombre }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Menú: Canales -->
-        <div
-          v-if="menuAbierto === 'canales'"
-          @click.stop
-          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
-          class="fixed w-56 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
-        >
-          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
-            <button type="button" @click="seleccionarTodosCanales" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todos</button>
-            <button type="button" @click="limpiarCanales" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
-          </div>
-          <div class="max-h-48 overflow-y-auto space-y-1">
-            <label v-for="c in canales" :key="c" class="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
-              <input type="checkbox" :value="c" v-model="filtroCanales" @change="onCanalesChange" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(c) }"></span>
-              <span class="truncate font-medium text-slate-700">{{ c }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Menú: Rutas -->
-        <div
-          v-if="menuAbierto === 'rutas'"
-          @click.stop
-          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
-          class="fixed w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
-        >
-          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
-            <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todas ({{ rutasDisponibles.length }})</button>
-            <button type="button" @click="limpiarRutas" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
-          </div>
-          <input
-            v-model="busquedaRuta"
-            type="text"
-            placeholder="Buscar ruta o preventa..."
-            class="w-full h-7 px-2.5 mb-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 font-mono"
-          />
-          <div class="max-h-56 overflow-y-auto space-y-1">
-            <label v-for="r in rutasFiltradasEnDropdown" :key="r.ruta" class="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
-              <input type="checkbox" :value="r.ruta" v-model="filtroRutas" @change="reconsultar" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <div class="truncate flex items-center gap-2 flex-1">
-                <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: getRutaColor(r.ruta) }"></span>
-                <span class="font-mono font-semibold text-slate-800">{{ formatRuta(r.ruta) }}</span>
-                <span class="text-slate-400 text-[10px]">({{ r.canal }})</span>
-              </div>
-            </label>
-          </div>
-        </div>
-      </Teleport>
+      </div>
 
       <!-- Split Screen Principal -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative z-10">
@@ -332,12 +278,18 @@
                   </span>
                   <div class="flex items-center gap-1.5 shrink-0">
                     <span
-                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white"
+                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white shadow-2xs"
                       :style="{ backgroundColor: getCanalColor(c.canal_calculado) }"
                     >
                       {{ c.canal_calculado }}
                     </span>
-                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
+                    <span
+                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
+                      :class="c.estado && c.estado.toLowerCase() !== 'activo' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                    >
+                      {{ c.estado && c.estado.toLowerCase() !== 'activo' ? 'Inactivo' : 'Activo' }}
+                    </span>
+                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 tabular-nums">
                       {{ c.distancia_metros }} m
                     </span>
                   </div>
@@ -389,12 +341,20 @@
                   <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.cliente }}</h3>
                   <p class="text-[11px] text-slate-500 mt-0.5">{{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}</p>
                 </div>
-                <span
-                  class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shrink-0"
-                  :style="{ backgroundColor: getCanalColor(clienteSeleccionado.canal_calculado) }"
-                >
-                  {{ clienteSeleccionado.canal_calculado }}
-                </span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <span
+                    class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shadow-2xs"
+                    :style="{ backgroundColor: getCanalColor(clienteSeleccionado.canal_calculado) }"
+                  >
+                    {{ clienteSeleccionado.canal_calculado }}
+                  </span>
+                  <span
+                    class="text-[9px] font-mono font-bold px-2 py-0.5 rounded shadow-2xs"
+                    :class="clienteSeleccionado.estado && clienteSeleccionado.estado.toLowerCase() !== 'activo' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                  >
+                    {{ clienteSeleccionado.estado && clienteSeleccionado.estado.toLowerCase() !== 'activo' ? 'Inactivo' : 'Activo' }}
+                  </span>
+                </div>
               </div>
 
               <!-- Contacto & Celular -->
@@ -643,20 +603,13 @@ const mesesLista = [
 const radioSeleccionado = ref(500);
 const anioSeleccionado = ref(props.anio_default || new Date().getFullYear());
 const filtroMeses = ref([...props.meses_default]);
-const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : ['TDB']);
-const filtroRutas = ref([]);
-const soloActivos = ref(true);
 const modoColor = ref('ruta'); // 'ruta' | 'canal' | 'dia'
 
-const busquedaRuta = ref('');
 const busquedaTexto = ref('');
 const obteniendoGps = ref(false);
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
 const capaActual = ref(mapsConfig.defaultTileLayer || 'openStreetMap');
-
-const menuAbierto = ref(null);
-const posicionMenu = ref({ top: 0, left: 0 });
 
 const origenConsulta = ref(null);
 const clientesCercanos = ref([]);
@@ -679,38 +632,6 @@ let centerMarker = null;
 let radiusCircle = null;
 let clientsLayer = null;
 const clientMarkersMap = new Map();
-
-const rutasDisponibles = computed(() => {
-  if (filtroCanales.value.length === 0) return props.catalogo_rutas;
-  return props.catalogo_rutas.filter(r => filtroCanales.value.includes(r.canal));
-});
-
-const rutasFiltradasEnDropdown = computed(() => {
-  if (!busquedaRuta.value.trim()) return rutasDisponibles.value;
-  const q = busquedaRuta.value.toLowerCase();
-  return rutasDisponibles.value.filter(r =>
-    (r.ruta && r.ruta.toLowerCase().includes(q)) ||
-    (r.vendedor && r.vendedor.toLowerCase().includes(q))
-  );
-});
-
-const labelMeses = computed(() => {
-  if (filtroMeses.value.length === 0) return 'Ninguno';
-  if (filtroMeses.value.length === 12) return 'Todos';
-  return `${filtroMeses.value.length} mes(es)`;
-});
-
-const labelCanales = computed(() => {
-  if (filtroCanales.value.length === 0) return 'Todos';
-  if (filtroCanales.value.length === 1) return filtroCanales.value[0];
-  return `${filtroCanales.value.length} sel.`;
-});
-
-const labelRutas = computed(() => {
-  if (filtroRutas.value.length === 0) return 'Todas';
-  if (filtroRutas.value.length === 1) return formatRuta(filtroRutas.value[0]);
-  return `${filtroRutas.value.length} sel.`;
-});
 
 const clientesFiltrados = computed(() => {
   if (!busquedaTexto.value.trim()) return clientesCercanos.value;
@@ -758,65 +679,11 @@ function setModoColor(modo) {
   renderizarEnMapa();
 }
 
-function toggleMenu(nombre, e) {
-  if (menuAbierto.value === nombre) {
-    menuAbierto.value = null;
-    return;
-  }
-  const rect = e.currentTarget.getBoundingClientRect();
-  posicionMenu.value = {
-    top: rect.bottom + 6,
-    left: Math.min(rect.left, window.innerWidth - 270),
-  };
-  menuAbierto.value = nombre;
-}
-
-function onCanalesChange() {
-  const validRutas = new Set(rutasDisponibles.value.map(r => r.ruta));
-  filtroRutas.value = filtroRutas.value.filter(r => validRutas.has(r));
-  reconsultar();
-}
-
-function seleccionarTodosCanales() {
-  filtroCanales.value = [...props.canales];
-  onCanalesChange();
-}
-
-function limpiarCanales() {
-  filtroCanales.value = [];
-  onCanalesChange();
-}
-
-function seleccionarTodasRutas() {
-  filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
-  reconsultar();
-}
-
-function limpiarRutas() {
-  filtroRutas.value = [];
-  reconsultar();
-}
-
-function seleccionarTodosMeses() {
-  filtroMeses.value = mesesLista.map(m => m.numero);
-  reconsultar();
-}
-
-function limpiarMeses() {
-  filtroMeses.value = [];
-  reconsultar();
-}
-
 function seleccionarRadio(r) {
   radioSeleccionado.value = r;
   if (origenConsulta.value) {
     consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
   }
-}
-
-function toggleSoloActivos() {
-  soloActivos.value = !soloActivos.value;
-  reconsultar();
 }
 
 function obtenerUbicacionActual() {
@@ -905,11 +772,11 @@ async function consultarCercanos(lat, lng) {
       latitud: lat,
       longitud: lng,
       radio: radioSeleccionado.value,
-      canales: filtroCanales.value,
-      rutas: filtroRutas.value,
+      canales: [],
+      rutas: [],
       meses: filtroMeses.value,
       anio: anioSeleccionado.value,
-      solo_activos: soloActivos.value,
+      solo_activos: false,
     });
 
     const list = res.data.clientes || [];
@@ -1016,12 +883,21 @@ function renderizarEnMapa() {
       fillOpacity: 0.95,
     });
 
+    const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
+    const estadoBadge = esActivo
+      ? '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #ECFDF5; color: #047857;">Activo</span>'
+      : '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #FFF1F2; color: #BE123C;">Inactivo</span>';
+
     marker.bindPopup(`
-      <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 220px;">
-        <div style="font-weight: 700; font-size: 12px; margin-bottom: 2px;">${c.cliente}</div>
-        <div style="color: #64748B; margin-bottom: 5px;">${c.direccion || 'Sin dirección'}</div>
-        <div style="font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; display: flex; justify-content: space-between;">
+      <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 230px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; gap: 4px;">
+          <span style="font-weight: 700; font-size: 12px;" class="truncate">${c.cliente}</span>
+          ${estadoBadge}
+        </div>
+        <div style="color: #64748B; margin-bottom: 5px;">${c.direccion || 'Sin dirección registrada'}</div>
+        <div style="display: flex; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; justify-content: space-between; align-items: center;">
           <span>Ruta: <b style="color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</b></span>
+          <span>•</span>
           <span style="color: #047857; font-weight: bold;">${c.distancia_metros} m</span>
         </div>
       </div>
