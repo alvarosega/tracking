@@ -1,9 +1,110 @@
 <template>
   <RuteoLayout>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 text-slate-900 font-sans">
-      <!-- Barra Superior de Filtros y Capas -->
-      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 shrink-0 relative z-30">
-        
+      <!-- ========================================== -->
+      <!-- MOBILE HEADER (< md): 2 FILAS RESPONSIVAS -->
+      <!-- ========================================== -->
+      <div class="flex md:hidden flex-col gap-2 p-2.5 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shrink-0 relative z-30">
+        <!-- Backdrop invisible para cerrar menú al hacer click afuera -->
+        <div
+          v-if="menuAbierto !== null"
+          @click="menuAbierto = null"
+          class="fixed inset-0 z-[99990]"
+        ></div>
+
+        <!-- Fila 1: [ Mapa | Lista (N) ] a la izquierda y [ Total: N (GPS) ] a la derecha -->
+        <div class="flex items-center justify-between gap-2">
+          <!-- Bloque 1: Selector Vista Mapa / Lista -->
+          <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
+            <button
+              type="button"
+              @click="vistaMovil = 'mapa'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+              </svg>
+              Mapa
+            </button>
+            <button
+              type="button"
+              @click="vistaMovil = 'lista'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              Lista ({{ clientes.length }})
+            </button>
+          </div>
+
+          <!-- Bloque 2: Total y Estado GPS -->
+          <div class="flex items-center gap-1.5 text-xs font-mono">
+            <span v-if="cargando" class="flex items-center gap-1 text-[11px] text-sky-600 animate-pulse font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+              Cargando...
+            </span>
+            <div class="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
+              <span class="text-slate-400 font-normal text-[11px]">Total:</span>
+              <span class="tabular-nums text-xs">{{ kpis.total }}</span>
+            </div>
+            <div v-if="kpis.con_gps > 0" class="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-semibold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>{{ kpis.con_gps }} GPS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fila 2: Canal, Rutas, Solo Activos -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pt-0.5">
+          <!-- Filtro Dropdown: Canales -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('canales', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
+          >
+            <span class="text-slate-400 font-normal">Canal:</span>
+            <span class="font-bold text-slate-900">{{ labelCanales }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Filtro Dropdown: Rutas -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('rutas', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
+          >
+            <span class="text-slate-400 font-normal">Rutas:</span>
+            <span class="font-bold text-slate-900">{{ labelRutas }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Toggle: Solo Activos -->
+          <button
+            type="button"
+            @click="toggleSoloActivos"
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
+            :class="soloActivos
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
+            :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes. Clic para filtrar solo activos.'"
+          >
+            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+            <span>{{ soloActivos ? 'Solo Activos' : 'Todos (Inc. Inactivos)' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- DESKTOP HEADER (>= md): 1 FILA COMPLETA   -->
+      <!-- ========================================== -->
+      <div class="hidden md:flex bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2 items-center justify-between gap-2.5 shrink-0 relative z-30">
         <!-- Backdrop invisible para cerrar menú al hacer click afuera -->
         <div
           v-if="menuAbierto !== null"
@@ -12,7 +113,6 @@
         ></div>
 
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
-          
           <!-- Filtro Dropdown: Canales (Teleport al Body) -->
           <button
             type="button"
@@ -20,7 +120,7 @@
             class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
           >
             <span class="text-slate-400 font-normal">Canal:</span>
-            <span class="font-semibold text-slate-900">{{ labelCanales }}</span>
+            <span class="font-bold text-slate-900">{{ labelCanales }}</span>
             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
@@ -116,28 +216,8 @@
 
         <!-- Indicador de Carga, Selector Móvil y KPIs -->
         <div class="flex items-center space-x-2 text-xs font-mono">
-          <!-- Control Segmentado para Móviles -->
-          <div class="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              @click="vistaMovil = 'mapa'"
-              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
-              :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500'"
-            >
-              Mapa
-            </button>
-            <button
-              type="button"
-              @click="vistaMovil = 'lista'"
-              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
-              :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500'"
-            >
-              Lista ({{ clientes.length }})
-            </button>
-          </div>
-
           <!-- Spinner cargando -->
-          <span v-if="cargando" class="text-[11px] text-slate-500 hidden sm:flex items-center gap-1.5 animate-pulse mr-1">
+          <span v-if="cargando" class="text-[11px] text-slate-500 flex items-center gap-1.5 animate-pulse mr-1">
             <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
             Consultando...
           </span>
@@ -147,12 +227,12 @@
             <span class="font-bold text-slate-900 tabular-nums">{{ kpis.total }}</span>
           </div>
 
-          <div class="hidden sm:flex px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md items-center gap-1.5">
+          <div class="flex px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
           </div>
 
-          <div v-if="kpis.sin_gps > 0" class="hidden md:flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md items-center gap-1.5">
+          <div v-if="kpis.sin_gps > 0" class="flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.sin_gps }} sin GPS</span>
           </div>
@@ -414,10 +494,51 @@
             </button>
           </div>
 
+          <!-- Leyenda de Días de Visita en el Mapa (Interactiva con colores oficiales) -->
+          <div
+            class="absolute bottom-2.5 left-2.5 right-2.5 sm:right-auto sm:bottom-4 sm:left-4 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1.5 sm:p-2 shadow-xl max-w-[calc(100vw-20px)] sm:max-w-md overflow-x-auto no-scrollbar"
+          >
+            <div class="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2.5 text-[10px] sm:text-[11px] font-mono min-w-max">
+              <span class="text-slate-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1 pl-1">
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+                <span>Días:</span>
+              </span>
+
+              <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <button
+                  v-for="d in diasSemana"
+                  :key="d.key"
+                  type="button"
+                  @click="toggleDia(d.key)"
+                  class="px-2 py-1 rounded-lg font-semibold text-[10px] sm:text-[11px] flex items-center gap-1.5 transition-all cursor-pointer select-none"
+                  :class="filtroDias.includes(d.key)
+                    ? 'bg-slate-900 text-white shadow-2xs font-bold ring-1 ring-slate-800'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                  :title="`Filtrar por ${d.label}`"
+                >
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" :style="{ backgroundColor: d.color }"></span>
+                  <span>{{ d.corto }}</span>
+                </button>
+
+                <button
+                  type="button"
+                  @click="toggleTodosDias"
+                  class="px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer select-none border border-slate-200 ml-0.5"
+                  :class="filtroDias.length === 6 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                  title="Seleccionar todos o reiniciar filtro de días"
+                >
+                  {{ filtroDias.length === 6 ? 'Reset' : 'Todos' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Leyenda Dinámica Inteligente (Muestra exactamente los colores asignados en el mapa) -->
           <div
             v-if="clientes.length > 0"
-            class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-64 overflow-y-auto"
+            class="absolute bottom-16 right-2.5 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-52 sm:max-h-64 overflow-y-auto"
           >
             <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
@@ -530,7 +651,7 @@ function cerrarExpediente() {
   visitasCliente.value = [];
 }
 
-const filtroCanales = ref([]);
+const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : ['TDB']);
 const filtroRutas = ref([]);
 const filtroDias = ref([]);
 const verFronteraRutas = ref(true);
@@ -906,5 +1027,8 @@ function enfocarCliente(c) {
 
 onMounted(() => {
   initMap();
+  if (filtroCanales.value.length > 0 || filtroRutas.value.length > 0) {
+    cargarDatos();
+  }
 });
 </script>
