@@ -31,16 +31,30 @@ class ClienteInventarioController extends Controller
 
     /**
      * Registra la toma de inventario físico en punto de venta.
-     * POST /api/inventarios-cliente
+     * POST /api/inventarios-cliente o POST /api/inventario-cliente
      */
     public function store(
         StoreClienteInventarioRequest $request,
         StoreClienteInventarioAction $action
     ): JsonResponse {
-        $user = $request->user();
-        $result = $action->execute($request->validated(), $user);
+        try {
+            $user = $request->user();
+            $result = $action->execute($request->validated(), $user);
 
-        return response()->json($result, 201);
+            return response()->json($result, 201);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error registrando inventario de cliente: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => $request->user()?->id,
+                'payload' => $request->except(['items']),
+                'items_count' => count((array) $request->input('items', [])),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al registrar el inventario en el servidor: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

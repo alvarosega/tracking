@@ -55,13 +55,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/historial', [PedidoRechazadoController::class, 'historial']);
     });
 
-    // Módulo Inventario de Clientes en PDV (Android App)
-    Route::prefix('inventarios-cliente')->group(function (): void {
-        Route::get('/historial-productos/{clienteId}', [ClienteInventarioController::class, 'historialProductos']);
-        Route::post('/', [ClienteInventarioController::class, 'store']);
-        Route::post('/store', [ClienteInventarioController::class, 'store']);
-        Route::get('/historial', [ClienteInventarioController::class, 'historial']);
-    });
+    // Módulo Inventario de Clientes en PDV (Android App - Soporte plural y singular para Retrofit)
+    foreach (['inventarios-cliente', 'inventario-cliente'] as $prefix) {
+        Route::prefix($prefix)->group(function (): void {
+            Route::get('/historial-productos/{clienteId}', [ClienteInventarioController::class, 'historialProductos']);
+            Route::post('/', [ClienteInventarioController::class, 'store']);
+            Route::post('/store', [ClienteInventarioController::class, 'store']);
+            Route::get('/historial', [ClienteInventarioController::class, 'historial']);
+        });
+    }
 
     // Endpoints operativos de Workday para supervisión
     Route::get('/supervisor/workdays/today', [WorkdayController::class, 'todayWorkdays']);
