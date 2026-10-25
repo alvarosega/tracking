@@ -18,20 +18,49 @@ class SupervisorAltasEdicionesController extends Controller
      */
     public function cercanos(Request $request, GetClientesCercanosAltasAction $action): JsonResponse
     {
-        $validated = $request->validate([
-            'latitud' => ['required', 'numeric', 'between:-90,90'],
-            'longitud' => ['required', 'numeric', 'between:-180,180'],
-            'radio' => ['nullable', 'integer', 'min:10', 'max:1000'],
-            'cliente' => ['nullable', 'string', 'max:255'],
-            'celular' => ['nullable', 'string', 'max:50'],
-            'telefono' => ['nullable', 'string', 'max:50'],
-            'nit' => ['nullable', 'string', 'max:50'],
-            'exclude_id' => ['nullable', 'integer'],
-        ]);
+        try {
+            $lat = (float) $request->input('latitud');
+            $lng = (float) $request->input('longitud');
 
-        $result = $action->execute($validated);
+            if ($lat == 0.0 || $lng == 0.0 || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Coordenadas GPS no válidas.',
+                    'total_cercanos' => 0,
+                    'tiene_duplicados' => false,
+                    'alertas_duplicidad' => [],
+                    'clientes_cercanos' => [],
+                ], 200);
+            }
 
-        return response()->json($result);
+            $params = [
+                'latitud' => $lat,
+                'longitud' => $lng,
+                'radio' => $request->filled('radio') ? (int) $request->input('radio') : 200,
+                'cliente' => (string) $request->input('cliente', ''),
+                'celular' => $request->input('celular') !== null ? (string) $request->input('celular') : null,
+                'telefono' => $request->input('telefono') !== null ? (string) $request->input('telefono') : null,
+                'nit' => $request->input('nit') !== null ? (string) $request->input('nit') : null,
+                'exclude_id' => $request->filled('exclude_id') ? (int) $request->input('exclude_id') : null,
+            ];
+
+            $result = $action->execute($params);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en /altas-ediciones/cercanos: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'total_cercanos' => 0,
+                'tiene_duplicados' => false,
+                'alertas_duplicidad' => ['Error en consulta de cercanos: ' . $e->getMessage()],
+                'clientes_cercanos' => [],
+            ], 200);
+        }
     }
     public function index(): Response
     {

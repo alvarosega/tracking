@@ -49,7 +49,7 @@ class GetClientesCercanosAltasAction
         )))";
 
         // 2. Consulta en pan_ruteo: TODOS LOS CLIENTES DE CUALQUIER RUTA
-        $clientesQuery = DB::connection('supervisor')
+        $clientesRaw = DB::connection('supervisor')
             ->table('pan_ruteo')
             ->whereNotNull('latitud')
             ->whereNotNull('longitud')
@@ -57,24 +57,27 @@ class GetClientesCercanosAltasAction
             ->whereBetween('latitud', [$lat - $deltaLat, $lat + $deltaLat])
             ->whereBetween('longitud', [$lng - $deltaLng, $lng + $deltaLng])
             ->select([
+                'id',
                 'cliente_id',
-                DB::raw("MAX(COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre')) as cliente"),
-                DB::raw("MAX(ruta) as ruta"),
-                DB::raw("MAX(vendedor) as vendedor"),
-                DB::raw("MAX(direccion) as direccion"),
-                DB::raw("MAX(referencia) as referencia"),
-                DB::raw("MAX(tipo_negocio) as tipo_negocio"),
-                DB::raw("COALESCE(MAX(NULLIF(celular, '')), MAX(telefono)) as celular"),
-                DB::raw("MAX(telefono) as telefono"),
-                DB::raw("MAX(nit) as nit"),
-                DB::raw("MAX(latitud) as latitud"),
-                DB::raw("MAX(longitud) as longitud"),
+                DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as cliente"),
+                'ruta',
+                'vendedor',
+                'direccion',
+                'referencia',
+                'tipo_negocio',
+                DB::raw("COALESCE(NULLIF(celular, ''), telefono) as celular"),
+                'telefono',
+                'nit',
+                'latitud',
+                'longitud',
                 DB::raw("ROUND({$haversineFormula}) AS distancia_metros"),
             ])
-            ->groupBy('cliente_id')
             ->having('distancia_metros', '<=', $radio)
             ->orderBy('distancia_metros', 'ASC')
             ->get();
+
+        // Deduplicar en memoria por cliente_id para soportar clientes con múltiples días de visita
+        $clientesQuery = $clientesRaw->unique('cliente_id');
 
         // 3. Consulta de Altas pendientes en saneamiento_base
         $haversineAltas = "(6371000 * 2 * ASIN(SQRT(
@@ -85,8 +88,14 @@ class GetClientesCercanosAltasAction
 
         $altasPendientesQuery = DB::connection('supervisor')
             ->table('saneamiento_base')
-            ->where('tipo_registro', 'ALTA')
-            ->where('estado_revision', 'PENDIENTE')
+            ->where(function ($q): void {
+                $q->where('tipo_registro', 'ALTA')
+                  ->orWhere('tipo_registro', 'Alta');
+            })
+            ->where(function ($q): void {
+                $q->where('estado_revision', 'PENDIENTE')
+                  ->orWhere('estado_revision', 'Pendiente');
+            })
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->where('latitude', '!=', 0)

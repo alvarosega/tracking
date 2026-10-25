@@ -1058,6 +1058,9 @@ function renderizarMapa() {
     }
 
     marker.bindPopup(popupContent, { maxWidth: 230 });
+    marker.on('click', () => {
+      abrirExpediente(r);
+    });
     marker.addTo(markersLayer);
     markersMap.set(r.id, marker);
     boundsList.push(L.latLng(r.latitud, r.longitud));
@@ -1082,15 +1085,15 @@ function abrirExpediente(r) {
 
   limpiarLienasAuxiliares();
 
+  // Consultar clientes cercanos en 200m a la redonda y analizar duplicados siempre que tenga coordenadas
+  consultarCercanos(r);
+
   if (r.tiene_gps && map) {
     map.flyTo([r.latitud, r.longitud], 18, { duration: 0.6 });
     const marker = markersMap.get(r.id);
     if (marker) {
       marker.openPopup();
     }
-
-    // Consultar clientes cercanos en 200m a la redonda y analizar duplicados
-    consultarCercanos(r);
 
     // Si es edición y tiene GPS original, dibujar el punto anterior y la línea conectora
     if (r.es_edicion && r.original && r.original.latitud && r.original.longitud) {
@@ -1122,14 +1125,19 @@ function limpiarLienasAuxiliares() {
 
 function consultarCercanos(r) {
   datosCercanos.value = null;
-  if (!r.tiene_gps || !r.latitud || !r.longitud) {
+  const lat = Number(r.latitud);
+  const lng = Number(r.longitud);
+
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
     return;
   }
 
   cargandoCercanos.value = true;
-  axios.post(route('supervisor.altas-ediciones.cercanos'), {
-    latitud: r.latitud,
-    longitud: r.longitud,
+  const url = typeof route === 'function' ? route('supervisor.altas-ediciones.cercanos') : '/supervisor/altas-ediciones/cercanos';
+
+  axios.post(url, {
+    latitud: lat,
+    longitud: lng,
     radio: 200,
     cliente: r.cliente,
     celular: r.celular || r.telefono,
