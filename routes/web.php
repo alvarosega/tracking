@@ -44,12 +44,15 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('cercanos.cliente.visitas');
     });
 
-    // Módulo Auditoría Preventas
+    // Módulo Auditoría Preventas & Cumplimiento Unilever
     Route::prefix('preventas')->name('preventas.')->group(function () {
         Route::get('/', [SupervisorPreventasController::class, 'index'])->name('index');
         Route::post('/data', [SupervisorPreventasController::class, 'data'])->name('data');
         Route::post('/resolver-enlace', [SupervisorPreventasController::class, 'resolverEnlaceMaps'])->name('resolver-enlace');
         Route::post('/rechazos/data', [SupervisorPreventasController::class, 'rechazosData'])->name('rechazos.data');
+        Route::get('/cumplimiento', [SupervisorPreventasController::class, 'cumplimiento'])->name('cumplimiento');
+        Route::post('/cumplimiento/data', [SupervisorPreventasController::class, 'cumplimientoData'])->name('cumplimiento.data');
+        Route::post('/cumplimiento/fotos/{clienteId}', [SupervisorPreventasController::class, 'fotosCliente'])->name('cumplimiento.fotos');
     });
 
     // Módulo Tracking en Vivo y Patrones Históricos

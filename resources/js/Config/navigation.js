@@ -46,14 +46,30 @@ export const navigationConfig = {
     },
     {
       id: 'preventas',
-      name: 'Auditoría Preventas',
+      name: 'Preventa & Cumplimiento',
       shortName: 'Preventas',
       route: 'supervisor.preventas.index',
       componentPrefix: 'Supervisor/Preventas',
       icon: 'ClipboardCheckIcon',
-      badge: 'PEDIDOS',
+      badge: 'UNILEVER',
       badgeColor: 'sky',
-      description: 'Auditoría geográfica de pedidos y control en terreno'
+      description: 'Auditoría geográfica de pedidos y motor de cumplimiento Unilever',
+      submodules: [
+        {
+          id: 'auditoria',
+          name: 'Auditoría en Mapa',
+          route: 'supervisor.preventas.index',
+          component: 'Supervisor/Preventas/Index',
+          icon: 'MapPinIcon'
+        },
+        {
+          id: 'cumplimiento',
+          name: 'Cumplimiento Unilever',
+          route: 'supervisor.preventas.cumplimiento',
+          component: 'Supervisor/Preventas/Cumplimiento',
+          icon: 'ChartBarIcon'
+        }
+      ]
     },
     {
       id: 'tracking',

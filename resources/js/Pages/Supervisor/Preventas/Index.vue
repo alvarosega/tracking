@@ -16,6 +16,8 @@
 
         <!-- Scroll Horizontal de Filtros Principales -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <SubNavTabs :tabs="preventasSubTabs" currentTab="auditoria" />
+          <div class="h-5 w-px bg-slate-200 hidden sm:block shrink-0"></div>
           
           <!-- Selector de Fecha de Preventa -->
           <div class="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200/90 shrink-0 h-8">
@@ -620,6 +622,7 @@ import axios from 'axios';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
+import SubNavTabs from '@/Components/UI/SubNavTabs.vue';
 import { mapsConfig } from '@/Config/maps';
 import { getRutaColor, formatRuta, getCanalColor, CANAL_COLORS } from '@/Config/colors';
 
@@ -628,6 +631,12 @@ const props = defineProps({
   canales: { type: Array, default: () => [] },
   fecha_default: { type: String, default: () => new Date().toISOString().split('T')[0] },
 });
+
+// Submódulos Preventas
+const preventasSubTabs = [
+  { id: 'auditoria', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' },
+  { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
+];
 
 // Filtros Reactivos
 const filtroFecha = ref(props.fecha_default);
