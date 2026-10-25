@@ -5,6 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\Preventas\GetCumplimientoDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleAmpliacionRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleCompraMinimaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleEfectividadRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleHorarioRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaCategoriasAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaDetalleRutaAction;
@@ -115,6 +122,101 @@ class SupervisorPreventasController extends Controller
             rutas: $rutas,
             estrictoHorario: $estrictoHorario
         );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el recorrido cronológico detallado de una ruta para el acordeón del KPI 1.
+     */
+    public function cumplimientoHorarioDetalle(Request $request, GetDetalleHorarioRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el desglose auditado de cobertura de cartera por cliente para el acordeón del KPI 2.
+     */
+    public function cumplimientoVisitasDetalle(Request $request, GetDetalleVisitasRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $estricto = (bool) $request->boolean('estricto', false);
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha, estricto: $estricto);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el balance y pedidos detallados para el acordeón del KPI 3 (Objetivo Diario).
+     */
+    public function cumplimientoObjetivoDetalle(Request $request, GetDetalleObjetivoRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $mes = $request->input('mes') ? (string) $request->input('mes') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha, mes: $mes);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el desglose de compradores y tickets para el acordeón del KPI 4 (Efectividad).
+     */
+    public function cumplimientoEfectividadDetalle(Request $request, GetDetalleEfectividadRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve el desglose de clientes bajo mínimo vs cumplen para el acordeón del KPI 5 (Mínimo 70 Bs).
+     */
+    public function cumplimientoCompraMinimaDetalle(Request $request, GetDetalleCompraMinimaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve la auditoría de reposición de SKUs habituales para el acordeón del KPI 6.
+     */
+    public function cumplimientoReposicionDetalle(Request $request, GetDetalleReposicionRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $semanas = $request->input('semanas_historia') ? (int) $request->input('semanas_historia') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha, semanasHistoria: $semanas);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve la auditoría de ampliación de portafolio para el acordeón del KPI 7.
+     */
+    public function cumplimientoAmpliacionDetalle(Request $request, GetDetalleAmpliacionRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $semanas = $request->input('semanas_historia') ? (int) $request->input('semanas_historia') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha, semanasHistoria: $semanas);
 
         return response()->json($resultado);
     }

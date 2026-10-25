@@ -54,6 +54,13 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/cumplimiento', [SupervisorPreventasController::class, 'cumplimiento'])->name('cumplimiento');
         Route::post('/cumplimiento/data', [SupervisorPreventasController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/fotos/{clienteId}', [SupervisorPreventasController::class, 'fotosCliente'])->name('cumplimiento.fotos');
+        Route::post('/cumplimiento/horario/detalle', [SupervisorPreventasController::class, 'cumplimientoHorarioDetalle'])->name('cumplimiento.horario.detalle');
+        Route::post('/cumplimiento/visitas/detalle', [SupervisorPreventasController::class, 'cumplimientoVisitasDetalle'])->name('cumplimiento.visitas.detalle');
+        Route::post('/cumplimiento/objetivo/detalle', [SupervisorPreventasController::class, 'cumplimientoObjetivoDetalle'])->name('cumplimiento.objetivo.detalle');
+        Route::post('/cumplimiento/efectividad/detalle', [SupervisorPreventasController::class, 'cumplimientoEfectividadDetalle'])->name('cumplimiento.efectividad.detalle');
+        Route::post('/cumplimiento/compra-minima/detalle', [SupervisorPreventasController::class, 'cumplimientoCompraMinimaDetalle'])->name('cumplimiento.compra-minima.detalle');
+        Route::post('/cumplimiento/reposicion/detalle', [SupervisorPreventasController::class, 'cumplimientoReposicionDetalle'])->name('cumplimiento.reposicion.detalle');
+        Route::post('/cumplimiento/ampliacion/detalle', [SupervisorPreventasController::class, 'cumplimientoAmpliacionDetalle'])->name('cumplimiento.ampliacion.detalle');
 
         Route::get('/diaria', [SupervisorPreventasController::class, 'diaria'])->name('diaria');
         Route::post('/diaria/data', [SupervisorPreventasController::class, 'diariaData'])->name('diaria.data');

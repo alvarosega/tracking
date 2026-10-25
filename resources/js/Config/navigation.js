@@ -200,3 +200,12 @@ export const navigationConfig = {
   ]
 };
 
+export const preventasSubTabs = [
+  { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
+  { id: 'diaria', name: 'Preventa Diaria', route: 'supervisor.preventas.diaria' },
+  { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' },
+  { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
+  { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
+  { id: 'mapa', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' }
+];
+
