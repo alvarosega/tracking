@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\AltasEdiciones\CambiarEstadoRevisionAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -95,6 +97,33 @@ class SupervisorAltasEdicionesController extends Controller
                 'alertas_duplicidad' => ['Error en consulta de cercanos: ' . $e->getMessage()],
                 'clientes_cercanos' => [],
             ], 200);
+        }
+    }
+
+    /**
+     * Actualiza el estado de revisión (APROBADO / RECHAZADO / PENDIENTE) exclusivamente en saneamiento_base.
+     * Bajo ninguna circunstancia modifica ni altera la tabla pan_ruteo.
+     */
+    public function cambiarEstado(
+        int $id,
+        CambiarEstadoRevisionRequest $request,
+        CambiarEstadoRevisionAction $action
+    ): JsonResponse {
+        try {
+            $resultado = $action->execute(
+                id: $id,
+                nuevoEstado: $request->estado(),
+                motivo: $request->motivo()
+            );
+
+            return response()->json($resultado);
+        } catch (\Throwable $e) {
+            Log::error("Error al cambiar estado de saneamiento_base #{$id}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         }
     }
 }

@@ -348,6 +348,84 @@
             <!-- Ficha Técnica con todos los datos requeridos -->
             <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#F5F5F7]">
               
+              <!-- 0. Panel de Acción de Auditoría (Aprobar / Rechazar) -->
+              <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 shadow-2xs space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Auditoría de Solicitud
+                  </span>
+
+                  <span
+                    class="text-[9px] font-mono font-bold px-2 py-0.5 rounded border inline-block"
+                    :class="getEstadoRevisionClass(registroSeleccionado.estado_revision)"
+                  >
+                    Estado: {{ registroSeleccionado.estado_revision }}
+                  </span>
+                </div>
+
+                <!-- Botones Principales: Aprobar y Rechazar -->
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    @click="cambiarEstadoRevision(registroSeleccionado, 'APROBADO')"
+                    :disabled="cambiandoEstadoId === registroSeleccionado.id || registroSeleccionado.estado_revision === 'APROBADO'"
+                    class="h-9 px-3 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="registroSeleccionado.estado_revision === 'APROBADO'
+                      ? 'bg-[#EBF9EF] text-[#248A3D] border border-[#248A3D]/30 font-extrabold'
+                      : 'bg-[#248A3D] text-white hover:bg-[#1E7433] active:scale-[0.98]'"
+                    title="Aprobar alta o edición"
+                  >
+                    <span v-if="cambiandoEstadoId === registroSeleccionado.id && estadoEnProceso === 'APROBADO'" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span>{{ registroSeleccionado.estado_revision === 'APROBADO' ? '✓ Aprobado' : 'Aprobar' }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="cambiarEstadoRevision(registroSeleccionado, 'RECHAZADO')"
+                    :disabled="cambiandoEstadoId === registroSeleccionado.id || registroSeleccionado.estado_revision === 'RECHAZADO'"
+                    class="h-9 px-3 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="registroSeleccionado.estado_revision === 'RECHAZADO'
+                      ? 'bg-[#FDF0EF] text-[#C9342C] border border-[#C9342C]/30 font-extrabold'
+                      : 'bg-[#FF3B30] text-white hover:bg-[#D70015] active:scale-[0.98]'"
+                    title="Rechazar alta o edición"
+                  >
+                    <span v-if="cambiandoEstadoId === registroSeleccionado.id && estadoEnProceso === 'RECHAZADO'" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>{{ registroSeleccionado.estado_revision === 'RECHAZADO' ? '✕ Rechazado' : 'Rechazar' }}</span>
+                  </button>
+                </div>
+
+                <!-- Opción de Retorno a Pendiente -->
+                <div v-if="registroSeleccionado.estado_revision !== 'PENDIENTE'" class="pt-1 text-center">
+                  <button
+                    type="button"
+                    @click="cambiarEstadoRevision(registroSeleccionado, 'PENDIENTE')"
+                    :disabled="cambiandoEstadoId === registroSeleccionado.id"
+                    class="text-[11px] font-mono text-[#86868B] hover:text-[#1D1D1F] underline cursor-pointer disabled:opacity-50"
+                  >
+                    Restablecer a Pendiente de revisión
+                  </button>
+                </div>
+
+                <!-- Feedback / Mensaje en línea -->
+                <div
+                  v-if="mensajeEstado"
+                  class="p-2 rounded-[6px] text-[11px] font-medium border flex items-center justify-between"
+                  :class="mensajeEstado.tipo === 'exito' ? 'bg-[#EBF9EF] text-[#248A3D] border-[#248A3D]/20' : 'bg-[#FDF0EF] text-[#C9342C] border-[#C9342C]/20'"
+                >
+                  <span>{{ mensajeEstado.texto }}</span>
+                  <button type="button" @click="mensajeEstado = null" class="font-bold text-xs ml-2 cursor-pointer text-[#86868B] hover:text-[#1D1D1F]">&times;</button>
+                </div>
+              </div>
+
               <!-- 1. Datos Maestros de Identificación -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
@@ -852,6 +930,10 @@ const registroActivoId = ref(null);
 const registroSeleccionado = ref(null);
 const lightboxUrl = ref(null);
 
+const cambiandoEstadoId = ref(null);
+const estadoEnProceso = ref(null);
+const mensajeEstado = ref(null);
+
 const cargandoCercanos = ref(false);
 const datosCercanos = ref(null);
 const mostrarListaCercanos = ref(true);
@@ -964,6 +1046,76 @@ function limpiarRutas() {
 
 function abrirLightbox(url) {
   lightboxUrl.value = url;
+}
+
+async function cambiarEstadoRevision(registro, nuevoEstado) {
+  if (!registro || !registro.id) return;
+
+  cambiandoEstadoId.value = registro.id;
+  estadoEnProceso.value = nuevoEstado;
+  mensajeEstado.value = null;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.cambiar-estado', registro.id)
+      : `/supervisor/altas-ediciones/${registro.id}/estado`;
+
+    const res = await axios.post(url, {
+      estado: nuevoEstado,
+    });
+
+    if (res.data && res.data.success) {
+      registro.estado_revision = res.data.estado_revision;
+      registro.revisado_at = res.data.revisado_at;
+
+      const itemEnLista = registros.value.find(r => r.id === registro.id);
+      if (itemEnLista) {
+        itemEnLista.estado_revision = res.data.estado_revision;
+        itemEnLista.revisado_at = res.data.revisado_at;
+      }
+
+      recalcularKpis();
+
+      mensajeEstado.value = {
+        tipo: 'exito',
+        texto: res.data.message || `Estado actualizado a ${nuevoEstado} correctamente.`,
+      };
+
+      setTimeout(() => {
+        mensajeEstado.value = null;
+      }, 5000);
+    }
+  } catch (err) {
+    console.error('Error al cambiar estado de revisión:', err);
+    const msg = err.response?.data?.message || 'Error de comunicación al actualizar el estado.';
+    mensajeEstado.value = {
+      tipo: 'error',
+      texto: msg,
+    };
+  } finally {
+    cambiandoEstadoId.value = null;
+    estadoEnProceso.value = null;
+  }
+}
+
+function recalcularKpis() {
+  let total = registros.value.length;
+  let altas = 0;
+  let ediciones = 0;
+  let pendientes = 0;
+  let aprobados = 0;
+
+  registros.value.forEach(r => {
+    const t = (r.tipo_registro || '').toUpperCase();
+    if (t.includes('ALTA')) altas++;
+    else if (t.includes('EDIC')) ediciones++;
+
+    const est = (r.estado_revision || '').toUpperCase();
+    if (est === 'PENDIENTE') pendientes++;
+    else if (est === 'APROBADO') aprobados++;
+  });
+
+  kpis.value = { total, altas, ediciones, pendientes, aprobados };
 }
 
 async function cargarDatos() {

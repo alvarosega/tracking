@@ -65,6 +65,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', [SupervisorAltasEdicionesController::class, 'index'])->name('index');
         Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
         Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
+        Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
     });
 
     // Módulo Auditoría de Visitas & Cobertura Fotográfica
