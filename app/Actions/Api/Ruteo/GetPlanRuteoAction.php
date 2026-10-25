@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Api\Ruteo;
 
 use App\Models\User;
+use App\Services\SaneamientoAuditService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -21,8 +22,13 @@ class GetPlanRuteoAction
         7 => 'Domingo',
     ];
 
+    public function __construct(
+        protected SaneamientoAuditService $saneamientoAuditService
+    ) {}
+
     /**
-     * Obtiene el plan de ruteo del día para el vendedor, unificado con ediciones pendientes y visitas realizadas hoy.
+     * Obtiene el plan de ruteo del día para el vendedor, unificado con ediciones pendientes,
+     * visitas realizadas hoy y diagnóstico de calidad de datos para saneamiento.
      *
      * @return Collection<int, object>
      */
@@ -107,7 +113,7 @@ class GetPlanRuteoAction
             ->get(['client_id', 'status'])
             ->keyBy('client_id');
 
-        // 7. Cruzar estado de visita
+        // 7. Cruzar estado de visita y diagnosticar calidad de datos para saneamiento
         return $planRuteo->map(function ($item) use ($visitasHoy): object {
             $haSidoVisitado = $visitasHoy->has($item->cliente_id);
             $visita = $visitasHoy->get($item->cliente_id);
@@ -116,8 +122,16 @@ class GetPlanRuteoAction
             $item->is_visited = $haSidoVisitado;
             $item->visita_estado = $haSidoVisitado ? $visita->status : 'PENDIENTE';
 
+            // Diagnóstico de Saneamiento
+            $audit = $this->saneamientoAuditService->audit($item);
+            $item->requiere_saneamiento = $audit['requiere_saneamiento'];
+            // Si ya tiene una edición pendiente de aprobación, no bloquear
+            $item->saneamiento_obligatorio = $audit['saneamiento_obligatorio'] && !$item->tiene_edicion_pendiente;
+            $item->saneamiento_alertas = $audit['alertas'];
+            $item->saneamiento_campos_incompletos = $audit['campos_incompletos'];
+            $item->calidad_score = $audit['calidad_score'];
+
             return $item;
         });
     }
 }
-
