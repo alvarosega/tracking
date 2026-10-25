@@ -45,8 +45,46 @@
               class="w-2 h-2 rounded-full"
               :class="obteniendoGps ? 'bg-amber-500 animate-ping' : (ubicacionSupervisor ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-sky-500')"
             ></span>
-            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : (ubicacionSupervisor ? 'Mi Ubicación GPS' : 'Auditar mi Alrededor') }}</span>
+            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : (ubicacionSupervisor ? 'Mi Ubicación' : 'Mi Ubicación') }}</span>
           </button>
+
+          <!-- Buscador / Pegar Enlace de Google Maps o Coordenadas -->
+          <div class="relative flex items-center h-8 shrink-0">
+            <div class="absolute left-2.5 text-slate-400 pointer-events-none flex items-center">
+              <svg class="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </div>
+            <input
+              type="text"
+              v-model="inputEnlaceMaps"
+              @keydown.enter.prevent="resolverEnlaceMaps"
+              placeholder="Pegar enlace Maps o coords..."
+              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-52 sm:w-60 lg:w-72 transition-all shadow-2xs"
+              title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-16.5, -68.1)"
+            />
+            <button
+              type="button"
+              @click="resolverEnlaceMaps"
+              :disabled="resolviendoEnlace || !inputEnlaceMaps.trim()"
+              class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+              title="Traducir enlace e inspeccionar pedidos en la ubicación"
+            >
+              <span v-if="resolviendoEnlace" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>{{ resolviendoEnlace ? '' : 'Ir' }}</span>
+            </button>
+          </div>
+
+          <!-- Toast / Feedback del Enlace de Maps -->
+          <div
+            v-if="mensajeEnlace"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            :class="mensajeEnlace.tipo === 'exito' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'"
+          >
+            <span>{{ mensajeEnlace.tipo === 'exito' ? '📍' : '⚠️' }}</span>
+            <span class="truncate max-w-[200px]">{{ mensajeEnlace.texto }}</span>
+            <button type="button" @click="mensajeEnlace = null" class="ml-1 text-slate-400 hover:text-slate-600 font-bold cursor-pointer">&times;</button>
+          </div>
 
           <!-- Selector de Halo de Proximidad si está ubicado -->
           <div v-if="ubicacionSupervisor" class="flex items-center bg-slate-50 p-0.5 rounded-lg border border-slate-200/90 shrink-0 h-8 animate-fadeIn">
@@ -65,7 +103,7 @@
               type="button"
               @click="limpiarUbicacion"
               class="px-1.5 py-0.5 text-[10px] text-rose-500 hover:underline font-mono border-l border-slate-200 ml-0.5 cursor-pointer"
-              title="Quitar GPS de supervisor"
+              title="Quitar ubicación de referencia"
             >
               ✕
             </button>
@@ -630,6 +668,11 @@ const ubicacionSupervisor = ref(null); // { lat, lng }
 const radioSupervisor = ref(300); // metros
 const obteniendoGps = ref(false);
 
+// Traductor de Enlaces de Google Maps & Coordenadas
+const inputEnlaceMaps = ref('');
+const resolviendoEnlace = ref(false);
+const mensajeEnlace = ref(null);
+
 // Datos & KPIs
 const clientesPreventa = ref([]);
 const kpis = ref({
@@ -824,11 +867,73 @@ function seleccionarRadio(r) {
 function limpiarUbicacion() {
   ubicacionSupervisor.value = null;
   filtroSoloRadio.value = false;
+  inputEnlaceMaps.value = '';
+  mensajeEnlace.value = null;
   if (supervisorMarker && map) map.removeLayer(supervisorMarker);
   if (supervisorCircle && map) map.removeLayer(supervisorCircle);
   supervisorMarker = null;
   supervisorCircle = null;
   cargarPreventas();
+}
+
+function establecerUbicacionManual(lat, lng) {
+  ubicacionSupervisor.value = {
+    lat: Number(lat),
+    lng: Number(lng),
+  };
+  dibujarSupervisorEnMapa();
+  cargarPreventas();
+}
+
+async function resolverEnlaceMaps() {
+  const val = inputEnlaceMaps.value.trim();
+  if (!val) return;
+
+  resolviendoEnlace.value = true;
+  mensajeEnlace.value = null;
+
+  try {
+    const url = typeof route === 'function' ? route('supervisor.preventas.resolver-enlace') : '/supervisor/preventas/resolver-enlace';
+    const res = await axios.post(url, {
+      url: val,
+    });
+
+    if (res.data && res.data.success) {
+      const lat = Number(res.data.latitud);
+      const lng = Number(res.data.longitud);
+
+      mensajeEnlace.value = {
+        tipo: 'exito',
+        texto: `Ubicación traducida: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+      };
+
+      ubicacionSupervisor.value = { lat, lng };
+
+      if (map) {
+        dibujarSupervisorEnMapa();
+        map.flyTo([lat, lng], 16, { duration: 1 });
+      }
+
+      cargarPreventas();
+
+      setTimeout(() => {
+        mensajeEnlace.value = null;
+      }, 6000);
+    } else {
+      mensajeEnlace.value = {
+        tipo: 'error',
+        texto: res.data?.message || 'No se pudo extraer la ubicación del enlace.',
+      };
+    }
+  } catch (error) {
+    console.error('Error al resolver enlace de Maps:', error);
+    mensajeEnlace.value = {
+      tipo: 'error',
+      texto: error.response?.data?.message || 'Error de comunicación al traducir enlace.',
+    };
+  } finally {
+    resolviendoEnlace.value = false;
+  }
 }
 
 function dibujarSupervisorEnMapa() {
@@ -839,11 +944,11 @@ function dibujarSupervisorEnMapa() {
 
   const latlng = [ubicacionSupervisor.value.lat, ubicacionSupervisor.value.lng];
 
-  // Marcador estilo Radar Pulsing
+  // Marcador estilo Radar Pulsing (arrastrable para mover manualmente)
   const icon = L.divIcon({
     className: 'custom-supervisor-marker',
     html: `
-      <div class="relative flex items-center justify-center">
+      <div class="relative flex items-center justify-center cursor-move" title="Arrastra para mover la ubicación">
         <span class="absolute w-8 h-8 rounded-full bg-emerald-500/30 animate-ping"></span>
         <span class="w-4 h-4 rounded-full bg-emerald-600 border-2 border-white shadow-lg flex items-center justify-center">
           <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
@@ -854,7 +959,30 @@ function dibujarSupervisorEnMapa() {
     iconAnchor: [16, 16],
   });
 
-  supervisorMarker = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(map);
+  supervisorMarker = L.marker(latlng, {
+    icon,
+    zIndexOffset: 1000,
+    draggable: true,
+  }).addTo(map);
+
+  supervisorMarker.bindTooltip('Ubicación de referencia (Arrastra para mover)', {
+    direction: 'top',
+    offset: [0, -12],
+  });
+
+  // Mover círculo en tiempo real al arrastrar el marcador
+  supervisorMarker.on('drag', (e) => {
+    const pos = e.target.getLatLng();
+    if (supervisorCircle) {
+      supervisorCircle.setLatLng(pos);
+    }
+  });
+
+  // Recalcular preventas y distancia al soltar el marcador
+  supervisorMarker.on('dragend', (e) => {
+    const pos = e.target.getLatLng();
+    establecerUbicacionManual(pos.lat, pos.lng);
+  });
 
   // Halo / Círculo de Proximidad
   supervisorCircle = L.circle(latlng, {
@@ -886,6 +1014,12 @@ function initMap() {
   }).addTo(map);
 
   markersLayerGroup = L.layerGroup().addTo(map);
+
+  // Mover ubicación al hacer clic en cualquier punto del mapa
+  map.on('click', (e) => {
+    menuAbierto.value = null;
+    establecerUbicacionManual(e.latlng.lat, e.latlng.lng);
+  });
 }
 
 function cambiarTileLayer(id) {
