@@ -156,6 +156,20 @@ class StorePedidoRechazadoRequest extends FormRequest
             $merge['accuracy'] = (float) $accuracy;
         }
 
+        // 7. Normalizar fecha_rechazo a hora local America/La_Paz ('Y-m-d H:i:s')
+        $rawFecha = $this->input('fecha_rechazo') ?? $this->input('fechaRechazo') ?? $this->input('fecha');
+        if (!empty($rawFecha) && $rawFecha !== 'null') {
+            try {
+                $merge['fecha_rechazo'] = \Carbon\Carbon::parse((string) $rawFecha)
+                    ->setTimezone('America/La_Paz')
+                    ->format('Y-m-d H:i:s');
+            } catch (\Throwable) {
+                $merge['fecha_rechazo'] = \Carbon\Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+            }
+        } else {
+            $merge['fecha_rechazo'] = \Carbon\Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }

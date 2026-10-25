@@ -116,6 +116,20 @@ class StoreClienteInventarioRequest extends FormRequest
             $merge['longitude'] = (float) $lng;
         }
 
+        // 5. Normalizar fecha_registro a hora local America/La_Paz ('Y-m-d H:i:s')
+        $rawFecha = $this->input('fecha_registro') ?? $this->input('fechaRegistro') ?? $this->input('fecha');
+        if (!empty($rawFecha) && $rawFecha !== 'null') {
+            try {
+                $merge['fecha_registro'] = \Carbon\Carbon::parse((string) $rawFecha)
+                    ->setTimezone('America/La_Paz')
+                    ->format('Y-m-d H:i:s');
+            } catch (\Throwable) {
+                $merge['fecha_registro'] = \Carbon\Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+            }
+        } else {
+            $merge['fecha_registro'] = \Carbon\Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }

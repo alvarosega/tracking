@@ -51,5 +51,14 @@ class ClienteInventario extends Model
     {
         return $this->hasMany(ClienteInventarioItem::class, 'cliente_inventario_id');
     }
+
+    /**
+     * Serializa las fechas en formato 'Y-m-d H:i:s' en la zona horaria local de Bolivia (America/La_Paz).
+     * Evita que Eloquent las convierta a UTC ISO-8601 con sufijo 'Z', eliminando la discrepancia de 4 horas en Android y Web.
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return \Carbon\Carbon::instance($date)->setTimezone('America/La_Paz')->format('Y-m-d H:i:s');
+    }
 }
 

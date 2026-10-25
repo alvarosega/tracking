@@ -66,11 +66,13 @@ class StoreClienteInventarioAction
         }
 
         $fechaRegistro = !empty($data['fecha_registro']) && $data['fecha_registro'] !== 'null'
-            ? Carbon::parse((string) $data['fecha_registro'])
-            : Carbon::now();
+            ? Carbon::parse((string) $data['fecha_registro'])->setTimezone('America/La_Paz')->format('Y-m-d H:i:s')
+            : Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+
+        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
 
         // 3. Crear cabecera y detalle en transacción de BD app (mysql)
-        $inventario = DB::connection('mysql')->transaction(function () use ($data, $user, $clienteId, $clienteNombre, $codigoCliente, $fechaRegistro, $uuid): ClienteInventario {
+        $inventario = DB::connection('mysql')->transaction(function () use ($data, $user, $clienteId, $clienteNombre, $codigoCliente, $fechaRegistro, $nowBolivia, $uuid): ClienteInventario {
             $itemsData = $data['items'] ?? [];
 
             $cabecera = ClienteInventario::create([
@@ -88,6 +90,8 @@ class StoreClienteInventarioAction
                 'is_mock_location' => filter_var($data['is_mock_location'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'total_items_censados' => count($itemsData),
                 'observaciones' => !empty($data['observaciones']) && $data['observaciones'] !== 'null' ? (string) $data['observaciones'] : null,
+                'created_at' => $nowBolivia,
+                'updated_at' => $nowBolivia,
             ]);
 
             $itemsToInsert = [];

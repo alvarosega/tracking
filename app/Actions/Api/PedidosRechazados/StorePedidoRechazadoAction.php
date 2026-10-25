@@ -119,8 +119,10 @@ class StorePedidoRechazadoAction
         }
 
         $fechaRechazo = !empty($data['fecha_rechazo']) && $data['fecha_rechazo'] !== 'null'
-            ? Carbon::parse((string) $data['fecha_rechazo'])
-            : Carbon::now();
+            ? Carbon::parse((string) $data['fecha_rechazo'])->setTimezone('America/La_Paz')->format('Y-m-d H:i:s')
+            : Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
+
+        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
 
         // 4. Precalcular totales de detalle para optimizar en un único INSERT de cabecera
         $totalCantRechazada = 0;
@@ -171,7 +173,7 @@ class StorePedidoRechazadoAction
             return DB::connection('mysql')->transaction(function () use (
                 $data, $user, $uuid, $nroPreventa, $clienteId, $codigoCliente,
                 $clienteNombre, $fechaPreventa, $fechaRechazo, $ruta, $tipoSugerido,
-                $photoPath, $sanitizedItems, $totalCantRechazada, $montoTotalRechazado
+                $photoPath, $sanitizedItems, $totalCantRechazada, $montoTotalRechazado, $nowBolivia
             ): PedidoRechazado {
                 $cabecera = PedidoRechazado::create([
                     'uuid' => $uuid,
@@ -195,6 +197,8 @@ class StorePedidoRechazadoAction
                     'is_mock_location' => filter_var($data['is_mock_location'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'total_items_rechazados' => $totalCantRechazada,
                     'monto_total_rechazado' => round($montoTotalRechazado, 2),
+                    'created_at' => $nowBolivia,
+                    'updated_at' => $nowBolivia,
                 ]);
 
                 if (!empty($sanitizedItems)) {

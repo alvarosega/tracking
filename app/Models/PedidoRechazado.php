@@ -73,5 +73,13 @@ class PedidoRechazado extends Model
 
         return Storage::disk('public')->url($this->photo_path);
     }
+
+    /**
+     * Serializa las fechas en formato 'Y-m-d H:i:s' en la zona horaria local de Bolivia.
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return \Carbon\Carbon::instance($date)->setTimezone('America/La_Paz')->format('Y-m-d H:i:s');
+    }
 }
 
