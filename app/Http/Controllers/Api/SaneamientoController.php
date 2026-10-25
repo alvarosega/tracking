@@ -8,6 +8,7 @@ use App\Actions\Api\Saneamiento\StoreSaneamientoAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Saneamiento\StoreSaneamientoRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class SaneamientoController extends Controller
 {
@@ -25,6 +26,13 @@ class SaneamientoController extends Controller
             validated: $request->validated(),
             photo: $request->file('photo')
         );
+
+        Log::info("Saneamiento API: {$result['tipo_registro']} #{$result['id']} procesada con éxito", [
+            'user_id' => $user?->id,
+            'cliente_id' => $request->input('cliente_id'),
+            'route' => $request->input('route'),
+            'cliente' => $request->input('cliente'),
+        ]);
 
         return response()->json([
             'message' => 'Registro de saneamiento procesado correctamente.',
