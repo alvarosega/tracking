@@ -825,7 +825,6 @@ function initMap() {
   clientsLayer = L.featureGroup().addTo(map);
 
   map.on('click', (e) => {
-    menuAbierto.value = null;
     consultarCercanos(e.latlng.lat, e.latlng.lng);
   });
 }
