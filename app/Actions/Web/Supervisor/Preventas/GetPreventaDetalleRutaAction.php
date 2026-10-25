@@ -70,7 +70,8 @@ class GetPreventaDetalleRutaAction
         $filasPlan = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
             ->where(function ($q) use ($tuplaDias): void {
-                $q->whereIn(DB::raw("LOWER(TRIM(COALESCE(dia_norm, dia)))"), $tuplaDias);
+                $q->whereIn(DB::raw("LOWER(TRIM(dia_norm))"), $tuplaDias)
+                  ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $tuplaDias);
             })
             ->where('cliente_id', '>', 0)
             ->select([

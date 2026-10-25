@@ -126,9 +126,8 @@ function sincronizarRutasAlCambiarCanal() {
 }
 
 function inicializarDesdeStorage(props = {}) {
-  if (props.fecha_default) {
-    fecha.value = props.fecha_default
-  }
+  const guardado = recuperarEstado()
+
   if (props.catalogo_rutas && Array.isArray(props.catalogo_rutas)) {
     configurarRutas(props.catalogo_rutas)
   }
@@ -136,9 +135,18 @@ function inicializarDesdeStorage(props = {}) {
     configurarCanales(props.canales)
   }
 
-  const guardado = recuperarEstado()
+  // Priorizar la fecha con datos reales más recientes si no hay fecha guardada o si la guardada no tiene datos
+  if (props.fecha_default) {
+    if (guardado && guardado.fecha && guardado.fecha <= props.fecha_default) {
+      fecha.value = guardado.fecha
+    } else {
+      fecha.value = props.fecha_default
+    }
+  } else if (guardado && guardado.fecha) {
+    fecha.value = guardado.fecha
+  }
+
   if (guardado) {
-    if (guardado.fecha) fecha.value = guardado.fecha
     if (guardado.busqueda) busqueda.value = guardado.busqueda
     if (typeof guardado.horario_estricto === 'boolean') {
       horarioEstricto.value = guardado.horario_estricto

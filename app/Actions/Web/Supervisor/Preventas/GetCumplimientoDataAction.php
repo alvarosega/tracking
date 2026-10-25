@@ -60,24 +60,18 @@ class GetCumplimientoDataAction
         $metaRutas = $catalogoRutas->keyBy('ruta');
 
         // 2. Cálculo del día de la semana para pan_ruteo
-        $carbonFecha = Carbon::parse($fecha)->locale('es');
-        $diaMap = [
-            1 => 'Lunes',
-            2 => 'Martes',
-            3 => 'Miércoles',
-            4 => 'Jueves',
-            5 => 'Viernes',
-            6 => 'Sábado',
-            7 => 'Domingo',
+        $carbonFecha = Carbon::parse($fecha);
+        $diasMap = [
+            1 => ['lunes', 'Lunes'],
+            2 => ['martes', 'Martes'],
+            3 => ['miercoles', 'miércoles', 'Miercoles', 'Miércoles'],
+            4 => ['jueves', 'Jueves'],
+            5 => ['viernes', 'Viernes'],
+            6 => ['sabado', 'sábado', 'Sabado', 'Sábado'],
+            7 => ['domingo', 'Domingo'],
         ];
-        $diaSemana = $diaMap[$carbonFecha->dayOfWeekIso] ?? 'Lunes';
-        $diasFiltro = [$diaSemana];
-        if ($diaSemana === 'Miércoles') {
-            $diasFiltro[] = 'Miercoles';
-        }
-        if ($diaSemana === 'Sábado') {
-            $diasFiltro[] = 'Sabado';
-        }
+        $diaSemana = $diasMap[$carbonFecha->dayOfWeekIso][1] ?? 'Lunes';
+        $diasFiltro = $diasMap[$carbonFecha->dayOfWeekIso] ?? ['lunes', 'Lunes'];
 
         // 3. Extracción de Datos Heterogéneos
 
@@ -85,17 +79,20 @@ class GetCumplimientoDataAction
         $carteraRaw = collect();
         try {
             $carteraRaw = DB::connection('supervisor')->table('pan_ruteo as pr')
-                ->whereIn('pr.ruta', $rutasFiltradas)
+                ->whereIn(DB::raw("TRIM(UPPER(pr.ruta))"), array_map('strtoupper', array_map('trim', $rutasFiltradas)))
                 ->where(function ($q) use ($diasFiltro): void {
                     $q->whereIn('pr.dia_norm', $diasFiltro)
                       ->orWhereIn('pr.dia', $diasFiltro);
                 })
+                ->where('pr.cliente_id', '>', 0)
                 ->select([
                     'pr.id',
                     'pr.ruta',
                     'pr.cliente_id',
-                    'pr.codigo_cliente',
+                    'pr.vendedor',
+                    'pr.vendedor_norm',
                     DB::raw("COALESCE(NULLIF(pr.cliente, ''), pr.cliente_norm, CONCAT('Cliente #', pr.cliente_id)) as cliente"),
+                    DB::raw("COALESCE(pr.cliente_norm, pr.cliente) as cliente_norm"),
                     'pr.estado',
                     'pr.dia_norm',
                     'pr.direccion',
@@ -108,30 +105,44 @@ class GetCumplimientoDataAction
             Log::warning('Error consultando pan_ruteo en Cumplimiento: ' . $e->getMessage());
         }
 
-        $carteraPorRuta = $carteraRaw->groupBy('ruta');
+        $carteraPorRuta = $carteraRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
+
+        // Mapeo de vendedor normalizado a ruta oficial
+        $vendedorARuta = [];
+        foreach ($catalogoRutas as $cr) {
+            if (!empty($cr->vendedor)) {
+                $vendedorARuta[$this->normalizarTexto($cr->vendedor)] = strtoupper(trim((string) $cr->ruta));
+            }
+        }
+        foreach ($carteraRaw as $cRow) {
+            if (!empty($cRow->vendedor)) {
+                $vendedorARuta[$this->normalizarTexto($cRow->vendedor)] = strtoupper(trim((string) $cRow->ruta));
+            }
+        }
 
         // B. fact_visitas: Marcajes del sistema central (web ERP)
         $factVisitasRaw = collect();
         try {
-            $baseVisitasQuery = DB::connection('supervisor')->table('fact_visitas')
-                ->whereIn('ruta', $rutasFiltradas);
+            $rawVisitas = DB::connection('supervisor')->table('fact_visitas')
+                ->where('fecha_norm', $fecha)
+                ->orderBy('check_in', 'asc')
+                ->get();
 
-            try {
-                $factVisitasRaw = (clone $baseVisitasQuery)
-                    ->whereDate('check_in', $fecha)
-                    ->orderBy('check_in', 'asc')
-                    ->get();
-            } catch (\Throwable) {
-                $factVisitasRaw = (clone $baseVisitasQuery)
-                    ->where('fecha', $fecha)
-                    ->orderBy('check_in', 'asc')
-                    ->get();
-            }
+            $rutasTargetSet = array_flip(array_map('strtoupper', array_map('trim', $rutasFiltradas)));
+
+            $factVisitasRaw = $rawVisitas->map(function ($row) use ($vendedorARuta) {
+                $empNorm = $this->normalizarTexto((string) ($row->empleado_norm ?: $row->empleado));
+                $row->ruta = $vendedorARuta[$empNorm] ?? null;
+                return $row;
+            })->filter(function ($row) use ($rutasTargetSet) {
+                $r = strtoupper(trim((string) ($row->ruta ?? '')));
+                return $r !== '' && isset($rutasTargetSet[$r]);
+            });
         } catch (\Throwable $e) {
             Log::warning('Error consultando fact_visitas en Cumplimiento: ' . $e->getMessage());
         }
 
-        $factVisitasPorRuta = $factVisitasRaw->groupBy('ruta');
+        $factVisitasPorRuta = $factVisitasRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
 
         // C. visitas (Local MySQL): Marcajes móviles desde la app Android
         $visitasMovilRaw = collect();
@@ -411,28 +422,40 @@ class GetCumplimientoDataAction
             // ----------------------------------------------------
             // KPI 2: Clientes Visitados (5 Puntos)
             // ----------------------------------------------------
-            $carteraPlanClientes = $carteraRuta->where('estado', 'Activo');
+            $carteraPlanClientes = $carteraRuta->filter(fn ($c) => in_array(strtoupper(trim((string) $c->estado)), ['ACTIVO', 'ACTIVA', 'VIGENTE'], true));
             $cPlanCount = $carteraPlanClientes->count();
             $cPlanIds = $carteraPlanClientes->pluck('cliente_id')->map(fn ($id) => (int) $id)->unique()->toArray();
+            $cPlanIdsFlip = array_flip($cPlanIds);
+
+            // Mapeo normalizado para clientes de esta ruta en pan_ruteo
+            $clienteNormToId = [];
+            foreach ($carteraRuta as $cRow) {
+                $cn = $this->normalizarTexto((string) ($cRow->cliente_norm ?: $cRow->cliente));
+                if ($cn !== '') {
+                    $clienteNormToId[$cn] = (int) $cRow->cliente_id;
+                }
+            }
 
             // Clientes visitados únicos entre web y móvil
             $visitadosIds = [];
             $visitasDetallePorCliente = [];
 
             foreach ($visitasWebRuta as $vw) {
-                $cId = (int) ($vw->cliente_id ?? 0);
-                if ($cId > 0) {
-                    $visitadosIds[$cId] = true;
-                    if (!isset($visitasDetallePorCliente[$cId])) {
-                        $visitasDetallePorCliente[$cId] = [
-                            'cliente_id' => $cId,
-                            'check_in' => $vw->check_in,
-                            'check_out' => $vw->check_out ?? null,
-                            'tiempo_pdv' => $vw->tiempo_pdv ?? null,
-                            'origen' => 'WEB',
-                            'fotos_count' => 0,
-                        ];
-                    }
+                $cn = $this->normalizarTexto((string) ($vw->cliente_norm ?: $vw->cliente));
+                $cId = $clienteNormToId[$cn] ?? null;
+                $key = $cId ? (int) $cId : 'web_' . ($vw->id ?? md5($cn));
+
+                $visitadosIds[$key] = true;
+                if (!isset($visitasDetallePorCliente[$key])) {
+                    $visitasDetallePorCliente[$key] = [
+                        'cliente_id' => $cId,
+                        'cliente_nombre' => $vw->cliente ?? "Cliente {$key}",
+                        'check_in' => $vw->check_in,
+                        'check_out' => $vw->check_out ?? null,
+                        'tiempo_pdv' => $vw->tiempo_pdv ?? null,
+                        'origen' => 'WEB',
+                        'fotos_count' => 0,
+                    ];
                 }
             }
 
@@ -443,6 +466,7 @@ class GetCumplimientoDataAction
                     if (!isset($visitasDetallePorCliente[$cId])) {
                         $visitasDetallePorCliente[$cId] = [
                             'cliente_id' => $cId,
+                            'cliente_nombre' => null,
                             'check_in' => $vm->visited_at,
                             'check_out' => null,
                             'tiempo_pdv' => null,
@@ -458,16 +482,29 @@ class GetCumplimientoDataAction
             }
 
             $visitadosTotalCount = count($visitadosIds);
-            $vActivosCount = count(array_intersect(array_keys($visitadosIds), $cPlanIds));
+            $vActivosCount = 0;
+            foreach (array_keys($visitadosIds) as $k) {
+                if (is_int($k) && isset($cPlanIdsFlip[$k])) {
+                    $vActivosCount++;
+                }
+            }
 
-            // Inactivos visitados (clientes en pan_ruteo con estado != 'Activo' pero visitados hoy)
-            $inactivosVisitadosCount = $carteraRuta->where('estado', '!=', 'Activo')
-                ->whereIn('cliente_id', array_keys($visitadosIds))
-                ->count();
+            $carteraTotalIds = $carteraRuta->pluck('cliente_id')->map(fn ($id) => (int) $id)->unique()->toArray();
+            $carteraTotalIdsFlip = array_flip($carteraTotalIds);
+            $inactivosVisitadosCount = 0;
+            $fueraDePlanCount = 0;
 
-            // Fuera de plan (visitados hoy que no pertenecían a la cartera del día de esta ruta)
-            $carteraTotalIds = $carteraRuta->pluck('cliente_id')->map(fn ($id) => (int) $id)->toArray();
-            $fueraDePlanCount = count(array_diff(array_keys($visitadosIds), $carteraTotalIds));
+            foreach (array_keys($visitadosIds) as $k) {
+                if (is_int($k)) {
+                    if (!isset($cPlanIdsFlip[$k]) && isset($carteraTotalIdsFlip[$k])) {
+                        $inactivosVisitadosCount++;
+                    } elseif (!isset($carteraTotalIdsFlip[$k])) {
+                        $fueraDePlanCount++;
+                    }
+                } else {
+                    $fueraDePlanCount++;
+                }
+            }
 
             $kpi2Cumple = ($cPlanCount > 0) ? ($vActivosCount >= $cPlanCount) : ($vActivosCount > 0);
             $kpi2Puntos = $kpi2Cumple ? 5 : 0;
@@ -702,7 +739,7 @@ class GetCumplimientoDataAction
             foreach ($carteraRuta as $cRow) {
                 $cId = (int) $cRow->cliente_id;
                 $visInfo = $visitasDetallePorCliente[$cId] ?? null;
-                $esActivo = ($cRow->estado === 'Activo');
+                $esActivo = in_array(strtoupper(trim((string) $cRow->estado)), ['ACTIVO', 'ACTIVA', 'VIGENTE'], true);
                 $fueVisitado = ($visInfo !== null);
 
                 $tipoVisita = 'Pendiente';
@@ -712,7 +749,7 @@ class GetCumplimientoDataAction
 
                 $listaClientesVisitas[] = [
                     'cliente_id' => $cId,
-                    'codigo_cliente' => $cRow->codigo_cliente,
+                    'codigo_cliente' => (string) $cId,
                     'cliente' => $cRow->cliente,
                     'direccion' => $cRow->direccion,
                     'tipo_negocio' => $cRow->tipo_negocio,
@@ -727,12 +764,13 @@ class GetCumplimientoDataAction
             }
 
             // Añadir visitas fuera de plan que no estaban en cartera
-            foreach ($visitasDetallePorCliente as $cId => $vData) {
-                if (!$carteraRuta->contains('cliente_id', $cId)) {
+            foreach ($visitasDetallePorCliente as $kKey => $vData) {
+                $cId = $vData['cliente_id'];
+                if (!$cId || !$carteraRuta->contains('cliente_id', $cId)) {
                     $listaClientesVisitas[] = [
-                        'cliente_id' => $cId,
-                        'codigo_cliente' => (string) $cId,
-                        'cliente' => "Cliente #{$cId} (Fuera de Plan)",
+                        'cliente_id' => $cId ?: $kKey,
+                        'codigo_cliente' => (string) ($cId ?: $kKey),
+                        'cliente' => $vData['cliente_nombre'] ?? "Cliente #{$kKey} (Fuera de Plan)",
                         'direccion' => 'Desconocida',
                         'tipo_negocio' => 'General',
                         'estado_maestro' => 'Fuera de Plan',
@@ -944,6 +982,25 @@ class GetCumplimientoDataAction
         $s = isset($parts[2]) ? (int) $parts[2] : 0;
 
         return ($h * 3600) + ($m * 60) + $s;
+    }
+
+    /**
+     * Normaliza un texto removiendo acentos, espacios excesivos y convirtiendo a minúsculas.
+     */
+    private function normalizarTexto(?string $texto): string
+    {
+        if (empty($texto)) {
+            return '';
+        }
+
+        $s = mb_strtolower(trim($texto), 'UTF-8');
+        $replacements = [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'ü' => 'u', 'ñ' => 'n',
+            'à' => 'a', 'è' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
+        ];
+        $s = strtr($s, $replacements);
+        return preg_replace('/\s+/', ' ', $s) ?? $s;
     }
 }
 
