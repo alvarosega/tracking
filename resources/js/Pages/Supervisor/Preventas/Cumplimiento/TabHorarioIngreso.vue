@@ -236,7 +236,10 @@
                               {{ ev.hora_app || '—' }}
                             </td>
                             <td class="px-2.5 py-1 text-center">
-                              <span class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-semibold bg-black/[0.04] text-[#1D1D1F]">
+                              <span
+                                class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold"
+                                :class="badgeColorTipo(ev.tipo)"
+                              >
                                 {{ ev.tipo || 'Visita' }}
                               </span>
                             </td>
@@ -444,6 +447,23 @@ async function toggleRecorridoAcordeon(r) {
   } finally {
     cargandoDetalle[ruta] = false
   }
+}
+
+function badgeColorTipo(tipo) {
+  const t = String(tipo || '').toLowerCase()
+  if (t.includes('preventa') || t.includes('venta')) {
+    return 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
+  }
+  if (t.includes('no') || t.includes('cerrad') || t.includes('rechaz') || t.includes('sin')) {
+    return 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'
+  }
+  if (t.includes('cobranza')) {
+    return 'bg-blue-50 text-[#0071E3] border border-blue-200'
+  }
+  if (t.includes('oportunidad')) {
+    return 'bg-purple-50 text-purple-700 border border-purple-200'
+  }
+  return 'bg-black/[0.04] text-[#1D1D1F]'
 }
 
 const modalFoto = reactive({

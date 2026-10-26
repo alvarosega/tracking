@@ -13,6 +13,7 @@ class GetDetalleHorarioRutaAction
 {
     /**
      * Obtiene el recorrido cronológico detallado de una ruta comparando paradas en sistema ERP y app móvil.
+     * La columna 'tipo' se extrae directamente de la tabla central fact_visitas (ERP).
      *
      * @param string $ruta
      * @param string|null $fecha
@@ -64,6 +65,7 @@ class GetDetalleHorarioRutaAction
             }
 
             // Ventas y pedidos del día para enriquecer cliente_id y montos
+            $preventasHoyPorCliente = [];
             try {
                 $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
                     ->where('fecha_norm', $fechaNorm)
@@ -73,8 +75,10 @@ class GetDetalleHorarioRutaAction
                     ->get();
 
                 foreach ($preventasHoy as $ph) {
+                    $totMonto = (float) ($ph->total_monto ?: 0.0);
                     if ($ph->cliente_id) {
                         $cid = (int) $ph->cliente_id;
+                        $preventasHoyPorCliente[$cid] = $totMonto;
                         if (!isset($nombrePorClienteId[$cid]) && !empty($ph->cliente)) {
                             $nombrePorClienteId[$cid] = trim((string) $ph->cliente);
                         }
@@ -91,34 +95,52 @@ class GetDetalleHorarioRutaAction
             $paradas = [];
 
             // 1. Marcajes del sistema central (fact_visitas) - ERP / Web
-            $filasSistemaQuery = DB::connection('supervisor')->table('fact_visitas as fv')
-                ->where('fv.fecha_norm', $fechaNorm);
+            // Consultamos las visitas del día en el sistema central para extraer el 'tipo' y check_in
+            $todasFilasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
+                ->where('fv.fecha_norm', $fechaNorm)
+                ->select([
+                    DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
+                    DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
+                    'fv.empleado_norm',
+                    'fv.empleado',
+                    DB::raw("COALESCE(NULLIF(TRIM(fv.tipo), ''), NULLIF(TRIM(fv.motivo), ''), 'Visita') as tipo"),
+                    DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
+                    DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
+                    DB::raw("COALESCE(fv.tiempo_pdv, '00:00:00') as tiempo_pdv"),
+                    DB::raw("CAST(COALESCE(fv.monto, 0.0) AS DECIMAL(12, 2)) as monto"),
+                ])
+                ->orderBy('fv.check_in', 'asc')
+                ->get();
 
-            if ($vendedor !== 'No Asignado') {
-                $filasSistemaQuery->where(function ($q) use ($vendedor) {
-                    $q->where(DB::raw("LOWER(TRIM(fv.empleado_norm))"), mb_strtolower(trim($vendedor)))
-                      ->orWhere(DB::raw("LOWER(TRIM(fv.empleado))"), mb_strtolower(trim($vendedor)));
-                });
-            }
+            $vendedorNorm = $this->normalizarTexto($vendedor);
 
-            $filasSistema = $filasSistemaQuery->select([
-                DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
-                DB::raw("COALESCE(fv.tipo, 'Visita') as tipo"),
-                DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
-                DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
-                DB::raw("COALESCE(fv.tiempo_pdv, '00:00:00') as tiempo_pdv"),
-                DB::raw("CAST(COALESCE(fv.monto, 0.0) AS DECIMAL(12, 2)) as monto"),
-            ])
-            ->orderBy('fv.check_in', 'asc')
-            ->get();
+            // Filtramos las visitas que pertenecen a la ruta (por vendedor O por cliente de cartera)
+            $filasSistemaRuta = $todasFilasSistema->filter(function ($fs) use ($vendedorNorm, $clienteNormToId) {
+                // Coincidencia de vendedor normalizado
+                if ($vendedorNorm !== 'no asignado') {
+                    $empNorm1 = $this->normalizarTexto((string) $fs->empleado_norm);
+                    $empNorm2 = $this->normalizarTexto((string) $fs->empleado);
+                    if ($empNorm1 === $vendedorNorm || $empNorm2 === $vendedorNorm) {
+                        return true;
+                    }
+                }
 
-            foreach ($filasSistema as $fs) {
+                // Coincidencia de cliente asignado a la ruta
+                $cn = $this->normalizarTexto((string) ($fs->cliente_norm ?: $fs->cliente));
+                if ($cn !== '' && isset($clienteNormToId[$cn])) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            foreach ($filasSistemaRuta as $fs) {
                 $hIn = trim((string) $fs->check_in);
                 if (strlen($hIn) === 5) {
                     $hIn .= ':00';
                 }
 
-                $normNombre = $this->normalizarTexto((string) $fs->cliente);
+                $normNombre = $this->normalizarTexto((string) ($fs->cliente_norm ?: $fs->cliente));
                 $cId = $clienteNormToId[$normNombre] ?? null;
                 $key = $cId ? "id_{$cId}" : "norm_{$normNombre}";
 
@@ -127,6 +149,17 @@ class GetDetalleHorarioRutaAction
                     : trim((string) $fs->cliente);
 
                 $montoFs = (float) ($fs->monto ?: 0.0);
+                if ($cId && isset($preventasHoyPorCliente[$cId]) && $preventasHoyPorCliente[$cId] > $montoFs) {
+                    $montoFs = $preventasHoyPorCliente[$cId];
+                }
+
+                // Tipo extraído directamente de la tabla fact_visitas
+                $tipoFact = trim((string) $fs->tipo);
+                if ($montoFs > 0 || mb_strtolower($tipoFact) === 'preventa') {
+                    $tipoFinal = 'PreVenta';
+                } else {
+                    $tipoFinal = $tipoFact ?: 'Visita';
+                }
 
                 if (!isset($paradas[$key])) {
                     $paradas[$key] = [
@@ -135,7 +168,7 @@ class GetDetalleHorarioRutaAction
                         'hora_web' => $hIn,
                         'hora_app' => null,
                         'hora_orden' => $hIn,
-                        'tipo' => trim((string) $fs->tipo) ?: 'Visita',
+                        'tipo' => $tipoFinal,
                         'monto' => $montoFs,
                         'check_out_web' => trim((string) $fs->check_out) ?: null,
                         'tiempo_pdv_web' => trim((string) $fs->tiempo_pdv) ?: null,
@@ -144,12 +177,14 @@ class GetDetalleHorarioRutaAction
                         'tiene_fotos_historicas' => false,
                     ];
                 } else {
-                    // Si ya existe la parada en web, actualizar con la marcación más temprana y sumar montos
                     if (strcmp($hIn, (string) $paradas[$key]['hora_web']) < 0) {
                         $paradas[$key]['hora_web'] = $hIn;
                         $paradas[$key]['hora_orden'] = $hIn;
                     }
                     $paradas[$key]['monto'] += $montoFs;
+                    if ($tipoFinal === 'PreVenta') {
+                        $paradas[$key]['tipo'] = 'PreVenta';
+                    }
                 }
             }
 
@@ -190,7 +225,8 @@ class GetDetalleHorarioRutaAction
                 }
 
                 if (isset($paradas[$key])) {
-                    // Parada ya existente (registrada en sistema ERP) -> sincronizamos hora app y fotos
+                    // Parada ya existente (registrada en fact_visitas): sincronizamos hora app y fotos
+                    // NOTA: Mantenemos el 'tipo' extraído de fact_visitas
                     if ($paradas[$key]['hora_app'] === null || strcmp($horaM, (string) $paradas[$key]['hora_app']) < 0) {
                         $paradas[$key]['hora_app'] = $horaM;
                     }
@@ -205,7 +241,23 @@ class GetDetalleHorarioRutaAction
                         $paradas[$key]['client_id'] = $cid;
                     }
                 } else {
-                    // Parada registrada únicamente en la app móvil
+                    // Parada registrada en la app móvil que no coincidió en la primera pasada
+                    // Buscamos si el cliente tiene registro en fact_visitas
+                    $normCli = ($cid && isset($nombrePorClienteId[$cid]))
+                        ? $this->normalizarTexto($nombrePorClienteId[$cid])
+                        : $this->normalizarTexto((string) $fm->opportunity_client_name);
+
+                    $coincidenciaFact = $todasFilasSistema->first(function ($fs) use ($normCli, $cid, $clienteNormToId) {
+                        $cn = $this->normalizarTexto((string) ($fs->cliente_norm ?: $fs->cliente));
+                        if ($normCli !== '' && $cn === $normCli) {
+                            return true;
+                        }
+                        if ($cid && isset($clienteNormToId[$cn]) && $clienteNormToId[$cn] === $cid) {
+                            return true;
+                        }
+                        return false;
+                    });
+
                     $nombreCliente = ($cid && isset($nombrePorClienteId[$cid]))
                         ? $nombrePorClienteId[$cid]
                         : null;
@@ -215,21 +267,34 @@ class GetDetalleHorarioRutaAction
                             ?: ($cid ? "CLIENTE #{$cid}" : 'CLIENTE APP S/N');
                     }
 
-                    $tipoVisita = $fm->is_opportunity ? 'Oportunidad' : 'Visita App';
-                    if ($fm->comments) {
-                        $tipoVisita .= " ({$fm->comments})";
+                    // Extraer tipo desde fact_visitas si existe
+                    if ($coincidenciaFact) {
+                        $tipoFinal = trim((string) $coincidenciaFact->tipo) ?: 'Visita';
+                        $hWeb = trim((string) $coincidenciaFact->check_in);
+                        if (strlen($hWeb) === 5) {
+                            $hWeb .= ':00';
+                        }
+                        $montoReal = (float) ($coincidenciaFact->monto ?: 0.0);
+                        $checkOutWeb = trim((string) $coincidenciaFact->check_out) ?: null;
+                        $tiempoPdvWeb = trim((string) $coincidenciaFact->tiempo_pdv) ?: null;
+                    } else {
+                        $tipoFinal = $fm->is_opportunity ? 'Oportunidad' : 'Visita';
+                        $hWeb = null;
+                        $montoReal = 0.0;
+                        $checkOutWeb = null;
+                        $tiempoPdvWeb = null;
                     }
 
                     $paradas[$key] = [
                         'cliente' => $nombreCliente,
                         'client_id' => $cid,
-                        'hora_web' => null,
+                        'hora_web' => $hWeb,
                         'hora_app' => $horaM,
-                        'hora_orden' => $horaM,
-                        'tipo' => $tipoVisita,
-                        'monto' => 0.0,
-                        'check_out_web' => null,
-                        'tiempo_pdv_web' => null,
+                        'hora_orden' => ($hWeb && strcmp($hWeb, $horaM) < 0) ? $hWeb : $horaM,
+                        'tipo' => $tipoFinal,
+                        'monto' => $montoReal,
+                        'check_out_web' => $checkOutWeb,
+                        'tiempo_pdv_web' => $tiempoPdvWeb,
                         'foto_url' => $fotoUrl,
                         'fotos_count' => $fotoUrl ? 1 : 0,
                         'tiene_fotos_historicas' => false,
