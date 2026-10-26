@@ -67,6 +67,7 @@ class GetAltasEdicionesDataAction
                 'sb.cliente',
                 'sb.tipo_negocio',
                 'sb.zona',
+                DB::raw("sb.zona as zona_comercial"),
                 'sb.lista_precios',
                 'sb.contacto',
                 'sb.telefono',

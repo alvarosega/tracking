@@ -94,6 +94,18 @@ class StoreSaneamientoRequest extends FormRequest
             $merge['longitude'] = (float) $lng;
         }
 
+        // 7. Normalizar zona comercial: soportar zona, zona_comercial, zonaComercial, zona_venta, territorio
+        $rawZona = $this->input('zona')
+            ?? $this->input('zona_comercial')
+            ?? $this->input('zonaComercial')
+            ?? $this->input('zona_venta')
+            ?? $this->input('territorio');
+        if ($rawZona !== null && $rawZona !== '' && $rawZona !== 'null') {
+            $cleanZona = trim((string) $rawZona);
+            $merge['zona'] = $cleanZona;
+            $merge['zona_comercial'] = $cleanZona;
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }
@@ -122,6 +134,7 @@ class StoreSaneamientoRequest extends FormRequest
             ],
 
             'zona' => ['required', 'string', 'max:100'],
+            'zona_comercial' => ['nullable', 'string', 'max:100'],
 
             'contacto' => ['nullable', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:50'],

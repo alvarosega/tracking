@@ -38,6 +38,8 @@ class SaneamientoController extends Controller
             'message' => 'Registro de saneamiento procesado correctamente.',
             'id' => $result['id'],
             'tipo_registro' => $result['tipo_registro'],
+            'zona' => $result['zona'],
+            'zona_comercial' => $result['zona_comercial'],
             'photo_url' => $result['photo_url'],
         ], 201);
     }
