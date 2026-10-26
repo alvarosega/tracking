@@ -4,8 +4,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import { Ziggy } from './ziggy';
 
+const activeZiggy = typeof window !== 'undefined' && window.Ziggy ? window.Ziggy : Ziggy;
+
 if (typeof window !== 'undefined') {
-    Ziggy.url = window.location.origin;
+    activeZiggy.url = window.location.origin;
 }
 
 createInertiaApp({
@@ -13,7 +15,7 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(ZiggyVue, Ziggy)
+            .use(ZiggyVue, activeZiggy)
             .mount(el);
     },
 });

@@ -16,6 +16,11 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     @routes
+    <script>
+        if (typeof Ziggy !== 'undefined') {
+            window.Ziggy = Ziggy;
+        }
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 </head>
