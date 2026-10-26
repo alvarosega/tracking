@@ -1,57 +1,97 @@
 <template>
   <div
-    class="bg-transparent font-sans text-ink flex flex-col md:flex-row antialiased selection:bg-app-accent selection:text-white"
-    :class="fullBleed ? 'h-[100dvh] md:h-screen overflow-hidden' : 'min-h-screen'"
+    class="bg-transparent font-sans text-ink flex flex-col md:flex-row antialiased selection:bg-[#0071E3] selection:text-white"
+    :class="fullBleed ? 'h-[100dvh] md:h-screen overflow-hidden' : 'min-h-[100dvh]'"
   >
-    <!-- Header Mobile (Sticky) -->
-    <header class="md:hidden apple-glass-topbar h-12 px-3 flex items-center justify-between sticky top-0 z-40 safe-top shrink-0">
-      <div class="flex items-center space-x-2 min-w-0">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- 1. Header Mobile / Tablet (Sticky Topbar)                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <header class="md:hidden apple-glass-topbar h-13 px-3.5 flex items-center justify-between sticky top-0 z-40 safe-top shrink-0 select-none">
+      <div class="flex items-center space-x-2.5 min-w-0">
+        <!-- Botón Hamburguesa Apple Glass -->
         <button
           type="button"
           @click="isMobileMenuOpen = true"
-          class="w-8 h-8 flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-95 rounded-lg hover:bg-slate-100 transition-all cursor-pointer shrink-0"
-          aria-label="Abrir menú"
+          class="w-9 h-9 flex items-center justify-center text-[#1D1D1F] active:scale-95 rounded-[10px] apple-control-pill transition-all cursor-pointer shrink-0 shadow-xs"
+          aria-label="Abrir menú de navegación"
         >
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="w-5 h-5 text-[#1D1D1F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         </button>
+
+        <!-- Identidad de Marca y Módulo Activo -->
         <div class="flex items-center space-x-1.5 truncate">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-          <span class="text-xs font-bold tracking-wider text-slate-900 font-mono shrink-0">{{ navigationConfig.appName }}</span>
-          <span v-if="currentModule" class="text-[10px] font-mono text-slate-400 shrink-0">/</span>
-          <span v-if="currentModule" class="text-xs font-semibold text-sky-700 truncate font-mono">
+          <div class="w-6 h-6 rounded-[7px] bg-[#0071E3] text-white flex items-center justify-center font-mono text-[10px] font-black shadow-xs shrink-0">
+            SV
+          </div>
+          <span class="text-xs font-bold tracking-tight text-[#1D1D1F] font-mono shrink-0">
+            {{ navigationConfig.appName }}
+          </span>
+          <span v-if="currentModule" class="text-[10px] font-mono text-[#86868B] shrink-0">/</span>
+          <span v-if="currentModule" class="text-xs font-semibold text-[#0071E3] truncate font-mono">
             {{ currentModule.shortName || currentModule.name }}
           </span>
         </div>
       </div>
-      <div class="flex items-center space-x-1.5 shrink-0">
-        <span class="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-          {{ $page.props.auth?.user?.username || 'Supervisor' }}
-        </span>
+
+      <!-- Estado y Operador -->
+      <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] apple-control-pill text-[11px] font-mono text-[#1D1D1F]">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <span class="font-semibold truncate max-w-[100px]">
+            {{ $page.props.auth?.user?.username || 'Supervisor' }}
+          </span>
+        </div>
       </div>
     </header>
 
-    <!-- Backdrop Mobile Drawer -->
-    <div
-      v-if="isMobileMenuOpen"
-      @click="isMobileMenuOpen = false"
-      class="fixed inset-0 bg-slate-900/50 z-50 md:hidden backdrop-blur-xs transition-opacity duration-200"
-    ></div>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- 2. Backdrop Drawer Móvil                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <transition
+      enter-active-class="transition-opacity duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isMobileMenuOpen"
+        @click="isMobileMenuOpen = false"
+        class="fixed inset-0 bg-slate-900/40 z-50 md:hidden backdrop-blur-xs"
+        aria-hidden="true"
+      ></div>
+    </transition>
 
-    <!-- Sidebar Principal / Drawer Móvil -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- 3. Sidebar Principal (Desktop y Drawer Móvil)                   -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <aside
-      class="fixed md:sticky top-0 left-0 bottom-0 z-50 w-72 md:w-64 apple-glass-sidebar flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 h-screen shadow-xl md:shadow-none"
-      :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
+      class="fixed md:sticky top-0 left-0 bottom-0 z-50 apple-glass-sidebar flex flex-col justify-between transition-all duration-200 ease-in-out h-screen shadow-2xl md:shadow-none"
+      :class="[
+        // Drawer móvil
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        // Ancho responsivo
+        isSidebarCollapsed ? 'w-72 md:w-[72px]' : 'w-72 md:w-64'
+      ]"
     >
       <div class="flex flex-col flex-1 min-h-0 safe-top">
-        <!-- Logo / Header de Marca -->
-        <div class="h-14 px-4 border-b border-white/60 flex items-center justify-between shrink-0 bg-white/40">
-          <div class="flex items-center space-x-2.5">
-            <div class="w-7 h-7 rounded-lg bg-[#0071E3] text-white flex items-center justify-center font-mono text-xs font-bold shadow-xs">
+        <!-- Logo / Header de Marca del Sidebar -->
+        <div
+          class="h-14 border-b border-white/60 flex items-center justify-between shrink-0 bg-white/40"
+          :class="isSidebarCollapsed ? 'px-3.5 md:px-2 md:justify-center' : 'px-3.5'"
+        >
+          <!-- Título y Badge (visible en móvil y desktop expandido) -->
+          <div
+            class="flex items-center space-x-2.5 truncate"
+            :class="isSidebarCollapsed ? 'md:hidden' : 'flex'"
+          >
+            <div class="w-7 h-7 rounded-lg bg-[#0071E3] text-white flex items-center justify-center font-mono text-xs font-bold shadow-xs shrink-0">
               SV
             </div>
-            <div>
+            <div class="truncate">
               <div class="flex items-center space-x-1.5">
                 <span class="text-xs font-bold tracking-tight text-ink font-mono">{{ navigationConfig.appName }}</span>
                 <span class="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200">
@@ -62,10 +102,36 @@
             </div>
           </div>
 
+          <!-- Si está colapsado en desktop: icono centrado que expande al click -->
+          <div v-if="isSidebarCollapsed" class="hidden md:flex items-center justify-center">
+            <button
+              type="button"
+              @click="toggleSidebarCollapse"
+              class="w-8 h-8 rounded-lg bg-[#0071E3] text-white flex items-center justify-center font-mono text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Expandir barra lateral"
+            >
+              SV
+            </button>
+          </div>
+
+          <!-- Botón de colapsar / expandir en desktop (cuando está expandido) -->
+          <button
+            v-if="!isSidebarCollapsed"
+            type="button"
+            @click="toggleSidebarCollapse"
+            class="hidden md:flex items-center justify-center w-7 h-7 rounded-[8px] apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F] active:scale-95 transition-all cursor-pointer shrink-0"
+            title="Colapsar barra lateral"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Botón de cerrar en móvil (Drawer) -->
           <button
             type="button"
             @click="isMobileMenuOpen = false"
-            class="md:hidden text-slate-400 hover:text-slate-700 p-1.5 rounded-lg active:scale-95 cursor-pointer"
+            class="md:hidden text-[#6E6E73] hover:text-[#1D1D1F] p-1.5 rounded-lg active:scale-95 cursor-pointer apple-control-pill"
             aria-label="Cerrar menú"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -74,85 +140,149 @@
           </button>
         </div>
 
-        <!-- Lista de Navegación Dinámica basada en Config -->
-        <nav class="p-3 space-y-1 overflow-y-auto flex-1 scroll-touch custom-scroll">
-          <Link
-            v-for="item in navigationConfig.mainMenu"
-            :key="item.id"
-            :href="getRouteHref(item)"
-            class="group flex items-center justify-between px-3 py-2.5 md:py-2 text-xs font-medium rounded-lg transition-all active:scale-[0.99]"
-            :class="isItemActive(item)
-              ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)] font-semibold'
-              : 'text-ink-secondary hover:text-ink hover:bg-white/60'"
-            @click="isMobileMenuOpen = false"
-          >
-            <div class="flex items-center space-x-2.5 truncate">
-              <!-- Iconos SVG minimalistas -->
-              <svg
-                class="w-4 h-4 shrink-0 transition-colors"
-                :class="isItemActive(item) ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.8"
+        <!-- Lista de Navegación del Sidebar -->
+        <nav class="p-2 md:p-2.5 space-y-1 overflow-y-auto flex-1 scroll-touch custom-scroll">
+          <template v-for="item in navigationConfig.mainMenu" :key="item.id">
+            <div>
+              <div
+                class="group flex items-center justify-between text-xs font-medium rounded-lg transition-all"
+                :class="[
+                  isSidebarCollapsed ? 'px-3 py-2 md:px-0 md:py-2.5 md:justify-center' : 'px-3 py-2',
+                  isItemActive(item)
+                    ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)] font-semibold'
+                    : 'text-ink-secondary hover:text-ink hover:bg-white/60'
+                ]"
               >
-                <!-- Inicio -->
-                <path v-if="item.id === 'inicio'" stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                <!-- Ruteo -->
-                <path v-else-if="item.id === 'ruteo'" stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
-                <!-- Avance -->
-                <path v-else-if="item.id === 'avance'" stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                <!-- Preventas -->
-                <path v-else-if="item.id === 'preventas'" stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                <!-- Cumplimiento Unilever / Matrices -->
-                <path v-else-if="item.id === 'cumplimiento'" stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                <!-- Tracking -->
-                <path v-else-if="item.id === 'tracking'" stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                <!-- Visitas -->
-                <path v-else-if="item.id === 'visitas'" stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                <!-- Altas/Ediciones -->
-                <path v-else-if="item.id === 'altas-ediciones'" stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.765z" />
-                <!-- Jornadas -->
-                <path v-else-if="item.id === 'jornadas'" stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <!-- Horarios -->
-                <path v-else-if="item.id === 'horarios'" stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                <!-- Módulos & Ajustes -->
-                <path v-else-if="item.id === 'modulos'" stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                <!-- Default -->
-                <path v-else stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-              <span class="truncate">{{ item.name }}</span>
-            </div>
+                <!-- Enlace Principal -->
+                <Link
+                  :href="getRouteHref(item)"
+                  class="flex items-center space-x-2.5 flex-1 min-w-0"
+                  :class="isSidebarCollapsed ? 'md:justify-center md:space-x-0' : ''"
+                  @click="isMobileMenuOpen = false"
+                  :title="item.name"
+                >
+                  <!-- Iconos SVG minimalistas -->
+                  <svg
+                    class="w-4 h-4 shrink-0 transition-colors"
+                    :class="isItemActive(item) ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  >
+                    <!-- Inicio -->
+                    <path v-if="item.id === 'inicio'" stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                    <!-- Ruteo -->
+                    <path v-else-if="item.id === 'ruteo'" stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+                    <!-- Avance -->
+                    <path v-else-if="item.id === 'avance'" stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                    <!-- Preventas -->
+                    <path v-else-if="item.id === 'preventas'" stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                    <!-- Tracking -->
+                    <path v-else-if="item.id === 'tracking'" stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    <!-- Visitas -->
+                    <path v-else-if="item.id === 'visitas'" stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                    <!-- Altas/Ediciones -->
+                    <path v-else-if="item.id === 'altas-ediciones'" stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.765z" />
+                    <!-- Jornadas -->
+                    <path v-else-if="item.id === 'jornadas'" stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <!-- Horarios -->
+                    <path v-else-if="item.id === 'horarios'" stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    <!-- Módulos & Ajustes -->
+                    <path v-else-if="item.id === 'modulos'" stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                    <!-- Fallback -->
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
 
-            <!-- Badge si aplica -->
-            <span
-              v-if="item.badge"
-              class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded"
-              :class="isItemActive(item) ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'"
-            >
-              {{ item.badge }}
-            </span>
-          </Link>
+                  <!-- Texto del Item (oculto solo cuando desktop está colapsado) -->
+                  <span
+                    class="truncate"
+                    :class="isSidebarCollapsed ? 'md:hidden' : 'inline'"
+                  >
+                    {{ item.name }}
+                  </span>
+                </Link>
+
+                <!-- Badge y Chevron de Submódulos (ocultos en desktop colapsado) -->
+                <div
+                  class="flex items-center space-x-1 shrink-0 ml-1"
+                  :class="isSidebarCollapsed ? 'md:hidden' : 'flex'"
+                >
+                  <span
+                    v-if="item.badge"
+                    class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded"
+                    :class="isItemActive(item) ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'"
+                  >
+                    {{ item.badge }}
+                  </span>
+
+                  <!-- Botón Desplegable para Submódulos -->
+                  <button
+                    v-if="item.submodules && item.submodules.length > 0"
+                    type="button"
+                    @click.stop="toggleSubmenu(item.id)"
+                    class="p-0.5 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer"
+                    :class="isSubmenuExpanded(item.id) ? 'rotate-180' : ''"
+                    aria-label="Alternar submódulos"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Lista de Submódulos Desplegables (lateral/drawer) -->
+              <div
+                v-if="item.submodules && item.submodules.length > 0 && isSubmenuExpanded(item.id)"
+                class="pl-6 pr-1 py-1 space-y-0.5 border-l-2 border-black/[0.08] ml-4 mt-0.5"
+                :class="isSidebarCollapsed ? 'md:hidden' : 'block'"
+              >
+                <Link
+                  v-for="sub in item.submodules"
+                  :key="sub.id || sub.route"
+                  :href="resolveSubRoute(sub)"
+                  class="flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-[7px] transition-colors"
+                  :class="isSubActive(sub)
+                    ? 'bg-[#0071E3]/10 text-[#0071E3] font-bold'
+                    : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/50 font-medium'"
+                  @click="isMobileMenuOpen = false"
+                >
+                  <span class="truncate">{{ sub.name }}</span>
+                  <span v-if="isSubActive(sub)" class="w-1.5 h-1.5 rounded-full bg-[#0071E3] shrink-0"></span>
+                </Link>
+              </div>
+            </div>
+          </template>
         </nav>
       </div>
 
       <!-- Footer de Sesión Minimalista -->
-      <div class="p-3 border-t border-white/60 bg-white/30 shrink-0 safe-bottom">
-        <div class="apple-control-pill rounded-card p-2.5 flex items-center justify-between">
-          <div class="overflow-hidden pr-2">
+      <div class="p-2.5 md:p-3 border-t border-white/60 bg-white/30 shrink-0 safe-bottom">
+        <div
+          class="apple-control-pill rounded-card p-2 flex items-center justify-between"
+          :class="isSidebarCollapsed ? 'md:p-1.5 md:justify-center' : 'p-2'"
+        >
+          <!-- Datos de usuario (ocultos en desktop colapsado) -->
+          <div
+            class="overflow-hidden pr-2"
+            :class="isSidebarCollapsed ? 'md:hidden' : 'block'"
+          >
             <div class="flex items-center space-x-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
               <p class="text-xs font-semibold text-ink truncate font-mono">
                 {{ $page.props.auth?.user?.username || 'Supervisor' }}
               </p>
             </div>
             <p class="text-[10px] text-ink-tertiary font-mono mt-0.5">Operador Activo</p>
           </div>
+
+          <!-- Botón de Cerrar Sesión -->
           <Link
             href="/logout"
             method="post"
             as="button"
-            class="p-2 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer active:scale-95"
+            class="p-2 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer active:scale-95 shrink-0"
             title="Cerrar Sesión"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -163,94 +293,25 @@
       </div>
     </aside>
 
-    <!-- Contenedor Principal -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- 4. Contenedor Principal (Main)                                 -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <main
       class="flex-1 min-w-0 flex flex-col"
-      :class="fullBleed ? 'min-h-0 overflow-hidden pb-14 md:pb-0' : 'overflow-x-hidden pb-20 md:pb-0'"
+      :class="fullBleed ? 'min-h-0 overflow-hidden' : 'overflow-x-hidden pb-6 sm:pb-8'"
     >
       <div v-if="fullBleed" class="flex-1 w-full flex flex-col min-h-0 overflow-hidden">
         <slot />
       </div>
-      <div v-else class="flex-1 p-3.5 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto">
+      <div v-else class="flex-1 p-2.5 sm:p-4 lg:p-6 max-w-[1750px] w-full mx-auto">
         <slot />
       </div>
     </main>
-
-    <!-- Barra de Navegación Inferior Móvil (Bottom Navigation Bar) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 safe-bottom">
-      <div class="grid grid-cols-5 h-14">
-        <!-- 1. Inicio -->
-        <Link
-          :href="route('supervisor.index')"
-          class="flex flex-col items-center justify-center py-1 px-1 text-[10px] font-medium transition-all active:scale-95 select-none relative"
-          :class="isPageActive('supervisor.index', 'Supervisor/Index') ? 'text-sky-600 font-semibold' : 'text-slate-500 hover:text-slate-800'"
-        >
-          <span v-if="isPageActive('supervisor.index', 'Supervisor/Index')" class="absolute top-0 w-8 h-0.5 rounded-full bg-sky-600"></span>
-          <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-          <span class="truncate">Inicio</span>
-        </Link>
-
-        <!-- 2. Ruteo -->
-        <Link
-          :href="route('supervisor.ruteo.index')"
-          class="flex flex-col items-center justify-center py-1 px-1 text-[10px] font-medium transition-all active:scale-95 select-none relative"
-          :class="isPageActive('supervisor.ruteo.index', 'Supervisor/Ruteo') ? 'text-sky-600 font-semibold' : 'text-slate-500 hover:text-slate-800'"
-        >
-          <span v-if="isPageActive('supervisor.ruteo.index', 'Supervisor/Ruteo')" class="absolute top-0 w-8 h-0.5 rounded-full bg-sky-600"></span>
-          <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
-          </svg>
-          <span class="truncate">Ruteo</span>
-        </Link>
-
-        <!-- 3. Tracking -->
-        <Link
-          :href="route('supervisor.tracking.index')"
-          class="flex flex-col items-center justify-center py-1 px-1 text-[10px] font-medium transition-all active:scale-95 select-none relative"
-          :class="isPageActive('supervisor.tracking.index', 'Supervisor/Tracking') ? 'text-sky-600 font-semibold' : 'text-slate-500 hover:text-slate-800'"
-        >
-          <span v-if="isPageActive('supervisor.tracking.index', 'Supervisor/Tracking')" class="absolute top-0 w-8 h-0.5 rounded-full bg-sky-600"></span>
-          <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-          </svg>
-          <span class="truncate">Tracking</span>
-        </Link>
-
-        <!-- 4. Altas -->
-        <Link
-          :href="route('supervisor.altas-ediciones.index')"
-          class="flex flex-col items-center justify-center py-1 px-1 text-[10px] font-medium transition-all active:scale-95 select-none relative"
-          :class="isPageActive('supervisor.altas-ediciones.index', 'Supervisor/AltasEdiciones') ? 'text-sky-600 font-semibold' : 'text-slate-500 hover:text-slate-800'"
-        >
-          <span v-if="isPageActive('supervisor.altas-ediciones.index', 'Supervisor/AltasEdiciones')" class="absolute top-0 w-8 h-0.5 rounded-full bg-sky-600"></span>
-          <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.765z" />
-          </svg>
-          <span class="truncate">Altas</span>
-        </Link>
-
-        <!-- 5. Menú Más -->
-        <button
-          type="button"
-          @click="isMobileMenuOpen = true"
-          class="flex flex-col items-center justify-center py-1 px-1 text-[10px] font-medium transition-all active:scale-95 select-none relative cursor-pointer"
-          :class="isMasActive ? 'text-sky-600 font-semibold' : 'text-slate-500 hover:text-slate-800'"
-        >
-          <span v-if="isMasActive" class="absolute top-0 w-8 h-0.5 rounded-full bg-sky-600"></span>
-          <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-          <span class="truncate">Más</span>
-        </button>
-      </div>
-    </nav>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { navigationConfig } from '@/Config/navigation';
 
@@ -263,12 +324,79 @@ defineProps({
 
 const page = usePage();
 const isMobileMenuOpen = ref(false);
+const isSidebarCollapsed = ref(false);
+const expandedSubmenus = reactive({});
+
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem('supervisor_sidebar_collapsed');
+    if (saved !== null) {
+      isSidebarCollapsed.value = saved === 'true';
+    }
+  } catch {
+    // localStorage no disponible en contexto restringido
+  }
+
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
+
+function handleKeyDown(e) {
+  if (e.key === 'Escape' && isMobileMenuOpen.value) {
+    isMobileMenuOpen.value = false;
+  }
+}
+
+function toggleSidebarCollapse() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+  try {
+    localStorage.setItem('supervisor_sidebar_collapsed', String(isSidebarCollapsed.value));
+  } catch {
+    // ignore
+  }
+}
+
+// Auto-expandir el submódulo del módulo actualmente activo
+watch(
+  () => page.component,
+  () => {
+    navigationConfig.mainMenu.forEach(item => {
+      if (item.submodules && item.submodules.length > 0) {
+        if (isItemActive(item)) {
+          expandedSubmenus[item.id] = true;
+        }
+      }
+    });
+  },
+  { immediate: true }
+);
+
+function toggleSubmenu(itemId) {
+  expandedSubmenus[itemId] = !expandedSubmenus[itemId];
+}
+
+function isSubmenuExpanded(itemId) {
+  return Boolean(expandedSubmenus[itemId]);
+}
 
 const getRouteHref = (item) => {
   try {
     return route(item.route);
   } catch {
     return item.route.startsWith('/') ? item.route : `/${item.route.replace('.', '/')}`;
+  }
+};
+
+const resolveSubRoute = (sub) => {
+  if (sub.href) return sub.href;
+  if (!sub.route) return '#';
+  try {
+    return route(sub.route);
+  } catch {
+    return sub.route.startsWith('/') ? sub.route : `/${sub.route.replace('.', '/')}`;
   }
 };
 
@@ -283,24 +411,19 @@ const isItemActive = (item) => {
   }
 };
 
-const isPageActive = (routeName, prefix) => {
-  if (prefix && page.component.startsWith(prefix)) {
-    return true;
+const isSubActive = (sub) => {
+  if (sub.component) {
+    return page.component === sub.component;
   }
-  try {
-    return route().current(routeName);
-  } catch {
-    return false;
+  if (sub.route) {
+    try {
+      return route().current(sub.route);
+    } catch {
+      return false;
+    }
   }
+  return false;
 };
-
-const isMasActive = computed(() => {
-  return page.component.startsWith('Supervisor/Visitas') ||
-         page.component.startsWith('Supervisor/Preventas') ||
-         page.component.startsWith('Supervisor/Jornadas') ||
-         page.component.startsWith('Supervisor/Horarios') ||
-         page.component.startsWith('Supervisor/Modulos');
-});
 
 const currentModule = computed(() => {
   return navigationConfig.mainMenu.find(item => isItemActive(item));
