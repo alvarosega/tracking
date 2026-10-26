@@ -223,6 +223,61 @@ export const navigationConfig = {
       description: 'Control de clientes creados o editados en ruta'
     },
     {
+      id: 'saneamiento',
+      name: 'Saneamiento Padrón',
+      shortName: 'Saneamiento',
+      route: 'supervisor.saneamiento.intrusos',
+      componentPrefix: 'Supervisor/Saneamiento',
+      icon: 'ShieldCheckIcon',
+      badge: 'GIS',
+      badgeColor: 'blue',
+      description: 'Auditoría territorial, detección de intrusos, duplicados y calidad',
+      submodules: [
+        {
+          id: 'intrusos',
+          name: 'Fronteras e Intrusos',
+          route: 'supervisor.saneamiento.intrusos',
+          component: 'Supervisor/Saneamiento/Intrusos',
+          icon: 'MapPinIcon'
+        },
+        {
+          id: 'duplicados',
+          name: 'Clientes Duplicados',
+          route: 'supervisor.saneamiento.duplicados',
+          component: 'Supervisor/Saneamiento/Duplicados',
+          icon: 'UsersIcon'
+        },
+        {
+          id: 'dias',
+          name: 'Días Desalineados',
+          route: 'supervisor.saneamiento.dias',
+          component: 'Supervisor/Saneamiento/Dias',
+          icon: 'CalendarIcon'
+        },
+        {
+          id: 'calidad',
+          name: 'Calidad de Datos',
+          route: 'supervisor.saneamiento.calidad',
+          component: 'Supervisor/Saneamiento/Calidad',
+          icon: 'CheckBadgeIcon'
+        },
+        {
+          id: 'bd',
+          name: 'Matriz Saneamiento BD',
+          route: 'supervisor.saneamiento.bd',
+          component: 'Supervisor/Saneamiento/Bd',
+          icon: 'CircleStackIcon'
+        },
+        {
+          id: 'propuestas',
+          name: 'Historial de Propuestas',
+          route: 'supervisor.saneamiento.propuestas',
+          component: 'Supervisor/Saneamiento/Propuestas',
+          icon: 'ClipboardDocumentCheckIcon'
+        }
+      ]
+    },
+    {
       id: 'jornadas',
       name: 'Control de Jornadas',
       shortName: 'Jornadas',
@@ -269,5 +324,14 @@ export const preventasSubTabs = [
   { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
   { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
   { id: 'mapa', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' }
+];
+
+export const saneamientoSubTabs = [
+  { id: 'intrusos', name: 'Fronteras e Intrusos', route: 'supervisor.saneamiento.intrusos' },
+  { id: 'duplicados', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
+  { id: 'dias', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
+  { id: 'calidad', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
+  { id: 'bd', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
+  { id: 'propuestas', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
 ];
 

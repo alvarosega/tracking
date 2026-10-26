@@ -11,6 +11,7 @@ use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
 use App\Http\Controllers\Web\SupervisorRuteoController;
+use App\Http\Controllers\Web\SupervisorSaneamientoController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
 use Illuminate\Support\Facades\Route;
@@ -160,5 +161,50 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/route/config', [SupervisorModulosController::class, 'updateRouteConfig'])->name('config.route');
         Route::post('/route/apply-all', [SupervisorModulosController::class, 'applyToAllRoutes'])->name('apply.all');
         Route::post('/inventarios/data', [SupervisorModulosController::class, 'inventariosData'])->name('inventarios.data');
+    });
+
+    // Módulo Saneamiento Territorial & Calidad de Padrón
+    Route::prefix('saneamiento')->name('saneamiento.')->group(function () {
+        Route::get('/', fn() => redirect()->route('supervisor.saneamiento.intrusos'))->name('index');
+        Route::get('/intrusos', [SupervisorSaneamientoController::class, 'intrusos'])->name('intrusos');
+        Route::get('/duplicados', [SupervisorSaneamientoController::class, 'duplicados'])->name('duplicados');
+        Route::get('/dias', [SupervisorSaneamientoController::class, 'dias'])->name('dias');
+        Route::get('/calidad', [SupervisorSaneamientoController::class, 'calidad'])->name('calidad');
+        Route::get('/bd', [SupervisorSaneamientoController::class, 'bd'])->name('bd');
+        Route::get('/propuestas', [SupervisorSaneamientoController::class, 'propuestas'])->name('propuestas');
+
+        // Endpoints AJAX
+        Route::get('/catalogo', [SupervisorSaneamientoController::class, 'catalogo'])->name('catalogo');
+        Route::get('/fronteras/todas', [SupervisorSaneamientoController::class, 'fronterasTodas'])->name('fronteras.todas');
+        Route::post('/fronteras/clientes-activos', [SupervisorSaneamientoController::class, 'clientesActivos'])->name('fronteras.clientes-activos');
+        Route::get('/fronteras/propuestas-pendientes', [SupervisorSaneamientoController::class, 'propuestasPendientesFronteras'])->name('fronteras.propuestas-pendientes');
+        Route::post('/fronteras/propuestas/crear', [SupervisorSaneamientoController::class, 'crearPropuestaIntruso'])->name('fronteras.propuestas.crear');
+        Route::post('/fronteras/propuestas/cambiar-estado', [SupervisorSaneamientoController::class, 'cambiarEstadoPropuestaIntruso'])->name('fronteras.propuestas.cambiar-estado');
+        Route::post('/fronteras/propuestas/cambiar-dia', [SupervisorSaneamientoController::class, 'cambiarDiaPropuestaIntruso'])->name('fronteras.propuestas.cambiar-dia');
+        Route::post('/fronteras/propuestas/revertir', [SupervisorSaneamientoController::class, 'revertirPropuestaIntruso'])->name('fronteras.propuestas.revertir');
+        Route::post('/fronteras/guardar', [SupervisorSaneamientoController::class, 'guardarFronteraRuta'])->name('fronteras.guardar');
+
+        Route::post('/duplicados/auditar', [SupervisorSaneamientoController::class, 'auditarDuplicados'])->name('duplicados.auditar');
+        Route::get('/duplicados/propuestas-pendientes', [SupervisorSaneamientoController::class, 'propuestasPendientesDuplicados'])->name('duplicados.propuestas-pendientes');
+        Route::post('/duplicados/propuestas/crear', [SupervisorSaneamientoController::class, 'crearPropuestaDuplicado'])->name('duplicados.propuestas.crear');
+        Route::post('/duplicados/propuestas/cambiar-estado', [SupervisorSaneamientoController::class, 'cambiarEstadoPropuestaDuplicado'])->name('duplicados.propuestas.cambiar-estado');
+        Route::post('/duplicados/propuestas/revertir', [SupervisorSaneamientoController::class, 'revertirPropuestaDuplicado'])->name('duplicados.propuestas.revertir');
+
+        Route::get('/dias-desalineados', [SupervisorSaneamientoController::class, 'auditarDias'])->name('dias-desalineados');
+        Route::get('/dias-desalineados/propuestas-pendientes', [SupervisorSaneamientoController::class, 'propuestasPendientesDias'])->name('dias.propuestas-pendientes');
+        Route::post('/dias-desalineados/cambiar-dia', [SupervisorSaneamientoController::class, 'cambiarDia'])->name('dias.cambiar-dia');
+        Route::post('/dias-desalineados/cambiar-estado', [SupervisorSaneamientoController::class, 'cambiarEstadoDia'])->name('dias.cambiar-estado');
+        Route::post('/dias-desalineados/revertir', [SupervisorSaneamientoController::class, 'revertirDia'])->name('dias.revertir');
+        Route::post('/dias-desalineados/guardar-frontera', [SupervisorSaneamientoController::class, 'guardarFronteraDia'])->name('dias.guardar-frontera');
+
+        Route::post('/calidad/auditar', [SupervisorSaneamientoController::class, 'auditarCalidad'])->name('calidad.auditar');
+        Route::post('/bd/matriz', [SupervisorSaneamientoController::class, 'matrizBd'])->name('bd.matriz');
+
+        Route::get('/propuestas/historial', [SupervisorSaneamientoController::class, 'historialPropuestas'])->name('propuestas.historial');
+        Route::post('/propuestas/actualizar-estado', [SupervisorSaneamientoController::class, 'actualizarEstadoPropuesta'])->name('propuestas.actualizar-estado');
+        Route::post('/propuestas/actualizar-estado-masivo', [SupervisorSaneamientoController::class, 'actualizarEstadoMasivo'])->name('propuestas.actualizar-estado-masivo');
+
+        Route::get('/clientes/buscar', [SupervisorSaneamientoController::class, 'buscarCliente'])->name('clientes.buscar');
+        Route::get('/clientes/fotos', [SupervisorSaneamientoController::class, 'fotosCliente'])->name('clientes.fotos');
     });
 });
