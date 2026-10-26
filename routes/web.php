@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
 use App\Http\Controllers\Web\SupervisorAvanceController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
 use App\Http\Controllers\Web\SupervisorIndexController;
+use App\Http\Controllers\Web\SupervisorIngestaController;
 use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
@@ -206,5 +207,30 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
         Route::get('/clientes/buscar', [SupervisorSaneamientoController::class, 'buscarCliente'])->name('clientes.buscar');
         Route::get('/clientes/fotos', [SupervisorSaneamientoController::class, 'fotosCliente'])->name('clientes.fotos');
+    });
+
+    // Módulo Centro de Ingesta & Monitoreo de Datos
+    Route::prefix('ingesta')->name('ingesta.')->group(function () {
+        Route::get('/', [SupervisorIngestaController::class, 'index'])->name('index');
+        Route::get('/ventas', [SupervisorIngestaController::class, 'ventas'])->name('ventas');
+        Route::get('/preventas', [SupervisorIngestaController::class, 'preventas'])->name('preventas');
+        Route::get('/ruteo', [SupervisorIngestaController::class, 'ruteo'])->name('ruteo');
+        Route::get('/visitas', [SupervisorIngestaController::class, 'visitas'])->name('visitas');
+        Route::get('/inventario', [SupervisorIngestaController::class, 'inventario'])->name('inventario');
+        Route::get('/cancelados', [SupervisorIngestaController::class, 'cancelados'])->name('cancelados');
+        Route::get('/snapshots', [SupervisorIngestaController::class, 'snapshots'])->name('snapshots');
+
+        // Endpoints AJAX / API
+        Route::get('/tablas-estado', [SupervisorIngestaController::class, 'tablasEstado'])->name('tablas-estado');
+        Route::get('/cargas-historial', [SupervisorIngestaController::class, 'cargasHistorial'])->name('cargas-historial');
+        Route::post('/ventas', [SupervisorIngestaController::class, 'uploadVentas'])->name('upload.ventas');
+        Route::post('/preventas', [SupervisorIngestaController::class, 'uploadPreventas'])->name('upload.preventas');
+        Route::post('/ruteo', [SupervisorIngestaController::class, 'uploadRuteo'])->name('upload.ruteo');
+        Route::post('/visitas', [SupervisorIngestaController::class, 'uploadVisitas'])->name('upload.visitas');
+        Route::post('/inventario', [SupervisorIngestaController::class, 'uploadInventario'])->name('upload.inventario');
+        Route::get('/cancelados/pendientes', [SupervisorIngestaController::class, 'canceladosPendientes'])->name('cancelados.pendientes');
+        Route::post('/preventas/autorizar-cancelados', [SupervisorIngestaController::class, 'autorizarCancelados'])->name('preventas.autorizar-cancelados');
+        Route::get('/ruteo/snapshots', [SupervisorIngestaController::class, 'ruteoSnapshots'])->name('ruteo.snapshots');
+        Route::post('/ruteo/rollback', [SupervisorIngestaController::class, 'rollbackRuteo'])->name('ruteo.rollback');
     });
 });

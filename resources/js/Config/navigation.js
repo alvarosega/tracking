@@ -305,6 +305,75 @@ export const navigationConfig = {
       badge: 'APP',
       badgeColor: 'amber',
       description: 'Control de acceso a módulos móviles y parámetros'
+    },
+    {
+      id: 'ingesta',
+      name: 'Centro de Ingesta',
+      shortName: 'Ingesta',
+      route: 'supervisor.ingesta.index',
+      componentPrefix: 'Supervisor/Ingesta',
+      icon: 'ArrowUpTrayIcon',
+      badge: 'ETL',
+      badgeColor: 'emerald',
+      description: 'Carga, validación y versionado de datos operativos',
+      submodules: [
+        {
+          id: 'dashboard',
+          name: 'Centro de Ingesta',
+          route: 'supervisor.ingesta.index',
+          component: 'Supervisor/Ingesta/Index',
+          icon: 'CircleStackIcon'
+        },
+        {
+          id: 'ventas',
+          name: 'Ventas Diarias',
+          route: 'supervisor.ingesta.ventas',
+          component: 'Supervisor/Ingesta/Upload',
+          icon: 'ShoppingBagIcon'
+        },
+        {
+          id: 'preventas',
+          name: 'Preventas Intra-día',
+          route: 'supervisor.ingesta.preventas',
+          component: 'Supervisor/Ingesta/Upload',
+          icon: 'DocumentTextIcon'
+        },
+        {
+          id: 'ruteo',
+          name: 'Plan de Ruteo',
+          route: 'supervisor.ingesta.ruteo',
+          component: 'Supervisor/Ingesta/Upload',
+          icon: 'MapIcon'
+        },
+        {
+          id: 'visitas',
+          name: 'Visitas Operativas',
+          route: 'supervisor.ingesta.visitas',
+          component: 'Supervisor/Ingesta/Upload',
+          icon: 'CameraIcon'
+        },
+        {
+          id: 'inventario',
+          name: 'Stock Actual',
+          route: 'supervisor.ingesta.inventario',
+          component: 'Supervisor/Ingesta/Upload',
+          icon: 'CubeIcon'
+        },
+        {
+          id: 'cancelados',
+          name: 'Preventas Canceladas',
+          route: 'supervisor.ingesta.cancelados',
+          component: 'Supervisor/Ingesta/Cancelados',
+          icon: 'ExclamationTriangleIcon'
+        },
+        {
+          id: 'snapshots',
+          name: 'Snapshots Ruteo',
+          route: 'supervisor.ingesta.snapshots',
+          component: 'Supervisor/Ingesta/Snapshots',
+          icon: 'ArchiveBoxIcon'
+        }
+      ]
     }
   ],
 
@@ -333,5 +402,16 @@ export const saneamientoSubTabs = [
   { id: 'calidad', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
   { id: 'bd', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
   { id: 'propuestas', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
+];
+
+export const ingestaSubTabs = [
+  { id: 'dashboard', name: 'Centro de Ingesta', route: 'supervisor.ingesta.index' },
+  { id: 'ventas', name: 'Ventas Diarias', route: 'supervisor.ingesta.ventas' },
+  { id: 'preventas', name: 'Preventas Intra-día', route: 'supervisor.ingesta.preventas' },
+  { id: 'ruteo', name: 'Plan de Ruteo', route: 'supervisor.ingesta.ruteo' },
+  { id: 'visitas', name: 'Visitas Operativas', route: 'supervisor.ingesta.visitas' },
+  { id: 'inventario', name: 'Stock Actual', route: 'supervisor.ingesta.inventario' },
+  { id: 'cancelados', name: 'Cancelados', route: 'supervisor.ingesta.cancelados' },
+  { id: 'snapshots', name: 'Snapshots Ruteo', route: 'supervisor.ingesta.snapshots' }
 ];
 
