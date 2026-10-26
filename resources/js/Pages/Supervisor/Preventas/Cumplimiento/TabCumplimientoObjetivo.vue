@@ -294,10 +294,9 @@
                               <th class="px-2.5 py-1.5 text-center w-8">#</th>
                               <th class="px-2.5 py-1.5 w-20">Código</th>
                               <th class="px-3 py-1.5">Cliente / PDV</th>
-                              <th class="px-2.5 py-1.5 text-center">Hora Pedido</th>
                               <th class="px-2.5 py-1.5 text-center">Ítems SKU</th>
                               <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Venta (Bs)</th>
-                              <th class="px-2.5 py-1.5 text-center w-12">Detalle</th>
+                              <th class="px-2.5 py-1.5 text-center w-20">Detalle</th>
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-black/[0.03]">
@@ -308,12 +307,14 @@
                               >
                                 <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ cIdx + 1 }}</td>
                                 <td class="px-2.5 py-1 font-mono text-[10px] text-[#6E6E73]">{{ c.cliente_id }}</td>
-                                <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[260px]" :title="c.cliente">
-                                  {{ c.cliente }}
+                                <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="c.cliente">
+                                  <span>{{ c.cliente }}</span>
+                                  <span v-if="c.nro_preventas" class="text-[9px] font-mono text-[#86868B] ml-1.5">({{ c.nro_preventas }})</span>
                                 </td>
-                                <td class="px-2.5 py-1 text-center font-mono text-[#6E6E73]">{{ c.hora || '—' }}</td>
                                 <td class="px-2.5 py-1 text-center font-mono font-bold text-[#1D1D1F]">
-                                  {{ (c.items || []).length }}
+                                  <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#0071E3]/10 text-[#0071E3]">
+                                    {{ (c.items || []).length }} SKU
+                                  </span>
                                 </td>
                                 <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
                                   Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
@@ -321,7 +322,10 @@
                                 <td class="px-2.5 py-1 text-center">
                                   <button
                                     type="button"
-                                    class="text-[#0071E3] hover:underline font-bold text-[10px] cursor-pointer"
+                                    class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold transition-all cursor-pointer"
+                                    :class="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]
+                                      ? 'bg-black/[0.08] text-[#1D1D1F]'
+                                      : 'bg-[#0071E3] text-white hover:bg-[#0077ED] shadow-xs'"
                                   >
                                     {{ subClienteAbierto[`${r.ruta}_${c.cliente_id}`] ? 'Ocultar' : 'Ver SKU' }}
                                   </button>
@@ -330,7 +334,7 @@
 
                               <!-- Desglose de SKUs del pedido -->
                               <tr v-if="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]">
-                                <td colspan="7" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
+                                <td colspan="6" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[8px] overflow-hidden">
                                     <table class="w-full text-left border-collapse text-[10px]">
                                       <thead class="border-b border-black/[0.05] bg-black/[0.02] text-[#86868B] font-bold uppercase">
@@ -344,19 +348,31 @@
                                         </tr>
                                       </thead>
                                       <tbody class="divide-y divide-black/[0.03]">
-                                        <tr v-for="it in (c.items || [])" :key="it.codigo_producto" class="hover:bg-black/[0.01]">
-                                          <td class="px-2.5 py-1 font-mono text-[#6E6E73]">{{ it.codigo_producto }}</td>
-                                          <td class="px-3 py-1 font-medium text-[#1D1D1F]">{{ it.producto || it.descripcion }}</td>
+                                        <tr v-for="(it, itIdx) in (c.items || [])" :key="`${it.codigo_producto}_${itIdx}`" class="hover:bg-black/[0.01]">
+                                          <td class="px-2.5 py-1 font-mono text-[#6E6E73]">{{ it.codigo_producto || '—' }}</td>
+                                          <td class="px-3 py-1 font-medium text-[#1D1D1F]">{{ it.producto }}</td>
                                           <td class="px-2.5 py-1 text-center text-[#86868B]">{{ it.categoria || '—' }}</td>
                                           <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">{{ it.cantidad }}</td>
                                           <td class="px-2.5 py-1 text-right font-mono text-[#6E6E73]">
-                                            {{ Number(it.precio_unitario || (it.monto_final / (it.cantidad || 1))).toFixed(2) }}
+                                            {{ Number(it.precio_unitario || 0).toFixed(2) }}
                                           </td>
                                           <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
                                             {{ Number(it.monto_final || 0).toFixed(2) }}
                                           </td>
                                         </tr>
                                       </tbody>
+                                      <tfoot class="border-t border-black/[0.06] bg-black/[0.02] font-bold">
+                                        <tr>
+                                          <td colspan="3" class="px-2.5 py-1 text-right uppercase text-[9px] text-[#6E6E73]">Total Pedido:</td>
+                                          <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                            {{ (c.items || []).reduce((acc, x) => acc + (x.cantidad || 0), 0) }}
+                                          </td>
+                                          <td></td>
+                                          <td class="px-3 py-1 text-right font-mono font-bold text-[#0071E3]">
+                                            Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                          </td>
+                                        </tr>
+                                      </tfoot>
                                     </table>
                                   </div>
                                 </td>

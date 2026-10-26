@@ -17,7 +17,7 @@ class GetDetalleObjetivoRutaAction
     ];
 
     /**
-     * Obtiene el balance detallado del objetivo diario y pedidos desglosados de una ruta.
+     * Obtiene el balance detallado del objetivo diario y pedidos desglosados de una ruta con sus ítems/SKUs.
      *
      * @param string $ruta
      * @param string|null $fecha
@@ -50,6 +50,16 @@ class GetDetalleObjetivoRutaAction
 
             if ($dimInfo && $dimInfo->vendedor) {
                 $vendedor = trim($dimInfo->vendedor);
+            }
+
+            if ($vendedor === 'No Asignado') {
+                $panVend = DB::connection('supervisor')->table('pan_ruteo')
+                    ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                    ->whereNotNull('vendedor')
+                    ->value('vendedor');
+                if ($panVend) {
+                    $vendedor = trim($panVend);
+                }
             }
 
             // 2. Meta del mes en fact_metas
@@ -120,7 +130,7 @@ class GetDetalleObjetivoRutaAction
             $diasRestantes = $esMesCerrado ? 0 : max(0, $diasTotales - $diasOperados);
             $divisorPreventa = max(1, $diasRestantes - 2);
 
-            // 5. Preventas del día detalladas
+            // 5. Preventas del día detalladas con ítems y SKUs
             $preventasDetalle = DB::connection('supervisor')->table('fact_preventas')
                 ->where('fecha_norm', $fechaNorm)
                 ->where('monto_final', '>', 0)
@@ -128,14 +138,17 @@ class GetDetalleObjetivoRutaAction
                 ->select([
                     DB::raw("COALESCE(TRIM(nro_preventa), '-') as nro_preventa"),
                     'cliente_id',
+                    DB::raw("COALESCE(TRIM(codigo_cliente), '') as codigo_cliente"),
                     DB::raw("COALESCE(TRIM(cliente), 'CLIENTE S/N') as cliente"),
+                    DB::raw("COALESCE(TRIM(codigo_producto), '') as codigo_producto"),
                     DB::raw("COALESCE(TRIM(producto), '-') as producto"),
                     DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
                     DB::raw("COALESCE(cantidad, 0) as cantidad"),
+                    DB::raw("CAST(COALESCE(precio_lista, 0.0) AS DECIMAL(12, 2)) as precio_lista"),
                     DB::raw("CAST(COALESCE(monto_final, 0.0) AS DECIMAL(12, 2)) as monto_final"),
                 ])
-                ->orderBy('nro_preventa', 'asc')
                 ->orderBy('cliente', 'asc')
+                ->orderBy('nro_preventa', 'asc')
                 ->get();
 
             $brecha = max(0.0, $metaMes - $factPrevio);
@@ -151,41 +164,35 @@ class GetDetalleObjetivoRutaAction
                 $nro = (string) $it->nro_preventa;
                 $montoItem = (float) $it->monto_final;
                 $cantItem = (int) ($it->cantidad ?: 1);
+                $precioUnit = (float) ($it->precio_lista ?: ($cantItem > 0 ? $montoItem / $cantItem : 0.0));
                 $totalPreventaHoy += $montoItem;
 
                 if (!isset($clientesDict[$cKey])) {
                     $clientesDict[$cKey] = [
-                        'cliente_id' => $cid,
+                        'cliente_id' => $cid > 0 ? $cid : ($it->codigo_cliente ?: 'S/C'),
+                        'codigo_cliente' => (string) ($it->codigo_cliente ?: ($cid > 0 ? $cid : '—')),
                         'cliente' => $cNombre,
                         'total_bs' => 0.0,
                         'items_count' => 0,
                         'nros_preventa_set' => [],
-                        'preventas_map' => [],
+                        'items' => [],
                     ];
                 }
 
                 $clientesDict[$cKey]['total_bs'] = round($clientesDict[$cKey]['total_bs'] + $montoItem, 2);
-                $clientesDict[$cKey]['items_count'] += $cantItem;
-                $clientesDict[$cKey]['nros_preventa_set'][$nro] = true;
-
-                if (!isset($clientesDict[$cKey]['preventas_map'][$nro])) {
-                    $clientesDict[$cKey]['preventas_map'][$nro] = [
-                        'nro_preventa' => $nro,
-                        'total_bs' => 0.0,
-                        'items_count' => 0,
-                        'productos' => [],
-                    ];
+                if ($nro !== '-' && $nro !== '') {
+                    $clientesDict[$cKey]['nros_preventa_set'][$nro] = true;
                 }
 
-                $clientesDict[$cKey]['preventas_map'][$nro]['total_bs'] = round(
-                    $clientesDict[$cKey]['preventas_map'][$nro]['total_bs'] + $montoItem,
-                    2
-                );
-                $clientesDict[$cKey]['preventas_map'][$nro]['items_count'] += $cantItem;
-                $clientesDict[$cKey]['preventas_map'][$nro]['productos'][] = [
+                // Desglose de cada producto comprado por el cliente
+                $clientesDict[$cKey]['items'][] = [
+                    'nro_preventa' => $nro,
+                    'codigo_producto' => $it->codigo_producto ?: ('SKU-' . (count($clientesDict[$cKey]['items']) + 1)),
                     'producto' => $it->producto,
+                    'categoria' => $it->categoria,
                     'cantidad' => $cantItem,
-                    'monto' => $montoItem,
+                    'precio_unitario' => round($precioUnit, 2),
+                    'monto_final' => round($montoItem, 2),
                 ];
             }
 
@@ -193,10 +200,7 @@ class GetDetalleObjetivoRutaAction
             foreach ($clientesDict as $cObj) {
                 $cObj['nro_preventas'] = implode(', ', array_keys($cObj['nros_preventa_set']));
                 unset($cObj['nros_preventa_set']);
-
-                $cObj['preventas'] = array_values($cObj['preventas_map']);
-                unset($cObj['preventas_map']);
-
+                $cObj['items_count'] = count($cObj['items']); // Conteo real de SKUs comprados
                 $clientesLista[] = $cObj;
             }
 
