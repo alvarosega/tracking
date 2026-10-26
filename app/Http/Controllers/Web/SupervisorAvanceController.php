@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\Avance\GetAvanceClienteDetalleFechasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClientesRutaAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceClusterCatalogoAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceClusterMatrizAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
@@ -176,6 +178,52 @@ class SupervisorAvanceController extends Controller
         );
 
         return response()->json($data);
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Cluster vs LY (Análisis multianual comparativo).
+     */
+    public function cluster(GetAvanceClusterCatalogoAction $catalogoAction): Response
+    {
+        $catalogo = $catalogoAction->execute();
+
+        return Inertia::render('Supervisor/Avance/Cluster', [
+            'catalogo' => $catalogo,
+        ]);
+    }
+
+    /**
+     * Devuelve la matriz comparativa de ventas por cluster vs LY y desglose multinivel.
+     */
+    public function clusterMatriz(Request $request, GetAvanceClusterMatrizAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+        $clusters = (array) $request->input('clusters', []);
+        $metrica = (string) $request->input('metrica', 'monto');
+        $agrupacion = (string) $request->input('agrupacion', 'cluster_jerarquia');
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte,
+            canales: $canales,
+            rutas: $rutas,
+            clusters: $clusters,
+            metrica: $metrica,
+            agrupacion: $agrupacion
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el catálogo de filtros disponible para Cluster vs LY.
+     */
+    public function clusterCatalogo(GetAvanceClusterCatalogoAction $action): JsonResponse
+    {
+        return response()->json($action->execute());
     }
 }
 

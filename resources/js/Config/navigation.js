@@ -68,6 +68,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.historico-preventas',
           component: 'Supervisor/Avance/HistoricoPreventas',
           icon: 'ClockIcon'
+        },
+        {
+          id: 'cluster',
+          name: 'Cluster vs LY',
+          route: 'supervisor.avance.cluster',
+          component: 'Supervisor/Avance/Cluster',
+          icon: 'CubeTransparentIcon'
         }
       ]
     },
