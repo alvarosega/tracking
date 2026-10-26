@@ -50,4 +50,24 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Role::class);
     }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role?->name === 'superadministrador';
+    }
+
+    public function isSupervisor(): bool
+    {
+        return $this->role?->name === 'supervisor';
+    }
+
+    public function isVendedor(): bool
+    {
+        return $this->role?->name === 'vendedor';
+    }
+
+    public function canAccessWebPanel(): bool
+    {
+        return in_array($this->role?->name, ['supervisor', 'superadministrador'], true);
+    }
 }

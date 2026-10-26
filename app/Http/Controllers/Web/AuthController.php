@@ -15,7 +15,9 @@ class AuthController extends Controller
     public function showLogin(): Response|RedirectResponse
     {
         if (Auth::check()) {
-            if (Auth::user()->role?->name === 'supervisor') {
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            if ($user && $user->canAccessWebPanel()) {
                 return redirect()->route('supervisor.index');
             }
             Auth::logout();
@@ -39,15 +41,16 @@ class AuthController extends Controller
             ]);
         }
 
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        if ($user->role?->name !== 'supervisor') {
+        if (!$user || !$user->canAccessWebPanel()) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'username' => 'Este panel es exclusivo para usuarios con rol supervisor.',
+                'username' => 'Este panel es exclusivo para supervisores y superadministradores.',
             ]);
         }
 

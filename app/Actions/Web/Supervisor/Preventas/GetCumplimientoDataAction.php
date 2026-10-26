@@ -988,4 +988,3 @@ class GetCumplimientoDataAction
         return preg_replace('/\s+/', ' ', $s) ?? $s;
     }
 }
-

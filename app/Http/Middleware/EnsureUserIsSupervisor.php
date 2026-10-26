@@ -12,8 +12,8 @@ class EnsureUserIsSupervisor
     {
         $user = $request->user();
 
-        if (!$user || !$user->is_active || $user->role?->name !== 'supervisor') {
-            abort(403, 'Acceso denegado. Se requieren permisos de supervisor.');
+        if (!$user || !$user->is_active || !$user->canAccessWebPanel()) {
+            abort(403, 'Acceso denegado. Se requieren permisos de supervisor o superadministrador.');
         }
 
         return $next($request);

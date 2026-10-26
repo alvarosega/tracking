@@ -38,9 +38,18 @@
       <!-- Estado y Operador -->
       <div class="flex items-center space-x-2 shrink-0">
         <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] apple-control-pill text-[11px] font-mono text-[#1D1D1F]">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <span
+            class="w-1.5 h-1.5 rounded-full shrink-0"
+            :class="$page.props.auth?.user?.is_superadmin ? 'bg-purple-500' : 'bg-emerald-500 animate-pulse'"
+          ></span>
           <span class="font-semibold truncate max-w-[100px]">
-            {{ $page.props.auth?.user?.username || 'Supervisor' }}
+            {{ $page.props.auth?.user?.username || 'Usuario' }}
+          </span>
+          <span
+            v-if="$page.props.auth?.user?.is_superadmin"
+            class="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200"
+          >
+            Superadmin
           </span>
         </div>
       </div>
@@ -269,12 +278,28 @@
             :class="isSidebarCollapsed ? 'md:hidden' : 'block'"
           >
             <div class="flex items-center space-x-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <span
+                class="w-1.5 h-1.5 rounded-full shrink-0"
+                :class="$page.props.auth?.user?.is_superadmin ? 'bg-purple-500' : 'bg-emerald-500'"
+              ></span>
               <p class="text-xs font-semibold text-ink truncate font-mono">
-                {{ $page.props.auth?.user?.username || 'Supervisor' }}
+                {{ $page.props.auth?.user?.username || 'Usuario' }}
               </p>
             </div>
-            <p class="text-[10px] text-ink-tertiary font-mono mt-0.5">Operador Activo</p>
+            <div class="flex items-center gap-1 mt-0.5">
+              <span
+                v-if="$page.props.auth?.user?.is_superadmin"
+                class="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 border border-purple-200 font-mono"
+              >
+                Superadmin
+              </span>
+              <span
+                v-else
+                class="text-[10px] text-ink-tertiary font-mono"
+              >
+                Supervisor Activo
+              </span>
+            </div>
           </div>
 
           <!-- Botón de Cerrar Sesión -->
