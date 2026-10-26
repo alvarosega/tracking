@@ -140,12 +140,27 @@ class ProcessPreventasIngestaAction
             $existentes[$k] = $r;
         }
 
+        // Consultar cancelaciones que ya se encuentren registradas como PENDIENTES
+        $prevCanceladosPendientes = [];
+        try {
+            $prevCancRows = $conn->table('auditoria_preventas_cambios')
+                ->where('tipo_evento', 'CANCELADO')
+                ->where('estado_autorizacion', 'PENDIENTE')
+                ->whereIn('fecha_preventa', $fechasValidas)
+                ->get();
+            foreach ($prevCancRows as $pcr) {
+                $kCanc = "{$pcr->nro_preventa}_{$pcr->producto_id}_{$pcr->fecha_preventa}";
+                $prevCanceladosPendientes[$kCanc] = true;
+            }
+        } catch (\Throwable) {}
+
         $nuevosRecords = [];
         $modificadosUpdates = [];
         $auditoriaCambios = [];
         $detallesModificados = [];
         $detallesCancelados = [];
         $clavesEntrantes = [];
+        $reactivadosUpdates = [];
         $sinCambiosCount = 0;
 
         foreach ($dedupMap as $k => $row) {
@@ -155,6 +170,15 @@ class ProcessPreventasIngestaAction
             $fNorm = (string)($row['fecha_norm'] ?? '');
             $montoNuevo = (float)$row['monto_final'];
             $cantNueva = (int)$row['cantidad'];
+
+            // Si el pedido estaba marcado como pendiente de cancelación y reaparece, se reactiva
+            if (isset($prevCanceladosPendientes[$k])) {
+                $reactivadosUpdates[] = [
+                    'nro_preventa' => $nroPrev,
+                    'producto_id' => $prodId,
+                    'fecha_preventa' => $fNorm,
+                ];
+            }
 
             $dbRow = [];
             foreach ($row as $colName => $colVal) {
@@ -230,23 +254,26 @@ class ProcessPreventasIngestaAction
                 $cNom = (string)($prev->cliente ?? '');
                 $vNom = (string)($prev->vendedor ?? '');
 
-                $auditoriaCambios[] = [
-                    'archivo_origen' => $filename,
-                    'tipo_evento' => 'CANCELADO',
-                    'fecha_preventa' => $fReg,
-                    'nro_preventa' => (int)$prev->nro_preventa,
-                    'producto_id' => (int)$prev->producto_id,
-                    'cliente_id' => isset($prev->cliente_id) ? (int)$prev->cliente_id : null,
-                    'cliente' => $cNom,
-                    'vendedor' => $vNom,
-                    'cantidad_anterior' => $cantAnt,
-                    'cantidad_nueva' => 0,
-                    'diferencia_cantidad' => -$cantAnt,
-                    'monto_anterior' => $montoAnt,
-                    'monto_nuevo' => 0.0,
-                    'diferencia_monto' => -$montoAnt,
-                    'estado_autorizacion' => 'PENDIENTE',
-                ];
+                // Solo registrar en auditoría si no estaba ya pendiente de autorización
+                if (!isset($prevCanceladosPendientes[$k])) {
+                    $auditoriaCambios[] = [
+                        'archivo_origen' => $filename,
+                        'tipo_evento' => 'CANCELADO',
+                        'fecha_preventa' => $fReg,
+                        'nro_preventa' => (int)$prev->nro_preventa,
+                        'producto_id' => (int)$prev->producto_id,
+                        'cliente_id' => isset($prev->cliente_id) ? (int)$prev->cliente_id : null,
+                        'cliente' => $cNom,
+                        'vendedor' => $vNom,
+                        'cantidad_anterior' => $cantAnt,
+                        'cantidad_nueva' => 0,
+                        'diferencia_cantidad' => -$cantAnt,
+                        'monto_anterior' => $montoAnt,
+                        'monto_nuevo' => 0.0,
+                        'diferencia_monto' => -$montoAnt,
+                        'estado_autorizacion' => 'PENDIENTE',
+                    ];
+                }
 
                 $detallesCancelados[] = [
                     'nro_preventa' => (int)$prev->nro_preventa,
@@ -261,43 +288,48 @@ class ProcessPreventasIngestaAction
 
         $chunkSize = 300;
 
-        // 1. Inserción de Nuevos
-        if (!empty($nuevosRecords)) {
-            $chunks = array_chunk($nuevosRecords, $chunkSize);
-            foreach ($chunks as $chunk) {
-                $conn->table('fact_preventas')->insert($chunk);
+        // Operaciones dentro de Transacción Atómica
+        $conn->transaction(function () use ($conn, $nuevosRecords, $modificadosUpdates, $reactivadosUpdates, $auditoriaCambios, $chunkSize) {
+            // 1. Inserción de Nuevos
+            if (!empty($nuevosRecords)) {
+                $chunks = array_chunk($nuevosRecords, $chunkSize);
+                foreach ($chunks as $chunk) {
+                    $conn->table('fact_preventas')->insert($chunk);
+                }
             }
-        }
 
-        // 2. Actualización de Modificados
-        foreach ($modificadosUpdates as $item) {
-            $updateData = $item['row'];
-            unset($updateData['nro_preventa'], $updateData['producto_id'], $updateData['fecha_norm']);
-            $conn->table('fact_preventas')
-                ->where('nro_preventa', $item['nro_preventa'])
-                ->where('producto_id', $item['producto_id'])
-                ->where('fecha_norm', $item['fecha_norm'])
-                ->update($updateData);
-        }
-
-        // 3. Purga explícita en fact_preventas de canceladas
-        if (!empty($clavesCanceladas)) {
-            foreach ($clavesCanceladas as $delPrev) {
+            // 2. Actualización de Modificados
+            foreach ($modificadosUpdates as $item) {
+                $updateData = $item['row'];
+                unset($updateData['nro_preventa'], $updateData['producto_id'], $updateData['fecha_norm']);
                 $conn->table('fact_preventas')
-                    ->where('nro_preventa', $delPrev->nro_preventa)
-                    ->where('producto_id', $delPrev->producto_id)
-                    ->where('fecha_norm', $delPrev->fecha_norm)
-                    ->delete();
+                    ->where('nro_preventa', $item['nro_preventa'])
+                    ->where('producto_id', $item['producto_id'])
+                    ->where('fecha_norm', $item['fecha_norm'])
+                    ->update($updateData);
             }
-        }
 
-        // 4. Bitácora de Auditoría
-        if (!empty($auditoriaCambios)) {
-            $chunksAud = array_chunk($auditoriaCambios, $chunkSize);
-            foreach ($chunksAud as $chunk) {
-                $conn->table('auditoria_preventas_cambios')->insert($chunk);
+            // 3. Reactivación de cancelados que volvieron a aparecer en el nuevo corte
+            foreach ($reactivadosUpdates as $react) {
+                $conn->table('auditoria_preventas_cambios')
+                    ->where('nro_preventa', $react['nro_preventa'])
+                    ->where('producto_id', $react['producto_id'])
+                    ->where('fecha_preventa', $react['fecha_preventa'])
+                    ->where('estado_autorizacion', 'PENDIENTE')
+                    ->update(['estado_autorizacion' => 'REACTIVADO']);
             }
-        }
+
+            // 4. Bitácora de Auditoría (Cancelaciones pendientes y modificaciones)
+            // NOTA: Los pedidos cancelados NO se purgan inmediatamente de fact_preventas;
+            // quedan en CUARENTENA como PENDIENTE para que el supervisor los revise y autorice
+            // formalmente en la vista Cancelados.vue antes de su descarte definitivo.
+            if (!empty($auditoriaCambios)) {
+                $chunksAud = array_chunk($auditoriaCambios, $chunkSize);
+                foreach ($chunksAud as $chunk) {
+                    $conn->table('auditoria_preventas_cambios')->insert($chunk);
+                }
+            }
+        });
 
         // 5. Registro en sys_cargas
         $rangoIni = $fechasValidas[0] ?? '-';

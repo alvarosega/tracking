@@ -222,64 +222,44 @@ class ProcessVentasIngestaAction
             }
         }
 
-        // 3. Detectar registros eliminados
+        // 3. Venta Diaria es Carga Acumulativa:
+        // Las ventas previas que no vienen en este archivo NO se eliminan para no destruir registros
+        // de otros distribuidores, vendedores o rutas del mismo día en producción.
+        // Las facturas anuladas o revertidas se detectan y auditan explícitamente mediante el campo revertida.
         $idsAEliminar = [];
-        foreach ($existentes as $k => $prev) {
-            if (!isset($clavesArchivo[$k])) {
-                $idsAEliminar[] = (int)$prev->id;
-                $alteradasAuditoria[] = [
-                    'archivo_origen' => $filename,
-                    'venta_id' => (int)$prev->venta_id,
-                    'producto_id' => (int)$prev->producto_id,
-                    'fecha' => (string)($prev->fecha_norm ?? ''),
-                    'cliente_id' => isset($prev->cliente_id) ? (int)$prev->cliente_id : null,
-                    'monto_anterior' => (float)($prev->monto_final ?? 0.0),
-                    'monto_nuevo' => 0.0,
-                    'cantidad_anterior' => (int)($prev->cantidad ?? 0),
-                    'cantidad_nueva' => 0,
-                    'revertida_anterior' => (string)($prev->revertida ?? 'No'),
-                    'revertida_nueva' => 'Eliminada',
-                ];
-            }
-        }
 
-        // 4. Inserción de Nuevos en Chunks
+        // 4. Operaciones en Transacción Atómica
         $chunkSize = 300;
-        if (!empty($nuevasRecords)) {
-            $chunks = array_chunk($nuevasRecords, $chunkSize);
-            foreach ($chunks as $chunk) {
-                $conn->table('fact_ventas')->insert($chunk);
+        $conn->transaction(function () use ($conn, $nuevasRecords, $modificadasUpdates, $alteradasAuditoria, $chunkSize) {
+            // A. Inserción de Nuevos en Chunks
+            if (!empty($nuevasRecords)) {
+                $chunks = array_chunk($nuevasRecords, $chunkSize);
+                foreach ($chunks as $chunk) {
+                    $conn->table('fact_ventas')->insert($chunk);
+                }
             }
-        }
 
-        // 5. Actualización explícita de Modificados
-        foreach ($modificadasUpdates as $item) {
-            $updateData = $item['row'];
-            unset($updateData['venta_id'], $updateData['producto_id']);
-            $conn->table('fact_ventas')
-                ->where('venta_id', $item['venta_id'])
-                ->where('producto_id', $item['producto_id'])
-                ->update($updateData);
-        }
-
-        // 6. Eliminar registros purgados
-        if (!empty($idsAEliminar)) {
-            $chunksDel = array_chunk($idsAEliminar, $chunkSize);
-            foreach ($chunksDel as $chunkIds) {
-                $conn->table('fact_ventas')->whereIn('id', $chunkIds)->delete();
+            // B. Actualización explícita de Modificados
+            foreach ($modificadasUpdates as $item) {
+                $updateData = $item['row'];
+                unset($updateData['venta_id'], $updateData['producto_id']);
+                $conn->table('fact_ventas')
+                    ->where('venta_id', $item['venta_id'])
+                    ->where('producto_id', $item['producto_id'])
+                    ->update($updateData);
             }
-        }
 
-        // 7. Insertar auditoría de discrepancias
-        if (!empty($alteradasAuditoria)) {
-            $chunksAud = array_chunk($alteradasAuditoria, $chunkSize);
-            foreach ($chunksAud as $chunk) {
-                $conn->table('auditoria_ventas_discrepancias')->insert($chunk);
+            // C. Insertar auditoría de discrepancias
+            if (!empty($alteradasAuditoria)) {
+                $chunksAud = array_chunk($alteradasAuditoria, $chunkSize);
+                foreach ($chunksAud as $chunk) {
+                    $conn->table('auditoria_ventas_discrepancias')->insert($chunk);
+                }
             }
-        }
+        });
 
-        // 8. Bitácora en sys_cargas
-        $totalAfectadas = count($nuevasRecords) + count($modificadasUpdates) + count($idsAEliminar);
+        // 5. Bitácora en sys_cargas
+        $totalAfectadas = count($nuevasRecords) + count($modificadasUpdates);
         $conn->table('sys_cargas')->insert([
             'archivo_original' => $filename,
             'archivo_almacenado' => $filePath,
@@ -308,9 +288,9 @@ class ProcessVentasIngestaAction
             'filas_alteradas' => count($modificadasUpdates),
             'filas_actualizadas' => count($modificadasUpdates),
             'modificados' => count($modificadasUpdates),
-            'filas_eliminadas' => count($idsAEliminar),
-            'eliminadas' => count($idsAEliminar),
-            'cancelados' => count($idsAEliminar),
+            'filas_eliminadas' => 0,
+            'eliminadas' => 0,
+            'cancelados' => 0,
             'filas_identicas' => $identicasCount,
             'sin_cambios' => $identicasCount,
             'filas_ignoradas' => $identicasCount,

@@ -39,16 +39,17 @@ class RollbackSnapshotRuteoAction
 
         $colsJoined = '`' . implode('`, `', $cols) . '`';
 
-        // 1. Truncate tabla viva
-        $conn->statement("TRUNCATE TABLE `pan_ruteo`");
+        // 1 y 2. Reversión atómica transaccional desde el snapshot
+        $conn->transaction(function () use ($conn, $colsJoined, $snapshotId) {
+            $conn->table('pan_ruteo')->delete();
 
-        // 2. Inserción atómica masiva desde la tabla de snapshots
-        $conn->statement("
-            INSERT INTO `pan_ruteo` ({$colsJoined})
-            SELECT {$colsJoined}
-            FROM `pan_ruteo_snapshots`
-            WHERE `snapshot_id` = ?
-        ", [$snapshotId]);
+            $conn->statement("
+                INSERT INTO `pan_ruteo` ({$colsJoined})
+                SELECT {$colsJoined}
+                FROM `pan_ruteo_snapshots`
+                WHERE `snapshot_id` = ?
+            ", [$snapshotId]);
+        });
 
         // 3. Bitácora en sys_cargas
         $conn->table('sys_cargas')->insert([

@@ -29,6 +29,7 @@ class GetCanceladosPendientesAction
                 LEFT JOIN fact_preventas fp 
                        ON fp.nro_preventa = apc.nro_preventa 
                       AND fp.producto_id = apc.producto_id
+                      AND fp.fecha_norm = apc.fecha_preventa
                 LEFT JOIN pan_ruteo pr 
                        ON pr.cliente_id = apc.cliente_id
                 WHERE apc.tipo_evento = 'CANCELADO' 

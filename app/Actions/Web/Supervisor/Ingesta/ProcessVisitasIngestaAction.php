@@ -268,81 +268,38 @@ class ProcessVisitasIngestaAction
             }
         }
 
-        // 3. Detección de Visitas Eliminadas / Anuladas en las fechas operativas
+        // 3. Visitas Operativas es Carga Acumulativa por Dispositivo/Vendedor:
+        // Las visitas previas que no vengan en este archivo NO se borran físicamente para proteger
+        // los marcajes históricos y visitas de otros empleados/rutas del mismo día.
         $idsEliminados = [];
-        if (!empty($fechasValidas)) {
-            $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
-            $prevVisitas = $conn->select("
-                SELECT id, fecha_norm, cliente, empleado, monto
-                FROM fact_visitas
-                WHERE fecha_norm IN ({$placeholders})
-            ", $fechasValidas);
-
-            foreach ($prevVisitas as $pv) {
-                $dbId = (int)$pv->id;
-                if (!isset($dedupMap[$dbId])) {
-                    $idsEliminados[] = $dbId;
-                    $mAnt = (float)($pv->monto ?? 0.0);
-                    $fReg = (string)($pv->fecha_norm ?? '');
-                    $cNom = (string)($pv->cliente ?? '');
-                    $eNom = (string)($pv->empleado ?? '');
-
-                    $auditoriaDiscrepancias[] = [
-                        'archivo_origen' => $filename,
-                        'visita_id' => $dbId,
-                        'tipo_evento' => 'ELIMINADO',
-                        'fecha' => $fReg,
-                        'cliente' => $cNom,
-                        'empleado' => $eNom,
-                        'tipo_discrepancia' => 'ANULACION_VISITA',
-                        'valor_anterior' => 'Activa en corte previo',
-                        'valor_nuevo' => 'Desaparecida del reporte',
-                        'monto_anterior' => $mAnt,
-                        'monto_nuevo' => 0.0,
-                    ];
-
-                    $detallesEliminados[] = [
-                        'id' => $dbId,
-                        'cliente' => $cNom,
-                        'empleado' => $eNom,
-                        'monto' => $mAnt,
-                    ];
-                }
-            }
-        }
 
         $chunkSize = 300;
 
-        // 4. Inserción de Nuevos
-        if (!empty($nuevosRecords)) {
-            $chunks = array_chunk($nuevosRecords, $chunkSize);
-            foreach ($chunks as $chunk) {
-                $conn->table('fact_visitas')->insert($chunk);
+        // 4. Operaciones en Transacción Atómica
+        $conn->transaction(function () use ($conn, $nuevosRecords, $modificadosUpdates, $auditoriaDiscrepancias, $chunkSize) {
+            // A. Inserción de Nuevos
+            if (!empty($nuevosRecords)) {
+                $chunks = array_chunk($nuevosRecords, $chunkSize);
+                foreach ($chunks as $chunk) {
+                    $conn->table('fact_visitas')->insert($chunk);
+                }
             }
-        }
 
-        // 5. Actualización de Modificados
-        foreach ($modificadosUpdates as $item) {
-            $updateData = $item['row'];
-            unset($updateData['id']);
-            $conn->table('fact_visitas')->where('id', $item['id'])->update($updateData);
-        }
-
-        // 6. Purga de Eliminados
-        if (!empty($idsEliminados)) {
-            $chunksDel = array_chunk($idsEliminados, $chunkSize);
-            foreach ($chunksDel as $chunk) {
-                $conn->table('fact_visitas')->whereIn('id', $chunk)->delete();
+            // B. Actualización de Modificados
+            foreach ($modificadosUpdates as $item) {
+                $updateData = $item['row'];
+                unset($updateData['id']);
+                $conn->table('fact_visitas')->where('id', $item['id'])->update($updateData);
             }
-        }
 
-        // 7. Auditoría
-        if (!empty($auditoriaDiscrepancias)) {
-            $chunksAud = array_chunk($auditoriaDiscrepancias, $chunkSize);
-            foreach ($chunksAud as $chunk) {
-                $conn->table('auditoria_visitas_discrepancias')->insert($chunk);
+            // C. Auditoría de Discrepancias
+            if (!empty($auditoriaDiscrepancias)) {
+                $chunksAud = array_chunk($auditoriaDiscrepancias, $chunkSize);
+                foreach ($chunksAud as $chunk) {
+                    $conn->table('auditoria_visitas_discrepancias')->insert($chunk);
+                }
             }
-        }
+        });
 
         // 8. Bitácora sys_cargas
         $rangoIni = $fechasValidas[0] ?? '-';

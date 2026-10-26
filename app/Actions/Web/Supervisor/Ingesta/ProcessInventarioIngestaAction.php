@@ -55,8 +55,7 @@ class ProcessInventarioIngestaAction
         }
 
         $loteCargaId = (string)Str::uuid();
-        $filasActual = [];
-        $filasSnapshots = [];
+        $dedupStock = [];
 
         foreach ($rawRows as $r) {
             $prodRaw = $r[$colMap['producto']] ?? '';
@@ -75,32 +74,34 @@ class ProcessInventarioIngestaAction
             $lote = trim((string)$loteRaw) ?: '1';
 
             $prodNorm = mb_strtolower($prod, 'UTF-8');
+            $kStock = "{$almacen}_{$prodNorm}_{$lote}";
 
-            $filasActual[] = [
-                'almacen' => $almacen,
-                'producto' => $prod,
-                'producto_norm' => $prodNorm,
-                'saldo_unitario' => $saldoU,
-                'saldo_paquete' => $saldoP,
-                'lote' => $lote,
-                'archivo_origen' => $filename,
-            ];
-
-            $filasSnapshots[] = [
-                'lote_carga_id' => $loteCargaId,
-                'almacen' => $almacen,
-                'producto' => $prod,
-                'producto_norm' => $prodNorm,
-                'saldo_unitario' => $saldoU,
-                'saldo_paquete' => $saldoP,
-                'lote' => $lote,
-                'archivo_origen' => $filename,
-            ];
+            // Consolidación de saldos intra-archivo para evitar registros duplicados
+            if (isset($dedupStock[$kStock])) {
+                $dedupStock[$kStock]['saldo_unitario'] += $saldoU;
+                $dedupStock[$kStock]['saldo_paquete'] += $saldoP;
+            } else {
+                $dedupStock[$kStock] = [
+                    'almacen' => $almacen,
+                    'producto' => $prod,
+                    'producto_norm' => $prodNorm,
+                    'saldo_unitario' => $saldoU,
+                    'saldo_paquete' => $saldoP,
+                    'lote' => $lote,
+                    'archivo_origen' => $filename,
+                ];
+            }
         }
+
+        $filasActual = array_values($dedupStock);
 
         if (empty($filasActual)) {
             throw new Exception("No se encontraron filas con productos válidos para procesar en el inventario.");
         }
+
+        $filasSnapshots = array_map(function ($row) use ($loteCargaId) {
+            return array_merge(['lote_carga_id' => $loteCargaId], $row);
+        }, $filasActual);
 
         $conn = DB::connection('supervisor');
 
@@ -109,19 +110,22 @@ class ProcessInventarioIngestaAction
 
         $chunkSize = 300;
 
-        // 1. Guardar Snapshot
-        $chunksSnap = array_chunk($filasSnapshots, $chunkSize);
-        foreach ($chunksSnap as $chunk) {
-            $conn->table('inv_stock_snapshots')->insert($chunk);
-        }
+        // Transacción Atómica para Snapshot y Reemplazo de Stock Vivo
+        $conn->transaction(function () use ($conn, $filasSnapshots, $filasActual, $chunkSize) {
+            // 1. Guardar Snapshot Inmutable
+            $chunksSnap = array_chunk($filasSnapshots, $chunkSize);
+            foreach ($chunksSnap as $chunk) {
+                $conn->table('inv_stock_snapshots')->insert($chunk);
+            }
 
-        // 2. Reemplazo completo de la tabla viva
-        $conn->statement("DELETE FROM `inv_stock_actual`");
+            // 2. Reemplazo completo de la tabla viva
+            $conn->table('inv_stock_actual')->delete();
 
-        $chunksActual = array_chunk($filasActual, $chunkSize);
-        foreach ($chunksActual as $chunk) {
-            $conn->table('inv_stock_actual')->insert($chunk);
-        }
+            $chunksActual = array_chunk($filasActual, $chunkSize);
+            foreach ($chunksActual as $chunk) {
+                $conn->table('inv_stock_actual')->insert($chunk);
+            }
+        });
 
         // 3. Bitácora en sys_cargas
         $totalProcesados = count($filasActual);

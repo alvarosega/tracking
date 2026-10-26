@@ -62,6 +62,7 @@ class ProcessRuteoIngestaAction
         $clientesEnArchivo = [];
         $registrosSnapshot = [];
         $registrosVivos = [];
+        $visitasUnicasArchivo = [];
 
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'PAN_RUTEO');
@@ -75,6 +76,14 @@ class ProcessRuteoIngestaAction
             $diaNorm = IngestaValidator::sanitizeDia($diaRaw);
             $mapped['dia_norm'] = $diaNorm;
             $mapped['cliente_id'] = $cid;
+
+            // Deduplicación intra-archivo: evitar filas repetidas idénticas para (cliente_id, dia_norm, ruta)
+            $rutaNorm = strtoupper(trim((string)($mapped['ruta'] ?? '')));
+            $claveVisita = "{$cid}_{$diaNorm}_{$rutaNorm}";
+            if (isset($visitasUnicasArchivo[$claveVisita])) {
+                continue;
+            }
+            $visitasUnicasArchivo[$claveVisita] = true;
 
             if (!isset($clientesEnArchivo[$cid])) {
                 $clientesEnArchivo[$cid] = [];
@@ -293,15 +302,19 @@ class ProcessRuteoIngestaAction
             }
         }
 
-        // 3. Reemplazo Atómico de pan_ruteo
-        $conn->statement("TRUNCATE TABLE `pan_ruteo`");
+        // 3. Reemplazo Atómico Transaccional de pan_ruteo
+        // Se ejecuta dentro de una transacción para garantizar que si ocurre algún fallo
+        // durante la inserción en chunks, el padrón anterior se restaura íntegro.
+        $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
+            $conn->table('pan_ruteo')->delete();
 
-        if (!empty($registrosVivos)) {
-            $chunksVivos = array_chunk($registrosVivos, $chunkSize);
-            foreach ($chunksVivos as $chunk) {
-                $conn->table('pan_ruteo')->insert($chunk);
+            if (!empty($registrosVivos)) {
+                $chunksVivos = array_chunk($registrosVivos, $chunkSize);
+                foreach ($chunksVivos as $chunk) {
+                    $conn->table('pan_ruteo')->insert($chunk);
+                }
             }
-        }
+        });
 
         // 4. Registrar en sys_cargas
         $totalVivos = count($registrosVivos);
