@@ -325,17 +325,27 @@ class SupervisorAvanceController extends Controller
      */
     public function entregasTablero(Request $request, GetAvanceEntregasTableroAction $action): JsonResponse
     {
-        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
-        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
-        $ruta = $request->input('ruta') ? (string) $request->input('ruta') : null;
+        try {
+            $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+            $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+            $ruta = $request->input('ruta') ? (string) $request->input('ruta') : null;
 
-        $data = $action->execute(
-            fechaCorte: $fechaCorte,
-            canal: $canal,
-            ruta: $ruta
-        );
+            $data = $action->execute(
+                fechaCorte: $fechaCorte,
+                canal: $canal,
+                ruta: $ruta
+            );
 
-        return response()->json($data);
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en entregasTablero: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar entregas: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -343,15 +353,25 @@ class SupervisorAvanceController extends Controller
      */
     public function entregasHistorico(Request $request, GetAvanceEntregasHistoricoAction $action): JsonResponse
     {
-        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
-        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        try {
+            $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+            $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
 
-        $data = $action->execute(
-            fechaInicio: $fechaInicio,
-            fechaCorte: $fechaCorte
-        );
+            $data = $action->execute(
+                fechaInicio: $fechaInicio,
+                fechaCorte: $fechaCorte
+            );
 
-        return response()->json($data);
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en entregasHistorico: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar histórico de entregas: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -359,17 +379,27 @@ class SupervisorAvanceController extends Controller
      */
     public function entregasHistoricoDetalleRuta(Request $request, GetAvanceEntregasDetalleRutaAction $action): JsonResponse
     {
-        $ruta = (string) $request->input('ruta');
-        $fechaInicio = (string) $request->input('fecha_inicio');
-        $fechaCorte = (string) $request->input('fecha_corte');
+        try {
+            $ruta = (string) $request->input('ruta');
+            $fechaInicio = (string) $request->input('fecha_inicio');
+            $fechaCorte = (string) $request->input('fecha_corte');
 
-        $data = $action->execute(
-            ruta: $ruta,
-            fechaInicio: $fechaInicio,
-            fechaCorte: $fechaCorte
-        );
+            $data = $action->execute(
+                ruta: $ruta,
+                fechaInicio: $fechaInicio,
+                fechaCorte: $fechaCorte
+            );
 
-        return response()->json($data);
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en entregasHistoricoDetalleRuta: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar detalle de ruta: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
 

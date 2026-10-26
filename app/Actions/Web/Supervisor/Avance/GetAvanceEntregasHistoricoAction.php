@@ -41,8 +41,8 @@ class GetAvanceEntregasHistoricoAction
         $query = "
             SELECT 
                 TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))) AS ruta,
-                COALESCE(dr.canal, 'GENERAL') AS canal,
-                COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado') AS vendedor,
+                MAX(COALESCE(dr.canal, 'GENERAL')) AS canal,
+                MAX(COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado')) AS vendedor,
                 fp.nro_preventa,
                 SUM(fp.cantidad) AS cant_prev,
                 ROUND(SUM(fp.monto_final), 2) AS monto_prev,
@@ -66,9 +66,7 @@ class GetAvanceEntregasHistoricoAction
             WHERE fp.fecha_norm >= ? AND fp.fecha_norm <= ?
               AND fp.monto_final > 0 AND fp.cantidad > 0
             GROUP BY 
-                TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))),
-                COALESCE(dr.canal, 'GENERAL'),
-                COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado'),
+                fp.ruta,
                 fp.nro_preventa
         ";
 

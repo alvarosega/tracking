@@ -384,6 +384,57 @@ function toggleSidebarCollapse() {
   }
 }
 
+function toggleSubmenu(itemId) {
+  expandedSubmenus[itemId] = !expandedSubmenus[itemId];
+}
+
+function isSubmenuExpanded(itemId) {
+  return Boolean(expandedSubmenus[itemId]);
+}
+
+function getRouteHref(item) {
+  try {
+    return route(item.route);
+  } catch {
+    return item.route.startsWith('/') ? item.route : `/${item.route.replace('.', '/')}`;
+  }
+}
+
+function resolveSubRoute(sub) {
+  if (sub.href) return sub.href;
+  if (!sub.route) return '#';
+  try {
+    return route(sub.route);
+  } catch {
+    return sub.route.startsWith('/') ? sub.route : `/${sub.route.replace('.', '/')}`;
+  }
+}
+
+function isItemActive(item) {
+  if (item.componentPrefix) {
+    return page.component.startsWith(item.componentPrefix);
+  }
+  try {
+    return route().current(item.route);
+  } catch {
+    return false;
+  }
+}
+
+function isSubActive(sub) {
+  if (sub.component) {
+    return page.component === sub.component;
+  }
+  if (sub.route) {
+    try {
+      return route().current(sub.route);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 // Auto-expandir el submódulo del módulo actualmente activo
 watch(
   () => page.component,
@@ -398,57 +449,6 @@ watch(
   },
   { immediate: true }
 );
-
-function toggleSubmenu(itemId) {
-  expandedSubmenus[itemId] = !expandedSubmenus[itemId];
-}
-
-function isSubmenuExpanded(itemId) {
-  return Boolean(expandedSubmenus[itemId]);
-}
-
-const getRouteHref = (item) => {
-  try {
-    return route(item.route);
-  } catch {
-    return item.route.startsWith('/') ? item.route : `/${item.route.replace('.', '/')}`;
-  }
-};
-
-const resolveSubRoute = (sub) => {
-  if (sub.href) return sub.href;
-  if (!sub.route) return '#';
-  try {
-    return route(sub.route);
-  } catch {
-    return sub.route.startsWith('/') ? sub.route : `/${sub.route.replace('.', '/')}`;
-  }
-};
-
-const isItemActive = (item) => {
-  if (item.componentPrefix) {
-    return page.component.startsWith(item.componentPrefix);
-  }
-  try {
-    return route().current(item.route);
-  } catch {
-    return false;
-  }
-};
-
-const isSubActive = (sub) => {
-  if (sub.component) {
-    return page.component === sub.component;
-  }
-  if (sub.route) {
-    try {
-      return route().current(sub.route);
-    } catch {
-      return false;
-    }
-  }
-  return false;
-};
 
 const currentModule = computed(() => {
   return navigationConfig.mainMenu.find(item => isItemActive(item));

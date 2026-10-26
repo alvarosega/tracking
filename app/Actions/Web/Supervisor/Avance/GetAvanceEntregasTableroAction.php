@@ -37,7 +37,7 @@ class GetAvanceEntregasTableroAction
     {
         $fechaD1 = $this->calcularFechaOperativaPrevia($fechaCorte);
 
-        $params = [$fechaD1];
+        $params = [$fechaCorte, $fechaD1];
         $extraSql = '';
 
         if ($canalFiltro && strtoupper($canalFiltro) !== 'TODOS' && strtoupper($canalFiltro) !== 'TODAS') {
@@ -53,30 +53,30 @@ class GetAvanceEntregasTableroAction
         $query = "
             SELECT 
                 TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))) AS ruta,
-                COALESCE(dr.canal, 'GENERAL') AS canal,
-                COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado') AS vendedor,
+                MAX(COALESCE(dr.canal, 'GENERAL')) AS canal,
+                MAX(COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado')) AS vendedor,
                 
                 -- Preventa D-1
                 fp.nro_preventa,
                 CAST(fp.fecha_norm AS CHAR) AS fecha_preventa,
                 fp.cliente_id,
-                COALESCE(NULLIF(TRIM(fp.cliente), ''), CONCAT('Cliente ', fp.cliente_id)) AS cliente,
-                fp.codigo_cliente,
+                MAX(COALESCE(NULLIF(TRIM(fp.cliente), ''), CONCAT('Cliente ', fp.cliente_id))) AS cliente,
+                MAX(COALESCE(fp.codigo_cliente, '')) AS codigo_cliente,
                 
                 -- Ítems Preventa D-1
                 fp.producto_id,
-                COALESCE(fp.codigo_producto, '') AS codigo_producto,
+                MAX(COALESCE(fp.codigo_producto, '')) AS codigo_producto,
                 MAX(TRIM(fp.producto)) AS producto,
-                COALESCE(fp.categoria, 'GENERAL') AS categoria,
+                MAX(COALESCE(fp.categoria, 'GENERAL')) AS categoria,
                 SUM(fp.cantidad) AS cantidad_preventa,
                 ROUND(SUM(fp.monto_final), 2) AS monto_preventa,
                 
                 -- Ventas en fecha_corte
-                COALESCE(fv_agregada.cantidad_facturada, 0) AS cantidad_facturada,
-                ROUND(COALESCE(fv_agregada.monto_facturado, 0.0), 2) AS monto_facturado,
-                CAST(fv_agregada.fecha_facturada AS CHAR) AS fecha_facturada,
-                fv_agregada.nro_factura,
-                fv_agregada.venta_id
+                COALESCE(MAX(fv_agregada.cantidad_facturada), 0) AS cantidad_facturada,
+                ROUND(COALESCE(MAX(fv_agregada.monto_facturado), 0.0), 2) AS monto_facturado,
+                CAST(MAX(fv_agregada.fecha_facturada) AS CHAR) AS fecha_facturada,
+                MAX(fv_agregada.nro_factura) AS nro_factura,
+                MAX(fv_agregada.venta_id) AS venta_id
             FROM fact_preventas fp
             LEFT JOIN dim_rutas dr ON TRIM(UPPER(fp.ruta)) = TRIM(UPPER(dr.ruta))
             LEFT JOIN (
@@ -89,7 +89,7 @@ class GetAvanceEntregasTableroAction
                     MAX(nro_factura) AS nro_factura,
                     MAX(venta_id) AS venta_id
                 FROM fact_ventas
-                WHERE fecha_norm = '{$fechaCorte}'
+                WHERE fecha_norm = ?
                   AND monto_final > 0
                   AND cantidad > 0
                   AND (revertida IS NULL OR LOWER(TRIM(revertida)) != 'si')
@@ -100,22 +100,11 @@ class GetAvanceEntregasTableroAction
               AND fp.cantidad > 0
               {$extraSql}
             GROUP BY 
-                TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))),
-                COALESCE(dr.canal, 'GENERAL'),
-                COALESCE(NULLIF(TRIM(dr.vendedor), ''), NULLIF(TRIM(fp.vendedor), ''), 'No Asignado'),
+                fp.ruta,
                 fp.nro_preventa,
                 fp.fecha_norm,
                 fp.cliente_id,
-                COALESCE(NULLIF(TRIM(fp.cliente), ''), CONCAT('Cliente ', fp.cliente_id)),
-                fp.codigo_cliente,
-                fp.producto_id,
-                COALESCE(fp.codigo_producto, ''),
-                COALESCE(fp.categoria, 'GENERAL'),
-                fv_agregada.cantidad_facturada,
-                fv_agregada.monto_facturado,
-                fv_agregada.fecha_facturada,
-                fv_agregada.nro_factura,
-                fv_agregada.venta_id
+                fp.producto_id
             ORDER BY 
                 ruta ASC,
                 fp.nro_preventa ASC,
