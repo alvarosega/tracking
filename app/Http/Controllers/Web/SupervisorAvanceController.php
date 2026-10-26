@@ -12,6 +12,9 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceInitDataAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceParetoAmplitudAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceParetoDataAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceParetoFrecuenciaAction;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -224,6 +227,76 @@ class SupervisorAvanceController extends Controller
     public function clusterCatalogo(GetAvanceClusterCatalogoAction $action): JsonResponse
     {
         return response()->json($action->execute());
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Paretos & Scoring Multicriterio.
+     */
+    public function paretos(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Avance/Paretos', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
+            'fecha_inicio_default' => $initData['fecha_inicio'],
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve el análisis Pareto consolidado y métricas de clientes.
+     */
+    public function paretosData(Request $request, GetAvanceParetoDataAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el desglose de SKUs y marcas compradas por un cliente para el modal de amplitud.
+     */
+    public function paretoDetalleAmplitud(Request $request, GetAvanceParetoAmplitudAction $action): JsonResponse
+    {
+        $clienteId = (int) $request->input('cliente_id');
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaCorte = (string) $request->input('fecha_corte');
+
+        $items = $action->execute(
+            clienteId: $clienteId,
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json(['items' => $items]);
+    }
+
+    /**
+     * Devuelve el historial de facturas efectivas del cliente para el modal de frecuencia.
+     */
+    public function paretoDetalleFrecuencia(Request $request, GetAvanceParetoFrecuenciaAction $action): JsonResponse
+    {
+        $clienteId = (int) $request->input('cliente_id');
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaCorte = (string) $request->input('fecha_corte');
+
+        $compras = $action->execute(
+            clienteId: $clienteId,
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json(['compras' => $compras]);
     }
 }
 

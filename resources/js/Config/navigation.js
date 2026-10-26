@@ -75,6 +75,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.cluster',
           component: 'Supervisor/Avance/Cluster',
           icon: 'CubeTransparentIcon'
+        },
+        {
+          id: 'paretos',
+          name: 'Paretos & Scoring',
+          route: 'supervisor.avance.paretos',
+          component: 'Supervisor/Avance/Paretos',
+          icon: 'ChartPieIcon'
         }
       ]
     },
