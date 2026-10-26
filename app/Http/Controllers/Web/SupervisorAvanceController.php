@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\Avance\GetAvanceBpcCatalogoAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceBpcClientesAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceBpcSellOutAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClienteDetalleFechasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClientesRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClusterCatalogoAction;
@@ -398,6 +401,90 @@ class SupervisorAvanceController extends Controller
 
             return response()->json([
                 'message' => 'Error al consultar detalle de ruta: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Sell Out y BPC.
+     */
+    public function bpc(GetAvanceInitDataAction $action, GetAvanceBpcCatalogoAction $catalogoAction): Response
+    {
+        $initData = $action->execute();
+        $bpcCat = $catalogoAction->execute();
+
+        return Inertia::render('Supervisor/Avance/Bpc', [
+            'catalogo_rutas' => $bpcCat['rutas'] ?: $initData['catalogo_rutas'],
+            'canales' => $bpcCat['canales'] ?: $initData['canales'],
+            'clusters' => $bpcCat['clusters'],
+            'meses' => $bpcCat['meses'] ?: $initData['meses'],
+            'mes_default' => $bpcCat['mes_evaluado_defecto'] ?: $initData['mes'],
+            'fecha_corte_default' => $bpcCat['fecha_corte_defecto'] ?: $initData['fecha_corte'],
+            'fecha_inicio_default' => $initData['fecha_inicio'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve las dos tablas paralelas de Clientes Activos Totales y Paretos BPC.
+     */
+    public function bpcClientes(Request $request, GetAvanceBpcClientesAction $action): JsonResponse
+    {
+        try {
+            $mesEvaluado = $request->input('mes_evaluado') ? (string) $request->input('mes_evaluado') : null;
+            $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+            $canales = (array) $request->input('canales', []);
+            $rutas = (array) $request->input('rutas', []);
+            $clusters = (array) $request->input('clusters', []);
+
+            $data = $action->execute(
+                mesEvaluado: $mesEvaluado,
+                fechaCorte: $fechaCorte,
+                canales: $canales,
+                rutas: $rutas,
+                clusters: $clusters
+            );
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en bpcClientes: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar clientes BPC: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Devuelve las dos tablas paralelas de Sell Out Totales y Paretos BPC en Bs.
+     */
+    public function bpcSellOut(Request $request, GetAvanceBpcSellOutAction $action): JsonResponse
+    {
+        try {
+            $mesEvaluado = $request->input('mes_evaluado') ? (string) $request->input('mes_evaluado') : null;
+            $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+            $canales = (array) $request->input('canales', []);
+            $rutas = (array) $request->input('rutas', []);
+            $clusters = (array) $request->input('clusters', []);
+
+            $data = $action->execute(
+                mesEvaluado: $mesEvaluado,
+                fechaCorte: $fechaCorte,
+                canales: $canales,
+                rutas: $rutas,
+                clusters: $clusters
+            );
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en bpcSellOut: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar Sell Out BPC: ' . $e->getMessage()
             ], 500);
         }
     }

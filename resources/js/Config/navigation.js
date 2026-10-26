@@ -89,6 +89,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.entregas',
           component: 'Supervisor/Avance/Entregas',
           icon: 'TruckIcon'
+        },
+        {
+          id: 'bpc',
+          name: 'Sell Out y BPC',
+          route: 'supervisor.avance.bpc',
+          component: 'Supervisor/Avance/Bpc',
+          icon: 'SparklesIcon'
         }
       ]
     },

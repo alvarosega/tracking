@@ -52,6 +52,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/cluster', [SupervisorAvanceController::class, 'cluster'])->name('cluster');
         Route::get('/paretos', [SupervisorAvanceController::class, 'paretos'])->name('paretos');
         Route::get('/entregas', [SupervisorAvanceController::class, 'entregas'])->name('entregas');
+        Route::get('/bpc', [SupervisorAvanceController::class, 'bpc'])->name('bpc');
         Route::get('/', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('index');
         Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
@@ -66,6 +67,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/entregas/tablero', [SupervisorAvanceController::class, 'entregasTablero'])->name('entregas.tablero');
         Route::post('/entregas/historico', [SupervisorAvanceController::class, 'entregasHistorico'])->name('entregas.historico');
         Route::post('/entregas/historico/detalle-ruta', [SupervisorAvanceController::class, 'entregasHistoricoDetalleRuta'])->name('entregas.historico.detalle-ruta');
+        Route::post('/bpc/clientes', [SupervisorAvanceController::class, 'bpcClientes'])->name('bpc.clientes');
+        Route::post('/bpc/sellout', [SupervisorAvanceController::class, 'bpcSellOut'])->name('bpc.sellout');
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 
