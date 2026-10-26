@@ -30,9 +30,11 @@ class StoreSaneamientoAction
 
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         $fechaCreacion = $validated['created_at'] ?? $nowBolivia;
-        $zona = !empty($validated['zona'])
-            ? trim((string) $validated['zona'])
-            : (!empty($validated['zona_comercial']) ? trim((string) $validated['zona_comercial']) : 'SIN ZONA');
+        $zona = !empty($validated['territorio'])
+            ? trim((string) $validated['territorio'])
+            : (!empty($validated['zona_comercial'])
+                ? trim((string) $validated['zona_comercial'])
+                : (!empty($validated['zona']) ? trim((string) $validated['zona']) : 'SIN ZONA'));
 
         $insertData = [
             'user_id' => $user->id,
@@ -74,6 +76,7 @@ class StoreSaneamientoAction
             'tipo_registro' => $tipoRegistro,
             'zona' => $zona,
             'zona_comercial' => $zona,
+            'territorio' => $zona,
             'photo_url' => $photoPath ? Storage::disk('public')->url($photoPath) : null,
         ];
     }

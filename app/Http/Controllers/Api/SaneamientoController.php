@@ -40,6 +40,7 @@ class SaneamientoController extends Controller
             'tipo_registro' => $result['tipo_registro'],
             'zona' => $result['zona'],
             'zona_comercial' => $result['zona_comercial'],
+            'territorio' => $result['territorio'],
             'photo_url' => $result['photo_url'],
         ], 201);
     }

@@ -97,16 +97,16 @@ class GetPlanRuteoAction
                 DB::raw("CASE WHEN sb.id IS NOT NULL THEN sb.tipo_negocio ELSE COALESCE(p.tipo_negocio, '') END as tipo_negocio"),
                 DB::raw("CASE 
                     WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
-                    ELSE COALESCE(NULLIF(TRIM(p.zona_venta), ''), NULLIF(TRIM(p.territorio), ''), NULLIF(TRIM(p.mercado), ''), '') 
+                    ELSE COALESCE(TRIM(p.territorio), '') 
                 END as zona"),
                 DB::raw("CASE 
                     WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
-                    ELSE COALESCE(NULLIF(TRIM(p.zona_venta), ''), NULLIF(TRIM(p.territorio), ''), NULLIF(TRIM(p.mercado), ''), '') 
+                    ELSE COALESCE(TRIM(p.territorio), '') 
                 END as zona_comercial"),
                 DB::raw("CASE 
                     WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
-                    ELSE COALESCE(NULLIF(TRIM(p.zona_venta), ''), NULLIF(TRIM(p.territorio), ''), NULLIF(TRIM(p.mercado), ''), '') 
-                END as zona_venta"),
+                    ELSE COALESCE(TRIM(p.territorio), '') 
+                END as territorio"),
                 DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.contacto, '') ELSE COALESCE(p.contacto, '') END as contacto"),
                 DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.telefono, '') ELSE COALESCE(p.telefono, '') END as telefono"),
                 DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.celular, '') ELSE COALESCE(p.celular, '') END as celular"),
