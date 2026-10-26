@@ -1,6 +1,11 @@
 <template>
   <SupervisorLayout title="Avance > Cumplimiento MTD">
     <div class="space-y-2.5 font-sans select-none">
+      <!-- Subnavegación de Módulo Avance -->
+      <div class="flex items-center justify-between gap-2">
+        <SubNavTabs :tabs="avanceTabs" />
+      </div>
+
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta" />
 
@@ -729,8 +734,13 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
+import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
 import AvanceFiltrosBar from './AvanceFiltrosBar.vue'
 import { useAvanceStore } from '@/Stores/avanceStore'
+import { navigationConfig } from '@/Config/navigation'
+
+const avanceMenu = navigationConfig.mainMenu.find(m => m.id === 'avance')
+const avanceTabs = avanceMenu ? avanceMenu.submodules : []
 
 const props = defineProps({
   catalogo_rutas: { type: Array, default: () => [] },

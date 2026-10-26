@@ -48,10 +48,13 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     // Módulo Avance Mensual & Cumplimiento Estratégico (KPIs)
     Route::prefix('avance')->name('avance.')->group(function () {
         Route::get('/cumplimiento', [SupervisorAvanceController::class, 'cumplimiento'])->name('cumplimiento');
+        Route::get('/historico-preventas', [SupervisorAvanceController::class, 'historicoPreventas'])->name('historico-preventas');
         Route::get('/', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('index');
         Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
         Route::post('/cumplimiento/cliente-detalle-fechas', [SupervisorAvanceController::class, 'clienteDetalleFechas'])->name('cumplimiento.cliente-detalle-fechas');
+        Route::post('/historico-preventas/data', [SupervisorAvanceController::class, 'historicoPreventasData'])->name('historico-preventas.data');
+        Route::post('/historico-preventas/detalle-ruta', [SupervisorAvanceController::class, 'historicoPreventasDetalleRuta'])->name('historico-preventas.detalle-ruta');
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 

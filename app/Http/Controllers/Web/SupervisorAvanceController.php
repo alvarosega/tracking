@@ -7,7 +7,10 @@ namespace App\Http\Controllers\Web;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClienteDetalleFechasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClientesRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceInitDataAction;
+use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -111,6 +114,66 @@ class SupervisorAvanceController extends Controller
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
 
         $data = $action->calcularDiasHabiles($mes, $fechaCorte);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Preventas Históricas por Rango de Fechas.
+     */
+    public function historicoPreventas(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        // Para histórico de preventas, el rango por defecto óptimo es los últimos 7 días hasta la fecha de corte
+        $corte = Carbon::parse($initData['fecha_corte']);
+        $ini7Dias = $corte->copy()->subDays(6)->format('Y-m-d');
+
+        return Inertia::render('Supervisor/Avance/HistoricoPreventas', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
+            'fecha_inicio_default' => $ini7Dias,
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve la matriz consolidada de preventas por ruta y días hábiles.
+     */
+    public function historicoPreventasData(Request $request, GetAvanceHistoricoPreventasAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte,
+            canales: $canales,
+            rutas: $rutas
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el desglose detallado de clientes que compraron en la ruta para el acordeón.
+     */
+    public function historicoPreventasDetalleRuta(Request $request, GetAvanceHistoricoPreventasDetalleRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta');
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaCorte = (string) $request->input('fecha_corte');
+
+        $data = $action->execute(
+            ruta: $ruta,
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
 
         return response()->json($data);
     }

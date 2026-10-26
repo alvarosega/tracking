@@ -61,6 +61,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.cumplimiento',
           component: 'Supervisor/Avance/Cumplimiento',
           icon: 'ChartBarIcon'
+        },
+        {
+          id: 'historico-preventas',
+          name: 'Preventas Históricas',
+          route: 'supervisor.avance.historico-preventas',
+          component: 'Supervisor/Avance/HistoricoPreventas',
+          icon: 'ClockIcon'
         }
       ]
     },
