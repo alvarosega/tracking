@@ -171,6 +171,7 @@ class GetDetalleReposicionRutaAction
                     DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
                     DB::raw("SUM(cantidad) as total_unidades"),
                     DB::raw("SUM(monto_final) as total_bs"),
+                    DB::raw("SUBSTRING(GROUP_CONCAT(CONCAT(DATE(fecha_norm), ':', cantidad, ':', ROUND(monto_final, 2)) ORDER BY fecha_norm DESC SEPARATOR '|'), 1, 2048) as detalle_compras_raw"),
                 ])
                 ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo), '')"), DB::raw("COALESCE(TRIM(producto), 'SKU')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
                 ->get();
@@ -191,6 +192,7 @@ class GetDetalleReposicionRutaAction
                     DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
                     DB::raw("SUM(cantidad) as total_unidades"),
                     DB::raw("SUM(monto_final) as total_bs"),
+                    DB::raw("SUBSTRING(GROUP_CONCAT(CONCAT(DATE(fecha_norm), ':', cantidad, ':', ROUND(monto_final, 2)) ORDER BY fecha_norm DESC SEPARATOR '|'), 1, 2048) as detalle_compras_raw"),
                 ])
                 ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo_producto), '')"), DB::raw("COALESCE(TRIM(producto), 'SKU')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
                 ->get();
@@ -234,6 +236,24 @@ class GetDetalleReposicionRutaAction
                     );
                     $historialPorCliente[$cid][$key]['total_unidades'] += (int) $hv->total_unidades;
                     $historialPorCliente[$cid][$key]['total_bs'] += (float) $hv->total_bs;
+
+                    // Parsear desglose de compras históricas para trazabilidad
+                    if (!isset($historialPorCliente[$cid][$key]['historial_compras'])) {
+                        $historialPorCliente[$cid][$key]['historial_compras'] = [];
+                    }
+                    $rawTxs = (string) ($hv->detalle_compras_raw ?? '');
+                    if ($rawTxs !== '') {
+                        foreach (explode('|', $rawTxs) as $b) {
+                            $partes = explode(':', trim($b));
+                            if (count($partes) >= 3) {
+                                $historialPorCliente[$cid][$key]['historial_compras'][] = [
+                                    'fecha' => $partes[0],
+                                    'unidades' => (int) $partes[1],
+                                    'monto_bs' => round((float) $partes[2], 2),
+                                ];
+                            }
+                        }
+                    }
                 }
             };
 
@@ -298,6 +318,7 @@ class GetDetalleReposicionRutaAction
                         'monto_hoy' => $montoHoy,
                         'recomprado_hoy' => $esMatch,
                         'estatus' => $esMatch ? 'MATCH_SKU' : 'OMITIDO',
+                        'historial_compras' => $hab['historial_compras'] ?? [],
                     ];
                 }
 
