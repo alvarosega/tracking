@@ -45,6 +45,26 @@ export const navigationConfig = {
       ]
     },
     {
+      id: 'avance',
+      name: 'Módulo Avance',
+      shortName: 'Avance',
+      route: 'supervisor.avance.cumplimiento',
+      componentPrefix: 'Supervisor/Avance',
+      icon: 'TrendingUpIcon',
+      badge: 'MTD',
+      badgeColor: 'blue',
+      description: 'Cumplimiento de Metas y los 6 KPIs Estratégicos',
+      submodules: [
+        {
+          id: 'cumplimiento',
+          name: 'Cumplimiento KPIs',
+          route: 'supervisor.avance.cumplimiento',
+          component: 'Supervisor/Avance/Cumplimiento',
+          icon: 'ChartBarIcon'
+        }
+      ]
+    },
+    {
       id: 'preventas',
       name: 'Módulo Preventa',
       shortName: 'Preventa',

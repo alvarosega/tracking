@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
+use App\Http\Controllers\Web\SupervisorAvanceController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
 use App\Http\Controllers\Web\SupervisorIndexController;
 use App\Http\Controllers\Web\SupervisorJornadasController;
@@ -42,6 +43,16 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/cercanos/resolver-enlace', [SupervisorRuteoController::class, 'resolverEnlaceMaps'])->name('cercanos.resolver-enlace');
         Route::post('/cercanos/cliente/{clienteId}/ventas', [SupervisorRuteoController::class, 'getVentasCliente'])->name('cercanos.cliente.ventas');
         Route::post('/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('cercanos.cliente.visitas');
+    });
+
+    // Módulo Avance Mensual & Cumplimiento Estratégico (KPIs)
+    Route::prefix('avance')->name('avance.')->group(function () {
+        Route::get('/cumplimiento', [SupervisorAvanceController::class, 'cumplimiento'])->name('cumplimiento');
+        Route::get('/', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('index');
+        Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
+        Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
+        Route::post('/cumplimiento/cliente-detalle-fechas', [SupervisorAvanceController::class, 'clienteDetalleFechas'])->name('cumplimiento.cliente-detalle-fechas');
+        Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 
     // Módulo Auditoría Preventas & Cumplimiento Unilever
