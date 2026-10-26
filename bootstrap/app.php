@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\CheckActiveWorkday;
+use App\Http\Middleware\EnsureUserHasModuleAccess;
+use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use App\Http\Middleware\EnsureUserIsSupervisor;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Console\Scheduling\Schedule;
@@ -23,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'supervisor'     => EnsureUserIsSupervisor::class,
+            'superadmin'     => EnsureUserIsSuperAdmin::class,
+            'module.access'  => EnsureUserHasModuleAccess::class,
             'workday.active' => CheckActiveWorkday::class,
         ]);
     })

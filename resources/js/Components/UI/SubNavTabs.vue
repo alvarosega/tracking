@@ -1,7 +1,7 @@
 <template>
-  <div class="inline-flex p-1 apple-control-pill rounded-[12px] overflow-x-auto no-scrollbar scroll-touch max-w-full">
+  <div v-if="filteredTabs.length > 0" class="inline-flex p-1 apple-control-pill rounded-[12px] overflow-x-auto no-scrollbar scroll-touch max-w-full">
     <Link
-      v-for="tab in tabs"
+      v-for="tab in filteredTabs"
       :key="tab.id || tab.route"
       :href="resolveTabHref(tab)"
       class="px-3 py-1 text-xs font-medium rounded-[9px] transition-all flex items-center gap-1.5 whitespace-nowrap select-none active:scale-95"
@@ -29,6 +29,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -39,10 +40,58 @@ const props = defineProps({
   currentTab: {
     type: String,
     default: null,
-  }
+  },
+  moduleId: {
+    type: String,
+    default: null,
+  },
 });
 
 const page = usePage();
+
+const user = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!user.value?.is_superadmin);
+const perms = computed(() => user.value?.permissions);
+
+function isTabAllowed(tab) {
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+
+  let moduleKey = props.moduleId || tab.module;
+  let submoduleKey = tab.id;
+
+  if (!moduleKey && tab.route) {
+    const parts = tab.route.split('.');
+    if (parts.length >= 2 && parts[0] === 'supervisor') {
+      moduleKey = parts[1];
+      if (!submoduleKey && parts.length >= 3) {
+        submoduleKey = parts[2];
+      }
+    }
+  }
+
+  if (!moduleKey) return true;
+
+  // 1. Módulo principal debe estar activo
+  if (!perms.value.modules || perms.value.modules[moduleKey] !== true) {
+    return false;
+  }
+
+  // 2. Submódulo específico: si está en el mapa, debe ser true
+  if (submoduleKey) {
+    const fullKey = `${moduleKey}.${submoduleKey}`;
+    if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
+      return perms.value.submodules[fullKey] === true;
+    }
+  }
+
+  return true;
+}
+
+const filteredTabs = computed(() => {
+  return props.tabs.filter(tab => isTabAllowed(tab));
+});
 
 const resolveTabHref = (tab) => {
   if (tab.href) return tab.href;

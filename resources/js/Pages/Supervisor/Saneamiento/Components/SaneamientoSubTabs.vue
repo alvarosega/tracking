@@ -1,8 +1,8 @@
 <template>
-  <div class="apple-glass-card rounded-[16px] p-1.5 sm:p-2 mb-4 select-none font-sans overflow-x-auto custom-scroll">
+  <div v-if="filteredTabs.length > 0" class="apple-glass-card rounded-[16px] p-1.5 sm:p-2 mb-4 select-none font-sans overflow-x-auto custom-scroll">
     <div class="flex items-center gap-1 min-w-max">
       <Link
-        v-for="tab in tabs"
+        v-for="tab in filteredTabs"
         :key="tab.id"
         :href="route(tab.route)"
         class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all duration-150 cursor-pointer"
@@ -48,7 +48,8 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import { saneamientoSubTabs } from '@/Config/navigation'
 
 defineProps({
@@ -59,5 +60,28 @@ defineProps({
 })
 
 const tabs = saneamientoSubTabs
+const page = usePage()
+
+const user = computed(() => page.props.auth?.user)
+const isSuperAdmin = computed(() => !!user.value?.is_superadmin)
+const perms = computed(() => user.value?.permissions)
+
+const filteredTabs = computed(() => {
+  if (isSuperAdmin.value) return tabs
+  if (!perms.value) return []
+  if (perms.value.is_all_allowed) return tabs
+
+  if (!perms.value.modules || perms.value.modules['saneamiento'] !== true) {
+    return []
+  }
+
+  return tabs.filter(tab => {
+    const fullKey = `saneamiento.${tab.id}`
+    if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
+      return perms.value.submodules[fullKey] === true
+    }
+    return true
+  })
+})
 </script>
 

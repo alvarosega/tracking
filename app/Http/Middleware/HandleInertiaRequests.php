@@ -52,7 +52,13 @@ class HandleInertiaRequests extends Middleware
                     'role' => $user->role?->name,
                     'is_superadmin' => $user->isSuperAdmin(),
                     'is_supervisor' => $user->isSupervisor(),
+                    'permissions' => $user->getModulePermissionsMap(),
                 ] : null,
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

@@ -374,6 +374,18 @@ export const navigationConfig = {
           icon: 'ArchiveBoxIcon'
         }
       ]
+    },
+    {
+      id: 'admin-permisos',
+      name: 'Permisos Supervisores',
+      shortName: 'Permisos',
+      route: 'supervisor.admin.permisos.index',
+      componentPrefix: 'Supervisor/Admin',
+      icon: 'KeyIcon',
+      badge: 'ADMIN',
+      badgeColor: 'purple',
+      description: 'Gestión y control de acceso a módulos por supervisor',
+      superAdminOnly: true
     }
   ],
 

@@ -151,7 +151,7 @@
 
         <!-- Lista de Navegación del Sidebar -->
         <nav class="p-2 md:p-2.5 space-y-1 overflow-y-auto flex-1 scroll-touch custom-scroll">
-          <template v-for="item in navigationConfig.mainMenu" :key="item.id">
+          <template v-for="item in visibleMainMenu" :key="item.id">
             <div>
               <div
                 class="group flex items-center justify-between text-xs font-medium rounded-lg transition-all"
@@ -203,6 +203,8 @@
                     <path v-else-if="item.id === 'modulos'" stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                     <!-- Centro de Ingesta -->
                     <path v-else-if="item.id === 'ingesta'" stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    <!-- Permisos Supervisores (Admin) -->
+                    <path v-else-if="item.id === 'admin-permisos'" stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                     <!-- Fallback -->
                     <path v-else stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                   </svg>
@@ -231,7 +233,7 @@
 
                   <!-- Botón Desplegable para Submódulos -->
                   <button
-                    v-if="item.submodules && item.submodules.length > 0"
+                    v-if="getVisibleSubmodules(item).length > 0"
                     type="button"
                     @click.stop="toggleSubmenu(item.id)"
                     class="p-0.5 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer"
@@ -247,12 +249,12 @@
 
               <!-- Lista de Submódulos Desplegables (lateral/drawer) -->
               <div
-                v-if="item.submodules && item.submodules.length > 0 && isSubmenuExpanded(item.id)"
+                v-if="getVisibleSubmodules(item).length > 0 && isSubmenuExpanded(item.id)"
                 class="pl-6 pr-1 py-1 space-y-0.5 border-l-2 border-black/[0.08] ml-4 mt-0.5"
                 :class="isSidebarCollapsed ? 'md:hidden' : 'block'"
               >
                 <Link
-                  v-for="sub in item.submodules"
+                  v-for="sub in getVisibleSubmodules(item)"
                   :key="sub.id || sub.route"
                   :href="resolveSubRoute(sub)"
                   class="flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-[7px] transition-colors"
@@ -329,6 +331,32 @@
       class="flex-1 min-w-0 flex flex-col"
       :class="fullBleed ? 'min-h-0 overflow-hidden' : 'overflow-x-hidden pb-6 sm:pb-8'"
     >
+      <!-- Flash Alert Banner (Inertia Session Flash) -->
+      <div v-if="page.props.flash?.warning || page.props.flash?.error" class="px-2.5 sm:px-4 lg:px-6 pt-3 max-w-[1750px] w-full mx-auto">
+        <div
+          v-if="page.props.flash?.warning"
+          class="p-3 rounded-[12px] bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold shadow-sm flex items-center justify-between"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>{{ page.props.flash.warning }}</span>
+          </div>
+        </div>
+        <div
+          v-if="page.props.flash?.error"
+          class="p-3 rounded-[12px] bg-red-50 text-red-700 border border-red-200 text-[11px] font-semibold shadow-sm flex items-center justify-between"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ page.props.flash.error }}</span>
+          </div>
+        </div>
+      </div>
+
       <div v-if="fullBleed" class="flex-1 w-full flex flex-col min-h-0 overflow-hidden">
         <slot />
       </div>
@@ -397,6 +425,12 @@ function isSubmenuExpanded(itemId) {
 }
 
 function getRouteHref(item) {
+  if (item.submodules && item.submodules.length > 0 && !isSuperAdmin.value) {
+    const allowedSub = getVisibleSubmodules(item);
+    if (allowedSub.length > 0) {
+      return resolveSubRoute(allowedSub[0]);
+    }
+  }
   try {
     return route(item.route);
   } catch {
@@ -439,11 +473,75 @@ function isSubActive(sub) {
   return false;
 }
 
+// Control de permisos de acceso a módulos
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const userPermissions = computed(() => authUser.value?.permissions);
+
+function isModuleAllowed(item) {
+  if (item.superAdminOnly) {
+    return isSuperAdmin.value;
+  }
+  if (isSuperAdmin.value) {
+    return true;
+  }
+  // El Panel General siempre está disponible para el supervisor
+  if (item.id === 'inicio') {
+    return true;
+  }
+  const perms = userPermissions.value;
+  if (!perms) {
+    return false;
+  }
+  if (perms.is_all_allowed) {
+    return true;
+  }
+  // Política por defecto: NO TIENE PERMISOS a menos que esté explícitamente en true
+  if (!perms.modules || perms.modules[item.id] !== true) {
+    return false;
+  }
+  if (item.submodules && item.submodules.length > 0) {
+    return getVisibleSubmodules(item).length > 0;
+  }
+  return true;
+}
+
+function getVisibleSubmodules(item) {
+  if (!item.submodules || item.submodules.length === 0) {
+    return [];
+  }
+  if (isSuperAdmin.value) {
+    return item.submodules;
+  }
+  const perms = userPermissions.value;
+  if (!perms) {
+    return [];
+  }
+  if (perms.is_all_allowed) {
+    return item.submodules;
+  }
+  // Si el módulo principal no está permitido, ningún submódulo es visible
+  if (!perms.modules || perms.modules[item.id] !== true) {
+    return [];
+  }
+  return item.submodules.filter(sub => {
+    const key = `${item.id}.${sub.id}`;
+    if (perms.submodules && Object.prototype.hasOwnProperty.call(perms.submodules, key)) {
+      return perms.submodules[key] === true;
+    }
+    return true;
+  });
+}
+
+const visibleMainMenu = computed(() => {
+  return navigationConfig.mainMenu.filter(item => isModuleAllowed(item));
+});
+
 // Auto-expandir el submódulo del módulo actualmente activo
 watch(
   () => page.component,
   () => {
-    navigationConfig.mainMenu.forEach(item => {
+    visibleMainMenu.value.forEach(item => {
       if (item.submodules && item.submodules.length > 0) {
         if (isItemActive(item)) {
           expandedSubmenus[item.id] = true;
@@ -455,6 +553,6 @@ watch(
 );
 
 const currentModule = computed(() => {
-  return navigationConfig.mainMenu.find(item => isItemActive(item));
+  return visibleMainMenu.value.find(item => isItemActive(item));
 });
 </script>

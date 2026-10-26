@@ -53,21 +53,157 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role?->name === 'superadministrador';
+        return $this->role?->name === 'superadministrador' || (int)$this->role_id === 3;
     }
 
     public function isSupervisor(): bool
     {
-        return $this->role?->name === 'supervisor';
+        return $this->role?->name === 'supervisor' || (int)$this->role_id === 1;
     }
 
     public function isVendedor(): bool
     {
-        return $this->role?->name === 'vendedor';
+        return $this->role?->name === 'vendedor' || (int)$this->role_id === 2;
     }
 
     public function canAccessWebPanel(): bool
     {
-        return in_array($this->role?->name, ['supervisor', 'superadministrador'], true);
+        return in_array($this->role?->name, ['supervisor', 'superadministrador'], true)
+            || in_array((int)$this->role_id, [1, 3], true);
+    }
+
+    public function modulePermissions()
+    {
+        return $this->hasMany(SupervisorModulePermission::class);
+    }
+
+    /**
+     * Determina si el usuario tiene permiso para acceder a un módulo (y opcionalmente submódulo).
+     * Soporta verificación de expiración temporal (expires_at) y permiso de escritura (can_write).
+     */
+    public function hasModuleAccess(string $moduleKey, ?string $submoduleKey = null, bool $requireWrite = false): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->isSupervisor()) {
+            return false;
+        }
+
+        $permissions = $this->relationLoaded('modulePermissions')
+            ? $this->modulePermissions
+            : $this->modulePermissions()->get();
+
+        // Por defecto: Si no tiene registros configurados, NO TIENE PERMISOS
+        if ($permissions->isEmpty()) {
+            return false;
+        }
+
+        $subKey = !empty($submoduleKey) ? (string)$submoduleKey : '';
+
+        // 1. Verificar módulo principal
+        $mainPerm = $permissions->first(function ($p) use ($moduleKey) {
+            $pSub = (string)($p->submodule_key ?? '');
+            return $p->module_key === $moduleKey && $pSub === '';
+        });
+
+        if (!$mainPerm || !$mainPerm->is_allowed) {
+            return false;
+        }
+
+        // Si el permiso principal expiró por fecha, revocar acceso
+        if ($mainPerm->expires_at && $mainPerm->expires_at->isPast()) {
+            return false;
+        }
+
+        if ($requireWrite && !$mainPerm->can_write) {
+            return false;
+        }
+
+        // 2. Verificar submódulo si fue provisto
+        if ($subKey !== '') {
+            $subPerm = $permissions->first(function ($p) use ($moduleKey, $subKey) {
+                return $p->module_key === $moduleKey && (string)($p->submodule_key ?? '') === $subKey;
+            });
+
+            if ($subPerm !== null) {
+                if (!$subPerm->is_allowed) {
+                    return false;
+                }
+                if ($subPerm->expires_at && $subPerm->expires_at->isPast()) {
+                    return false;
+                }
+                if ($requireWrite && !$subPerm->can_write) {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Retorna el mapa completo de permisos indexado por módulo y submódulo,
+     * incluyendo estado de vigencia, permisos de escritura y fechas de caducidad.
+     *
+     * @return array<string, mixed>
+     */
+    public function getModulePermissionsMap(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return [
+                'is_all_allowed' => true,
+                'modules' => [],
+                'submodules' => [],
+                'can_write' => [],
+                'expires_at' => [],
+            ];
+        }
+
+        $permissions = $this->relationLoaded('modulePermissions')
+            ? $this->modulePermissions
+            : $this->modulePermissions()->get();
+
+        // Por defecto: no tiene permisos asignados
+        if ($permissions->isEmpty()) {
+            return [
+                'is_all_allowed' => false,
+                'modules' => [],
+                'submodules' => [],
+                'can_write' => [],
+                'expires_at' => [],
+            ];
+        }
+
+        $modulesMap = [];
+        $submodulesMap = [];
+        $canWriteMap = [];
+        $expiresAtMap = [];
+
+        foreach ($permissions as $p) {
+            $isActive = (bool)$p->is_allowed && (!$p->expires_at || $p->expires_at->isFuture());
+            $subKey = (string)($p->submodule_key ?? '');
+
+            if ($subKey === '') {
+                $modulesMap[$p->module_key] = $isActive;
+                $canWriteMap[$p->module_key] = (bool)$p->can_write;
+                $expiresAtMap[$p->module_key] = $p->expires_at?->toIso8601String();
+            } else {
+                $compositeKey = "{$p->module_key}.{$subKey}";
+                $submodulesMap[$compositeKey] = $isActive;
+                $canWriteMap[$compositeKey] = (bool)$p->can_write;
+                $expiresAtMap[$compositeKey] = $p->expires_at?->toIso8601String();
+            }
+        }
+
+        return [
+            'is_all_allowed' => false,
+            'modules' => $modulesMap,
+            'submodules' => $submodulesMap,
+            'can_write' => $canWriteMap,
+            'expires_at' => $expiresAtMap,
+        ];
     }
 }
