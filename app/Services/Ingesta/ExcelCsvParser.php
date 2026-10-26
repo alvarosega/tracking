@@ -477,8 +477,9 @@ class ExcelCsvParser
         if (is_numeric($str) && (float)$str > 30000 && (float)$str < 60000) {
             $days = (int)floor((float)$str);
             // El día 1 de Excel es 1899-12-30 (por el bug bisiesto de Lotus 1-2-3 en 1900)
+            // Se usa gmdate() para evitar desfase de 1 día por zona horaria negativa (ej: UTC-4)
             $unixTime = ($days - 25569) * 86400;
-            return date('Y-m-d', $unixTime);
+            return gmdate('Y-m-d', $unixTime);
         }
 
         // Intentar strtotime

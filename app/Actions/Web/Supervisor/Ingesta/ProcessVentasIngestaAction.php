@@ -108,34 +108,48 @@ class ProcessVentasIngestaAction
         $conn = DB::connection('supervisor');
 
         // Asegurar tabla auditoria_ventas_discrepancias
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `auditoria_ventas_discrepancias` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `archivo_origen` VARCHAR(255) NOT NULL,
-                `venta_id` BIGINT NOT NULL,
-                `producto_id` BIGINT NOT NULL,
-                `fecha` VARCHAR(50) NULL,
-                `cliente_id` BIGINT NULL,
-                `monto_anterior` DECIMAL(12, 4) NULL,
-                `monto_nuevo` DECIMAL(12, 4) NULL,
-                `cantidad_anterior` BIGINT NULL,
-                `cantidad_nueva` BIGINT NULL,
-                `revertida_anterior` VARCHAR(10) NULL,
-                `revertida_nueva` VARCHAR(10) NULL,
-                `estado_revision` VARCHAR(20) DEFAULT 'REGISTRADO',
-                `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_aud_vta_prod` (`venta_id`, `producto_id`),
-                INDEX `idx_aud_vta_estado` (`estado_revision`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `auditoria_ventas_discrepancias` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `archivo_origen` VARCHAR(255) NOT NULL,
+                    `venta_id` BIGINT NOT NULL,
+                    `producto_id` BIGINT NOT NULL,
+                    `fecha` VARCHAR(50) NULL,
+                    `cliente_id` BIGINT NULL,
+                    `monto_anterior` DECIMAL(12, 4) NULL,
+                    `monto_nuevo` DECIMAL(12, 4) NULL,
+                    `cantidad_anterior` BIGINT NULL,
+                    `cantidad_nueva` BIGINT NULL,
+                    `revertida_anterior` VARCHAR(10) NULL,
+                    `revertida_nueva` VARCHAR(10) NULL,
+                    `estado_revision` VARCHAR(20) DEFAULT 'REGISTRADO',
+                    `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_aud_vta_prod` (`venta_id`, `producto_id`),
+                    INDEX `idx_aud_vta_estado` (`estado_revision`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {}
 
         // Obtener columnas existentes en fact_ventas
-        $colDbRows = $conn->select("
-            SELECT COLUMN_NAME 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_ventas'
-        ");
-        $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+        try {
+            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_ventas');
+        } catch (\Throwable) {
+            $colsDb = [];
+        }
+
+        if (empty($colsDb)) {
+            try {
+                $colDbRows = $conn->select("
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_ventas'
+                ");
+                $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+            } catch (\Throwable) {
+                $colsDb = [];
+            }
+        }
         $colsDbFlip = array_flip($colsDb);
 
         // 1. Consultar registros existentes en BD para el rango de fechas

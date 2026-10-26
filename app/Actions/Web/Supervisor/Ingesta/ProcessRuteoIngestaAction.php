@@ -116,6 +116,15 @@ class ProcessRuteoIngestaAction
         // Asegurar tablas pan_ruteo_snapshots y auditoria_ruteo_cambios
         $this->asegurarTablas($conn);
 
+        // Columnas existentes en pan_ruteo y pan_ruteo_snapshots
+        try {
+            $colsSnapDb = array_flip(\Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo_snapshots'));
+            $colsVivoDb = array_flip(\Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo'));
+        } catch (\Throwable) {
+            $colsSnapDb = [];
+            $colsVivoDb = [];
+        }
+
         // Consultar clientes existentes en pan_ruteo
         $filasBd = $conn->select("
             SELECT cliente_id, dia_norm, dia, ruta, estado, cliente, vendedor, cod_vendedor,
@@ -288,6 +297,11 @@ class ProcessRuteoIngestaAction
 
         // 1. Guardar Snapshot Inmutable
         if (!empty($registrosSnapshot)) {
+            if (!empty($colsSnapDb)) {
+                $registrosSnapshot = array_map(function ($row) use ($colsSnapDb) {
+                    return array_intersect_key($row, $colsSnapDb);
+                }, $registrosSnapshot);
+            }
             $chunksSnap = array_chunk($registrosSnapshot, $chunkSize);
             foreach ($chunksSnap as $chunk) {
                 $conn->table('pan_ruteo_snapshots')->insert($chunk);
@@ -305,6 +319,12 @@ class ProcessRuteoIngestaAction
         // 3. Reemplazo Atómico Transaccional de pan_ruteo
         // Se ejecuta dentro de una transacción para garantizar que si ocurre algún fallo
         // durante la inserción en chunks, el padrón anterior se restaura íntegro.
+        if (!empty($colsVivoDb)) {
+            $registrosVivos = array_map(function ($row) use ($colsVivoDb) {
+                return array_intersect_key($row, $colsVivoDb);
+            }, $registrosVivos);
+        }
+
         $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
             $conn->table('pan_ruteo')->delete();
 
@@ -365,68 +385,70 @@ class ProcessRuteoIngestaAction
 
     protected function asegurarTablas($conn): void
     {
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `pan_ruteo_snapshots` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `snapshot_id` VARCHAR(50) NOT NULL,
-                `archivo_origen` VARCHAR(255) NULL,
-                `fecha_carga` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                `cliente_id` BIGINT NOT NULL,
-                `nodo_id` VARCHAR(50) NULL,
-                `nodo` VARCHAR(150) NULL,
-                `cliente` VARCHAR(255) NULL,
-                `vendedor` VARCHAR(255) NULL,
-                `tipo_negocio` VARCHAR(100) NULL,
-                `territorio` VARCHAR(100) NULL,
-                `mercado` VARCHAR(100) NULL,
-                `fecha_servidor` VARCHAR(50) NULL,
-                `fecha_dispositivo` VARCHAR(50) NULL,
-                `contacto` VARCHAR(150) NULL,
-                `ci` VARCHAR(50) NULL,
-                `telefono` VARCHAR(50) NULL,
-                `celular` VARCHAR(50) NULL,
-                `direccion` TEXT NULL,
-                `nro` VARCHAR(50) NULL,
-                `referencia` TEXT NULL,
-                `nombre_factura` VARCHAR(255) NULL,
-                `nit` VARCHAR(50) NULL,
-                `tipo_pago` VARCHAR(50) NULL,
-                `latitud` DECIMAL(12, 8) NULL,
-                `longitud` DECIMAL(12, 8) NULL,
-                `intensidad` VARCHAR(50) NULL,
-                `estado` VARCHAR(50) NULL,
-                `zona_venta` VARCHAR(100) NULL,
-                `cod_vendedor` VARCHAR(50) NULL,
-                `dias_credito` VARCHAR(50) NULL,
-                `limite` DECIMAL(12, 2) NULL,
-                `ruta` VARCHAR(50) NULL,
-                `dia` VARCHAR(50) NULL,
-                `precio` DECIMAL(12, 2) NULL,
-                `cluster_t` VARCHAR(50) NULL,
-                `cluster_c` VARCHAR(50) NULL,
-                `cliente_norm` VARCHAR(255) NULL,
-                `vendedor_norm` VARCHAR(255) NULL,
-                `dia_norm` VARCHAR(50) NULL,
-                INDEX `idx_prs_snapshot` (`snapshot_id`),
-                INDEX `idx_prs_cli` (`cliente_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `pan_ruteo_snapshots` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `snapshot_id` VARCHAR(50) NOT NULL,
+                    `archivo_origen` VARCHAR(255) NULL,
+                    `fecha_carga` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `cliente_id` BIGINT NOT NULL,
+                    `nodo_id` VARCHAR(50) NULL,
+                    `nodo` VARCHAR(150) NULL,
+                    `cliente` VARCHAR(255) NULL,
+                    `vendedor` VARCHAR(255) NULL,
+                    `tipo_negocio` VARCHAR(100) NULL,
+                    `territorio` VARCHAR(100) NULL,
+                    `mercado` VARCHAR(100) NULL,
+                    `fecha_servidor` VARCHAR(50) NULL,
+                    `fecha_dispositivo` VARCHAR(50) NULL,
+                    `contacto` VARCHAR(150) NULL,
+                    `ci` VARCHAR(50) NULL,
+                    `telefono` VARCHAR(50) NULL,
+                    `celular` VARCHAR(50) NULL,
+                    `direccion` TEXT NULL,
+                    `nro` VARCHAR(50) NULL,
+                    `referencia` TEXT NULL,
+                    `nombre_factura` VARCHAR(255) NULL,
+                    `nit` VARCHAR(50) NULL,
+                    `tipo_pago` VARCHAR(50) NULL,
+                    `latitud` DECIMAL(12, 8) NULL,
+                    `longitud` DECIMAL(12, 8) NULL,
+                    `intensidad` VARCHAR(50) NULL,
+                    `estado` VARCHAR(50) NULL,
+                    `zona_venta` VARCHAR(100) NULL,
+                    `cod_vendedor` VARCHAR(50) NULL,
+                    `dias_credito` VARCHAR(50) NULL,
+                    `limite` DECIMAL(12, 2) NULL,
+                    `ruta` VARCHAR(50) NULL,
+                    `dia` VARCHAR(50) NULL,
+                    `precio` DECIMAL(12, 2) NULL,
+                    `cluster_t` VARCHAR(50) NULL,
+                    `cluster_c` VARCHAR(50) NULL,
+                    `cliente_norm` VARCHAR(255) NULL,
+                    `vendedor_norm` VARCHAR(255) NULL,
+                    `dia_norm` VARCHAR(50) NULL,
+                    INDEX `idx_prs_snapshot` (`snapshot_id`),
+                    INDEX `idx_prs_cli` (`cliente_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
 
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `auditoria_ruteo_cambios` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `archivo_origen` VARCHAR(255) NOT NULL,
-                `cliente_id` BIGINT NOT NULL,
-                `cliente` VARCHAR(255) NULL,
-                `tipo_evento` VARCHAR(50) NOT NULL,
-                `campo_afectado` VARCHAR(50) NOT NULL,
-                `valor_anterior` TEXT NULL,
-                `valor_nuevo` TEXT NULL,
-                `fecha_auditoria` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_arc_cli` (`cliente_id`),
-                INDEX `idx_arc_tipo` (`tipo_evento`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `auditoria_ruteo_cambios` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `archivo_origen` VARCHAR(255) NOT NULL,
+                    `cliente_id` BIGINT NOT NULL,
+                    `cliente` VARCHAR(255) NULL,
+                    `tipo_evento` VARCHAR(50) NOT NULL,
+                    `campo_afectado` VARCHAR(50) NOT NULL,
+                    `valor_anterior` TEXT NULL,
+                    `valor_nuevo` TEXT NULL,
+                    `fecha_auditoria` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_arc_cli` (`cliente_id`),
+                    INDEX `idx_arc_tipo` (`tipo_evento`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {}
     }
 }
 

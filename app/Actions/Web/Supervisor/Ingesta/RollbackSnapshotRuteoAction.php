@@ -37,6 +37,14 @@ class RollbackSnapshotRuteoAction
             'cliente_norm', 'vendedor_norm', 'dia_norm'
         ];
 
+        try {
+            $colsVivoDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo');
+            $colsSnapDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo_snapshots');
+            if (!empty($colsVivoDb) && !empty($colsSnapDb)) {
+                $cols = array_values(array_intersect($cols, $colsVivoDb, $colsSnapDb));
+            }
+        } catch (\Throwable) {}
+
         $colsJoined = '`' . implode('`, `', $cols) . '`';
 
         // 1 y 2. Reversión atómica transaccional desde el snapshot

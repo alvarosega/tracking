@@ -91,37 +91,51 @@ class ProcessPreventasIngestaAction
         $conn = DB::connection('supervisor');
 
         // Asegurar tabla auditoria_preventas_cambios
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `auditoria_preventas_cambios` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `archivo_origen` VARCHAR(255) NOT NULL,
-                `tipo_evento` VARCHAR(30) NOT NULL,
-                `fecha_preventa` VARCHAR(50) NULL,
-                `nro_preventa` BIGINT NOT NULL,
-                `producto_id` BIGINT NOT NULL,
-                `cliente_id` BIGINT NULL,
-                `cliente` VARCHAR(255) NULL,
-                `vendedor` VARCHAR(255) NULL,
-                `cantidad_anterior` INT NULL,
-                `cantidad_nueva` INT NULL,
-                `diferencia_cantidad` INT NULL,
-                `monto_anterior` DECIMAL(12, 4) NULL,
-                `monto_nuevo` DECIMAL(12, 4) NULL,
-                `diferencia_monto` DECIMAL(12, 4) NULL,
-                `estado_autorizacion` VARCHAR(20) DEFAULT 'PENDIENTE',
-                `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_aud_prev_key` (`nro_preventa`, `producto_id`, `fecha_preventa`),
-                INDEX `idx_aud_prev_estado` (`estado_autorizacion`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `auditoria_preventas_cambios` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `archivo_origen` VARCHAR(255) NOT NULL,
+                    `tipo_evento` VARCHAR(30) NOT NULL,
+                    `fecha_preventa` VARCHAR(50) NULL,
+                    `nro_preventa` BIGINT NOT NULL,
+                    `producto_id` BIGINT NOT NULL,
+                    `cliente_id` BIGINT NULL,
+                    `cliente` VARCHAR(255) NULL,
+                    `vendedor` VARCHAR(255) NULL,
+                    `cantidad_anterior` INT NULL,
+                    `cantidad_nueva` INT NULL,
+                    `diferencia_cantidad` INT NULL,
+                    `monto_anterior` DECIMAL(12, 4) NULL,
+                    `monto_nuevo` DECIMAL(12, 4) NULL,
+                    `diferencia_monto` DECIMAL(12, 4) NULL,
+                    `estado_autorizacion` VARCHAR(20) DEFAULT 'PENDIENTE',
+                    `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_aud_prev_key` (`nro_preventa`, `producto_id`, `fecha_preventa`),
+                    INDEX `idx_aud_prev_estado` (`estado_autorizacion`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {}
 
         // Obtener columnas de fact_preventas
-        $colDbRows = $conn->select("
-            SELECT COLUMN_NAME 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_preventas'
-        ");
-        $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+        try {
+            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_preventas');
+        } catch (\Throwable) {
+            $colsDb = [];
+        }
+
+        if (empty($colsDb)) {
+            try {
+                $colDbRows = $conn->select("
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_preventas'
+                ");
+                $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+            } catch (\Throwable) {
+                $colsDb = [];
+            }
+        }
         $colsDbFlip = array_flip($colsDb);
 
         // Consultar existentes para las fechas del corte

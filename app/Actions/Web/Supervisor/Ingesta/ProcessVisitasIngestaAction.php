@@ -81,33 +81,47 @@ class ProcessVisitasIngestaAction
         $conn = DB::connection('supervisor');
 
         // Asegurar tabla auditoria_visitas_discrepancias
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `auditoria_visitas_discrepancias` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `archivo_origen` VARCHAR(255) NOT NULL,
-                `visita_id` BIGINT NOT NULL,
-                `tipo_evento` VARCHAR(30) NOT NULL,
-                `fecha` VARCHAR(50) NULL,
-                `cliente` VARCHAR(255) NULL,
-                `empleado` VARCHAR(255) NULL,
-                `tipo_discrepancia` VARCHAR(100) NULL,
-                `valor_anterior` TEXT NULL,
-                `valor_nuevo` TEXT NULL,
-                `monto_anterior` DECIMAL(12, 4) NULL,
-                `monto_nuevo` DECIMAL(12, 4) NULL,
-                `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_avd_visita` (`visita_id`),
-                INDEX `idx_avd_evento` (`tipo_evento`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `auditoria_visitas_discrepancias` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `archivo_origen` VARCHAR(255) NOT NULL,
+                    `visita_id` BIGINT NOT NULL,
+                    `tipo_evento` VARCHAR(30) NOT NULL,
+                    `fecha` VARCHAR(50) NULL,
+                    `cliente` VARCHAR(255) NULL,
+                    `empleado` VARCHAR(255) NULL,
+                    `tipo_discrepancia` VARCHAR(100) NULL,
+                    `valor_anterior` TEXT NULL,
+                    `valor_nuevo` TEXT NULL,
+                    `monto_anterior` DECIMAL(12, 4) NULL,
+                    `monto_nuevo` DECIMAL(12, 4) NULL,
+                    `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_avd_visita` (`visita_id`),
+                    INDEX `idx_avd_evento` (`tipo_evento`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {}
 
         // Obtener columnas de fact_visitas
-        $colDbRows = $conn->select("
-            SELECT COLUMN_NAME 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_visitas'
-        ");
-        $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+        try {
+            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_visitas');
+        } catch (\Throwable) {
+            $colsDb = [];
+        }
+
+        if (empty($colsDb)) {
+            try {
+                $colDbRows = $conn->select("
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_visitas'
+                ");
+                $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+            } catch (\Throwable) {
+                $colsDb = [];
+            }
+        }
         $colsDbFlip = array_flip($colsDb);
 
         // 1. Recuperar existentes basándonos en los IDs entrantes

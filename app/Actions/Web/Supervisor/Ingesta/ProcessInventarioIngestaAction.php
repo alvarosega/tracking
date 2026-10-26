@@ -166,38 +166,40 @@ class ProcessInventarioIngestaAction
 
     protected function asegurarTablas($conn): void
     {
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `inv_stock_actual` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `almacen` VARCHAR(100) NOT NULL DEFAULT 'CENTRAL',
-                `producto` VARCHAR(255) NOT NULL,
-                `producto_norm` VARCHAR(255) NOT NULL,
-                `saldo_unitario` INT DEFAULT 0,
-                `saldo_paquete` INT DEFAULT 0,
-                `lote` VARCHAR(100) DEFAULT '1',
-                `archivo_origen` VARCHAR(255) NULL,
-                `actualizado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX `idx_isa_prod` (`producto_norm`),
-                INDEX `idx_isa_alm` (`almacen`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        try {
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `inv_stock_actual` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `almacen` VARCHAR(100) NOT NULL DEFAULT 'CENTRAL',
+                    `producto` VARCHAR(255) NOT NULL,
+                    `producto_norm` VARCHAR(255) NOT NULL,
+                    `saldo_unitario` INT DEFAULT 0,
+                    `saldo_paquete` INT DEFAULT 0,
+                    `lote` VARCHAR(100) DEFAULT '1',
+                    `archivo_origen` VARCHAR(255) NULL,
+                    `actualizado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_isa_prod` (`producto_norm`),
+                    INDEX `idx_isa_alm` (`almacen`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
 
-        $conn->statement("
-            CREATE TABLE IF NOT EXISTS `inv_stock_snapshots` (
-                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                `lote_carga_id` VARCHAR(50) NOT NULL,
-                `almacen` VARCHAR(100) NOT NULL,
-                `producto` VARCHAR(255) NOT NULL,
-                `producto_norm` VARCHAR(255) NOT NULL,
-                `saldo_unitario` INT DEFAULT 0,
-                `saldo_paquete` INT DEFAULT 0,
-                `lote` VARCHAR(100) DEFAULT '1',
-                `archivo_origen` VARCHAR(255) NULL,
-                `fecha_snapshot` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX `idx_iss_lote` (`lote_carga_id`),
-                INDEX `idx_iss_prod` (`producto_norm`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+            $conn->statement("
+                CREATE TABLE IF NOT EXISTS `inv_stock_snapshots` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `lote_carga_id` VARCHAR(50) NOT NULL,
+                    `almacen` VARCHAR(100) NOT NULL,
+                    `producto` VARCHAR(255) NOT NULL,
+                    `producto_norm` VARCHAR(255) NOT NULL,
+                    `saldo_unitario` INT DEFAULT 0,
+                    `saldo_paquete` INT DEFAULT 0,
+                    `lote` VARCHAR(100) DEFAULT '1',
+                    `archivo_origen` VARCHAR(255) NULL,
+                    `fecha_snapshot` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_iss_lote` (`lote_carga_id`),
+                    INDEX `idx_iss_prod` (`producto_norm`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {}
     }
 }
 
