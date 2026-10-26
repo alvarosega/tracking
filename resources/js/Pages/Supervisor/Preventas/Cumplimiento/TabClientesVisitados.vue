@@ -380,36 +380,49 @@
           </div>
 
           <div class="relative bg-black/5 rounded-[14px] overflow-hidden min-h-[300px] max-h-[460px] flex items-center justify-center">
-            <img
-              v-if="fotoActual"
-              :src="fotoActual.url"
-              class="max-h-[460px] w-auto object-contain select-none"
-              alt="Foto campo"
-            />
-            <div v-else class="text-[#86868B] text-xs">Sin fotografía disponible</div>
+            <div v-if="modalFoto.cargando" class="flex flex-col items-center justify-center gap-2 p-8 text-[#86868B]">
+              <div class="w-6 h-6 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
+              <span class="text-xs font-medium">Buscando fotografías...</span>
+            </div>
+            <template v-else-if="fotoActual && (fotoActual.url || fotoActual.photo_url)">
+              <img
+                :src="fotoActual.url || fotoActual.photo_url"
+                class="max-h-[460px] w-auto object-contain select-none transition-all duration-200"
+                alt="Foto campo"
+                @error="fotoActual.error = true"
+              />
+              <div v-if="fotoActual.error" class="text-center text-xs text-[#C9342C] p-4">
+                No se pudo cargar la imagen desde el servidor.
+              </div>
+            </template>
+            <div v-else class="text-[#86868B] text-xs p-6 text-center">
+              Sin fotografías disponibles para este cliente
+            </div>
 
             <button
-              v-if="modalFoto.fotos.length > 1"
+              v-if="!modalFoto.cargando && modalFoto.fotos.length > 1"
               type="button"
               @click="navegarCarrusel(-1)"
-              class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer"
+              class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer transition-colors"
             >
               ‹
             </button>
             <button
-              v-if="modalFoto.fotos.length > 1"
+              v-if="!modalFoto.cargando && modalFoto.fotos.length > 1"
               type="button"
               @click="navegarCarrusel(1)"
-              class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer"
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer transition-colors"
             >
               ›
             </button>
           </div>
 
           <div class="flex items-center justify-between text-xs text-[#6E6E73]">
-            <span class="font-medium">{{ fotoActual?.fecha || 'Visita del día' }}</span>
+            <span class="font-medium truncate max-w-[80%]">
+              {{ modalFoto.cargando ? 'Cargando evidencia...' : (fotoActual?.fecha || 'Evidencia fotográfica') }}
+            </span>
             <span class="font-mono font-bold text-[#1D1D1F]">
-              {{ modalFoto.indice + 1 }} / {{ modalFoto.fotos.length }}
+              {{ modalFoto.fotos.length > 0 ? (modalFoto.indice + 1) + ' / ' + modalFoto.fotos.length : '0 / 0' }}
             </span>
           </div>
         </div>
@@ -576,6 +589,7 @@ function badgeColorEstatus(categoria) {
 
 const modalFoto = reactive({
   abierto: false,
+  cargando: false,
   cliente: '',
   fotos: [],
   indice: 0
@@ -587,23 +601,45 @@ async function abrirCarruselFotos(c) {
   modalFoto.abierto = true
   modalFoto.cliente = c.cliente || 'Cliente'
   modalFoto.indice = 0
-  modalFoto.fotos = [
-    {
+  modalFoto.cargando = false
+
+  const listaInicial = []
+  if (c.foto_url) {
+    listaInicial.push({
       url: c.foto_url,
-      fecha: `Visita (${c.check_in || ''})`,
+      photo_url: c.foto_url,
+      fecha: `Visita actual (${c.check_in || ''})`,
       ruta: ''
-    }
-  ]
+    })
+  }
+
+  modalFoto.fotos = listaInicial
 
   if (c.cliente_id) {
+    modalFoto.cargando = listaInicial.length === 0
     try {
       const res = await axios.post(`/supervisor/preventas/cumplimiento/fotos/${c.cliente_id}`)
       if (res.data?.success && Array.isArray(res.data.fotos)) {
-        const extras = res.data.fotos.filter(f => f.url !== c.foto_url)
+        const urlActual = c.foto_url ? c.foto_url.trim().toLowerCase() : ''
+        const extras = res.data.fotos
+          .map(f => {
+            const urlFinal = f.url || f.photo_url || ''
+            const fechaTxt = `${f.fecha || ''} ${f.hora || ''} ${f.vendedor ? '· ' + f.vendedor : ''} ${f.comments ? '(' + f.comments + ')' : ''}`.trim()
+            return {
+              ...f,
+              url: urlFinal,
+              photo_url: urlFinal,
+              fecha: fechaTxt || 'Foto histórica'
+            }
+          })
+          .filter(f => f.url && f.url.trim().toLowerCase() !== urlActual)
+
         modalFoto.fotos.push(...extras)
       }
     } catch (e) {
       console.warn('[Visitas] No se pudieron cargar fotos históricas:', e)
+    } finally {
+      modalFoto.cargando = false
     }
   }
 }

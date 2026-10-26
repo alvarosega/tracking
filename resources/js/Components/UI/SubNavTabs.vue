@@ -3,7 +3,7 @@
     <Link
       v-for="tab in tabs"
       :key="tab.id || tab.route"
-      :href="tab.route ? route(tab.route) : tab.href"
+      :href="resolveTabHref(tab)"
       class="px-3 py-1 text-xs font-medium rounded-[9px] transition-all flex items-center gap-1.5 whitespace-nowrap select-none active:scale-95"
       :class="isTabActive(tab)
         ? 'glass-active-pill font-bold shadow-xs'
@@ -43,6 +43,19 @@ const props = defineProps({
 });
 
 const page = usePage();
+
+const resolveTabHref = (tab) => {
+  if (tab.href) return tab.href;
+  if (!tab.route) return '#';
+  try {
+    if (typeof route === 'function') {
+      return route(tab.route);
+    }
+  } catch (e) {
+    console.warn(`[SubNavTabs] Error resolviendo ruta '${tab.route}':`, e);
+  }
+  return '#';
+};
 
 const isTabActive = (tab) => {
   if (props.currentTab) {

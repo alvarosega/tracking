@@ -35,6 +35,18 @@ class GetFotosClienteAction
             ->orderByDesc('v.visited_at')
             ->get()
             ->map(function ($v) {
+                $rawPath = ltrim(str_replace('\\', '/', (string) $v->photo_path), '/');
+                $url = '';
+                if ($rawPath !== '') {
+                    if (str_starts_with($rawPath, 'http://') || str_starts_with($rawPath, 'https://')) {
+                        $url = $rawPath;
+                    } elseif (str_starts_with($rawPath, 'storage/')) {
+                        $url = '/' . $rawPath;
+                    } else {
+                        $url = '/storage/' . $rawPath;
+                    }
+                }
+
                 return [
                     'id' => $v->id,
                     'ruta' => $v->route,
@@ -43,7 +55,8 @@ class GetFotosClienteAction
                     'fecha' => date('d/m/Y', strtotime((string) $v->visited_at)),
                     'hora' => date('H:i', strtotime((string) $v->visited_at)),
                     'vendedor' => $v->vendedor ?: 'Sin asignar',
-                    'photo_url' => Storage::url($v->photo_path),
+                    'url' => $url,
+                    'photo_url' => $url,
                 ];
             });
     }

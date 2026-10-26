@@ -210,27 +210,31 @@
                         <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
                           <tr>
                             <th class="px-2.5 py-1.5 text-center w-8">#</th>
-                            <th class="px-2.5 py-1.5 text-center w-24">Hora</th>
                             <th class="px-3 py-1.5">Cliente / PDV</th>
-                            <th class="px-2.5 py-1.5">Zona</th>
+                            <th class="px-2.5 py-1.5 text-center w-24">Hora Web</th>
+                            <th class="px-2.5 py-1.5 text-center w-24">Hora App</th>
                             <th class="px-2.5 py-1.5 text-center">Tipo</th>
                             <th class="px-2.5 py-1.5 text-right font-mono">Monto (Bs)</th>
-                            <th class="px-2.5 py-1.5 text-center">Origen</th>
                             <th class="px-2.5 py-1.5 text-center w-12">Foto</th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-black/[0.03]">
                           <tr
                             v-for="ev in detallePorRuta[r.ruta].eventos"
-                            :key="ev.orden || ev.hora_inicio"
+                            :key="ev.orden || ev.cliente"
                             class="hover:bg-black/[0.02] transition-colors"
                           >
                             <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ ev.orden }}</td>
-                            <td class="px-2.5 py-1 text-center font-mono font-bold text-[#1D1D1F]">{{ ev.hora_inicio || '—' }}</td>
-                            <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[240px]" :title="ev.cliente">
-                              {{ ev.cliente }}
+                            <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="ev.cliente">
+                              <span>{{ ev.cliente }}</span>
+                              <span v-if="ev.client_id" class="text-[9px] font-mono text-[#86868B] ml-1.5">#{{ ev.client_id }}</span>
                             </td>
-                            <td class="px-2.5 py-1 text-[#6E6E73]">{{ ev.zona || '—' }}</td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_web ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
+                              {{ ev.hora_web || '—' }}
+                            </td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_app ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
+                              {{ ev.hora_app || '—' }}
+                            </td>
                             <td class="px-2.5 py-1 text-center">
                               <span class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-semibold bg-black/[0.04] text-[#1D1D1F]">
                                 {{ ev.tipo || 'Visita' }}
@@ -240,20 +244,13 @@
                               {{ ev.monto > 0 ? ev.monto.toFixed(2) : '—' }}
                             </td>
                             <td class="px-2.5 py-1 text-center">
-                              <span
-                                class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold"
-                                :class="ev.fuente === 'APP MÓVIL' ? 'bg-[#EBF9EF] text-[#248A3D]' : 'bg-[#0071E3]/10 text-[#0071E3]'"
-                              >
-                                {{ ev.fuente }}
-                              </span>
-                            </td>
-                            <td class="px-2.5 py-1 text-center">
                               <button
-                                v-if="ev.foto_url"
+                                v-if="ev.foto_url || ev.tiene_fotos_historicas"
                                 type="button"
                                 @click.stop="abrirCarruselFotos(ev)"
-                                class="p-1 rounded hover:bg-black/[0.05] text-[#0071E3] transition-colors cursor-pointer"
-                                title="Ver foto de campo"
+                                class="p-1 rounded hover:bg-black/[0.05] transition-colors cursor-pointer"
+                                :class="ev.foto_url ? 'text-[#0071E3]' : 'text-[#6E6E73]'"
+                                :title="ev.foto_url ? 'Ver fotografía del día e histórico' : 'Ver fotografías históricas'"
                               >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -298,39 +295,50 @@
           </div>
 
           <div class="relative bg-black/5 rounded-[14px] overflow-hidden min-h-[300px] max-h-[460px] flex items-center justify-center">
-            <img
-              v-if="fotoActual"
-              :src="fotoActual.url"
-              class="max-h-[460px] w-auto object-contain select-none"
-              alt="Foto campo"
-            />
-            <div v-else class="text-[#86868B] text-xs">Sin fotografía disponible</div>
+            <div v-if="modalFoto.cargando" class="flex flex-col items-center justify-center gap-2 p-8 text-[#86868B]">
+              <div class="w-6 h-6 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
+              <span class="text-xs font-medium">Buscando fotografías...</span>
+            </div>
+            <template v-else-if="fotoActual && (fotoActual.url || fotoActual.photo_url)">
+              <img
+                :src="fotoActual.url || fotoActual.photo_url"
+                class="max-h-[460px] w-auto object-contain select-none transition-all duration-200"
+                alt="Foto campo"
+                @error="fotoActual.error = true"
+              />
+              <div v-if="fotoActual.error" class="text-center text-xs text-[#C9342C] p-4">
+                No se pudo cargar la imagen desde el servidor.
+              </div>
+            </template>
+            <div v-else class="text-[#86868B] text-xs p-6 text-center">
+              Sin fotografías disponibles para este cliente
+            </div>
 
             <!-- Navegación Carrusel -->
             <button
-              v-if="modalFoto.fotos.length > 1"
+              v-if="!modalFoto.cargando && modalFoto.fotos.length > 1"
               type="button"
               @click="navegarCarrusel(-1)"
-              class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer"
+              class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer transition-colors"
             >
               ‹
             </button>
             <button
-              v-if="modalFoto.fotos.length > 1"
+              v-if="!modalFoto.cargando && modalFoto.fotos.length > 1"
               type="button"
               @click="navegarCarrusel(1)"
-              class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer"
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-[#1D1D1F] shadow flex items-center justify-center cursor-pointer transition-colors"
             >
               ›
             </button>
           </div>
 
           <div class="flex items-center justify-between text-xs text-[#6E6E73]">
-            <span class="font-medium">
-              {{ fotoActual?.fecha || 'Visita del día' }}
+            <span class="font-medium truncate max-w-[80%]">
+              {{ modalFoto.cargando ? 'Cargando evidencia...' : (fotoActual?.fecha || 'Evidencia fotográfica') }}
             </span>
             <span class="font-mono font-bold text-[#1D1D1F]">
-              {{ modalFoto.indice + 1 }} / {{ modalFoto.fotos.length }}
+              {{ modalFoto.fotos.length > 0 ? (modalFoto.indice + 1) + ' / ' + modalFoto.fotos.length : '0 / 0' }}
             </span>
           </div>
         </div>
@@ -440,6 +448,7 @@ async function toggleRecorridoAcordeon(r) {
 
 const modalFoto = reactive({
   abierto: false,
+  cargando: false,
   cliente: '',
   fotos: [],
   indice: 0
@@ -451,23 +460,45 @@ async function abrirCarruselFotos(ev) {
   modalFoto.abierto = true
   modalFoto.cliente = ev.cliente || 'Cliente'
   modalFoto.indice = 0
-  modalFoto.fotos = [
-    {
+  modalFoto.cargando = false
+
+  const listaInicial = []
+  if (ev.foto_url) {
+    listaInicial.push({
       url: ev.foto_url,
-      fecha: `Visita actual (${ev.hora_inicio || ''})`,
+      photo_url: ev.foto_url,
+      fecha: `Visita actual (${ev.hora_app || ev.hora_web || ''})`,
       ruta: ''
-    }
-  ]
+    })
+  }
+
+  modalFoto.fotos = listaInicial
 
   if (ev.client_id) {
+    modalFoto.cargando = listaInicial.length === 0
     try {
       const res = await axios.post(`/supervisor/preventas/cumplimiento/fotos/${ev.client_id}`)
       if (res.data?.success && Array.isArray(res.data.fotos)) {
-        const extras = res.data.fotos.filter(f => f.url !== ev.foto_url)
+        const urlActual = ev.foto_url ? ev.foto_url.trim().toLowerCase() : ''
+        const extras = res.data.fotos
+          .map(f => {
+            const urlFinal = f.url || f.photo_url || ''
+            const fechaTxt = `${f.fecha || ''} ${f.hora || ''} ${f.vendedor ? '· ' + f.vendedor : ''} ${f.comments ? '(' + f.comments + ')' : ''}`.trim()
+            return {
+              ...f,
+              url: urlFinal,
+              photo_url: urlFinal,
+              fecha: fechaTxt || 'Foto histórica'
+            }
+          })
+          .filter(f => f.url && f.url.trim().toLowerCase() !== urlActual)
+
         modalFoto.fotos.push(...extras)
       }
     } catch (e) {
       console.warn('[Horario] No se pudieron cargar fotos históricas:', e)
+    } finally {
+      modalFoto.cargando = false
     }
   }
 }
