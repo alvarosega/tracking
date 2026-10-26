@@ -9,42 +9,45 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="consultarHistorico" />
 
-      <!-- Barra de Control de Vistas y Umbrales -->
-      <div class="apple-glass-card rounded-[14px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-xs border border-white/60">
+      <!-- Barra de Control de Vistas y Umbrales (Compacta y Responsiva) -->
+      <div class="apple-glass-card rounded-[14px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-xs border border-white/60">
         <!-- Título e Indicador de Modo -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 min-w-0">
           <span
-            class="w-2.5 h-2.5 rounded-full"
+            class="w-2.5 h-2.5 rounded-full shrink-0"
             :class="vistaActiva === 'efectividad' ? 'bg-[#0071E3]' : 'bg-[#34C759]'"
           ></span>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
+          <div class="truncate">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase truncate">
                 {{ vistaActiva === 'efectividad' ? 'Histórico de Disciplina & Efectividad' : 'Histórico de Volumen de Preventa (Bs)' }}
               </span>
-              <span v-if="rangoLabel" class="text-[10px] font-mono text-[#0071E3] font-semibold bg-blue-50/80 px-2 py-0.5 rounded-full border border-blue-200/60">
+              <span v-if="rangoLabel" class="text-[10px] font-mono text-[#0071E3] font-semibold bg-blue-50/80 px-2 py-0.5 rounded-full border border-blue-200/60 shrink-0">
                 {{ rangoLabel }}
               </span>
+              <span v-if="rutasFiltradas.length > 0" class="text-[10px] font-mono text-[#6E6E73] bg-black/[0.04] px-1.5 py-0.5 rounded shrink-0">
+                {{ rutasFiltradas.length }} rutas
+              </span>
             </div>
-            <p class="text-[10px] text-[#86868B] font-medium hidden sm:block">
-              Umbral de efectividad comercial: compras acumuladas &ge; 70 Bs/día por cliente
+            <p class="text-[10px] text-[#86868B] font-medium hidden sm:block truncate">
+              Umbral comercial de efectividad: compras acumuladas &ge; 70 Bs/día por cliente
             </p>
           </div>
         </div>
 
         <!-- Acciones y Selector de Vista -->
-        <div class="flex items-center gap-2 ml-auto">
-          <!-- Toggle Solo Efectividad (Solo en vista de efectividad) -->
+        <div class="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
+          <!-- Toggle Solo Efectividad (Solo visible en vista de efectividad) -->
           <button
             v-if="vistaActiva === 'efectividad'"
             type="button"
             @click="soloEfectividad = !soloEfectividad"
-            class="px-2.5 py-1 text-[11px] font-semibold rounded-[8px] transition-all cursor-pointer shadow-xs"
+            class="px-2.5 py-1 text-[11px] font-semibold rounded-[8px] transition-all cursor-pointer shadow-xs whitespace-nowrap"
             :class="soloEfectividad
               ? 'bg-[#1D1D1F] text-white shadow-sm'
               : 'border border-[#E5E5EA] bg-white text-[#1D1D1F] hover:bg-[#F5F5F7]'"
           >
-            {{ soloEfectividad ? 'Ver Completo' : 'Solo Efectividad' }}
+            {{ soloEfectividad ? 'Ver Columnas Completas' : 'Solo % Efectividad' }}
           </button>
 
           <!-- Segmented View Pill -->
@@ -52,7 +55,7 @@
             <button
               type="button"
               @click="vistaActiva = 'efectividad'"
-              class="px-3 py-1 text-[11px] font-bold rounded-[7px] transition-all cursor-pointer"
+              class="px-2.5 sm:px-3 py-1 text-[11px] font-bold rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
               :class="vistaActiva === 'efectividad'
                 ? 'bg-white text-[#1D1D1F] shadow-xs border border-[#E5E5EA]'
                 : 'text-[#6E6E73] hover:text-[#1D1D1F] font-medium'"
@@ -62,44 +65,14 @@
             <button
               type="button"
               @click="vistaActiva = 'volumen'"
-              class="px-3 py-1 text-[11px] font-bold rounded-[7px] transition-all cursor-pointer"
+              class="px-2.5 sm:px-3 py-1 text-[11px] font-bold rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
               :class="vistaActiva === 'volumen'
                 ? 'bg-white text-[#1D1D1F] shadow-xs border border-[#E5E5EA]'
                 : 'text-[#6E6E73] hover:text-[#1D1D1F] font-medium'"
             >
-              Volumen de Preventa
+              Volumen (Bs)
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- Ribbon de KPIs Resumen Global del Rango -->
-      <div v-if="kpisGlobales" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Cartera Plan</div>
-          <div class="text-sm font-bold text-[#1D1D1F] font-num mt-0.5">{{ fmt(kpisGlobales.total_plan) }}</div>
-        </div>
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Clientes Visitados</div>
-          <div class="text-sm font-bold text-[#1D1D1F] font-num mt-0.5">{{ fmt(kpisGlobales.total_visitados) }}</div>
-        </div>
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Con Preventa</div>
-          <div class="text-sm font-bold text-[#1D1D1F] font-num mt-0.5">{{ fmt(kpisGlobales.total_preventa) }}</div>
-        </div>
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Efectividad Global</div>
-          <div class="text-sm font-bold font-num mt-0.5" :class="kpisGlobales.efectividad_global_pct >= 50 ? 'text-[#248A3D]' : 'text-[#B25E00]'">
-            {{ fmtPct(kpisGlobales.efectividad_global_pct) }}
-          </div>
-        </div>
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Efectivos &ge; 70 Bs</div>
-          <div class="text-sm font-bold text-[#248A3D] font-num mt-0.5">{{ fmt(kpisGlobales.total_sobre_umbral) }}</div>
-        </div>
-        <div class="apple-glass-card rounded-[12px] p-2.5 border border-white/60">
-          <div class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Volumen Facturado</div>
-          <div class="text-sm font-bold text-[#0071E3] font-num mt-0.5">{{ fmtBs(kpisGlobales.total_volumen_bs) }}</div>
         </div>
       </div>
 
@@ -120,81 +93,86 @@
         {{ errorMsg }}
       </div>
 
-      <!-- TABLA PRINCIPAL DE MATRIZ HISTÓRICA -->
+      <!-- TABLA PRINCIPAL DE MATRIZ HISTÓRICA (RESPONSIVA) -->
       <div
         v-else
-        class="apple-glass-card rounded-[14px] shadow-float overflow-hidden border border-white/60 flex flex-col"
-        style="max-height: calc(100vh - 17rem);"
+        class="apple-glass-card rounded-[14px] shadow-float overflow-hidden border border-white/60"
       >
-        <div class="overflow-x-auto custom-scroll relative flex-1">
-          <table class="w-full text-left text-xs border-separate border-spacing-0 font-num">
-            <!-- THEAD MULTI-NIVEL -->
-            <thead class="bg-[#F5F5F7] text-[#1D1D1F] font-bold uppercase text-[10px] tracking-tight sticky top-0 z-30 shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
-              <!-- Nivel 1: Cabeceras de Día y Rango -->
-              <tr>
-                <th rowspan="2" class="p-2.5 border-r border-[#E5E5EA] border-b border-[#E5E5EA] w-8 text-center bg-[#F5F5F7] sticky left-0 z-40">#</th>
-                <th rowspan="2" class="p-2.5 border-r border-[#E5E5EA] border-b border-[#E5E5EA] w-8 text-center bg-[#F5F5F7] sticky left-8 z-40"></th>
-                <th rowspan="2" class="p-2.5 border-r border-[#E5E5EA] border-b border-[#E5E5EA] min-w-[90px] bg-[#F5F5F7] sticky left-16 z-40">Ruta</th>
-                <th rowspan="2" class="p-2.5 border-r border-[#E5E5EA] border-b border-[#E5E5EA] min-w-[70px] bg-[#F5F5F7]">Canal</th>
-                <th rowspan="2" class="p-2.5 border-r-2 border-[#D1D1D6] border-b border-[#E5E5EA] min-w-[150px] bg-[#F5F5F7]">Preventista</th>
+        <div class="overflow-x-auto custom-scroll max-h-[calc(100dvh-12rem)] sm:max-h-[calc(100dvh-11.5rem)] overflow-y-auto">
+          <table class="w-full text-left text-xs border-collapse font-num">
+            <!-- THEAD MULTI-NIVEL (CON STICKY VERTICAL Y SIN COLISIONES HORIZONTALES) -->
+            <thead class="bg-[#F5F5F7] text-[#1D1D1F] font-bold uppercase text-[10px] tracking-tight sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              <!-- Nivel 1: Cabeceras de Ruta y Días del Rango -->
+              <tr class="border-b border-[#E5E5EA]">
+                <th rowspan="2" class="py-2.5 px-3 border-r border-[#E5E5EA] min-w-[130px] whitespace-nowrap bg-[#F5F5F7]">
+                  Ruta
+                </th>
+                <th rowspan="2" class="py-2.5 px-2.5 border-r border-[#E5E5EA] min-w-[65px] text-center whitespace-nowrap bg-[#F5F5F7]">
+                  Canal
+                </th>
+                <th rowspan="2" class="py-2.5 px-3 border-r-2 border-[#D1D1D6] min-w-[150px] whitespace-nowrap bg-[#F5F5F7]">
+                  Preventista
+                </th>
 
                 <!-- Días del Rango -->
-                <template v-for="d in diasColumnas" :key="d.fecha">
+                <template v-for="d in diasColumnas" :key="'col_dia_' + d.fecha">
                   <th
                     :colspan="vistaActiva === 'efectividad' ? (soloEfectividad ? 1 : 4) : 2"
-                    class="p-2 text-center border-r-2 border-[#D1D1D6] border-b border-[#E5E5EA] bg-[#EFEFF4]/70 font-bold whitespace-nowrap"
+                    class="py-2 px-2 text-center border-r-2 border-[#D1D1D6] bg-[#EFEFF4]/70 font-bold whitespace-nowrap"
                   >
                     {{ d.dia_label }}
                   </th>
                 </template>
 
-                <!-- Total Rango -->
+                <!-- Total Rango General -->
                 <th
                   :colspan="vistaActiva === 'efectividad' ? (soloEfectividad ? 1 : 4) : 2"
-                  class="p-2 text-center bg-[#E5E5EA]/80 border-b border-[#E5E5EA] text-[#1D1D1F] font-bold"
+                  class="py-2 px-2 text-center bg-[#E5E5EA] text-[#1D1D1F] font-bold whitespace-nowrap"
                 >
                   Total Rango
                 </th>
               </tr>
 
-              <!-- Nivel 2: Sub-columnas Métricas -->
-              <tr>
+              <!-- Nivel 2: Sub-columnas Métricas de cada Día -->
+              <tr class="border-b border-[#E5E5EA]">
                 <template v-for="d in diasColumnas" :key="'sub_' + d.fecha">
                   <!-- Efectividad Mode -->
                   <template v-if="vistaActiva === 'efectividad'">
                     <template v-if="soloEfectividad">
-                      <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] border-b border-[#E5E5EA]">Efect.</th>
+                      <th class="py-1 px-2 text-center text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] min-w-[70px]">
+                        Efect.
+                      </th>
                     </template>
                     <template v-else>
-                      <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-b border-[#E5E5EA]">Plan</th>
-                      <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-b border-[#E5E5EA]">Vis.</th>
-                      <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-b border-[#E5E5EA]">Prev.</th>
-                      <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] border-b border-[#E5E5EA]">Efect.</th>
+                      <th class="py-1 px-1.5 text-center text-[9px] text-[#6E6E73] min-w-[42px]">Plan</th>
+                      <th class="py-1 px-1.5 text-center text-[9px] text-[#6E6E73] min-w-[42px]">Vis.</th>
+                      <th class="py-1 px-1.5 text-center text-[9px] text-[#6E6E73] min-w-[42px]">Prev.</th>
+                      <th class="py-1 px-2 text-center text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] min-w-[62px]">Efect.</th>
                     </template>
                   </template>
 
                   <!-- Volumen Mode -->
                   <template v-else>
-                    <th class="p-1.5 text-center text-[9px] text-[#6E6E73] border-b border-[#E5E5EA]">Prev &ge;70</th>
-                    <th class="p-1.5 text-right text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] border-b border-[#E5E5EA] pr-2.5">Vol. Total</th>
+                    <th class="py-1 px-2 text-center text-[9px] text-[#6E6E73] min-w-[65px]">Prev &ge;70</th>
+                    <th class="py-1 px-2.5 text-right text-[9px] text-[#6E6E73] border-r-2 border-[#D1D1D6] min-w-[90px]">Vol. Total</th>
                   </template>
                 </template>
 
                 <!-- Sub-columnas Total Rango -->
                 <template v-if="vistaActiva === 'efectividad'">
                   <template v-if="soloEfectividad">
-                    <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Efect.</th>
+                    <th class="py-1 px-2 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[75px]">Efect.</th>
                   </template>
                   <template v-else>
-                    <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Plan</th>
-                    <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Vis.</th>
-                    <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Prev.</th>
-                    <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Efect.</th>
+                    <th class="py-1 px-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[45px]">Plan</th>
+                    <th class="py-1 px-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[45px]">Vis.</th>
+                    <th class="py-1 px-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[45px]">Prev.</th>
+                    <th class="py-1 px-2 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[65px]">Efect.</th>
                   </template>
                 </template>
                 <template v-else>
-                  <th class="p-1.5 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA]">Prev &ge;70</th>
-                  <th class="p-1.5 text-right text-[9px] text-[#1D1D1F] bg-[#E5E5EA]/80 border-b border-[#E5E5EA] pr-2.5">Vol. Total</th>
+                  <th class="py-1 px-2 text-center text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[65px]">Prev &ge;70</th>
+                  <th class="py-1 px-2.5 text-right text-[9px] text-[#1D1D1F] bg-[#E5E5EA] min-w-[95px]">Vol. Total</th>
                 </template>
               </tr>
             </thead>
@@ -208,49 +186,43 @@
               </tr>
 
               <template v-for="(r, idx) in rutasFiltradas" :key="r.ruta">
-                <!-- Fila de la Ruta -->
+                <!-- Fila Principal de la Ruta -->
                 <tr
                   class="hover:bg-[#F5F5F7] transition-colors cursor-pointer group"
                   @click="toggleAcordeon(r.ruta)"
                 >
-                  <!-- # -->
-                  <td class="p-2 text-center text-[#86868B] text-[10px] border-r border-[#E5E5EA] bg-white group-hover:bg-[#F5F5F7] sticky left-0 z-20">
-                    {{ idx + 1 }}
-                  </td>
-
-                  <!-- Chevron -->
-                  <td class="p-1.5 text-center border-r border-[#E5E5EA] bg-white group-hover:bg-[#F5F5F7] sticky left-8 z-20">
-                    <button
-                      type="button"
-                      class="p-1 rounded-[4px] hover:bg-black/[0.06] text-[#86868B] group-hover:text-[#1D1D1F] transition-all cursor-pointer"
-                      @click.stop="toggleAcordeon(r.ruta)"
-                    >
-                      <svg
-                        class="w-3.5 h-3.5 transition-transform duration-200"
-                        :class="filasExpandidas.has(r.ruta) ? 'rotate-90 text-[#0071E3]' : ''"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  <!-- Ruta (con índice y chevron interactivo) -->
+                  <td class="py-2 px-3 border-r border-[#E5E5EA] whitespace-nowrap">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-[10px] text-[#86868B] font-mono w-4 text-center">{{ idx + 1 }}</span>
+                      <button
+                        type="button"
+                        class="p-0.5 rounded hover:bg-black/[0.08] text-[#86868B] group-hover:text-[#1D1D1F] transition-all cursor-pointer"
+                        @click.stop="toggleAcordeon(r.ruta)"
                       >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </td>
-
-                  <!-- Ruta -->
-                  <td class="p-2.5 font-bold text-[#1D1D1F] border-r border-[#E5E5EA] bg-white group-hover:bg-[#F5F5F7] sticky left-16 z-20 whitespace-nowrap">
-                    {{ r.ruta }}
+                        <svg
+                          class="w-3.5 h-3.5 transition-transform duration-200"
+                          :class="filasExpandidas.has(r.ruta) ? 'rotate-90 text-[#0071E3]' : ''"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      <span class="font-bold text-[#1D1D1F]">{{ r.ruta }}</span>
+                    </div>
                   </td>
 
                   <!-- Canal -->
-                  <td class="p-2.5 border-r border-[#E5E5EA] whitespace-nowrap">
+                  <td class="py-2 px-2.5 text-center border-r border-[#E5E5EA] whitespace-nowrap">
                     <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
                       {{ r.canal }}
                     </span>
                   </td>
 
                   <!-- Preventista -->
-                  <td class="p-2.5 border-r-2 border-[#D1D1D6] text-[#1D1D1F] text-[11px] truncate max-w-[180px]">
+                  <td class="py-2 px-3 border-r-2 border-[#D1D1D6] text-[#1D1D1F] text-[11px] truncate max-w-[180px] whitespace-nowrap">
                     {{ r.vendedor }}
                   </td>
 
@@ -259,7 +231,7 @@
                     <template v-if="vistaActiva === 'efectividad'">
                       <!-- Solo Efectividad -->
                       <template v-if="soloEfectividad">
-                        <td class="p-2 text-center border-r-2 border-[#D1D1D6]">
+                        <td class="py-2 px-2 text-center border-r-2 border-[#D1D1D6] whitespace-nowrap">
                           <span
                             class="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold"
                             :class="obtenerClaseEfectividad(r.dias[d.fecha]?.efectividad_pct)"
@@ -270,10 +242,10 @@
                       </template>
                       <!-- Completo -->
                       <template v-else>
-                        <td class="p-1.5 text-center text-[#1D1D1F] tabular-nums">{{ r.dias[d.fecha]?.plan ?? 0 }}</td>
-                        <td class="p-1.5 text-center text-[#1D1D1F] tabular-nums">{{ r.dias[d.fecha]?.visitados ?? 0 }}</td>
-                        <td class="p-1.5 text-center text-[#1D1D1F] tabular-nums font-semibold">{{ r.dias[d.fecha]?.con_preventa ?? 0 }}</td>
-                        <td class="p-1.5 text-center border-r-2 border-[#D1D1D6]">
+                        <td class="py-1.5 px-1.5 text-center text-[#1D1D1F] tabular-nums whitespace-nowrap">{{ r.dias[d.fecha]?.plan ?? 0 }}</td>
+                        <td class="py-1.5 px-1.5 text-center text-[#1D1D1F] tabular-nums whitespace-nowrap">{{ r.dias[d.fecha]?.visitados ?? 0 }}</td>
+                        <td class="py-1.5 px-1.5 text-center text-[#1D1D1F] tabular-nums font-semibold whitespace-nowrap">{{ r.dias[d.fecha]?.con_preventa ?? 0 }}</td>
+                        <td class="py-1.5 px-2 text-center border-r-2 border-[#D1D1D6] whitespace-nowrap">
                           <span
                             class="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold"
                             :class="obtenerClaseEfectividad(r.dias[d.fecha]?.efectividad_pct)"
@@ -286,10 +258,10 @@
 
                     <!-- Volumen Mode -->
                     <template v-else>
-                      <td class="p-2 text-center text-[#1D1D1F] font-semibold tabular-nums">
+                      <td class="py-2 px-2 text-center text-[#1D1D1F] font-semibold tabular-nums whitespace-nowrap">
                         {{ r.dias[d.fecha]?.con_preventa ?? 0 }}
                       </td>
-                      <td class="p-2 text-right font-bold text-[#1D1D1F] tabular-nums border-r-2 border-[#D1D1D6] pr-2.5">
+                      <td class="py-2 px-2.5 text-right font-bold text-[#1D1D1F] tabular-nums border-r-2 border-[#D1D1D6] whitespace-nowrap">
                         {{ fmtBs(r.dias[d.fecha]?.volumen_bs) }}
                       </td>
                     </template>
@@ -298,7 +270,7 @@
                   <!-- Total Rango de la Fila -->
                   <template v-if="vistaActiva === 'efectividad'">
                     <template v-if="soloEfectividad">
-                      <td class="p-2 text-center bg-[#FBFBFD] font-bold">
+                      <td class="py-2 px-2 text-center bg-[#FBFBFD] font-bold whitespace-nowrap">
                         <span
                           class="px-2 py-0.5 rounded-[4px] text-[10px] font-bold"
                           :class="obtenerClaseEfectividad(r.efectividad_promedio_pct)"
@@ -308,10 +280,10 @@
                       </td>
                     </template>
                     <template v-else>
-                      <td class="p-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD]">{{ fmt(r.tot_plan) }}</td>
-                      <td class="p-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD]">{{ fmt(r.tot_visitados) }}</td>
-                      <td class="p-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD]">{{ fmt(r.tot_preventa) }}</td>
-                      <td class="p-1.5 text-center bg-[#FBFBFD]">
+                      <td class="py-1.5 px-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD] whitespace-nowrap">{{ fmt(r.tot_plan) }}</td>
+                      <td class="py-1.5 px-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD] whitespace-nowrap">{{ fmt(r.tot_visitados) }}</td>
+                      <td class="py-1.5 px-1.5 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD] whitespace-nowrap">{{ fmt(r.tot_preventa) }}</td>
+                      <td class="py-1.5 px-2 text-center bg-[#FBFBFD] whitespace-nowrap">
                         <span
                           class="px-2 py-0.5 rounded-[4px] text-[10px] font-bold"
                           :class="obtenerClaseEfectividad(r.efectividad_promedio_pct)"
@@ -322,19 +294,19 @@
                     </template>
                   </template>
                   <template v-else>
-                    <td class="p-2 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD]">
+                    <td class="py-2 px-2 text-center font-bold text-[#1D1D1F] tabular-nums bg-[#FBFBFD] whitespace-nowrap">
                       {{ fmt(r.tot_preventa) }}
                     </td>
-                    <td class="p-2 text-right font-bold text-[#0071E3] tabular-nums bg-[#FBFBFD] pr-2.5">
+                    <td class="py-2 px-2.5 text-right font-bold text-[#0071E3] tabular-nums bg-[#FBFBFD] whitespace-nowrap">
                       {{ fmtBs(r.tot_volumen_bs) }}
                     </td>
                   </template>
                 </tr>
 
-                <!-- FILA DE ACORDEÓN (DETALLE DE CLIENTES DE LA RUTA) -->
-                <tr v-if="filasExpandidas.has(r.ruta)" class="bg-[#FBFBFD]">
-                  <td :colspan="calcularTotalColumnas()" class="p-0 border-b border-[#E5E5EA]">
-                    <div class="p-3 sm:p-4 bg-[#FBFBFD] border-t border-[#E5E5EA] space-y-3">
+                <!-- FILA DE ACORDEÓN (DETALLE DE CLIENTES DE LA RUTA - PINNED STICKY EN HORIZONTAL) -->
+                <tr v-if="filasExpandidas.has(r.ruta)" class="bg-[#FBFBFD] border-b border-[#E5E5EA]">
+                  <td :colspan="calcularTotalColumnas()" class="p-0">
+                    <div class="sticky left-0 max-w-[calc(100vw-2rem)] md:max-w-4xl p-3 sm:p-4 space-y-3">
                       <!-- Loader del acordeón -->
                       <div v-if="cargandoDetalles[r.ruta]" class="py-6 text-center text-xs text-[#86868B] flex items-center justify-center gap-2">
                         <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
@@ -353,7 +325,7 @@
                           <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#E5E5EA]">
                             <span class="font-bold text-[#1D1D1F] flex items-center gap-1.5">
                               <span class="w-2.5 h-2.5 rounded-full bg-[#248A3D]"></span>
-                              Efectividad Comercial Válida (&ge; 70 Bs)
+                              Efectividad Válida (&ge; 70 Bs)
                             </span>
                             <span class="px-2 py-0.5 rounded-[4px] bg-[#EBF9EF] text-[#248A3D] font-bold font-mono text-[10px]">
                               {{ cacheDetalles[r.ruta].total_ok }} clientes
@@ -425,10 +397,10 @@
               </template>
             </tbody>
 
-            <!-- TFOOT (TOTALES GLOBALES) -->
-            <tfoot class="bg-[#FAFAFC] border-t-2 border-[#D1D1D6] font-bold text-[#1D1D1F] sticky bottom-0 z-20">
+            <!-- TFOOT (TOTALES GLOBALES RESPONSIVOS) -->
+            <tfoot class="bg-[#FAFAFC] border-t-2 border-[#D1D1D6] font-bold text-[#1D1D1F] sticky bottom-0 z-20 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
               <tr>
-                <td colspan="5" class="p-2.5 text-right uppercase text-[10px] tracking-wider border-r-2 border-[#D1D1D6]">
+                <td colspan="3" class="py-2.5 px-3 text-right uppercase text-[10px] tracking-wider border-r-2 border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC]">
                   Total General
                 </td>
 
@@ -436,7 +408,7 @@
                 <template v-for="d in diasColumnas" :key="'foot_' + d.fecha">
                   <template v-if="vistaActiva === 'efectividad'">
                     <template v-if="soloEfectividad">
-                      <td class="p-2 text-center border-r-2 border-[#D1D1D6]">
+                      <td class="py-2 px-2 text-center border-r-2 border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC]">
                         <span
                           class="px-2 py-0.5 rounded-[4px] text-[10px] font-bold"
                           :class="obtenerClaseEfectividad(calcularTotalesDia(d.fecha).efectividad_pct)"
@@ -446,10 +418,10 @@
                       </td>
                     </template>
                     <template v-else>
-                      <td class="p-1.5 text-center tabular-nums">{{ fmt(calcularTotalesDia(d.fecha).plan) }}</td>
-                      <td class="p-1.5 text-center tabular-nums">{{ fmt(calcularTotalesDia(d.fecha).visitados) }}</td>
-                      <td class="p-1.5 text-center tabular-nums">{{ fmt(calcularTotalesDia(d.fecha).con_preventa) }}</td>
-                      <td class="p-1.5 text-center border-r-2 border-[#D1D1D6]">
+                      <td class="py-1.5 px-1.5 text-center tabular-nums whitespace-nowrap bg-[#FAFAFC]">{{ fmt(calcularTotalesDia(d.fecha).plan) }}</td>
+                      <td class="py-1.5 px-1.5 text-center tabular-nums whitespace-nowrap bg-[#FAFAFC]">{{ fmt(calcularTotalesDia(d.fecha).visitados) }}</td>
+                      <td class="py-1.5 px-1.5 text-center tabular-nums whitespace-nowrap bg-[#FAFAFC]">{{ fmt(calcularTotalesDia(d.fecha).con_preventa) }}</td>
+                      <td class="py-1.5 px-2 text-center border-r-2 border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC]">
                         <span
                           class="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold"
                           :class="obtenerClaseEfectividad(calcularTotalesDia(d.fecha).efectividad_pct)"
@@ -460,10 +432,10 @@
                     </template>
                   </template>
                   <template v-else>
-                    <td class="p-2 text-center tabular-nums font-bold">
+                    <td class="py-2 px-2 text-center tabular-nums font-bold whitespace-nowrap bg-[#FAFAFC]">
                       {{ fmt(calcularTotalesDia(d.fecha).con_preventa) }}
                     </td>
-                    <td class="p-2 text-right tabular-nums font-bold border-r-2 border-[#D1D1D6] pr-2.5">
+                    <td class="py-2 px-2.5 text-right tabular-nums font-bold border-r-2 border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC]">
                       {{ fmtBs(calcularTotalesDia(d.fecha).volumen_bs) }}
                     </td>
                   </template>
@@ -472,35 +444,35 @@
                 <!-- Total Rango General -->
                 <template v-if="vistaActiva === 'efectividad'">
                   <template v-if="soloEfectividad">
-                    <td class="p-2 text-center bg-[#EFEFF4] font-bold">
+                    <td class="py-2 px-2 text-center bg-[#EFEFF4] font-bold whitespace-nowrap">
                       <span
                         class="px-2 py-0.5 rounded-[4px] text-[10px] font-bold"
-                        :class="obtenerClaseEfectividad(kpisGlobales?.efectividad_global_pct)"
+                        :class="obtenerClaseEfectividad(totalesGlobalesFiltrados.efectividad_pct)"
                       >
-                        {{ fmtPct(kpisGlobales?.efectividad_global_pct) }}
+                        {{ fmtPct(totalesGlobalesFiltrados.efectividad_pct) }}
                       </span>
                     </td>
                   </template>
                   <template v-else>
-                    <td class="p-1.5 text-center tabular-nums bg-[#EFEFF4]">{{ fmt(kpisGlobales?.total_plan) }}</td>
-                    <td class="p-1.5 text-center tabular-nums bg-[#EFEFF4]">{{ fmt(kpisGlobales?.total_visitados) }}</td>
-                    <td class="p-1.5 text-center tabular-nums bg-[#EFEFF4]">{{ fmt(kpisGlobales?.total_preventa) }}</td>
-                    <td class="p-1.5 text-center bg-[#EFEFF4]">
+                    <td class="py-1.5 px-1.5 text-center tabular-nums bg-[#EFEFF4] whitespace-nowrap">{{ fmt(totalesGlobalesFiltrados.plan) }}</td>
+                    <td class="py-1.5 px-1.5 text-center tabular-nums bg-[#EFEFF4] whitespace-nowrap">{{ fmt(totalesGlobalesFiltrados.visitados) }}</td>
+                    <td class="py-1.5 px-1.5 text-center tabular-nums bg-[#EFEFF4] whitespace-nowrap">{{ fmt(totalesGlobalesFiltrados.con_preventa) }}</td>
+                    <td class="py-1.5 px-2 text-center bg-[#EFEFF4] whitespace-nowrap">
                       <span
                         class="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold"
-                        :class="obtenerClaseEfectividad(kpisGlobales?.efectividad_global_pct)"
+                        :class="obtenerClaseEfectividad(totalesGlobalesFiltrados.efectividad_pct)"
                       >
-                        {{ fmtPct(kpisGlobales?.efectividad_global_pct) }}
+                        {{ fmtPct(totalesGlobalesFiltrados.efectividad_pct) }}
                       </span>
                     </td>
                   </template>
                 </template>
                 <template v-else>
-                  <td class="p-2 text-center tabular-nums bg-[#EFEFF4] font-bold">
-                    {{ fmt(kpisGlobales?.total_preventa) }}
+                  <td class="py-2 px-2 text-center tabular-nums bg-[#EFEFF4] font-bold whitespace-nowrap">
+                    {{ fmt(totalesGlobalesFiltrados.con_preventa) }}
                   </td>
-                  <td class="p-2 text-right tabular-nums bg-[#EFEFF4] font-bold pr-2.5 text-[#0071E3]">
-                    {{ fmtBs(kpisGlobales?.total_volumen_bs) }}
+                  <td class="py-2 px-2.5 text-right tabular-nums bg-[#EFEFF4] font-bold text-[#0071E3] whitespace-nowrap">
+                    {{ fmtBs(totalesGlobalesFiltrados.volumen_bs) }}
                   </td>
                 </template>
               </tr>
@@ -545,7 +517,6 @@ const soloEfectividad = ref(false)
 
 const diasColumnas = ref([])
 const matrizOriginal = ref([])
-const kpisGlobales = ref(null)
 const rangoLabel = ref('')
 
 // Acordeón y caché de clientes
@@ -567,7 +538,7 @@ const obtenerClaseEfectividad = (pct) => {
 }
 
 const calcularTotalColumnas = () => {
-  const base = 5 // # + chevron + ruta + canal + preventista
+  const base = 3 // Ruta + Canal + Preventista
   const numDias = diasColumnas.value.length
   let subPorDia = 1
   let subTotal = 1
@@ -642,6 +613,31 @@ const calcularTotalesDia = (fecha) => {
   }
 }
 
+// Totales globales sumando todas las rutas filtradas en el rango completo
+const totalesGlobalesFiltrados = computed(() => {
+  let plan = 0
+  let visitados = 0
+  let conPrev = 0
+  let volBs = 0.0
+
+  rutasFiltradas.value.forEach(r => {
+    plan += (r.tot_plan || 0)
+    visitados += (r.tot_visitados || 0)
+    conPrev += (r.tot_preventa || 0)
+    volBs += (r.tot_volumen_bs || 0)
+  })
+
+  const ef = plan > 0 ? (conPrev / plan) * 100 : 0.0
+
+  return {
+    plan,
+    visitados,
+    con_preventa: conPrev,
+    volumen_bs: volBs,
+    efectividad_pct: ef,
+  }
+})
+
 // Consulta de datos al backend
 const consultarHistorico = async () => {
   cargando.value = true
@@ -658,7 +654,6 @@ const consultarHistorico = async () => {
     const data = res.data
     diasColumnas.value = data.dias_columnas || []
     matrizOriginal.value = data.matriz || []
-    kpisGlobales.value = data.kpis || null
     rangoLabel.value = data.rango_label || ''
 
     if (data.dias_calendario) {
@@ -723,4 +718,3 @@ onMounted(() => {
   consultarHistorico()
 })
 </script>
-
