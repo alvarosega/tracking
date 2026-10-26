@@ -175,17 +175,13 @@
                   :class="sortResumenCol === kpi.id ? 'bg-blue-50/20' : ''"
                 >
                   <div class="flex flex-col items-center gap-0.5">
-                    <div class="flex items-center gap-1 font-mono">
-                      <span class="font-bold text-[12px]" :class="colorPct(r.kpis?.[kpi.id]?.pct)">
-                        {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
-                      </span>
+                    <div class="flex items-center justify-center font-mono">
                       <span
-                        v-if="r.kpis?.[kpi.id]?.pct_ritmo !== undefined"
-                        class="text-[9px] px-1 py-0.2 rounded font-bold"
-                        :class="badgeRitmo(r.kpis?.[kpi.id]?.pct_ritmo)"
-                        :title="`Ritmo: ${formatPct(r.kpis?.[kpi.id]?.pct_ritmo)} vs meta esperada a la fecha`"
+                        class="font-bold text-[12px]"
+                        :class="colorKpiResumen(kpi.id, r.kpis?.[kpi.id])"
+                        :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? `Ritmo esperado: ${formatPct(r.kpis?.[kpi.id]?.pct_ritmo)}` : undefined"
                       >
-                        {{ formatPct(r.kpis?.[kpi.id]?.pct_ritmo) }}
+                        {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
                       </span>
                     </div>
                     <div class="text-[9px] text-[#86868B] font-mono">
@@ -213,7 +209,11 @@
                   class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA]"
                 >
                   <div class="flex flex-col items-center gap-0.5">
-                    <span class="font-bold text-[12px]" :class="colorPct(totalesResumen[kpi.id]?.pct)">
+                    <span
+                      class="font-bold text-[12px]"
+                      :class="colorKpiResumen(kpi.id, totalesResumen[kpi.id])"
+                      :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? `Ritmo consolidado: ${formatPct(totalesResumen[kpi.id]?.pct_ritmo)}` : undefined"
+                    >
                       {{ formatPct(totalesResumen[kpi.id]?.pct) }}
                     </span>
                     <span class="text-[9px] text-[#6E6E73]">
@@ -360,7 +360,11 @@
                   </td>
                   <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
                   <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
-                  <td class="py-2 px-3 text-right font-bold text-[12px]" :class="colorPct(r.pct)">
+                  <td
+                    class="py-2 px-3 text-right font-bold text-[12px]"
+                    :class="colorPct(r.pct_proyeccion ?? r.pct)"
+                    :title="r.pct_proyeccion !== undefined ? `Proyección al cierre: ${formatPct(r.pct_proyeccion)}` : undefined"
+                  >
                     {{ formatPct(r.pct) }}
                   </td>
                   <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
@@ -607,7 +611,13 @@
                 </td>
                 <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
                 <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]" :class="colorPct(totalesKpi.pct)">{{ formatPct(totalesKpi.pct) }}</td>
+                <td
+                  class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
+                  :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
+                  :title="totalesKpi.pct_proyeccion !== undefined ? `Proyección consolidada: ${formatPct(totalesKpi.pct_proyeccion)}` : undefined"
+                >
+                  {{ formatPct(totalesKpi.pct) }}
+                </td>
                 <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.brecha) }}</td>
                 <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
                   <div class="text-[#1D1D1F]">Bs {{ formatNum(totalesKpi.venta_apertura ?? totalesKpi.venta_cobertura, 1) }}</div>
@@ -1068,8 +1078,25 @@ function formatPct(val) {
 function colorPct(pct) {
   const n = Number(pct || 0)
   if (n >= 100) return 'text-emerald-600'
-  if (n >= 80) return 'text-amber-600'
+  if (n >= 85) return 'text-amber-600'
   return 'text-red-600'
+}
+
+function colorKpiResumen(kpiId, kpiObj) {
+  if (!kpiObj || Number(kpiObj.meta || 0) <= 0) return 'text-[#86868B]'
+  const esVolumen = ['vol_general', 'vol_seda', 'vol_clinical'].includes(kpiId)
+  // El color se evalúa según el ritmo/predicción (pct_ritmo) o porcentaje según sea el caso
+  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct ?? 0))
+
+  if (esVolumen) {
+    if (evalPct >= 100) return 'text-emerald-600'
+    if (evalPct >= 85) return 'text-amber-600'
+    return 'text-red-600'
+  } else {
+    if (evalPct >= 85) return 'text-emerald-600'
+    if (evalPct >= 70) return 'text-amber-600'
+    return 'text-red-600'
+  }
 }
 
 function badgeRitmo(pctRitmo) {
