@@ -15,6 +15,10 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasHistoricoAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasTableroAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosMatrizAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosTimelineAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceItinerarioSecuenciaAction;
+use App\Actions\Web\Supervisor\Avance\SaveAvanceItinerarioSecuenciaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceInitDataAction;
@@ -485,6 +489,141 @@ class SupervisorAvanceController extends Controller
 
             return response()->json([
                 'message' => 'Error al consultar Sell Out BPC: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Horarios e Itinerario.
+     */
+    public function horarios(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Avance/Horarios', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'fecha_inicio_default' => Carbon::parse($initData['fecha_corte'])->subDays(6)->format('Y-m-d'),
+        ]);
+    }
+
+    /**
+     * Devuelve la matriz comparativa de horarios (Sistema Web vs Móvil).
+     */
+    public function horariosMatriz(Request $request, GetAvanceHorariosMatrizAction $action): JsonResponse
+    {
+        try {
+            $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+            $fechaFin = $request->input('fecha_fin') ? (string) $request->input('fecha_fin') : null;
+            $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+
+            $data = $action->execute(
+                fechaInicio: $fechaInicio,
+                fechaFin: $fechaFin,
+                canal: $canal
+            );
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en horariosMatriz: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar matriz de horarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Devuelve el timeline cronológico detallado de una jornada para una ruta y fecha.
+     */
+    public function horariosTimeline(Request $request, GetAvanceHorariosTimelineAction $action): JsonResponse
+    {
+        try {
+            $fecha = (string) $request->input('fecha');
+            $ruta = (string) $request->input('ruta');
+
+            if (!$fecha || !$ruta) {
+                return response()->json([
+                    'message' => 'Se requiere fecha y ruta'
+                ], 422);
+            }
+
+            $data = $action->execute(fecha: $fecha, ruta: $ruta);
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en horariosTimeline: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar timeline de horarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Devuelve la secuencia 1..N de clientes y coordenadas para el mapa del itinerario.
+     */
+    public function itinerarioSecuencia(Request $request, GetAvanceItinerarioSecuenciaAction $action): JsonResponse
+    {
+        try {
+            $ruta = (string) $request->input('ruta');
+            $dia = $request->input('dia') ? (string) $request->input('dia') : null;
+
+            if (!$ruta) {
+                return response()->json([
+                    'message' => 'Se requiere la ruta'
+                ], 422);
+            }
+
+            $data = $action->execute(ruta: $ruta, diaNorm: $dia);
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en itinerarioSecuencia: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar secuencia de itinerario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Guarda el nuevo orden secuencial 1..N de clientes para una ruta y día.
+     */
+    public function itinerarioGuardar(Request $request, SaveAvanceItinerarioSecuenciaAction $action): JsonResponse
+    {
+        try {
+            $ruta = (string) $request->input('ruta');
+            $dia = (string) $request->input('dia');
+            $secuencia = (array) $request->input('secuencia', []);
+
+            if (!$ruta || !$dia) {
+                return response()->json([
+                    'message' => 'Se requiere ruta y día'
+                ], 422);
+            }
+
+            $afectados = $action->execute(ruta: $ruta, diaNorm: $dia, secuencia: $secuencia);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Secuencia guardada exitosamente',
+                'total_guardados' => $afectados,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en itinerarioGuardar: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al guardar secuencia de itinerario: ' . $e->getMessage()
             ], 500);
         }
     }

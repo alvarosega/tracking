@@ -53,6 +53,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/paretos', [SupervisorAvanceController::class, 'paretos'])->name('paretos');
         Route::get('/entregas', [SupervisorAvanceController::class, 'entregas'])->name('entregas');
         Route::get('/bpc', [SupervisorAvanceController::class, 'bpc'])->name('bpc');
+        Route::get('/horarios', [SupervisorAvanceController::class, 'horarios'])->name('horarios');
         Route::get('/', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('index');
         Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
@@ -69,6 +70,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/entregas/historico/detalle-ruta', [SupervisorAvanceController::class, 'entregasHistoricoDetalleRuta'])->name('entregas.historico.detalle-ruta');
         Route::post('/bpc/clientes', [SupervisorAvanceController::class, 'bpcClientes'])->name('bpc.clientes');
         Route::post('/bpc/sellout', [SupervisorAvanceController::class, 'bpcSellOut'])->name('bpc.sellout');
+        Route::post('/horarios/matriz', [SupervisorAvanceController::class, 'horariosMatriz'])->name('horarios.matriz');
+        Route::post('/horarios/timeline', [SupervisorAvanceController::class, 'horariosTimeline'])->name('horarios.timeline');
+        Route::post('/itinerario/secuencia', [SupervisorAvanceController::class, 'itinerarioSecuencia'])->name('itinerario.secuencia');
+        Route::post('/itinerario/guardar', [SupervisorAvanceController::class, 'itinerarioGuardar'])->name('itinerario.guardar');
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 
