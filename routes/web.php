@@ -51,6 +51,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/historico-preventas', [SupervisorAvanceController::class, 'historicoPreventas'])->name('historico-preventas');
         Route::get('/cluster', [SupervisorAvanceController::class, 'cluster'])->name('cluster');
         Route::get('/paretos', [SupervisorAvanceController::class, 'paretos'])->name('paretos');
+        Route::get('/entregas', [SupervisorAvanceController::class, 'entregas'])->name('entregas');
         Route::get('/', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('index');
         Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
         Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
@@ -62,6 +63,9 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/paretos/data', [SupervisorAvanceController::class, 'paretosData'])->name('paretos.data');
         Route::post('/paretos/detalle-amplitud', [SupervisorAvanceController::class, 'paretoDetalleAmplitud'])->name('paretos.detalle-amplitud');
         Route::post('/paretos/detalle-frecuencia', [SupervisorAvanceController::class, 'paretoDetalleFrecuencia'])->name('paretos.detalle-frecuencia');
+        Route::post('/entregas/tablero', [SupervisorAvanceController::class, 'entregasTablero'])->name('entregas.tablero');
+        Route::post('/entregas/historico', [SupervisorAvanceController::class, 'entregasHistorico'])->name('entregas.historico');
+        Route::post('/entregas/historico/detalle-ruta', [SupervisorAvanceController::class, 'entregasHistoricoDetalleRuta'])->name('entregas.historico.detalle-ruta');
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 

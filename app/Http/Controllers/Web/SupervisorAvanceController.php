@@ -9,6 +9,9 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceClientesRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClusterCatalogoAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceClusterMatrizAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasDetalleRutaAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasHistoricoAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasTableroAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceInitDataAction;
@@ -297,6 +300,76 @@ class SupervisorAvanceController extends Controller
         );
 
         return response()->json(['compras' => $compras]);
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Avance de Entregas (Cruce Preventa vs Facturación).
+     */
+    public function entregas(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Avance/Entregas', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
+            'fecha_inicio_default' => $initData['fecha_inicio'],
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve el cruce diario D-1 de preventas vs ventas facturadas por ruta.
+     */
+    public function entregasTablero(Request $request, GetAvanceEntregasTableroAction $action): JsonResponse
+    {
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+        $ruta = $request->input('ruta') ? (string) $request->input('ruta') : null;
+
+        $data = $action->execute(
+            fechaCorte: $fechaCorte,
+            canal: $canal,
+            ruta: $ruta
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el consolidado histórico de entregas por ruta en un rango de fechas.
+     */
+    public function entregasHistorico(Request $request, GetAvanceEntregasHistoricoAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el detalle completo de pedidos e ítems de una ruta específica en el histórico.
+     */
+    public function entregasHistoricoDetalleRuta(Request $request, GetAvanceEntregasDetalleRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta');
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaCorte = (string) $request->input('fecha_corte');
+
+        $data = $action->execute(
+            ruta: $ruta,
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
     }
 }
 

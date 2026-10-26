@@ -82,6 +82,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.paretos',
           component: 'Supervisor/Avance/Paretos',
           icon: 'ChartPieIcon'
+        },
+        {
+          id: 'entregas',
+          name: 'Avance Entregas',
+          route: 'supervisor.avance.entregas',
+          component: 'Supervisor/Avance/Entregas',
+          icon: 'TruckIcon'
         }
       ]
     },
