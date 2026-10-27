@@ -263,53 +263,54 @@ export const navigationConfig = {
     },
     {
       id: 'tracking',
-      name: 'Tracking en Vivo',
-      shortName: 'Tracking',
+      name: 'Tracking en Vivo & Visitas',
+      shortName: 'Tracking & Visitas',
       route: 'supervisor.tracking.index',
-      componentPrefix: 'Supervisor/Tracking',
+      permissionModules: ['tracking', 'visitas'],
+      componentPrefix: ['Supervisor/Tracking', 'Supervisor/Visitas'],
       icon: 'CrosshairIcon',
-      badge: 'LIVE',
+      badge: 'LIVE/FOTO',
       badgeColor: 'emerald',
-      description: 'Telemetría, rutas activas y trayectorias históricas',
+      description: 'Telemetría GPS en tiempo real, patrones y auditoría fotográfica de visitas',
       submodules: [
+        // Tracking GPS
         {
           id: 'vivo',
+          module: 'tracking',
           name: 'Monitoreo en el Día',
           route: 'supervisor.tracking.index',
           component: 'Supervisor/Tracking/Index',
-          icon: 'ActivityIcon'
+          icon: 'ActivityIcon',
+          group: 'Tracking GPS'
         },
         {
           id: 'historico',
+          module: 'tracking',
           name: 'Patrones Semanales',
           route: 'supervisor.tracking.historico',
           component: 'Supervisor/Tracking/Historico',
-          icon: 'HistoryIcon'
-        }
-      ]
-    },
-    {
-      id: 'visitas',
-      name: 'Auditoría Visitas',
-      shortName: 'Visitas',
-      route: 'supervisor.visitas.index',
-      componentPrefix: 'Supervisor/Visitas',
-      icon: 'CameraIcon',
-      description: 'Evidencia fotográfica y avance de cobertura',
-      submodules: [
+          icon: 'HistoryIcon',
+          group: 'Tracking GPS'
+        },
+
+        // Auditoría Visitas
         {
           id: 'galeria',
+          module: 'visitas',
           name: 'Galería Fotográfica',
           route: 'supervisor.visitas.index',
           component: 'Supervisor/Visitas/Index',
-          icon: 'PhotoIcon'
+          icon: 'PhotoIcon',
+          group: 'Auditoría Visitas'
         },
         {
           id: 'avance',
+          module: 'visitas',
           name: 'Avance en Terreno',
           route: 'supervisor.visitas.avance',
           component: 'Supervisor/Visitas/Avance',
-          icon: 'ChartBarIcon'
+          icon: 'ChartBarIcon',
+          group: 'Auditoría Visitas'
         }
       ]
     },
@@ -547,6 +548,21 @@ export const auditoriaSaneamientoSubTabs = [
   ...auditoriaSubTabs,
   ...saneamientoSubTabs,
   ...ruteoSubTabs
+];
+
+export const trackingSubTabs = [
+  { id: 'vivo', module: 'tracking', name: 'Monitoreo en el Día', route: 'supervisor.tracking.index' },
+  { id: 'historico', module: 'tracking', name: 'Patrones Semanales', route: 'supervisor.tracking.historico' }
+];
+
+export const visitasSubTabs = [
+  { id: 'galeria', module: 'visitas', name: 'Galería Fotográfica', route: 'supervisor.visitas.index' },
+  { id: 'avance', module: 'visitas', name: 'Avance en Terreno', route: 'supervisor.visitas.avance' }
+];
+
+export const trackingVisitasSubTabs = [
+  ...trackingSubTabs,
+  ...visitasSubTabs
 ];
 
 export const ingestaSubTabs = [
