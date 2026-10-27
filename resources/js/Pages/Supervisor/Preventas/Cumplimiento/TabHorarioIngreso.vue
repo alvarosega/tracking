@@ -32,15 +32,40 @@
       <table class="w-full text-left border-collapse min-w-[600px] sm:min-w-[780px] text-[12px]">
         <thead class="sticky top-0 z-20 border-b border-black/[0.06] text-[10px] font-bold uppercase tracking-wider text-[#6E6E73] bg-[#F8F8FA]">
           <tr>
-            <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
             <th
-              @click="toggleSort('ruta')"
-              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] cursor-pointer hover:bg-black/[0.04] transition-colors select-none text-[10px] sm:text-[11px]"
-              title="Ordenar por Ruta"
+              @click="toggleSort('pos')"
+              class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+              :class="sortCol === 'pos' ? 'bg-blue-50/70 text-[#0071E3]' : ''"
+              title="Ordenar por Posición"
+            >
+              <div class="flex items-center justify-center gap-0.5">
+                <span>Pos</span>
+                <span v-if="sortCol === 'pos'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+              </div>
+            </th>
+            <th
+              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] select-none text-[10px] sm:text-[11px]"
             >
               <div class="flex items-center gap-1">
-                <span :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
-                <span v-if="sortCol === 'ruta'" class="text-[#0071E3] font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                <span
+                  @click="toggleSort('ruta')"
+                  class="cursor-pointer hover:text-[#0071E3] transition-colors flex items-center gap-0.5"
+                  :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''"
+                  title="Ordenar por Ruta"
+                >
+                  <span>Ruta</span>
+                  <span v-if="sortCol === 'ruta'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                </span>
+                <span class="text-[#D2D2D7]">/</span>
+                <span
+                  @click="toggleSort('vendedor')"
+                  class="cursor-pointer hover:text-[#0071E3] transition-colors flex items-center gap-0.5 truncate"
+                  :class="sortCol === 'vendedor' ? 'text-[#0071E3] font-bold' : ''"
+                  title="Ordenar por Preventista"
+                >
+                  <span class="truncate">Preventista</span>
+                  <span v-if="sortCol === 'vendedor'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                </span>
               </div>
             </th>
             <th
@@ -51,11 +76,31 @@
             >
               <div class="flex items-center justify-center gap-1">
                 <span>Primer Contacto</span>
-                <span v-if="sortCol === 'hora'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                <span v-if="sortCol === 'hora'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">Hora Web</th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">Hora App</th>
+            <th
+              @click="toggleSort('hora_web')"
+              class="px-3 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+              :class="sortCol === 'hora_web' ? 'bg-blue-50/70 text-[#0071E3]' : ''"
+              title="Ordenar por Check-in Web"
+            >
+              <div class="flex items-center justify-center gap-1">
+                <span>Check-in Web</span>
+                <span v-if="sortCol === 'hora_web'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+              </div>
+            </th>
+            <th
+              @click="toggleSort('hora_app')"
+              class="px-3 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+              :class="sortCol === 'hora_app' ? 'bg-blue-50/70 text-[#0071E3]' : ''"
+              title="Ordenar por Check-in App"
+            >
+              <div class="flex items-center justify-center gap-1">
+                <span>Check-in App</span>
+                <span v-if="sortCol === 'hora_app'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+              </div>
+            </th>
             <th
               @click="toggleSort('estatus')"
               class="px-3 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
@@ -64,7 +109,7 @@
             >
               <div class="flex items-center justify-center gap-1">
                 <span>Estatus</span>
-                <span v-if="sortCol === 'estatus'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                <span v-if="sortCol === 'estatus'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
             <th
@@ -75,7 +120,7 @@
             >
               <div class="flex items-center justify-end gap-1">
                 <span>Puntos (10)</span>
-                <span v-if="sortCol === 'puntos'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+                <span v-if="sortCol === 'puntos'" class="font-bold text-[9px]">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
           </tr>
@@ -112,7 +157,7 @@
               >
                 <!-- Pos -->
                 <td class="px-1 sm:px-2 py-1.5 text-center font-mono text-[10px] sm:text-[11px] font-semibold text-[#86868B] sticky left-0 z-10 w-7 sm:w-9 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm">
-                  {{ idx + 1 }}
+                  {{ r.rank ?? (idx + 1) }}
                 </td>
 
                 <!-- Ruta / Preventista -->
@@ -211,18 +256,78 @@
                       <table class="w-full text-left border-collapse text-[11px]">
                         <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
                           <tr>
-                            <th class="px-2.5 py-1.5 text-center w-8">#</th>
-                            <th class="px-3 py-1.5">Cliente / PDV</th>
-                            <th class="px-2.5 py-1.5 text-center w-24">Hora Web</th>
-                            <th class="px-2.5 py-1.5 text-center w-24">Hora App</th>
-                            <th class="px-2.5 py-1.5 text-center">Tipo</th>
-                            <th class="px-2.5 py-1.5 text-right font-mono">Monto (Bs)</th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'orden')"
+                              class="px-2.5 py-1.5 text-center w-8 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'orden' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Secuencia"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>#</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'orden'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'cliente')"
+                              class="px-3 py-1.5 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'cliente' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Cliente / PDV"
+                            >
+                              <div class="flex items-center gap-1">
+                                <span>Cliente / PDV</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'cliente'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'hora_web')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'hora_web' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Check-in Web"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Check-in Web</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'hora_web'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'hora_app')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'hora_app' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Check-in App"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Check-in App</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'hora_app'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'tipo')"
+                              class="px-2.5 py-1.5 text-center cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'tipo' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Tipo"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Tipo</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'tipo'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'monto')"
+                              class="px-2.5 py-1.5 text-right font-mono cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'monto' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Monto"
+                            >
+                              <div class="flex items-center justify-end gap-0.5">
+                                <span>Monto (Bs)</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'monto'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
                             <th class="px-2.5 py-1.5 text-center w-12">Foto</th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-black/[0.03]">
                           <tr
-                            v-for="ev in detallePorRuta[r.ruta].eventos"
+                            v-for="ev in getEventosOrdenados(r.ruta)"
                             :key="ev.orden || ev.cliente"
                             class="hover:bg-black/[0.02] transition-colors"
                           >
@@ -363,10 +468,14 @@ const sortCol = ref('puntos')
 const sortDir = ref('desc')
 
 const sortLabels = {
-  puntos: 'Puntos (10)',
+  pos: 'Posición Ranking',
+  ruta: 'Ruta',
+  vendedor: 'Preventista',
   hora: 'Primer Contacto',
+  hora_web: 'Check-in Web',
+  hora_app: 'Check-in App',
   estatus: 'Estatus',
-  ruta: 'Ruta'
+  puntos: 'Puntos (10)'
 }
 
 function toggleSort(col) {
@@ -374,8 +483,21 @@ function toggleSort(col) {
     sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
   } else {
     sortCol.value = col
-    sortDir.value = col === 'hora' ? 'asc' : 'desc'
+    if (['pos', 'ruta', 'vendedor', 'hora', 'hora_web', 'hora_app'].includes(col)) {
+      sortDir.value = 'asc'
+    } else {
+      sortDir.value = 'desc'
+    }
   }
+}
+
+function compareHoras(horaA, horaB, dir) {
+  const valA = horaA ? String(horaA).trim() : null
+  const valB = horaB ? String(horaB).trim() : null
+  if (!valA && !valB) return 0
+  if (!valA) return 1
+  if (!valB) return -1
+  return dir * valA.localeCompare(valB)
 }
 
 const rutasOrdenadas = computed(() => {
@@ -384,35 +506,118 @@ const rutasOrdenadas = computed(() => {
   const dir = sortDir.value === 'asc' ? 1 : -1
 
   lista.sort((a, b) => {
+    if (col === 'pos') {
+      const pA = Number(a.rank ?? 9999)
+      const pB = Number(b.rank ?? 9999)
+      if (pA !== pB) return dir * (pA - pB)
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    }
     if (col === 'ruta') {
       return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
     }
-    if (col === 'hora') {
-      const hA = a.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada || '99:99:99'
-      const hB = b.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada || '99:99:99'
-      const cmp = String(hA).localeCompare(String(hB))
+    if (col === 'vendedor') {
+      const vA = String(a.vendedor || '').trim()
+      const vB = String(b.vendedor || '').trim()
+      const cmp = vA.localeCompare(vB, undefined, { numeric: true, sensitivity: 'base' })
       if (cmp !== 0) return dir * cmp
       return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
     }
+    if (col === 'hora') {
+      const hA = a.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+      const hB = b.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+      const cmp = compareHoras(hA, hB, dir)
+      if (cmp !== 0) return cmp
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    }
+    if (col === 'hora_web') {
+      const hwA = a.kpis?.horario_ingreso?.metricas?.hora_web
+      const hwB = b.kpis?.horario_ingreso?.metricas?.hora_web
+      const cmp = compareHoras(hwA, hwB, dir)
+      if (cmp !== 0) return cmp
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    }
+    if (col === 'hora_app') {
+      const haA = a.kpis?.horario_ingreso?.metricas?.hora_app
+      const haB = b.kpis?.horario_ingreso?.metricas?.hora_app
+      const cmp = compareHoras(haA, haB, dir)
+      if (cmp !== 0) return cmp
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    }
     if (col === 'estatus') {
-      const cA = a.kpis?.horario_ingreso?.cumple ? 1 : 0
-      const cB = b.kpis?.horario_ingreso?.cumple ? 1 : 0
-      if (cA !== cB) return dir * (cA - cB)
+      const getWeight = (item) => {
+        if (item.kpis?.horario_ingreso?.cumple) return 2
+        if (item.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada) return 1
+        return 0
+      }
+      const eA = getWeight(a)
+      const eB = getWeight(b)
+      if (eA !== eB) return dir * (eA - eB)
+      const hA = a.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+      const hB = b.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+      const cmpH = compareHoras(hA, hB, 1)
+      if (cmpH !== 0) return cmpH
       return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
     }
     // puntos: default
     const pA = a.kpis?.horario_ingreso?.cumple ? 10 : 0
     const pB = b.kpis?.horario_ingreso?.cumple ? 10 : 0
     if (pA !== pB) return dir * (pA - pB)
-    const hA = a.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada || '99:99:99'
-    const hB = b.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada || '99:99:99'
-    const cmp = String(hA).localeCompare(String(hB))
-    if (cmp !== 0) return cmp
+    const hA = a.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+    const hB = b.kpis?.horario_ingreso?.metricas?.hora_ingreso_detectada
+    const cmpH = compareHoras(hA, hB, 1)
+    if (cmpH !== 0) return cmpH
     return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
   })
 
   return lista
 })
+
+const subtablaSort = reactive({})
+
+function getSubtablaSort(ruta) {
+  if (!subtablaSort[ruta]) {
+    subtablaSort[ruta] = { col: 'orden', dir: 'asc' }
+  }
+  return subtablaSort[ruta]
+}
+
+function toggleSubtablaSort(ruta, col) {
+  const current = getSubtablaSort(ruta)
+  if (current.col === col) {
+    current.dir = current.dir === 'asc' ? 'desc' : 'asc'
+  } else {
+    current.col = col
+    current.dir = (col === 'monto' ? 'desc' : 'asc')
+  }
+}
+
+function getEventosOrdenados(ruta) {
+  const eventos = detallePorRuta[ruta]?.eventos || []
+  const { col, dir } = getSubtablaSort(ruta)
+  const mul = dir === 'asc' ? 1 : -1
+
+  return [...eventos].sort((a, b) => {
+    if (col === 'orden') {
+      return mul * ((Number(a.orden) || 0) - (Number(b.orden) || 0))
+    }
+    if (col === 'cliente') {
+      return mul * String(a.cliente || '').localeCompare(String(b.cliente || ''))
+    }
+    if (col === 'hora_web') {
+      return compareHoras(a.hora_web, b.hora_web, mul)
+    }
+    if (col === 'hora_app') {
+      return compareHoras(a.hora_app, b.hora_app, mul)
+    }
+    if (col === 'tipo') {
+      return mul * String(a.tipo || '').localeCompare(String(b.tipo || ''))
+    }
+    if (col === 'monto') {
+      return mul * ((Number(a.monto) || 0) - (Number(b.monto) || 0))
+    }
+    return 0
+  })
+}
 
 const acordeonAbierto = reactive({})
 const cargandoDetalle = reactive({})

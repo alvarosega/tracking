@@ -298,7 +298,6 @@
                             <th class="px-2.5 py-1.5 text-center w-8">#</th>
                             <th class="px-2.5 py-1.5 w-20">Código</th>
                             <th class="px-3 py-1.5">Cliente / PDV</th>
-                            <th class="px-2.5 py-1.5">Zona</th>
                             <th class="px-2.5 py-1.5 text-center">Hora Check-in</th>
                             <th class="px-2.5 py-1.5 text-center">Tiempo</th>
                             <th class="px-2.5 py-1.5 text-right font-mono">Monto (Bs)</th>
@@ -317,7 +316,6 @@
                             <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[240px]" :title="c.cliente">
                               {{ c.cliente }}
                             </td>
-                            <td class="px-2.5 py-1 text-[#6E6E73]">{{ c.zona_venta || c.zona || '—' }}</td>
                             <td class="px-2.5 py-1 text-center font-mono">{{ c.check_in || '—' }}</td>
                             <td class="px-2.5 py-1 text-center font-mono">{{ c.tiempo_pdv || '—' }}</td>
                             <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
