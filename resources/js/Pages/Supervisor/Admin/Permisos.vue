@@ -49,8 +49,11 @@
 
       <!-- Contenedor Maestro: Selector de Supervisor + Matriz de Permisos -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        <!-- Columna Izquierda: Lista de Supervisores (4 cols) -->
-        <div class="lg:col-span-4 space-y-3">
+        <!-- Columna Izquierda: Lista de Supervisores (4 cols en desktop, ocultable en móvil si hay uno seleccionado) -->
+        <div
+          class="lg:col-span-4 space-y-3"
+          :class="supervisorSeleccionado ? 'hidden lg:block' : 'block'"
+        >
           <div class="apple-glass-card rounded-[18px] p-3 shadow-sm border border-black/[0.04]">
             <div class="flex items-center justify-between mb-2.5 px-1">
               <span class="text-[12px] font-bold text-[#1D1D1F]">Supervisores</span>
@@ -113,8 +116,26 @@
           </div>
         </div>
 
-        <!-- Columna Derecha: Matriz de Permisos (8 cols) -->
-        <div class="lg:col-span-8 space-y-3">
+        <!-- Columna Derecha: Matriz de Permisos (8 cols en desktop, visible en móvil solo si hay uno seleccionado) -->
+        <div
+          class="lg:col-span-8 space-y-3"
+          :class="!supervisorSeleccionado ? 'hidden lg:block' : 'block'"
+        >
+          <!-- Botón Móvil: Volver a la Lista de Supervisores -->
+          <div v-if="supervisorSeleccionado" class="lg:hidden flex items-center justify-between p-2.5 rounded-[14px] bg-white border border-black/[0.08] shadow-xs">
+            <button
+              type="button"
+              @click="supervisorSeleccionado = null"
+              class="text-[11px] font-bold text-[#0071E3] flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <span>←</span>
+              <span>Cambiar de supervisor</span>
+            </button>
+            <div class="flex items-center gap-1.5 text-[10px] font-mono">
+              <span class="text-[#86868B]">Editando:</span>
+              <span class="font-bold text-[#1D1D1F]">{{ supervisorSeleccionado.username }}</span>
+            </div>
+          </div>
           <div v-if="!supervisorSeleccionado" class="apple-glass-card rounded-[18px] p-12 text-center text-[#86868B] shadow-sm border border-black/[0.04]">
             <svg class="w-12 h-12 mx-auto text-[#86868B]/40 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -185,10 +206,10 @@
                   type="button"
                   @click="guardarMatrizCompleta"
                   :disabled="guardando"
-                  class="px-3.5 py-1 text-[11px] font-bold rounded-[8px] bg-[#0071E3] text-white hover:bg-[#0077ED] transition-all shadow-[0_2px_8px_rgba(0,113,227,0.35)] cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                  class="w-full sm:w-auto justify-center px-4 py-2 sm:py-1 text-[11px] font-bold rounded-[8px] bg-[#0071E3] text-white hover:bg-[#0077ED] active:scale-95 transition-all shadow-[0_2px_8px_rgba(0,113,227,0.35)] cursor-pointer flex items-center gap-1.5 disabled:opacity-50 mt-1 sm:mt-0"
                 >
                   <span v-if="guardando" class="animate-spin text-[10px]">↻</span>
-                  <span>Guardar</span>
+                  <span>Guardar Permisos</span>
                 </button>
               </div>
             </div>

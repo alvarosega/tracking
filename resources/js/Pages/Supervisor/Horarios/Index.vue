@@ -9,7 +9,7 @@
         </div>
 
         <!-- Segmented Control Apple Pro -->
-        <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA]">
+        <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA] max-w-full overflow-x-auto no-scrollbar scroll-touch">
           <button
             v-if="canAccessTab('config')"
             @click="activeTab = 'config'"
@@ -47,8 +47,8 @@
 
       <!-- PESTAÑA 1: MATRIZ DE HORARIOS -->
       <div v-show="activeTab === 'config'" class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
-          <div class="relative w-64">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="relative w-full sm:w-64">
             <svg class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
@@ -63,7 +63,7 @@
           <button
             @click="fetchData"
             :disabled="loading"
-            class="h-8 px-3 bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-xs font-medium rounded-[6px] text-[#1D1D1F] inline-flex items-center transition-colors"
+            class="h-8 px-3 bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-xs font-medium rounded-[6px] text-[#1D1D1F] inline-flex items-center justify-center transition-colors shrink-0"
           >
             <svg class="w-3.5 h-3.5 mr-1.5 text-[#6E6E73]" :class="{ 'animate-spin': loading }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -217,10 +217,10 @@
             <div
               v-for="d in diasSemana"
               :key="d.id"
-              class="p-2.5 rounded-[8px] border border-[#E5E5EA] flex items-center justify-between text-xs"
+              class="p-2.5 rounded-[8px] border border-[#E5E5EA] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
               :class="modalDays[d.id].is_working_day ? 'bg-white' : 'bg-[#F9F9FB]'"
             >
-              <div class="flex items-center gap-3 w-28">
+              <div class="flex items-center gap-3 w-full sm:w-28">
                 <input
                   type="checkbox"
                   v-model="modalDays[d.id].is_working_day"
@@ -230,7 +230,7 @@
                 <label :for="'d-' + d.id" class="font-medium text-[#1D1D1F] cursor-pointer">{{ d.name }}</label>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex items-center gap-1.5">
                   <span class="text-[10px] text-[#86868B] uppercase">Ingreso</span>
                   <input

@@ -107,7 +107,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import PageHeader from '@/Components/UI/PageHeader.vue';
 import StatCard from '@/Components/UI/StatCard.vue';
@@ -122,8 +122,27 @@ defineProps({
   },
 });
 
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const perms = computed(() => authUser.value?.permissions);
+
+function isModuleAllowed(item) {
+  if (item.superAdminOnly) {
+    return isSuperAdmin.value;
+  }
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+  if (!perms.value.modules || perms.value.modules[item.id] !== true) return false;
+  if (item.submodules && item.submodules.length > 0) {
+    return item.submodules.some(sub => perms.value.submodules && perms.value.submodules[`${item.id}.${sub.id}`] === true);
+  }
+  return true;
+}
+
 const operationModules = computed(() => {
-  return navigationConfig.mainMenu.filter(m => m.id !== 'inicio');
+  return navigationConfig.mainMenu.filter(m => m.id !== 'inicio' && isModuleAllowed(m));
 });
 
 const getRoute = (routeName) => {

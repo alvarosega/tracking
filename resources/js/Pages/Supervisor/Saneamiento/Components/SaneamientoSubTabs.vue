@@ -1,5 +1,5 @@
 <template>
-  <div v-if="filteredTabs.length > 0" class="apple-glass-card rounded-[16px] p-1.5 sm:p-2 mb-4 select-none font-sans overflow-x-auto custom-scroll">
+  <div v-if="filteredTabs.length > 0" class="apple-glass-card rounded-[16px] p-1.5 sm:p-2 mb-4 select-none font-sans overflow-x-auto no-scrollbar scroll-touch">
     <div class="flex items-center gap-1 min-w-max">
       <Link
         v-for="tab in filteredTabs"

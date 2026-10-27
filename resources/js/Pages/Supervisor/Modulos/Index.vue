@@ -9,7 +9,7 @@
         </div>
 
         <!-- Segmented Control Apple Style -->
-        <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA]">
+        <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA] max-w-full overflow-x-auto no-scrollbar scroll-touch">
           <button
             v-if="canAccessTab('matriz')"
             @click="activeTab = 'matriz'"
