@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\SupervisorAdminPermisosController;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
+use App\Http\Controllers\Web\SupervisorAuditoriaController;
 use App\Http\Controllers\Web\SupervisorAvanceController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
 use App\Http\Controllers\Web\SupervisorIndexController;
@@ -189,12 +190,79 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
         // Auditoría
         Route::middleware('module.access:preventas,auditoria')->group(function () {
-            Route::get('/auditoria', [SupervisorPreventasController::class, 'auditoria'])->name('auditoria');
+            Route::get('/auditoria', function () {
+                return redirect()->route('supervisor.auditoria.preventas');
+            })->name('auditoria');
         });
 
         // Comparativos
         Route::middleware('module.access:preventas,comparativos')->group(function () {
             Route::get('/comparativos', [SupervisorPreventasController::class, 'comparativos'])->name('comparativos');
+        });
+    });
+
+    // Módulo Auditoría de Ruteo & Preventas
+    Route::prefix('auditoria')->name('auditoria.')->middleware('module.access:auditoria')->group(function () {
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            $submodules = ['preventas', 'inactivados', 'cambios-ruta', 'modificacion-datos', 'cambios-dia', 'altas', 'historico'];
+            foreach ($submodules as $sub) {
+                if ($user->hasModuleAccess('auditoria', $sub)) {
+                    return redirect()->route("supervisor.auditoria.{$sub}");
+                }
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Auditoría.');
+        })->name('index');
+
+        // Catálogo maestro y fotos
+        Route::get('/catalogo', [SupervisorAuditoriaController::class, 'catalogo'])->name('catalogo');
+        Route::get('/fotos-cliente/{clienteId}', [SupervisorAuditoriaController::class, 'fotosCliente'])->name('fotos-cliente');
+
+        // 1. Preventas Intra-día
+        Route::middleware('module.access:auditoria,preventas')->group(function () {
+            Route::get('/preventas', [SupervisorAuditoriaController::class, 'preventas'])->name('preventas');
+            Route::post('/preventas/consultar', [SupervisorAuditoriaController::class, 'preventasConsultar'])->name('preventas.consultar');
+        });
+
+        // 2. Clientes Inactivados
+        Route::middleware('module.access:auditoria,inactivados')->group(function () {
+            Route::get('/inactivados', [SupervisorAuditoriaController::class, 'inactivados'])->name('inactivados');
+            Route::post('/inactivados/consultar', [SupervisorAuditoriaController::class, 'inactivadosConsultar'])->name('inactivados.consultar');
+            Route::post('/inactivados/resolver', [SupervisorAuditoriaController::class, 'inactivadosResolver'])->name('inactivados.resolver');
+        });
+
+        // 3. Cambios de Ruta
+        Route::middleware('module.access:auditoria,cambios-ruta')->group(function () {
+            Route::get('/cambios-ruta', [SupervisorAuditoriaController::class, 'cambiosRuta'])->name('cambios-ruta');
+            Route::post('/cambios-ruta/consultar', [SupervisorAuditoriaController::class, 'cambiosRutaConsultar'])->name('cambios-ruta.consultar');
+            Route::post('/cambios-ruta/resolver', [SupervisorAuditoriaController::class, 'cambiosRutaResolver'])->name('cambios-ruta.resolver');
+        });
+
+        // 4. Modificación de Datos
+        Route::middleware('module.access:auditoria,modificacion-datos')->group(function () {
+            Route::get('/modificacion-datos', [SupervisorAuditoriaController::class, 'modificacionDatos'])->name('modificacion-datos');
+            Route::post('/modificacion-datos/consultar', [SupervisorAuditoriaController::class, 'modificacionDatosConsultar'])->name('modificacion-datos.consultar');
+            Route::post('/modificacion-datos/resolver', [SupervisorAuditoriaController::class, 'modificacionDatosResolver'])->name('modificacion-datos.resolver');
+        });
+
+        // 5. Cambios de Día
+        Route::middleware('module.access:auditoria,cambios-dia')->group(function () {
+            Route::get('/cambios-dia', [SupervisorAuditoriaController::class, 'cambiosDia'])->name('cambios-dia');
+            Route::post('/cambios-dia/consultar', [SupervisorAuditoriaController::class, 'cambiosDiaConsultar'])->name('cambios-dia.consultar');
+            Route::post('/cambios-dia/resolver', [SupervisorAuditoriaController::class, 'cambiosDiaResolver'])->name('cambios-dia.resolver');
+        });
+
+        // 6. Altas y Reactivaciones
+        Route::middleware('module.access:auditoria,altas')->group(function () {
+            Route::get('/altas', [SupervisorAuditoriaController::class, 'altas'])->name('altas');
+            Route::post('/altas/consultar', [SupervisorAuditoriaController::class, 'altasConsultar'])->name('altas.consultar');
+            Route::post('/altas/resolver', [SupervisorAuditoriaController::class, 'altasResolver'])->name('altas.resolver');
+        });
+
+        // 7. Histórico de Resoluciones
+        Route::middleware('module.access:auditoria,historico')->group(function () {
+            Route::get('/historico', [SupervisorAuditoriaController::class, 'historico'])->name('historico');
+            Route::post('/historico/consultar', [SupervisorAuditoriaController::class, 'historicoConsultar'])->name('historico.consultar');
         });
     });
 

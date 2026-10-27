@@ -162,6 +162,68 @@ export const navigationConfig = {
       ]
     },
     {
+      id: 'auditoria',
+      name: 'Auditoría de Ruteo & Preventa',
+      shortName: 'Auditoría',
+      route: 'supervisor.auditoria.preventas',
+      componentPrefix: 'Supervisor/Auditoria',
+      icon: 'ShieldCheckIcon',
+      badge: 'AUDIT',
+      badgeColor: 'amber',
+      description: 'Auditoría de novedades intra-día, cambios de ruta, bajas, modificaciones y reactivaciones',
+      submodules: [
+        {
+          id: 'preventas',
+          name: 'Preventas Intra-día',
+          route: 'supervisor.auditoria.preventas',
+          component: 'Supervisor/Auditoria/Preventas',
+          icon: 'DocumentTextIcon'
+        },
+        {
+          id: 'inactivados',
+          name: 'Bajas e Inactivados',
+          route: 'supervisor.auditoria.inactivados',
+          component: 'Supervisor/Auditoria/Inactivados',
+          icon: 'UserMinusIcon'
+        },
+        {
+          id: 'cambios-ruta',
+          name: 'Cambios de Ruta',
+          route: 'supervisor.auditoria.cambios-ruta',
+          component: 'Supervisor/Auditoria/CambiosRuta',
+          icon: 'ArrowsRightLeftIcon'
+        },
+        {
+          id: 'modificacion-datos',
+          name: 'Modificación Datos',
+          route: 'supervisor.auditoria.modificacion-datos',
+          component: 'Supervisor/Auditoria/ModificacionDatos',
+          icon: 'PencilSquareIcon'
+        },
+        {
+          id: 'cambios-dia',
+          name: 'Cambios de Día',
+          route: 'supervisor.auditoria.cambios-dia',
+          component: 'Supervisor/Auditoria/CambiosDia',
+          icon: 'CalendarIcon'
+        },
+        {
+          id: 'altas',
+          name: 'Altas y Reactivaciones',
+          route: 'supervisor.auditoria.altas',
+          component: 'Supervisor/Auditoria/Altas',
+          icon: 'UserPlusIcon'
+        },
+        {
+          id: 'historico',
+          name: 'Histórico Resoluciones',
+          route: 'supervisor.auditoria.historico',
+          component: 'Supervisor/Auditoria/Historico',
+          icon: 'ClockIcon'
+        }
+      ]
+    },
+    {
       id: 'tracking',
       name: 'Tracking en Vivo',
       shortName: 'Tracking',

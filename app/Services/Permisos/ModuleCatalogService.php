@@ -57,6 +57,20 @@ class ModuleCatalogService
                 ],
             ],
             [
+                'id' => 'auditoria',
+                'name' => 'Auditoría de Ruteo & Preventa',
+                'description' => 'Auditoría de novedades intra-día, cambios de ruta, bajas, modificaciones y reactivaciones',
+                'submodules' => [
+                    ['id' => 'preventas', 'name' => 'Preventas Intra-día'],
+                    ['id' => 'inactivados', 'name' => 'Bajas e Inactivados'],
+                    ['id' => 'cambios-ruta', 'name' => 'Cambios de Ruta'],
+                    ['id' => 'modificacion-datos', 'name' => 'Modificación de Datos'],
+                    ['id' => 'cambios-dia', 'name' => 'Cambios de Día'],
+                    ['id' => 'altas', 'name' => 'Altas y Reactivaciones'],
+                    ['id' => 'historico', 'name' => 'Histórico Resoluciones'],
+                ],
+            ],
+            [
                 'id' => 'tracking',
                 'name' => 'Tracking en Vivo',
                 'description' => 'Telemetría GPS, seguimiento en ruta y trayectorias semanales',

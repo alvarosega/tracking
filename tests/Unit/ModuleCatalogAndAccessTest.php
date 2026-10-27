@@ -34,6 +34,7 @@ class ModuleCatalogAndAccessTest extends TestCase
             'horarios',
             'modulos',
             'ingesta',
+            'auditoria',
         ];
 
         foreach ($expectedModules as $expected) {
@@ -45,6 +46,14 @@ class ModuleCatalogAndAccessTest extends TestCase
         foreach ($catalog as $item) {
             $catalogIndexed[$item['id']] = array_column($item['submodules'], 'id');
         }
+
+        $this->assertContains('preventas', $catalogIndexed['auditoria']);
+        $this->assertContains('inactivados', $catalogIndexed['auditoria']);
+        $this->assertContains('cambios-ruta', $catalogIndexed['auditoria']);
+        $this->assertContains('modificacion-datos', $catalogIndexed['auditoria']);
+        $this->assertContains('cambios-dia', $catalogIndexed['auditoria']);
+        $this->assertContains('altas', $catalogIndexed['auditoria']);
+        $this->assertContains('historico', $catalogIndexed['auditoria']);
 
         $this->assertContains('listado', $catalogIndexed['altas-ediciones']);
         $this->assertContains('cercanos', $catalogIndexed['altas-ediciones']);
