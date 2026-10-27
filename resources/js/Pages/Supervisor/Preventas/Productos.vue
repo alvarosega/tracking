@@ -423,22 +423,13 @@ import { ref, reactive, onMounted } from 'vue';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue';
+import { preventasSubTabs } from '@/Config/navigation';
 
 const props = defineProps({
   catalogo_rutas: { type: Array, default: () => [] },
   canales: { type: Array, default: () => [] },
   fecha_default: { type: String, default: () => new Date().toISOString().split('T')[0] },
 });
-
-// Submódulos Preventas
-const preventasSubTabs = [
-  { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
-  { id: 'diaria', name: 'Preventa Diaria', route: 'supervisor.preventas.diaria' },
-  { id: 'productos', name: 'Productos', route: 'supervisor.preventas.productos' },
-  { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
-  { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
-  { id: 'mapa', name: 'Auditoría en Terreno', route: 'supervisor.preventas.index' },
-];
 
 // Estado de Filtros
 const filtroFecha = ref(props.fecha_default);

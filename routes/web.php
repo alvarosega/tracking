@@ -136,27 +136,18 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
 
-    // Módulo Auditoría Preventas & Cumplimiento Unilever
+    // Módulo Preventas & Cumplimiento Unilever
     Route::prefix('preventas')->name('preventas.')->middleware('module.access:preventas')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['mapa', 'cumplimiento', 'productos', 'auditoria', 'comparativos'];
+            $submodules = ['cumplimiento', 'productos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('preventas', $sub)) {
-                    $target = $sub === 'mapa' ? 'index' : $sub;
-                    return redirect()->route("supervisor.preventas.{$target}");
+                    return redirect()->route("supervisor.preventas.{$sub}");
                 }
             }
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Preventas.');
         })->name('index');
-
-        // Auditoría en Mapa / Terreno
-        Route::middleware('module.access:preventas,mapa')->group(function () {
-            Route::get('/mapa', [SupervisorPreventasController::class, 'index'])->name('mapa');
-            Route::post('/data', [SupervisorPreventasController::class, 'data'])->name('data');
-            Route::post('/resolver-enlace', [SupervisorPreventasController::class, 'resolverEnlaceMaps'])->name('resolver-enlace');
-            Route::post('/rechazos/data', [SupervisorPreventasController::class, 'rechazosData'])->name('rechazos.data');
-        });
 
         // Cumplimiento
         Route::middleware('module.access:preventas,cumplimiento')->group(function () {
@@ -172,11 +163,6 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/ampliacion/detalle', [SupervisorPreventasController::class, 'cumplimientoAmpliacionDetalle'])->name('cumplimiento.ampliacion.detalle');
         });
 
-        // Preventa Diaria (Redirigido a Cumplimiento Unilever)
-        Route::get('/diaria', function () {
-            return redirect()->route('supervisor.preventas.cumplimiento');
-        })->name('diaria');
-
         // Productos
         Route::middleware('module.access:preventas,productos')->group(function () {
             Route::get('/productos', [SupervisorPreventasController::class, 'productos'])->name('productos');
@@ -186,17 +172,22 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/productos/heatmap', [SupervisorPreventasController::class, 'productosHeatmap'])->name('productos.heatmap');
         });
 
-        // Auditoría
-        Route::middleware('module.access:preventas,auditoria')->group(function () {
-            Route::get('/auditoria', function () {
-                return redirect()->route('supervisor.auditoria.preventas');
-            })->name('auditoria');
-        });
+        // Redirecciones de submódulos obsoletos / migrados
+        Route::get('/diaria', function () {
+            return redirect()->route('supervisor.preventas.cumplimiento');
+        })->name('diaria');
 
-        // Comparativos
-        Route::middleware('module.access:preventas,comparativos')->group(function () {
-            Route::get('/comparativos', [SupervisorPreventasController::class, 'comparativos'])->name('comparativos');
-        });
+        Route::get('/mapa', function () {
+            return redirect()->route('supervisor.preventas.cumplimiento');
+        })->name('mapa');
+
+        Route::get('/comparativos', function () {
+            return redirect()->route('supervisor.preventas.cumplimiento');
+        })->name('comparativos');
+
+        Route::get('/auditoria', function () {
+            return redirect()->route('supervisor.auditoria.preventas');
+        })->name('auditoria');
     });
 
     // Módulo Auditoría de Ruteo & Preventas

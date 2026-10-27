@@ -115,7 +115,7 @@ export const navigationConfig = {
       icon: 'ChartBarIcon',
       badge: '100 PTS',
       badgeColor: 'amber',
-      description: 'Pizarra Unilever, Productos y Auditoría',
+      description: 'Pizarra Unilever y Productos Heatmap',
       submodules: [
         {
           id: 'cumplimiento',
@@ -130,27 +130,6 @@ export const navigationConfig = {
           route: 'supervisor.preventas.productos',
           component: 'Supervisor/Preventas/Productos',
           icon: 'TagIcon'
-        },
-        {
-          id: 'auditoria',
-          name: 'Auditoría',
-          route: 'supervisor.preventas.auditoria',
-          component: 'Supervisor/Preventas/Auditoria',
-          icon: 'ShieldCheckIcon'
-        },
-        {
-          id: 'comparativos',
-          name: 'Comparativos',
-          route: 'supervisor.preventas.comparativos',
-          component: 'Supervisor/Preventas/Comparativos',
-          icon: 'ScaleIcon'
-        },
-        {
-          id: 'mapa',
-          name: 'Auditoría en Terreno',
-          route: 'supervisor.preventas.index',
-          component: 'Supervisor/Preventas/Index',
-          icon: 'ClipboardCheckIcon'
         }
       ]
     },
@@ -543,10 +522,7 @@ export const navigationConfig = {
 
 export const preventasSubTabs = [
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
-  { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' },
-  { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
-  { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },
-  { id: 'mapa', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' }
+  { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' }
 ];
 
 export const auditoriaSubTabs = [
