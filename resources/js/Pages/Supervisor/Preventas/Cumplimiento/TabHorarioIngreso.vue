@@ -796,16 +796,28 @@ function badgeColorTipo(tipo) {
   if (t.includes('preventa') || t.includes('venta')) {
     return 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
   }
-  if (t.includes('no') || t.includes('cerrad') || t.includes('rechaz') || t.includes('sin')) {
-    return 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'
+  if (t.includes('tienda cerrada') || t.includes('cerrad')) {
+    return 'bg-amber-50 text-amber-700 border border-amber-200'
+  }
+  if (t.includes('sin dinero')) {
+    return 'bg-purple-50 text-purple-700 border border-purple-200'
+  }
+  if (t.includes('con stock') || t.includes('stock')) {
+    return 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+  }
+  if (t.includes('ausente')) {
+    return 'bg-orange-50 text-orange-700 border border-orange-200'
   }
   if (t.includes('cobranza')) {
     return 'bg-blue-50 text-[#0071E3] border border-blue-200'
   }
   if (t.includes('oportunidad')) {
-    return 'bg-purple-50 text-purple-700 border border-purple-200'
+    return 'bg-violet-50 text-violet-700 border border-violet-200'
   }
-  return 'bg-black/[0.04] text-[#1D1D1F]'
+  if (t.includes('rechaz') || t.includes('no atendido')) {
+    return 'bg-rose-50 text-rose-700 border border-rose-200'
+  }
+  return 'bg-slate-50 text-slate-700 border border-slate-200'
 }
 
 function badgeColorDiferencia(ev) {

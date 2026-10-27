@@ -392,9 +392,9 @@
                             <td class="px-2.5 py-1 text-center">
                               <span
                                 class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold"
-                                :class="badgeColorEstatus(c.tipo || c.categoria)"
+                                :class="badgeColorEstatus(c.tipo || c.motivo || c.categoria)"
                               >
-                                {{ c.motivo || c.tipo || c.categoria || 'Visita' }}
+                                {{ c.tipo || c.motivo || (c.categoria === 'No Visitado' ? 'No Visitado' : 'Visita') }}
                               </span>
                             </td>
                             <td class="px-2.5 py-1 text-center">
@@ -711,17 +711,35 @@ function clientesVisitasFiltrados(ruta) {
 }
 
 function badgeColorEstatus(categoria) {
-  const c = String(categoria || '').toUpperCase()
-  if (c.includes('VISITADO ACTIVO') || c.includes('VENTA') || c.includes('COMPRA')) {
-    return 'bg-[#EBF9EF] text-[#1E6B37]'
+  const c = String(categoria || '').toLowerCase()
+  if (c.includes('no visitado') || c.includes('pendiente')) {
+    return 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'
   }
-  if (c.includes('NO VISITADO') || c.includes('NO') || c.includes('CERRADO')) {
-    return 'bg-[#FDF0EF] text-[#C9342C]'
+  if (c.includes('preventa') || c.includes('venta') || c.includes('compra') || c.includes('visitado activo')) {
+    return 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
   }
-  if (c.includes('FUERA')) {
-    return 'bg-[#FFF5E5] text-[#B25E00]'
+  if (c.includes('tienda cerrada') || c.includes('cerrad')) {
+    return 'bg-amber-50 text-amber-700 border border-amber-200'
   }
-  return 'bg-black/[0.05] text-[#1D1D1F]'
+  if (c.includes('sin dinero')) {
+    return 'bg-purple-50 text-purple-700 border border-purple-200'
+  }
+  if (c.includes('con stock') || c.includes('stock')) {
+    return 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+  }
+  if (c.includes('ausente')) {
+    return 'bg-orange-50 text-orange-700 border border-orange-200'
+  }
+  if (c.includes('fuera')) {
+    return 'bg-[#FFF5E5] text-[#B25E00] border border-amber-200'
+  }
+  if (c.includes('inactivo')) {
+    return 'bg-slate-100 text-slate-700 border border-slate-200'
+  }
+  if (c.includes('rechaz') || c.includes('no atendido')) {
+    return 'bg-rose-50 text-rose-700 border border-rose-200'
+  }
+  return 'bg-slate-50 text-slate-700 border border-slate-200'
 }
 
 const modalFoto = reactive({

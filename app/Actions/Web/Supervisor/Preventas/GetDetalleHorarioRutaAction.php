@@ -123,7 +123,8 @@ class GetDetalleHorarioRutaAction
                 ->select([
                     DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
                     DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
-                    DB::raw("COALESCE(NULLIF(TRIM(fv.tipo), ''), NULLIF(TRIM(fv.motivo), ''), 'Visita') as tipo"),
+                    DB::raw("COALESCE(fv.tipo, '') as tipo"),
+                    DB::raw("COALESCE(fv.motivo, '') as motivo"),
                     DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
                     DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
                     DB::raw("COALESCE(fv.tiempo_pdv, '00:00:00') as tiempo_pdv"),
@@ -150,7 +151,8 @@ class GetDetalleHorarioRutaAction
                     'check_in' => $hIn,
                     'check_out' => trim((string) $fs->check_out) ?: null,
                     'tiempo_pdv' => trim((string) $fs->tiempo_pdv) ?: null,
-                    'tipo' => trim((string) $fs->tipo) ?: 'Visita',
+                    'tipo' => trim((string) $fs->tipo),
+                    'motivo' => trim((string) $fs->motivo),
                     'monto' => (float) ($fs->monto ?: 0.0),
                 ];
 
@@ -176,6 +178,12 @@ class GetDetalleHorarioRutaAction
                             $visitasWebPorCid[$cid]['check_in'] = $hIn;
                         }
                         $visitasWebPorCid[$cid]['monto'] += (float) ($fs->monto ?: 0.0);
+                        if (!empty($itemWeb['motivo']) && empty($visitasWebPorCid[$cid]['motivo'])) {
+                            $visitasWebPorCid[$cid]['motivo'] = $itemWeb['motivo'];
+                        }
+                        if (strtoupper($itemWeb['tipo']) === 'PREVENTA') {
+                            $visitasWebPorCid[$cid]['tipo'] = 'PreVenta';
+                        }
                     }
                 }
             }
@@ -241,7 +249,8 @@ class GetDetalleHorarioRutaAction
                             'hora_app' => $horaM,
                             'foto_url' => $fotoUrl,
                             'fotos_count' => $fotoUrl ? 1 : 0,
-                            'status' => (string) ($fm->status ?? 'VISITADO'),
+                            'status' => (string) ($fm->status ?? ''),
+                            'comments' => (string) ($fm->comments ?? ''),
                         ];
                     } else {
                         if (strcmp($horaM, $visitasMovilPorCid[$cid]['hora_app']) < 0) {
@@ -250,6 +259,9 @@ class GetDetalleHorarioRutaAction
                         if ($fotoUrl && empty($visitasMovilPorCid[$cid]['foto_url'])) {
                             $visitasMovilPorCid[$cid]['foto_url'] = $fotoUrl;
                             $visitasMovilPorCid[$cid]['fotos_count']++;
+                        }
+                        if (!empty($fm->status) && empty($visitasMovilPorCid[$cid]['status'])) {
+                            $visitasMovilPorCid[$cid]['status'] = (string) $fm->status;
                         }
                     }
                 } else {
@@ -268,6 +280,14 @@ class GetDetalleHorarioRutaAction
                         $alfaFp = $this->normalizarAlfanumerico($nombreFp);
                         $webFp = $factVisitasPorNombreAlfa[$alfaFp] ?? null;
                         $montoFp = max((float) ($webFp['monto'] ?? 0.0), (float) ($preventasMontoPorCid[$cid] ?? 0.0));
+                        $tipoFp = $this->determinarTipoVisita(
+                            true,
+                            $montoFp,
+                            $webFp['tipo'] ?? '',
+                            $webFp['motivo'] ?? '',
+                            (string) ($fm->status ?? ''),
+                            (bool) $fm->is_opportunity
+                        );
 
                         $visitasFueraPlan[$fpKey] = [
                             'client_id' => $cid > 0 ? $cid : null,
@@ -277,7 +297,7 @@ class GetDetalleHorarioRutaAction
                             'check_out_web' => $webFp['check_out'] ?? null,
                             'tiempo_pdv_web' => $webFp['tiempo_pdv'] ?? null,
                             'monto' => $montoFp,
-                            'tipo' => $montoFp > 0 ? 'PreVenta' : ($fm->is_opportunity ? 'Oportunidad' : 'Fuera de Plan'),
+                            'tipo' => $tipoFp,
                             'foto_url' => $fotoUrl,
                             'fotos_count' => $fotoUrl ? 1 : 0,
                             'direccion' => $direccionFp,
@@ -321,14 +341,14 @@ class GetDetalleHorarioRutaAction
                 }
 
                 $montoFinal = max((float) ($web['monto'] ?? 0.0), $montoPrev);
-                $tipoFinal = 'No Visitado';
-                if ($visitado) {
-                    if ($montoFinal > 0 || (isset($web['tipo']) && mb_strtolower($web['tipo']) === 'preventa')) {
-                        $tipoFinal = 'PreVenta';
-                    } else {
-                        $tipoFinal = $web['tipo'] ?? 'Visita';
-                    }
-                }
+                $tipoFinal = $this->determinarTipoVisita(
+                    $visitado,
+                    $montoFinal,
+                    $web['tipo'] ?? '',
+                    $web['motivo'] ?? '',
+                    $app['status'] ?? '',
+                    false
+                );
 
                 $diffInfo = $this->calcularDiferencia($hWeb, $hApp);
 
@@ -566,5 +586,73 @@ class GetDetalleHorarioRutaAction
         }
         $s = $this->normalizarTexto($str);
         return preg_replace('/[^a-z0-9]/', '', $s) ?? '';
+    }
+
+    /**
+     * Determina el tipo / motivo normalizado de visita combinando Web (fact_visitas) y App (visitas).
+     */
+    private function determinarTipoVisita(
+        bool $visitado,
+        float $monto,
+        ?string $webTipo,
+        ?string $webMotivo,
+        ?string $appStatus,
+        bool $isOpportunity = false
+    ): string {
+        if (!$visitado) {
+            return 'No Visitado';
+        }
+
+        $wTipo = strtoupper(trim(str_replace('_', ' ', (string) $webTipo)));
+        $wMotivo = strtoupper(trim(str_replace('_', ' ', (string) $webMotivo)));
+        $aStatus = strtoupper(trim(str_replace('_', ' ', (string) $appStatus)));
+
+        // 1. Si generó venta o monto > 0, o está marcado explícitamente como preventa
+        if ($monto > 0 || $wTipo === 'PREVENTA' || $aStatus === 'PREVENTA') {
+            return 'PreVenta';
+        }
+
+        // 2. Revisión de motivos específicos (Web y App)
+        $candidatos = array_values(array_filter([$wMotivo, $aStatus, $wTipo], fn ($v) => $v !== ''));
+
+        foreach ($candidatos as $cand) {
+            if (str_contains($cand, 'TIENDA CERRADA') || str_contains($cand, 'CERRAD')) {
+                return 'Tienda Cerrada';
+            }
+            if (str_contains($cand, 'SIN DINERO') || str_contains($cand, 'NO DINERO') || str_contains($cand, 'FALTA DINERO')) {
+                return 'Sin Dinero';
+            }
+            if (str_contains($cand, 'CON STOCK') || str_contains($cand, 'TIENE STOCK') || str_contains($cand, 'STOCK')) {
+                return 'Con Stock';
+            }
+            if (str_contains($cand, 'AUSENTE') || str_contains($cand, 'NO ESTA')) {
+                return 'Ausente';
+            }
+            if (str_contains($cand, 'RECHAZ')) {
+                return 'Rechazado';
+            }
+            if (str_contains($cand, 'COBRANZA')) {
+                return 'Cobranza';
+            }
+        }
+
+        if ($isOpportunity || in_array('OPORTUNIDAD', $candidatos, true)) {
+            return 'Oportunidad';
+        }
+
+        // Si hay un motivo de texto libre que no sea genérico
+        if ($wMotivo !== '' && !in_array($wMotivo, ['NO ATENDIDO', 'NO ATENDIDA', 'VISITA'], true)) {
+            return ucwords(mb_strtolower($wMotivo));
+        }
+
+        if ($aStatus !== '' && !in_array($aStatus, ['VISITADO', 'VISITA'], true)) {
+            return ucwords(mb_strtolower($aStatus));
+        }
+
+        if ($wTipo === 'NO ATENDIDO' || $wTipo === 'NO ATENDIDA') {
+            return 'No Atendido';
+        }
+
+        return 'Visita';
     }
 }
