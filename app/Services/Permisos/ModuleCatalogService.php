@@ -78,7 +78,10 @@ class ModuleCatalogService
                 'id' => 'altas-ediciones',
                 'name' => 'Altas & Ediciones',
                 'description' => 'Auditoría y control de clientes creados o editados en campo',
-                'submodules' => [],
+                'submodules' => [
+                    ['id' => 'listado', 'name' => 'Bandeja de Aprobación'],
+                    ['id' => 'cercanos', 'name' => 'Clientes Cercanos (Radar 200m)'],
+                ],
             ],
             [
                 'id' => 'saneamiento',
@@ -97,19 +100,29 @@ class ModuleCatalogService
                 'id' => 'jornadas',
                 'name' => 'Control de Jornadas',
                 'description' => 'Aperturas, cierres remotos y control de turnos de preventa',
-                'submodules' => [],
+                'submodules' => [
+                    ['id' => 'control', 'name' => 'Monitoreo de Jornadas'],
+                    ['id' => 'cierre-masivo', 'name' => 'Cierre Remoto Masivo'],
+                ],
             ],
             [
                 'id' => 'horarios',
                 'name' => 'Matriz de Horarios',
                 'description' => 'Configuración semanal de turnos y franjas horarias por ruta',
-                'submodules' => [],
+                'submodules' => [
+                    ['id' => 'matriz', 'name' => 'Configuración de Turnos'],
+                    ['id' => 'activos', 'name' => 'Jornadas en Curso'],
+                ],
             ],
             [
                 'id' => 'modulos',
                 'name' => 'Módulos Móviles & Ajustes',
                 'description' => 'Control de acceso a funciones de la app Android y parámetros operativos',
-                'submodules' => [],
+                'submodules' => [
+                    ['id' => 'matriz', 'name' => 'Matriz por Ruta'],
+                    ['id' => 'global', 'name' => 'Ajustes Globales'],
+                    ['id' => 'inventarios', 'name' => 'Stock PDV / Auditoría'],
+                ],
             ],
             [
                 'id' => 'ingesta',

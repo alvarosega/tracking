@@ -200,9 +200,19 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
     // Módulo Tracking en Vivo y Patrones Históricos
     Route::prefix('tracking')->name('tracking.')->middleware('module.access:tracking')->group(function () {
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('tracking', 'vivo')) {
+                return app(SupervisorTrackingController::class)->index();
+            }
+            if ($user->hasModuleAccess('tracking', 'historico')) {
+                return redirect()->route('supervisor.tracking.historico');
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Tracking.');
+        })->name('index');
+
         // En Vivo
         Route::middleware('module.access:tracking,vivo')->group(function () {
-            Route::get('/', [SupervisorTrackingController::class, 'index'])->name('index');
             Route::post('/data', [SupervisorTrackingController::class, 'data'])->name('data');
             Route::post('/workday/{userId}/close', [SupervisorTrackingController::class, 'closeWorkday'])->name('workday.close');
         });
@@ -216,17 +226,39 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
     // Módulo Altas & Ediciones
     Route::prefix('altas-ediciones')->name('altas-ediciones.')->middleware('module.access:altas-ediciones')->group(function () {
-        Route::get('/', [SupervisorAltasEdicionesController::class, 'index'])->name('index');
-        Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
-        Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
-        Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('altas-ediciones', 'listado') || $user->hasModuleAccess('altas-ediciones', 'cercanos')) {
+                return app(SupervisorAltasEdicionesController::class)->index(app(\App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction::class));
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Altas & Ediciones.');
+        })->name('index');
+
+        Route::middleware('module.access:altas-ediciones,listado')->group(function () {
+            Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
+            Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
+        });
+
+        Route::middleware('module.access:altas-ediciones,cercanos')->group(function () {
+            Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
+        });
     });
 
     // Módulo Auditoría de Visitas & Cobertura Fotográfica
     Route::prefix('visitas')->name('visitas.')->middleware('module.access:visitas')->group(function () {
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('visitas', 'galeria')) {
+                return app(SupervisorVisitasController::class)->index();
+            }
+            if ($user->hasModuleAccess('visitas', 'avance')) {
+                return redirect()->route('supervisor.visitas.avance');
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Visitas.');
+        })->name('index');
+
         // Galería
         Route::middleware('module.access:visitas,galeria')->group(function () {
-            Route::get('/', [SupervisorVisitasController::class, 'index'])->name('index');
             Route::post('/data', [SupervisorVisitasController::class, 'data'])->name('data');
             Route::post('/fotos/{clienteId}', [SupervisorVisitasController::class, 'fotosCliente'])->name('fotos');
         });
@@ -240,29 +272,68 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
     // Módulo Control de Jornadas
     Route::prefix('jornadas')->name('jornadas.')->middleware('module.access:jornadas')->group(function () {
-        Route::get('/', [SupervisorJornadasController::class, 'index'])->name('index');
-        Route::post('/{userId}/close', [SupervisorJornadasController::class, 'closeSingle'])->name('close.single');
-        Route::post('/close-all', [SupervisorJornadasController::class, 'closeAllActive'])->name('close.all');
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('jornadas', 'control') || $user->hasModuleAccess('jornadas', 'cierre-masivo')) {
+                return app(SupervisorJornadasController::class)->index($request, app(\App\Actions\Web\Supervisor\Jornadas\GetJornadasDataAction::class));
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Control de Jornadas.');
+        })->name('index');
+
+        Route::middleware('module.access:jornadas,control')->group(function () {
+            Route::post('/{userId}/close', [SupervisorJornadasController::class, 'closeSingle'])->name('close.single');
+        });
+
+        Route::middleware('module.access:jornadas,cierre-masivo')->group(function () {
+            Route::post('/close-all', [SupervisorJornadasController::class, 'closeAllActive'])->name('close.all');
+        });
     });
 
     // Módulo Matriz de Horarios
     Route::prefix('horarios')->name('horarios.')->middleware('module.access:horarios')->group(function () {
-        Route::get('/', [SupervisorHorariosController::class, 'index'])->name('index');
-        Route::post('/data', [SupervisorHorariosController::class, 'data'])->name('data');
-        Route::post('/update', [SupervisorHorariosController::class, 'update'])->name('update');
-        Route::post('/active-workdays', [SupervisorHorariosController::class, 'activeWorkdays'])->name('active-workdays');
-        Route::post('/close/{userId}', [SupervisorHorariosController::class, 'forceCloseWorkday'])->name('close');
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('horarios', 'matriz') || $user->hasModuleAccess('horarios', 'activos')) {
+                return app(SupervisorHorariosController::class)->index();
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Matriz de Horarios.');
+        })->name('index');
+
+        Route::middleware('module.access:horarios,matriz')->group(function () {
+            Route::post('/data', [SupervisorHorariosController::class, 'data'])->name('data');
+            Route::post('/update', [SupervisorHorariosController::class, 'update'])->name('update');
+        });
+
+        Route::middleware('module.access:horarios,activos')->group(function () {
+            Route::post('/active-workdays', [SupervisorHorariosController::class, 'activeWorkdays'])->name('active-workdays');
+            Route::post('/close/{userId}', [SupervisorHorariosController::class, 'forceCloseWorkday'])->name('close');
+        });
     });
 
     // Módulo Gestión de Módulos Móviles y Parámetros
     Route::prefix('modulos')->name('modulos.')->middleware('module.access:modulos')->group(function () {
-        Route::get('/', [SupervisorModulosController::class, 'index'])->name('index');
-        Route::post('/global/{id}/toggle', [SupervisorModulosController::class, 'toggleGlobal'])->name('toggle.global');
-        Route::post('/global/{id}/config', [SupervisorModulosController::class, 'updateGlobalConfig'])->name('config.global');
-        Route::post('/route/toggle', [SupervisorModulosController::class, 'toggleRoute'])->name('toggle.route');
-        Route::post('/route/config', [SupervisorModulosController::class, 'updateRouteConfig'])->name('config.route');
-        Route::post('/route/apply-all', [SupervisorModulosController::class, 'applyToAllRoutes'])->name('apply.all');
-        Route::post('/inventarios/data', [SupervisorModulosController::class, 'inventariosData'])->name('inventarios.data');
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('modulos', 'matriz') || $user->hasModuleAccess('modulos', 'global') || $user->hasModuleAccess('modulos', 'inventarios')) {
+                return app(SupervisorModulosController::class)->index(app(\App\Actions\Web\Supervisor\Modulos\GetModulosInitDataAction::class));
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Módulos & Ajustes.');
+        })->name('index');
+
+        Route::middleware('module.access:modulos,matriz')->group(function () {
+            Route::post('/route/toggle', [SupervisorModulosController::class, 'toggleRoute'])->name('toggle.route');
+            Route::post('/route/config', [SupervisorModulosController::class, 'updateRouteConfig'])->name('config.route');
+            Route::post('/route/apply-all', [SupervisorModulosController::class, 'applyToAllRoutes'])->name('apply.all');
+        });
+
+        Route::middleware('module.access:modulos,global')->group(function () {
+            Route::post('/global/{id}/toggle', [SupervisorModulosController::class, 'toggleGlobal'])->name('toggle.global');
+            Route::post('/global/{id}/config', [SupervisorModulosController::class, 'updateGlobalConfig'])->name('config.global');
+        });
+
+        Route::middleware('module.access:modulos,inventarios')->group(function () {
+            Route::post('/inventarios/data', [SupervisorModulosController::class, 'inventariosData'])->name('inventarios.data');
+        });
     });
 
     // Módulo Saneamiento Territorial & Calidad de Padrón
@@ -340,9 +411,22 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
     // Módulo Centro de Ingesta & Monitoreo de Datos
     Route::prefix('ingesta')->name('ingesta.')->middleware('module.access:ingesta')->group(function () {
+        Route::get('/', function (\Illuminate\Http\Request $request) {
+            $user = $request->user();
+            if ($user->hasModuleAccess('ingesta', 'dashboard')) {
+                return app(SupervisorIngestaController::class)->index();
+            }
+            $submodules = ['ventas', 'preventas', 'ruteo', 'visitas', 'inventario', 'cancelados', 'snapshots'];
+            foreach ($submodules as $sub) {
+                if ($user->hasModuleAccess('ingesta', $sub)) {
+                    return redirect()->route("supervisor.ingesta.{$sub}");
+                }
+            }
+            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Ingesta.');
+        })->name('index');
+
         // Centro / Dashboard Ingesta
         Route::middleware('module.access:ingesta,dashboard')->group(function () {
-            Route::get('/', [SupervisorIngestaController::class, 'index'])->name('index');
             Route::get('/tablas-estado', [SupervisorIngestaController::class, 'tablasEstado'])->name('tablas-estado');
             Route::get('/cargas-historial', [SupervisorIngestaController::class, 'cargasHistorial'])->name('cargas-historial');
         });

@@ -529,7 +529,7 @@ function getVisibleSubmodules(item) {
     if (perms.submodules && Object.prototype.hasOwnProperty.call(perms.submodules, key)) {
       return perms.submodules[key] === true;
     }
-    return true;
+    return false;
   });
 }
 

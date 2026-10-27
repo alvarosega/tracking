@@ -34,7 +34,7 @@
 
             <!-- Botón Cierre Masivo -->
             <button
-              v-if="total_abiertas > 0"
+              v-if="total_abiertas > 0 && canCierreMasivo"
               @click="confirmCloseAll"
               :disabled="isProcessing"
               class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
@@ -178,9 +178,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
+
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const perms = computed(() => authUser.value?.permissions);
+const canCierreMasivo = computed(() => {
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+  return !!(perms.value.submodules && perms.value.submodules['jornadas.cierre-masivo'] === true);
+});
 
 const props = defineProps({
   vendedores_jornadas: Array,

@@ -89,7 +89,7 @@ const filteredTabs = computed(() => {
     if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
       return perms.value.submodules[fullKey] === true
     }
-    return true
+    return false
   })
 })
 </script>

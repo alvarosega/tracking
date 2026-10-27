@@ -78,12 +78,13 @@ function isTabAllowed(tab) {
     return false;
   }
 
-  // 2. Submódulo específico: si está en el mapa, debe ser true
+  // 2. Submódulo específico: si está definido, debe estar explícitamente en true
   if (submoduleKey) {
     const fullKey = `${moduleKey}.${submoduleKey}`;
     if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
       return perms.value.submodules[fullKey] === true;
     }
+    return false;
   }
 
   return true;

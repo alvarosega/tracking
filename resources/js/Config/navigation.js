@@ -220,7 +220,23 @@ export const navigationConfig = {
       route: 'supervisor.altas-ediciones.index',
       componentPrefix: 'Supervisor/AltasEdiciones',
       icon: 'UserPlusIcon',
-      description: 'Control de clientes creados o editados en ruta'
+      description: 'Control de clientes creados o editados en ruta',
+      submodules: [
+        {
+          id: 'listado',
+          name: 'Bandeja de Aprobación',
+          route: 'supervisor.altas-ediciones.index',
+          component: 'Supervisor/AltasEdiciones/Index',
+          icon: 'UserPlusIcon'
+        },
+        {
+          id: 'cercanos',
+          name: 'Clientes Cercanos',
+          route: 'supervisor.altas-ediciones.index',
+          component: 'Supervisor/AltasEdiciones/Index',
+          icon: 'RadarIcon'
+        }
+      ]
     },
     {
       id: 'saneamiento',
@@ -284,7 +300,23 @@ export const navigationConfig = {
       route: 'supervisor.jornadas.index',
       componentPrefix: 'Supervisor/Jornadas',
       icon: 'ClockIcon',
-      description: 'Aperturas, cierres remotos y control de turnos'
+      description: 'Aperturas, cierres remotos y control de turnos',
+      submodules: [
+        {
+          id: 'control',
+          name: 'Monitoreo de Jornadas',
+          route: 'supervisor.jornadas.index',
+          component: 'Supervisor/Jornadas',
+          icon: 'ClockIcon'
+        },
+        {
+          id: 'cierre-masivo',
+          name: 'Cierre Remoto Masivo',
+          route: 'supervisor.jornadas.index',
+          component: 'Supervisor/Jornadas',
+          icon: 'LockClosedIcon'
+        }
+      ]
     },
     {
       id: 'horarios',
@@ -293,7 +325,23 @@ export const navigationConfig = {
       route: 'supervisor.horarios.index',
       componentPrefix: 'Supervisor/Horarios',
       icon: 'CalendarIcon',
-      description: 'Configuración semanal de turnos por ruta'
+      description: 'Configuración semanal de turnos por ruta',
+      submodules: [
+        {
+          id: 'matriz',
+          name: 'Configuración de Turnos',
+          route: 'supervisor.horarios.index',
+          component: 'Supervisor/Horarios/Index',
+          icon: 'CalendarIcon'
+        },
+        {
+          id: 'activos',
+          name: 'Jornadas en Curso',
+          route: 'supervisor.horarios.index',
+          component: 'Supervisor/Horarios/Index',
+          icon: 'ActivityIcon'
+        }
+      ]
     },
     {
       id: 'modulos',
@@ -304,7 +352,30 @@ export const navigationConfig = {
       icon: 'AdjustmentsHorizontalIcon',
       badge: 'APP',
       badgeColor: 'amber',
-      description: 'Control de acceso a módulos móviles y parámetros'
+      description: 'Control de acceso a módulos móviles y parámetros',
+      submodules: [
+        {
+          id: 'matriz',
+          name: 'Matriz por Ruta',
+          route: 'supervisor.modulos.index',
+          component: 'Supervisor/Modulos/Index',
+          icon: 'TableCellsIcon'
+        },
+        {
+          id: 'global',
+          name: 'Ajustes Globales',
+          route: 'supervisor.modulos.index',
+          component: 'Supervisor/Modulos/Index',
+          icon: 'AdjustmentsHorizontalIcon'
+        },
+        {
+          id: 'inventarios',
+          name: 'Stock PDV',
+          route: 'supervisor.modulos.index',
+          component: 'Supervisor/Modulos/Index',
+          icon: 'CubeIcon'
+        }
+      ]
     },
     {
       id: 'ingesta',

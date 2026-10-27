@@ -11,6 +11,7 @@
         <!-- Segmented Control Apple Pro -->
         <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA]">
           <button
+            v-if="canAccessTab('config')"
             @click="activeTab = 'config'"
             class="px-3 py-1.5 text-xs font-medium rounded-[6px] transition-all"
             :class="activeTab === 'config' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -18,6 +19,7 @@
             Matriz de Horarios
           </button>
           <button
+            v-if="canAccessTab('live')"
             @click="activeTab = 'live'"
             class="px-3 py-1.5 text-xs font-medium rounded-[6px] transition-all flex items-center gap-1.5"
             :class="activeTab === 'live' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -272,10 +274,30 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import axios from 'axios';
 
-const activeTab = ref('config');
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const perms = computed(() => authUser.value?.permissions);
+
+function canAccessTab(subId) {
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+  const mappedKey = subId === 'config' ? 'matriz' : (subId === 'live' ? 'activos' : subId);
+  const key = `horarios.${mappedKey}`;
+  return !!(perms.value.submodules && perms.value.submodules[key] === true);
+}
+
+const availableTabs = computed(() => {
+  const tabs = ['config', 'live'];
+  return tabs.filter(t => canAccessTab(t));
+});
+
+const activeTab = ref(availableTabs.value[0] || 'config');
 const diasSemana = [
   { id: 1, name: 'Lunes' },
   { id: 2, name: 'Martes' },

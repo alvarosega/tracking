@@ -11,6 +11,7 @@
         <!-- Segmented Control Apple Style -->
         <div class="inline-flex p-0.5 bg-[#E5E5EA]/70 rounded-[8px] border border-[#E5E5EA]">
           <button
+            v-if="canAccessTab('matriz')"
             @click="activeTab = 'matriz'"
             class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all flex items-center gap-1.5"
             :class="activeTab === 'matriz' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -21,6 +22,7 @@
             </span>
           </button>
           <button
+            v-if="canAccessTab('global')"
             @click="activeTab = 'global'"
             class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all"
             :class="activeTab === 'global' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -28,6 +30,7 @@
             Ajustes Globales
           </button>
           <button
+            v-if="canAccessTab('inventarios')"
             @click="activeTab = 'inventarios'"
             class="px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-all flex items-center gap-1.5"
             :class="activeTab === 'inventarios' ? 'bg-white text-[#1D1D1F] shadow-xs font-semibold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -476,6 +479,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 
@@ -494,7 +498,25 @@ const props = defineProps({
   },
 });
 
-const activeTab = ref('matriz');
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const perms = computed(() => authUser.value?.permissions);
+
+function canAccessTab(subId) {
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+  const key = `modulos.${subId}`;
+  return !!(perms.value.submodules && perms.value.submodules[key] === true);
+}
+
+const availableTabs = computed(() => {
+  const tabs = ['matriz', 'global', 'inventarios'];
+  return tabs.filter(t => canAccessTab(t));
+});
+
+const activeTab = ref(availableTabs.value[0] || 'matriz');
 const localModules = ref([...props.modules]);
 const searchQuery = ref('');
 const filterCanal = ref('');

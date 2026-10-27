@@ -132,18 +132,20 @@ class User extends Authenticatable
                 return $p->module_key === $moduleKey && (string)($p->submodule_key ?? '') === $subKey;
             });
 
-            if ($subPerm !== null) {
-                if (!$subPerm->is_allowed) {
-                    return false;
-                }
-                if ($subPerm->expires_at && $subPerm->expires_at->isPast()) {
-                    return false;
-                }
-                if ($requireWrite && !$subPerm->can_write) {
-                    return false;
-                }
-                return true;
+            // Si el submódulo no está explícitamente concedido o está deshabilitado, denegar acceso
+            if (!$subPerm || !$subPerm->is_allowed) {
+                return false;
             }
+
+            if ($subPerm->expires_at && $subPerm->expires_at->isPast()) {
+                return false;
+            }
+
+            if ($requireWrite && !$subPerm->can_write) {
+                return false;
+            }
+
+            return true;
         }
 
         return true;

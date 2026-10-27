@@ -483,7 +483,7 @@
               </div>
 
               <!-- 1.5. Detección de Duplicados & Clientes Cercanos (Radio 200m - Todas las Rutas) -->
-              <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
+              <div v-if="canCercanos" class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5">
                     <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -842,10 +842,23 @@
 
 <script setup>
 import { ref, computed, onMounted, Teleport } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import { mapsConfig } from '@/Config/maps';
 import L from 'leaflet';
+
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const perms = computed(() => authUser.value?.permissions);
+
+const canCercanos = computed(() => {
+  if (isSuperAdmin.value) return true;
+  if (!perms.value) return false;
+  if (perms.value.is_all_allowed) return true;
+  return !!(perms.value.submodules && perms.value.submodules['altas-ediciones.cercanos'] === true);
+});
 
 const props = defineProps({
   catalogo_rutas: {
@@ -1276,6 +1289,7 @@ function limpiarLienasAuxiliares() {
 }
 
 function consultarCercanos(r) {
+  if (!canCercanos.value) return;
   datosCercanos.value = null;
   const lat = Number(r.latitud);
   const lng = Number(r.longitud);
