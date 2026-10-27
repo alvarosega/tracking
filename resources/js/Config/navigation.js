@@ -163,63 +163,135 @@ export const navigationConfig = {
     },
     {
       id: 'auditoria',
-      name: 'Auditoría de Ruteo & Preventa',
-      shortName: 'Auditoría',
+      name: 'Auditoría & Saneamiento',
+      shortName: 'Auditoría & Saneamiento',
       route: 'supervisor.auditoria.preventas',
-      componentPrefix: 'Supervisor/Auditoria',
+      permissionModules: ['auditoria', 'saneamiento'],
+      componentPrefix: ['Supervisor/Auditoria', 'Supervisor/Saneamiento'],
       icon: 'ShieldCheckIcon',
       badge: 'AUDIT',
       badgeColor: 'amber',
-      description: 'Auditoría de novedades intra-día, cambios de ruta, bajas, modificaciones y reactivaciones',
+      description: 'Auditoría de ruteo, preventas intra-día y saneamiento territorial del padrón',
       submodules: [
+        // Auditoría de Ruteo
         {
           id: 'preventas',
+          module: 'auditoria',
           name: 'Preventas Intra-día',
           route: 'supervisor.auditoria.preventas',
           component: 'Supervisor/Auditoria/Preventas',
-          icon: 'DocumentTextIcon'
+          icon: 'DocumentTextIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'inactivados',
+          module: 'auditoria',
           name: 'Bajas e Inactivados',
           route: 'supervisor.auditoria.inactivados',
           component: 'Supervisor/Auditoria/Inactivados',
-          icon: 'UserMinusIcon'
+          icon: 'UserMinusIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'cambios-ruta',
+          module: 'auditoria',
           name: 'Cambios de Ruta',
           route: 'supervisor.auditoria.cambios-ruta',
           component: 'Supervisor/Auditoria/CambiosRuta',
-          icon: 'ArrowsRightLeftIcon'
+          icon: 'ArrowsRightLeftIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'modificacion-datos',
+          module: 'auditoria',
           name: 'Modificación Datos',
           route: 'supervisor.auditoria.modificacion-datos',
           component: 'Supervisor/Auditoria/ModificacionDatos',
-          icon: 'PencilSquareIcon'
+          icon: 'PencilSquareIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'cambios-dia',
+          module: 'auditoria',
           name: 'Cambios de Día',
           route: 'supervisor.auditoria.cambios-dia',
           component: 'Supervisor/Auditoria/CambiosDia',
-          icon: 'CalendarIcon'
+          icon: 'CalendarIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'altas',
+          module: 'auditoria',
           name: 'Altas y Reactivaciones',
           route: 'supervisor.auditoria.altas',
           component: 'Supervisor/Auditoria/Altas',
-          icon: 'UserPlusIcon'
+          icon: 'UserPlusIcon',
+          group: 'Auditoría de Ruteo'
         },
         {
           id: 'historico',
+          module: 'auditoria',
           name: 'Histórico Resoluciones',
           route: 'supervisor.auditoria.historico',
           component: 'Supervisor/Auditoria/Historico',
-          icon: 'ClockIcon'
+          icon: 'ClockIcon',
+          group: 'Auditoría de Ruteo'
+        },
+
+        // Saneamiento de Padrón
+        {
+          id: 'intrusos',
+          module: 'saneamiento',
+          name: 'Fronteras e Intrusos',
+          route: 'supervisor.saneamiento.intrusos',
+          component: 'Supervisor/Saneamiento/Intrusos',
+          icon: 'MapPinIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'duplicados',
+          module: 'saneamiento',
+          name: 'Clientes Duplicados',
+          route: 'supervisor.saneamiento.duplicados',
+          component: 'Supervisor/Saneamiento/Duplicados',
+          icon: 'UsersIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'dias',
+          module: 'saneamiento',
+          name: 'Días Desalineados',
+          route: 'supervisor.saneamiento.dias',
+          component: 'Supervisor/Saneamiento/Dias',
+          icon: 'CalendarIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'calidad',
+          module: 'saneamiento',
+          name: 'Calidad de Datos',
+          route: 'supervisor.saneamiento.calidad',
+          component: 'Supervisor/Saneamiento/Calidad',
+          icon: 'CheckBadgeIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'bd',
+          module: 'saneamiento',
+          name: 'Matriz Saneamiento BD',
+          route: 'supervisor.saneamiento.bd',
+          component: 'Supervisor/Saneamiento/Bd',
+          icon: 'CircleStackIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'propuestas',
+          module: 'saneamiento',
+          name: 'Historial de Propuestas',
+          route: 'supervisor.saneamiento.propuestas',
+          component: 'Supervisor/Saneamiento/Propuestas',
+          icon: 'ClipboardDocumentCheckIcon',
+          group: 'Saneamiento Padrón'
         }
       ]
     },
@@ -297,61 +369,6 @@ export const navigationConfig = {
           route: 'supervisor.altas-ediciones.index',
           component: 'Supervisor/AltasEdiciones/Index',
           icon: 'RadarIcon'
-        }
-      ]
-    },
-    {
-      id: 'saneamiento',
-      name: 'Saneamiento Padrón',
-      shortName: 'Saneamiento',
-      route: 'supervisor.saneamiento.intrusos',
-      componentPrefix: 'Supervisor/Saneamiento',
-      icon: 'ShieldCheckIcon',
-      badge: 'GIS',
-      badgeColor: 'blue',
-      description: 'Auditoría territorial, detección de intrusos, duplicados y calidad',
-      submodules: [
-        {
-          id: 'intrusos',
-          name: 'Fronteras e Intrusos',
-          route: 'supervisor.saneamiento.intrusos',
-          component: 'Supervisor/Saneamiento/Intrusos',
-          icon: 'MapPinIcon'
-        },
-        {
-          id: 'duplicados',
-          name: 'Clientes Duplicados',
-          route: 'supervisor.saneamiento.duplicados',
-          component: 'Supervisor/Saneamiento/Duplicados',
-          icon: 'UsersIcon'
-        },
-        {
-          id: 'dias',
-          name: 'Días Desalineados',
-          route: 'supervisor.saneamiento.dias',
-          component: 'Supervisor/Saneamiento/Dias',
-          icon: 'CalendarIcon'
-        },
-        {
-          id: 'calidad',
-          name: 'Calidad de Datos',
-          route: 'supervisor.saneamiento.calidad',
-          component: 'Supervisor/Saneamiento/Calidad',
-          icon: 'CheckBadgeIcon'
-        },
-        {
-          id: 'bd',
-          name: 'Matriz Saneamiento BD',
-          route: 'supervisor.saneamiento.bd',
-          component: 'Supervisor/Saneamiento/Bd',
-          icon: 'CircleStackIcon'
-        },
-        {
-          id: 'propuestas',
-          name: 'Historial de Propuestas',
-          route: 'supervisor.saneamiento.propuestas',
-          component: 'Supervisor/Saneamiento/Propuestas',
-          icon: 'ClipboardDocumentCheckIcon'
         }
       ]
     },
@@ -540,13 +557,28 @@ export const preventasSubTabs = [
   { id: 'mapa', name: 'Auditoría en Mapa', route: 'supervisor.preventas.index' }
 ];
 
+export const auditoriaSubTabs = [
+  { id: 'preventas', module: 'auditoria', name: 'Preventas Intra-día', route: 'supervisor.auditoria.preventas' },
+  { id: 'inactivados', module: 'auditoria', name: 'Bajas e Inactivados', route: 'supervisor.auditoria.inactivados' },
+  { id: 'cambios-ruta', module: 'auditoria', name: 'Cambios de Ruta', route: 'supervisor.auditoria.cambios-ruta' },
+  { id: 'modificacion-datos', module: 'auditoria', name: 'Modificación Datos', route: 'supervisor.auditoria.modificacion-datos' },
+  { id: 'cambios-dia', module: 'auditoria', name: 'Cambios de Día', route: 'supervisor.auditoria.cambios-dia' },
+  { id: 'altas', module: 'auditoria', name: 'Altas y Reactivaciones', route: 'supervisor.auditoria.altas' },
+  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' }
+];
+
 export const saneamientoSubTabs = [
-  { id: 'intrusos', name: 'Fronteras e Intrusos', route: 'supervisor.saneamiento.intrusos' },
-  { id: 'duplicados', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
-  { id: 'dias', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
-  { id: 'calidad', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
-  { id: 'bd', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
-  { id: 'propuestas', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
+  { id: 'intrusos', module: 'saneamiento', name: 'Fronteras e Intrusos', route: 'supervisor.saneamiento.intrusos' },
+  { id: 'duplicados', module: 'saneamiento', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
+  { id: 'dias', module: 'saneamiento', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
+  { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
+  { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
+  { id: 'propuestas', module: 'saneamiento', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
+];
+
+export const auditoriaSaneamientoSubTabs = [
+  ...auditoriaSubTabs,
+  ...saneamientoSubTabs
 ];
 
 export const ingestaSubTabs = [

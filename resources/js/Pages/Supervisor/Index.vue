@@ -74,7 +74,7 @@
           <Link
             v-for="module in operationModules"
             :key="module.id"
-            :href="getRoute(module.route)"
+            :href="getRoute(module)"
             class="group bg-white border border-slate-200/90 hover:border-slate-400/80 rounded-xl p-4 transition-all duration-200 shadow-2xs hover:shadow-sm flex flex-col justify-between"
           >
             <div>
@@ -134,9 +134,16 @@ function isModuleAllowed(item) {
   if (isSuperAdmin.value) return true;
   if (!perms.value) return false;
   if (perms.value.is_all_allowed) return true;
-  if (!perms.value.modules || perms.value.modules[item.id] !== true) return false;
+
+  const requiredModules = item.permissionModules || [item.id];
+  const hasAnyMod = requiredModules.some(m => perms.value.modules && perms.value.modules[m] === true);
+  if (!hasAnyMod) return false;
+
   if (item.submodules && item.submodules.length > 0) {
-    return item.submodules.some(sub => perms.value.submodules && perms.value.submodules[`${item.id}.${sub.id}`] === true);
+    return item.submodules.some(sub => {
+      const parentMod = sub.module || item.id;
+      return perms.value.modules?.[parentMod] === true && perms.value.submodules?.[`${parentMod}.${sub.id}`] === true;
+    });
   }
   return true;
 }
@@ -145,11 +152,23 @@ const operationModules = computed(() => {
   return navigationConfig.mainMenu.filter(m => m.id !== 'inicio' && isModuleAllowed(m));
 });
 
-const getRoute = (routeName) => {
+const getRoute = (module) => {
+  if (module.submodules && module.submodules.length > 0) {
+    if (isSuperAdmin.value || perms.value?.is_all_allowed) {
+      return route(module.submodules[0].route);
+    }
+    const allowedSub = module.submodules.find(sub => {
+      const parentMod = sub.module || module.id;
+      return perms.value?.modules?.[parentMod] === true && perms.value?.submodules?.[`${parentMod}.${sub.id}`] === true;
+    });
+    if (allowedSub) {
+      return route(allowedSub.route);
+    }
+  }
   try {
-    return route(routeName);
+    return route(module.route);
   } catch {
-    return `/${routeName.replace('.', '/')}`;
+    return `/${module.route.replace('.', '/')}`;
   }
 };
 </script>

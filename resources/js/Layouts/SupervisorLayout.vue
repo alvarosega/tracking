@@ -253,19 +253,26 @@
                 class="pl-6 pr-1 py-1 space-y-0.5 border-l-2 border-black/[0.08] ml-4 mt-0.5"
                 :class="isSidebarCollapsed ? 'md:hidden' : 'block'"
               >
-                <Link
-                  v-for="sub in getVisibleSubmodules(item)"
-                  :key="sub.id || sub.route"
-                  :href="resolveSubRoute(sub)"
-                  class="flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-[7px] transition-colors"
-                  :class="isSubActive(sub)
-                    ? 'bg-[#0071E3]/10 text-[#0071E3] font-bold'
-                    : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/50 font-medium'"
-                  @click="isMobileMenuOpen = false"
-                >
-                  <span class="truncate">{{ sub.name }}</span>
-                  <span v-if="isSubActive(sub)" class="w-1.5 h-1.5 rounded-full bg-[#0071E3] shrink-0"></span>
-                </Link>
+                <template v-for="(sub, subIdx) in getVisibleSubmodules(item)" :key="sub.id || sub.route">
+                  <!-- Separador de grupo si corresponde -->
+                  <div
+                    v-if="sub.group && (subIdx === 0 || getVisibleSubmodules(item)[subIdx - 1]?.group !== sub.group)"
+                    class="text-[9px] font-bold uppercase tracking-wider text-[#86868B] px-2.5 pt-2 pb-0.5 font-mono select-none"
+                  >
+                    {{ sub.group }}
+                  </div>
+                  <Link
+                    :href="resolveSubRoute(sub)"
+                    class="flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-[7px] transition-colors"
+                    :class="isSubActive(sub)
+                      ? 'bg-[#0071E3]/10 text-[#0071E3] font-bold'
+                      : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/50 font-medium'"
+                    @click="isMobileMenuOpen = false"
+                  >
+                    <span class="truncate">{{ sub.name }}</span>
+                    <span v-if="isSubActive(sub)" class="w-1.5 h-1.5 rounded-full bg-[#0071E3] shrink-0"></span>
+                  </Link>
+                </template>
               </div>
             </div>
           </template>
@@ -499,6 +506,9 @@ function resolveSubRoute(sub) {
 
 function isItemActive(item) {
   if (item.componentPrefix) {
+    if (Array.isArray(item.componentPrefix)) {
+      return item.componentPrefix.some(p => page.component.startsWith(p));
+    }
     return page.component.startsWith(item.componentPrefix);
   }
   try {
@@ -545,8 +555,10 @@ function isModuleAllowed(item) {
   if (perms.is_all_allowed) {
     return true;
   }
-  // Política por defecto: NO TIENE PERMISOS a menos que esté explícitamente en true
-  if (!perms.modules || perms.modules[item.id] !== true) {
+  // Soporte para módulos unificados (permissionModules)
+  const requiredModules = item.permissionModules || [item.id];
+  const hasAnyMod = requiredModules.some(m => perms.modules && perms.modules[m] === true);
+  if (!hasAnyMod) {
     return false;
   }
   if (item.submodules && item.submodules.length > 0) {
@@ -569,12 +581,12 @@ function getVisibleSubmodules(item) {
   if (perms.is_all_allowed) {
     return item.submodules;
   }
-  // Si el módulo principal no está permitido, ningún submódulo es visible
-  if (!perms.modules || perms.modules[item.id] !== true) {
-    return [];
-  }
   return item.submodules.filter(sub => {
-    const key = `${item.id}.${sub.id}`;
+    const parentModule = sub.module || item.id;
+    if (!perms.modules || perms.modules[parentModule] !== true) {
+      return false;
+    }
+    const key = `${parentModule}.${sub.id}`;
     if (perms.submodules && Object.prototype.hasOwnProperty.call(perms.submodules, key)) {
       return perms.submodules[key] === true;
     }
@@ -610,7 +622,7 @@ const mobileDockItems = computed(() => {
   const items = [];
   if (inicio) items.push(inicio);
 
-  const preferredKeys = ['preventas', 'tracking', 'ruteo', 'ingesta', 'avance', 'modulos', 'visitas'];
+  const preferredKeys = ['preventas', 'auditoria', 'tracking', 'ruteo', 'ingesta', 'avance', 'modulos', 'visitas'];
   for (const key of preferredKeys) {
     if (items.length >= 4) break;
     const found = visibleMainMenu.value.find(m => m.id === key);
