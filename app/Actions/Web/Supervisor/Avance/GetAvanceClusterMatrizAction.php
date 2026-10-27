@@ -118,11 +118,12 @@ class GetAvanceClusterMatrizAction
         } elseif ($agrupacion === 'cluster_cliente') {
             $query->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
+                DB::raw("COALESCE(NULLIF(TRIM(fv.ruta), ''), 'SIN RUTA') as ruta"),
                 DB::raw("COALESCE(fv.cliente_id, 0) as cliente_id"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cliente), ''), 'CLIENTE S/N') as cliente"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
                 DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("cluster, cliente_id, cliente, fecha_norm");
+            ])->groupByRaw("cluster, ruta, cliente_id, cliente, fecha_norm");
         } elseif ($agrupacion === 'cluster_jerarquia') {
             $query->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
@@ -196,51 +197,77 @@ class GetAvanceClusterMatrizAction
                 ], $mCl);
             }
         } elseif ($agrupacion === 'cluster_cliente') {
-            // Cluster (Nivel 0) -> Cliente (Nivel 1)
+            // Cluster (Nivel 0) -> Ruta (Nivel 1) -> Cliente (Nivel 2)
             $rawTree = [];
             foreach ($rawRows as $r) {
                 $cl = trim((string) $r->cluster);
+                $rt = trim((string) $r->ruta);
                 $cId = (int) ($r->cliente_id ?? 0);
                 $cNom = trim((string) $r->cliente);
                 $f = substr((string) $r->fecha_norm, 0, 10);
                 $v = (float) ($r->valor ?? 0.0);
 
-                $rawTree[$cl][$cId]['nombre'] = $cNom;
-                $rawTree[$cl][$cId]['fechas'][$f] = ($rawTree[$cl][$cId]['fechas'][$f] ?? 0.0) + $v;
+                $rawTree[$cl][$rt][$cId]['nombre'] = $cNom;
+                $rawTree[$cl][$rt][$cId]['fechas'][$f] = ($rawTree[$cl][$rt][$cId]['fechas'][$f] ?? 0.0) + $v;
             }
 
             $clustersOrdenados = $this->ordenarClusters(array_keys($rawTree));
             foreach ($clustersOrdenados as $cl) {
-                $clientesDict = $rawTree[$cl] ?? [];
+                $rutasDict = $rawTree[$cl] ?? [];
                 $fechasCl = [];
-                $clienteNodes = [];
+                $rutaNodes = [];
 
-                foreach ($clientesDict as $cId => $cData) {
-                    $cNom = $cData['nombre'];
-                    $fCli = $cData['fechas'] ?? [];
-                    $this->fusionarFechas($fCli, $fechasCl);
+                foreach ($rutasDict as $rt => $clientesDict) {
+                    $fechasRt = [];
+                    $clienteNodes = [];
 
-                    $mCli = $this->calcMetricasNodo($fCli, $mesesMeta, $decimales);
-                    $clienteNodes[] = array_merge([
-                        'id' => "node_{$cl}__cli_{$cId}",
-                        'label' => $cId > 0 ? "{$cNom} ({$cId})" : $cNom,
-                        'tipo' => 'cliente',
+                    foreach ($clientesDict as $cId => $cData) {
+                        $cNom = $cData['nombre'];
+                        $fCli = $cData['fechas'] ?? [];
+                        $this->fusionarFechas($fCli, $fechasRt);
+
+                        $mCli = $this->calcMetricasNodo($fCli, $mesesMeta, $decimales);
+                        $clienteNodes[] = array_merge([
+                            'id' => "node_{$cl}__{$rt}__cli_{$cId}",
+                            'label' => $cId > 0 ? "{$cNom} ({$cId})" : $cNom,
+                            'tipo' => 'cliente',
+                            'nivel' => 2,
+                            'cliente_id' => $cId,
+                            'cliente_nombre' => $cNom,
+                            'share_pct' => 0.0,
+                            'share_total_pct' => $totalGeneralTy > 0 ? round(($mCli['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0,
+                            'children' => [],
+                        ], $mCli);
+                    }
+
+                    $this->fusionarFechas($fechasRt, $fechasCl);
+                    $mRt = $this->calcMetricasNodo($fechasRt, $mesesMeta, $decimales);
+
+                    foreach ($clienteNodes as &$cN) {
+                        $cN['share_pct'] = $mRt['total_ty'] > 0 ? round(($cN['total_ty'] / $mRt['total_ty']) * 100.0, 1) : 0.0;
+                    }
+                    unset($cN);
+
+                    usort($clienteNodes, fn ($a, $b) => $b['total_ty'] <=> $a['total_ty']);
+
+                    $rutaNodes[] = array_merge([
+                        'id' => "node_{$cl}__{$rt}",
+                        'label' => $rt,
+                        'tipo' => 'ruta',
                         'nivel' => 1,
-                        'cliente_id' => $cId,
-                        'cliente_nombre' => $cNom,
                         'share_pct' => 0.0,
-                        'share_total_pct' => $totalGeneralTy > 0 ? round(($mCli['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0,
-                        'children' => [],
-                    ], $mCli);
+                        'share_total_pct' => $totalGeneralTy > 0 ? round(($mRt['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0,
+                        'children' => $clienteNodes,
+                    ], $mRt);
                 }
 
                 $mCl = $this->calcMetricasNodo($fechasCl, $mesesMeta, $decimales);
-                foreach ($clienteNodes as &$cN) {
-                    $cN['share_pct'] = $mCl['total_ty'] > 0 ? round(($cN['total_ty'] / $mCl['total_ty']) * 100.0, 1) : 0.0;
+                foreach ($rutaNodes as &$rtN) {
+                    $rtN['share_pct'] = $mCl['total_ty'] > 0 ? round(($rtN['total_ty'] / $mCl['total_ty']) * 100.0, 1) : 0.0;
                 }
-                unset($cN);
+                unset($rtN);
 
-                usort($clienteNodes, fn ($a, $b) => $b['total_ty'] <=> $a['total_ty']);
+                usort($rutaNodes, fn ($a, $b) => $b['total_ty'] <=> $a['total_ty']);
 
                 $shCl = $totalGeneralTy > 0 ? round(($mCl['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0;
                 $filasArbol[] = array_merge([
@@ -250,7 +277,7 @@ class GetAvanceClusterMatrizAction
                     'nivel' => 0,
                     'share_pct' => $shCl,
                     'share_total_pct' => $shCl,
-                    'children' => $clienteNodes,
+                    'children' => $rutaNodes,
                 ], $mCl);
             }
         } elseif ($agrupacion === 'cluster_jerarquia') {

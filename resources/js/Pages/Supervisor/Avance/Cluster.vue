@@ -48,9 +48,9 @@
                 @click="cambiarAgrupacion('cluster_cliente')"
                 class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
                 :class="agrupacion === 'cluster_cliente' ? 'apple-segmented-active text-[#1D1D1F]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                title="Cluster ➔ Clientes"
+                title="Cluster ➔ Ruta ➔ Clientes"
               >
-                Cluster ➔ Clientes
+                Cluster ➔ Ruta ➔ Clientes
               </button>
               <button
                 type="button"
@@ -1263,7 +1263,7 @@ const etiquetaTituloAgrupacion = computed(() => {
   if (agrupacion.value === 'cluster_jerarquia') return 'Cluster y Jerarquías'
   if (agrupacion.value === 'cluster_ruta_jerarquia') return 'Cluster, Ruta y Jerarquías'
   if (agrupacion.value === 'ruta_jerarquia') return 'Ruta y Jerarquías'
-  if (agrupacion.value === 'cluster_cliente') return 'Cluster y Clientes'
+  if (agrupacion.value === 'cluster_cliente') return 'Cluster, Ruta y Clientes'
   return 'Cluster'
 })
 
