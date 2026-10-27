@@ -28,22 +28,21 @@
     </div>
 
     <!-- Tabla Principal -->
-    <div class="overflow-x-auto custom-scroll max-h-[calc(100vh-230px)] min-h-[380px]">
-      <table class="w-full text-left border-collapse min-w-[720px] sm:min-w-[940px] text-[12px]">
+    <div class="overflow-x-auto custom-scroll sm:max-h-[calc(100vh-230px)] min-h-[380px]">
+      <table class="w-full text-left border-collapse min-w-[620px] sm:min-w-[820px] text-[12px]">
         <thead class="sticky top-0 z-20 border-b border-black/[0.06] text-[10px] font-bold uppercase tracking-wider text-[#6E6E73] bg-[#F8F8FA]">
           <tr>
             <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
             <th
               @click="toggleSort('ruta')"
-              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-14 sm:w-20 border-r border-black/[0.05] bg-[#F8F8FA] cursor-pointer hover:bg-black/[0.04] transition-colors select-none text-[10px] sm:text-[11px]"
+              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] cursor-pointer hover:bg-black/[0.04] transition-colors select-none text-[10px] sm:text-[11px]"
               title="Ordenar por Ruta"
             >
               <div class="flex items-center gap-1">
-                <span :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta</span>
+                <span :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
                 <span v-if="sortCol === 'ruta'" class="text-[#0071E3] font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
-            <th class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] z-30 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Preventista</th>
             
             <th
               @click="toggleSort('plan')"
@@ -135,15 +134,17 @@
           <template v-if="store.loadingRanking">
             <tr v-for="i in 10" :key="`skel-efec-${i}`">
               <td class="px-1 sm:px-2 py-2 sticky left-0 w-7 sm:w-9"><div class="h-3.5 w-4 mx-auto skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 w-14 sm:w-20"><div class="h-3.5 w-10 sm:w-14 skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] w-20 sm:w-36 md:w-44 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]"><div class="h-3.5 w-16 sm:w-28 skeleton"></div></td>
+              <td class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 w-24 sm:w-44 md:w-52 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                <div class="h-3.5 w-12 sm:w-16 skeleton mb-1"></div>
+                <div class="h-3 w-16 sm:w-28 skeleton"></div>
+              </td>
               <td v-for="c in 6" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
               <td class="px-3 py-2 text-right"><div class="h-4 w-8 ml-auto skeleton"></div></td>
             </tr>
           </template>
 
           <tr v-else-if="rutasOrdenadas.length === 0">
-            <td colspan="10" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
+            <td colspan="9" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
               No se encontraron rutas para los filtros seleccionados.
             </td>
           </tr>
@@ -160,8 +161,11 @@
                   {{ idx + 1 }}
                 </td>
 
-                <!-- Ruta -->
-                <td class="px-1.5 sm:px-2.5 py-1.5 font-bold text-[#1D1D1F] text-[10px] sm:text-[12px] sticky left-7 sm:left-9 z-10 w-14 sm:w-20 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm whitespace-nowrap truncate" :title="r.ruta">
+                <!-- Ruta / Preventista -->
+                <td
+                  class="px-1.5 sm:px-2.5 py-1.5 sticky left-7 sm:left-9 z-10 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate"
+                  :title="`${r.ruta} - ${r.vendedor || 'No Asignado'}`"
+                >
                   <div class="flex items-center gap-1 min-w-0">
                     <svg
                       class="w-3.5 h-3.5 text-[#86868B] transition-transform duration-200 shrink-0"
@@ -172,13 +176,11 @@
                     >
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
-                    <span class="truncate">{{ r.ruta }}</span>
+                    <span class="font-bold text-[#1D1D1F] text-[11px] sm:text-[12px] leading-tight truncate">{{ r.ruta }}</span>
                   </div>
-                </td>
-
-                <!-- Preventista -->
-                <td class="px-1.5 sm:px-2.5 py-1.5 text-[#6E6E73] font-medium text-[10px] sm:text-[11px] sticky left-[84px] sm:left-[116px] z-10 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate" :title="r.vendedor">
-                  {{ r.vendedor || 'No Asignado' }}
+                  <div class="text-[9.5px] sm:text-[11px] text-[#6E6E73] font-medium leading-tight truncate pl-4">
+                    {{ r.vendedor || 'No Asignado' }}
+                  </div>
                 </td>
 
                 <!-- Cartera Plan -->
@@ -235,7 +237,7 @@
 
               <!-- Fila Acordeón: Detalle de Compradores y Pedidos -->
               <tr v-if="acordeonAbierto[r.ruta]">
-                <td colspan="10" class="p-3 bg-white/60 border-b border-black/[0.06]">
+                <td colspan="9" class="p-3 bg-white/60 border-b border-black/[0.06]">
                   <div v-if="cargandoDetalle[r.ruta]" class="p-4 text-center text-[#6E6E73] text-[11px] font-medium">
                     Auditando efectividad comercial para {{ r.ruta }}...
                   </div>

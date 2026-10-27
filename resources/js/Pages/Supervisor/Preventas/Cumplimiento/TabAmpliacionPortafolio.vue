@@ -24,13 +24,12 @@
     </div>
 
     <!-- Tabla Principal -->
-    <div class="overflow-x-auto custom-scroll max-h-[calc(100vh-230px)] min-h-[380px]">
-      <table class="w-full text-left border-collapse min-w-[680px] sm:min-w-[880px] text-[12px]">
+    <div class="overflow-x-auto custom-scroll sm:max-h-[calc(100vh-230px)] min-h-[380px]">
+      <table class="w-full text-left border-collapse min-w-[600px] sm:min-w-[800px] text-[12px]">
         <thead class="sticky top-0 z-20 border-b border-black/[0.06] text-[10px] font-bold uppercase tracking-wider text-[#6E6E73] bg-[#F8F8FA]">
           <tr>
             <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
-            <th class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-14 sm:w-20 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Ruta</th>
-            <th class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] z-30 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Preventista</th>
+            <th class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Ruta / Preventista</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Compradores</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">PDVs con Ampliación</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">% Ampliación</th>
@@ -43,15 +42,17 @@
           <template v-if="store.loadingRanking">
             <tr v-for="i in 10" :key="`skel-amp-${i}`">
               <td class="px-1 sm:px-2 py-2 sticky left-0 w-7 sm:w-9"><div class="h-3.5 w-4 mx-auto skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 w-14 sm:w-20"><div class="h-3.5 w-10 sm:w-14 skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] w-20 sm:w-36 md:w-44"><div class="h-3.5 w-16 sm:w-28 skeleton"></div></td>
+              <td class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 w-24 sm:w-44 md:w-52 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                <div class="h-3.5 w-12 sm:w-16 skeleton mb-1"></div>
+                <div class="h-3 w-16 sm:w-28 skeleton"></div>
+              </td>
               <td v-for="c in 4" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
               <td class="px-3 py-2 text-right"><div class="h-4 w-8 ml-auto skeleton"></div></td>
             </tr>
           </template>
 
           <tr v-else-if="rutasOrdenadas.length === 0">
-            <td colspan="8" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
+            <td colspan="7" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
               No se encontraron rutas para los filtros seleccionados.
             </td>
           </tr>
@@ -68,8 +69,11 @@
                   {{ idx + 1 }}
                 </td>
 
-                <!-- Ruta -->
-                <td class="px-1.5 sm:px-2.5 py-1.5 font-bold text-[#1D1D1F] text-[10px] sm:text-[12px] sticky left-7 sm:left-9 z-10 w-14 sm:w-20 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm truncate">
+                <!-- Ruta / Preventista -->
+                <td
+                  class="px-1.5 sm:px-2.5 py-1.5 sticky left-7 sm:left-9 z-10 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate"
+                  :title="`${r.ruta} - ${r.vendedor || 'No Asignado'}`"
+                >
                   <div class="flex items-center gap-1 sm:gap-1.5">
                     <svg
                       class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#86868B] transition-transform duration-200 shrink-0"
@@ -80,13 +84,11 @@
                     >
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
-                    <span class="truncate">{{ r.ruta }}</span>
+                    <span class="font-bold text-[#1D1D1F] text-[11px] sm:text-[12px] leading-tight truncate">{{ r.ruta }}</span>
                   </div>
-                </td>
-
-                <!-- Preventista -->
-                <td class="px-1.5 sm:px-2.5 py-1.5 text-[#6E6E73] font-medium text-[10px] sm:text-[11px] sticky left-[84px] sm:left-[116px] z-10 w-20 sm:w-36 md:w-44 border-r border-black/[0.05] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate" :title="r.vendedor">
-                  {{ r.vendedor || 'No Asignado' }}
+                  <div class="text-[9.5px] sm:text-[11px] text-[#6E6E73] font-medium leading-tight truncate pl-4 sm:pl-5">
+                    {{ r.vendedor || 'No Asignado' }}
+                  </div>
                 </td>
 
                 <!-- Compradores -->
@@ -122,7 +124,7 @@
 
               <!-- Fila Acordeón: Detalle de SKUs Nuevos -->
               <tr v-if="acordeonAbierto[r.ruta]">
-                <td colspan="8" class="p-3 bg-white/60 border-b border-black/[0.06]">
+                <td colspan="7" class="p-3 bg-white/60 border-b border-black/[0.06]">
                   <div v-if="cargandoDetalle[r.ruta]" class="p-4 text-center text-[#6E6E73] text-[11px] font-medium">
                     Auditando ampliación de portafolio para {{ r.ruta }}...
                   </div>

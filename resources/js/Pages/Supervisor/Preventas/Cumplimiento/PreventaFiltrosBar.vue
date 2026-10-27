@@ -1,6 +1,6 @@
 <template>
   <div
-    class="sticky top-0 apple-glass-card rounded-[16px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 select-none font-sans transition-all duration-150"
+    class="relative sm:sticky sm:top-0 apple-glass-card rounded-[16px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 select-none font-sans transition-all duration-150"
     :class="menuCanalAbierto || menuRutasAbierto ? 'z-[10000]' : 'z-40'"
   >
     <!-- Grupo de Filtros Izquierda -->

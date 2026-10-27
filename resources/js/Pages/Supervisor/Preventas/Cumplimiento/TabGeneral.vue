@@ -23,22 +23,21 @@
     </div>
 
     <!-- Tabla Principal -->
-    <div class="overflow-x-auto custom-scroll max-h-[calc(100vh-230px)] min-h-[380px]">
-      <table class="w-full text-left border-collapse min-w-[760px] sm:min-w-[980px] text-[12px]">
+    <div class="overflow-x-auto custom-scroll sm:max-h-[calc(100vh-230px)] min-h-[380px]">
+      <table class="w-full text-left border-collapse min-w-[660px] sm:min-w-[880px] text-[12px]">
         <thead class="sticky top-0 z-20 border-b border-black/[0.06] text-[10px] font-bold uppercase tracking-wider text-[#6E6E73] bg-[#F8F8FA]">
           <tr>
             <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
             <th
               @click="toggleSort('ruta')"
-              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-14 sm:w-20 border-r border-black/[0.05] bg-[#F8F8FA] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th text-[10px] sm:text-[11px]"
+              class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th text-[10px] sm:text-[11px]"
               title="Ordenar por Ruta"
             >
               <div class="flex items-center gap-1">
-                <span :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta</span>
+                <span :class="sortCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
                 <span v-if="sortCol === 'ruta'" class="text-[#0071E3] font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
-            <th class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] z-30 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Preventista</th>
             
             <th
               @click="toggleSort('k1')"
@@ -139,15 +138,17 @@
           <template v-if="store.loadingRanking">
             <tr v-for="i in 10" :key="`skel-gen-${i}`">
               <td class="px-1 sm:px-2 py-3 sticky left-0 w-7 sm:w-9"><div class="h-3 w-4 mx-auto skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-3 sticky left-7 sm:left-9 w-14 sm:w-20"><div class="h-3 w-10 sm:w-14 skeleton"></div></td>
-              <td class="px-1.5 sm:px-2.5 py-3 sticky left-[84px] sm:left-[116px] w-20 sm:w-36 md:w-44 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]"><div class="h-3 w-16 sm:w-28 skeleton"></div></td>
+              <td class="px-1.5 sm:px-2.5 py-3 sticky left-7 sm:left-9 w-24 sm:w-44 md:w-52 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                <div class="h-3 w-12 sm:w-16 skeleton mb-1"></div>
+                <div class="h-2.5 w-16 sm:w-28 skeleton"></div>
+              </td>
               <td v-for="c in 8" :key="c" class="px-2 py-3 text-center"><div class="h-4 w-7 mx-auto skeleton"></div></td>
               <td class="px-3 py-3 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
             </tr>
           </template>
 
           <tr v-else-if="rutasOrdenadas.length === 0">
-            <td colspan="12" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
+            <td colspan="11" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
               No se encontraron rutas con los filtros seleccionados.
             </td>
           </tr>
@@ -163,14 +164,17 @@
                 {{ idx + 1 }}
               </td>
 
-              <!-- Ruta -->
-              <td class="px-1.5 sm:px-2.5 py-2 font-bold text-[#1D1D1F] text-[10px] sm:text-[12px] sticky left-7 sm:left-9 z-10 w-14 sm:w-20 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm whitespace-nowrap truncate" :title="r.ruta">
-                {{ r.ruta }}
-              </td>
-
-              <!-- Preventista -->
-              <td class="px-1.5 sm:px-2.5 py-2 text-[#1D1D1F] font-normal text-[10px] sm:text-[12px] sticky left-[84px] sm:left-[116px] z-10 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate" :title="r.vendedor">
-                {{ r.vendedor || 'Sin Vendedor' }}
+              <!-- Ruta / Preventista -->
+              <td
+                class="px-1.5 sm:px-2.5 py-1.5 sticky left-7 sm:left-9 z-10 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate"
+                :title="`${r.ruta} - ${r.vendedor || 'Sin Vendedor'}`"
+              >
+                <div class="font-bold text-[#1D1D1F] text-[11px] sm:text-[12px] leading-tight truncate">
+                  {{ r.ruta }}
+                </div>
+                <div class="text-[9.5px] sm:text-[11px] text-[#6E6E73] font-medium leading-tight truncate mt-0.5">
+                  {{ r.vendedor || 'Sin Vendedor' }}
+                </div>
               </td>
 
               <!-- KPI 1: Ingreso (10) -->
