@@ -15,15 +15,15 @@ class ExcelCsvParser
      *
      * @return array<int, string>
      */
-    public function extractHeaders(string $filePath): array
+    public function extractHeaders(string $filePath, ?string $originalFilename = null): array
     {
         if (!file_exists($filePath)) {
             throw new Exception("El archivo no existe en la ruta especificada: {$filePath}");
         }
 
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $this->verificarNoEsXlsAntiguo($filePath, $originalFilename);
 
-        if ($extension === 'xlsx' || $extension === 'xlsm') {
+        if ($this->isXlsx($filePath, $originalFilename)) {
             return $this->extractHeadersXlsx($filePath);
         }
 
@@ -35,15 +35,68 @@ class ExcelCsvParser
      *
      * @return array<int, array<string, mixed>>
      */
-    public function parseToAssociativeRows(string $filePath, int $maxRows = 0): array
+    public function parseToAssociativeRows(string $filePath, int $maxRows = 0, ?string $originalFilename = null): array
     {
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if (!file_exists($filePath)) {
+            throw new Exception("El archivo no existe en la ruta especificada: {$filePath}");
+        }
 
-        if ($extension === 'xlsx' || $extension === 'xlsm') {
+        $this->verificarNoEsXlsAntiguo($filePath, $originalFilename);
+
+        if ($this->isXlsx($filePath, $originalFilename)) {
             return $this->parseXlsx($filePath, $maxRows);
         }
 
         return $this->parseCsv($filePath, $maxRows);
+    }
+
+    /**
+     * Determina con precisión si el archivo es un libro de Excel moderno (.xlsx / .xlsm).
+     * Combina verificación de extensión original/ruta y detección de Magic Bytes (ZIP PK\x03\x04).
+     */
+    public function isXlsx(string $filePath, ?string $originalFilename = null): bool
+    {
+        if ($originalFilename) {
+            $extOrig = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
+            if (in_array($extOrig, ['xlsx', 'xlsm', 'xltx', 'xltm'], true)) {
+                return true;
+            }
+        }
+
+        $extPath = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if (in_array($extPath, ['xlsx', 'xlsm', 'xltx', 'xltm'], true)) {
+            return true;
+        }
+
+        if (file_exists($filePath)) {
+            $handle = @fopen($filePath, 'rb');
+            if ($handle) {
+                $magic = fread($handle, 4);
+                fclose($handle);
+                if (bin2hex($magic) === '504b0304' || $magic === "PK\x03\x04") {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detecta si el archivo es un binario OLE2 (.xls antiguo) para alertar al usuario en lugar de fallar silenciosamente.
+     */
+    protected function verificarNoEsXlsAntiguo(string $filePath, ?string $originalFilename = null): void
+    {
+        if (file_exists($filePath)) {
+            $handle = @fopen($filePath, 'rb');
+            if ($handle) {
+                $magic = fread($handle, 8);
+                fclose($handle);
+                if (bin2hex($magic) === 'd0cf11e0a1b11ae1' || $magic === "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1") {
+                    throw new Exception("El archivo está en formato Excel binario antiguo (.xls). Por favor guárdalo como formato Excel moderno (.xlsx) o .csv.");
+                }
+            }
+        }
     }
 
     /**
@@ -209,7 +262,7 @@ class ExcelCsvParser
                 $inText = true;
             }
 
-            if ($inText && $reader->nodeType === XMLReader::TEXT) {
+            if ($inText && ($reader->nodeType === XMLReader::TEXT || $reader->nodeType === XMLReader::SIGNIFICANT_WHITESPACE || $reader->nodeType === XMLReader::CDATA)) {
                 $currentText .= $reader->value;
             }
 

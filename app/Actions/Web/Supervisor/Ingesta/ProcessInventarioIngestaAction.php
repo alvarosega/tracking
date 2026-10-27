@@ -24,10 +24,13 @@ class ProcessInventarioIngestaAction
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null): array
     {
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(300);
+
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
 
-        $rawRows = $this->parser->parseToAssociativeRows($filePath);
+        $rawRows = $this->parser->parseToAssociativeRows($filePath, 0, $filename);
         if (empty($rawRows)) {
             throw new Exception("El archivo de inventario está vacío.");
         }
@@ -129,21 +132,25 @@ class ProcessInventarioIngestaAction
 
         // 3. Bitácora en sys_cargas
         $totalProcesados = count($filasActual);
-        $conn->table('sys_cargas')->insert([
-            'archivo_original' => $filename,
-            'archivo_almacenado' => $filePath,
-            'sha256' => $loteCargaId,
-            'tipo_entidad' => 'INVENTARIO',
-            'filas_leidas' => $totalProcesados,
-            'filas_afectadas' => $totalProcesados,
-            'filas_nuevas' => $totalProcesados,
-            'filas_actualizadas' => 0,
-            'filas_ignoradas' => 0,
-            'filas_con_discrepancia' => 0,
-            'rango_inicio' => '-',
-            'rango_fin' => '-',
-            'fecha_ingesta' => now(),
-        ]);
+        try {
+            $conn->table('sys_cargas')->insert([
+                'archivo_original' => $filename,
+                'archivo_almacenado' => $filePath,
+                'sha256' => $loteCargaId,
+                'tipo_entidad' => 'INVENTARIO',
+                'filas_leidas' => $totalProcesados,
+                'filas_afectadas' => $totalProcesados,
+                'filas_nuevas' => $totalProcesados,
+                'filas_actualizadas' => 0,
+                'filas_ignoradas' => 0,
+                'filas_con_discrepancia' => 0,
+                'rango_inicio' => '-',
+                'rango_fin' => '-',
+                'fecha_ingesta' => now(),
+            ]);
+        } catch (\Throwable $eSys) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+        }
 
         return [
             'status' => 'success',

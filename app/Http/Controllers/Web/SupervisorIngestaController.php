@@ -169,7 +169,7 @@ class SupervisorIngestaController extends Controller
         try {
             $this->validarArchivoIngesta($request);
             $file = $request->file('file');
-            $resultado = $action->execute($file);
+            $resultado = $action->execute($file, $file->getClientOriginalName());
             return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
@@ -184,7 +184,7 @@ class SupervisorIngestaController extends Controller
         try {
             $this->validarArchivoIngesta($request);
             $file = $request->file('file');
-            $resultado = $action->execute($file);
+            $resultado = $action->execute($file, $file->getClientOriginalName());
             return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
@@ -200,7 +200,7 @@ class SupervisorIngestaController extends Controller
             $this->validarArchivoIngesta($request, ['fecha_ruteo' => 'nullable|string']);
             $file = $request->file('file');
             $fechaRuteo = $request->input('fecha_ruteo');
-            $resultado = $action->execute($file, null, $fechaRuteo);
+            $resultado = $action->execute($file, $file->getClientOriginalName(), $fechaRuteo);
             return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
@@ -215,7 +215,7 @@ class SupervisorIngestaController extends Controller
         try {
             $this->validarArchivoIngesta($request);
             $file = $request->file('file');
-            $resultado = $action->execute($file);
+            $resultado = $action->execute($file, $file->getClientOriginalName());
             return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
@@ -230,7 +230,7 @@ class SupervisorIngestaController extends Controller
         try {
             $this->validarArchivoIngesta($request);
             $file = $request->file('file');
-            $resultado = $action->execute($file);
+            $resultado = $action->execute($file, $file->getClientOriginalName());
             return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);

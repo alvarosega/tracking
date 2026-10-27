@@ -34,13 +34,16 @@ class ProcessRuteoIngestaAction
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null, ?string $fechaArchivo = null): array
     {
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(300);
+
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
 
-        $headers = $this->parser->extractHeaders($filePath);
+        $headers = $this->parser->extractHeaders($filePath, $filename);
         $this->validator->validateSchema($headers, 'PAN_RUTEO');
 
-        $rawRows = $this->parser->parseToAssociativeRows($filePath);
+        $rawRows = $this->parser->parseToAssociativeRows($filePath, 0, $filename);
         $totalLeidas = count($rawRows);
 
         if ($totalLeidas === 0) {
@@ -338,21 +341,25 @@ class ProcessRuteoIngestaAction
 
         // 4. Registrar en sys_cargas
         $totalVivos = count($registrosVivos);
-        $conn->table('sys_cargas')->insert([
-            'archivo_original' => $filename,
-            'archivo_almacenado' => $filePath,
-            'sha256' => $snapshotId,
-            'tipo_entidad' => 'PAN_RUTEO',
-            'filas_leidas' => $totalLeidas,
-            'filas_afectadas' => $totalVivos,
-            'filas_nuevas' => $altasCnt,
-            'filas_actualizadas' => $modificadosCnt,
-            'filas_ignoradas' => $sinCambiosCnt,
-            'filas_con_discrepancia' => $eliminadosCnt,
-            'rango_inicio' => '-',
-            'rango_fin' => '-',
-            'fecha_ingesta' => $fechaCustom ?: now(),
-        ]);
+        try {
+            $conn->table('sys_cargas')->insert([
+                'archivo_original' => $filename,
+                'archivo_almacenado' => $filePath,
+                'sha256' => $snapshotId,
+                'tipo_entidad' => 'PAN_RUTEO',
+                'filas_leidas' => $totalLeidas,
+                'filas_afectadas' => $totalVivos,
+                'filas_nuevas' => $altasCnt,
+                'filas_actualizadas' => $modificadosCnt,
+                'filas_ignoradas' => $sinCambiosCnt,
+                'filas_con_discrepancia' => $eliminadosCnt,
+                'rango_inicio' => '-',
+                'rango_fin' => '-',
+                'fecha_ingesta' => $fechaCustom ?: now(),
+            ]);
+        } catch (\Throwable $eSys) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+        }
 
         return [
             'status' => 'success',

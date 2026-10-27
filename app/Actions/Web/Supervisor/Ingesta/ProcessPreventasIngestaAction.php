@@ -25,13 +25,16 @@ class ProcessPreventasIngestaAction
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null): array
     {
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(300);
+
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
 
-        $headers = $this->parser->extractHeaders($filePath);
+        $headers = $this->parser->extractHeaders($filePath, $filename);
         $this->validator->validateSchema($headers, 'FACT_PREVENTAS');
 
-        $rawRows = $this->parser->parseToAssociativeRows($filePath);
+        $rawRows = $this->parser->parseToAssociativeRows($filePath, 0, $filename);
         $totalLeidas = count($rawRows);
 
         if ($totalLeidas === 0) {
@@ -350,21 +353,25 @@ class ProcessPreventasIngestaAction
         $rangoFin = end($fechasValidas) ?: '-';
         $totalAfectadas = count($nuevosRecords) + count($modificadosUpdates) + count($clavesCanceladas);
 
-        $conn->table('sys_cargas')->insert([
-            'archivo_original' => $filename,
-            'archivo_almacenado' => $filePath,
-            'sha256' => $fileHash,
-            'tipo_entidad' => 'FACT_PREVENTAS',
-            'filas_leidas' => $totalLeidas,
-            'filas_afectadas' => $totalAfectadas,
-            'filas_nuevas' => count($nuevosRecords),
-            'filas_actualizadas' => count($modificadosUpdates),
-            'filas_ignoradas' => $sinCambiosCount,
-            'filas_con_discrepancia' => count($clavesCanceladas),
-            'rango_inicio' => $rangoIni,
-            'rango_fin' => $rangoFin,
-            'fecha_ingesta' => now(),
-        ]);
+        try {
+            $conn->table('sys_cargas')->insert([
+                'archivo_original' => $filename,
+                'archivo_almacenado' => $filePath,
+                'sha256' => $fileHash,
+                'tipo_entidad' => 'FACT_PREVENTAS',
+                'filas_leidas' => $totalLeidas,
+                'filas_afectadas' => $totalAfectadas,
+                'filas_nuevas' => count($nuevosRecords),
+                'filas_actualizadas' => count($modificadosUpdates),
+                'filas_ignoradas' => $sinCambiosCount,
+                'filas_con_discrepancia' => count($clavesCanceladas),
+                'rango_inicio' => $rangoIni,
+                'rango_fin' => $rangoFin,
+                'fecha_ingesta' => now(),
+            ]);
+        } catch (\Throwable $eSys) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+        }
 
         $rangoStr = implode(', ', $fechasValidas);
 
