@@ -25,12 +25,12 @@
 
     <!-- Tabla Principal -->
     <div class="overflow-x-auto custom-scroll max-h-[calc(100vh-230px)] min-h-[380px]">
-      <table class="w-full text-left border-collapse min-w-[840px] text-[12px]">
+      <table class="w-full text-left border-collapse min-w-[640px] sm:min-w-[840px] text-[12px]">
         <thead class="sticky top-0 z-20 border-b border-black/[0.06] text-[10px] font-bold uppercase tracking-wider text-[#6E6E73] bg-[#F8F8FA]">
           <tr>
-            <th class="px-2.5 py-2 text-center sticky left-0 z-30 w-12 border-r border-black/[0.05] bg-[#F8F8FA]">Pos</th>
-            <th class="px-3 py-2 sticky left-12 z-30 w-28 border-r border-black/[0.05] bg-[#F8F8FA]">Ruta</th>
-            <th class="px-3 py-2 sticky left-[112px] z-30 min-w-[180px] border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)] bg-[#F8F8FA]">Preventista</th>
+            <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
+            <th class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-14 sm:w-20 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Ruta</th>
+            <th class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] z-30 w-20 sm:w-36 md:w-44 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Preventista</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Compradores</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Líneas Evaluadas</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Cobertura Media</th>
@@ -42,9 +42,9 @@
         <tbody class="divide-y divide-black/[0.04]">
           <template v-if="store.loadingRanking">
             <tr v-for="i in 10" :key="`skel-cov-${i}`">
-              <td class="px-2.5 py-2 sticky left-0"><div class="h-3.5 w-5 mx-auto skeleton"></div></td>
-              <td class="px-3 py-2 sticky left-12"><div class="h-3.5 w-16 skeleton"></div></td>
-              <td class="px-3 py-2 sticky left-[112px]"><div class="h-3.5 w-32 skeleton"></div></td>
+              <td class="px-1 sm:px-2 py-2 sticky left-0 w-7 sm:w-9"><div class="h-3.5 w-4 mx-auto skeleton"></div></td>
+              <td class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 w-14 sm:w-20"><div class="h-3.5 w-10 sm:w-14 skeleton"></div></td>
+              <td class="px-1.5 sm:px-2.5 py-2 sticky left-[84px] sm:left-[116px] w-20 sm:w-36 md:w-44"><div class="h-3.5 w-16 sm:w-28 skeleton"></div></td>
               <td v-for="c in 4" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
               <td class="px-3 py-2 text-right"><div class="h-4 w-8 ml-auto skeleton"></div></td>
             </tr>
@@ -62,13 +62,13 @@
               :key="r.ruta || idx"
               class="hover:bg-black/[0.02] transition-colors"
             >
-              <td class="px-2.5 py-2 text-center font-mono text-[11px] font-semibold text-[#86868B] sticky left-0 z-10 border-r border-black/[0.04] bg-white/70 backdrop-blur-sm">
+              <td class="px-1 sm:px-2 py-1.5 text-center font-mono text-[10px] sm:text-[11px] font-semibold text-[#86868B] sticky left-0 z-10 w-7 sm:w-9 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm">
                 {{ idx + 1 }}
               </td>
-              <td class="px-3 py-2 font-bold text-[#1D1D1F] text-[12px] sticky left-12 z-10 border-r border-black/[0.04] bg-white/70 backdrop-blur-sm whitespace-nowrap">
+              <td class="px-1.5 sm:px-2.5 py-1.5 font-bold text-[#1D1D1F] text-[10px] sm:text-[12px] sticky left-7 sm:left-9 z-10 w-14 sm:w-20 border-r border-black/[0.04] bg-white/80 backdrop-blur-sm truncate">
                 {{ r.ruta }}
               </td>
-              <td class="px-3 py-2 text-[#6E6E73] font-medium text-[11px] sticky left-[112px] z-10 border-r border-black/[0.05] bg-white/70 backdrop-blur-sm truncate max-w-[200px]" :title="r.vendedor">
+              <td class="px-1.5 sm:px-2.5 py-1.5 text-[#6E6E73] font-medium text-[10px] sm:text-[11px] sticky left-[84px] sm:left-[116px] z-10 w-20 sm:w-36 md:w-44 border-r border-black/[0.05] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-white/80 backdrop-blur-sm truncate" :title="r.vendedor">
                 {{ r.vendedor || 'No Asignado' }}
               </td>
               <td class="px-3 py-2 text-center font-mono text-[#1D1D1F] border-r border-black/[0.04]">

@@ -1,6 +1,6 @@
 {
-  "_AuditoriaSaneamientoSubTabs-XTsrw6iq.js": {
-    "file": "assets/AuditoriaSaneamientoSubTabs-XTsrw6iq.js",
+  "_AuditoriaSaneamientoSubTabs-BbLKQ3eL.js": {
+    "file": "assets/AuditoriaSaneamientoSubTabs-BbLKQ3eL.js",
     "name": "AuditoriaSaneamientoSubTabs",
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
@@ -8,16 +8,16 @@
       "_navigation-tFM25rx-.js"
     ]
   },
-  "_SubNavTabs-BP3SgUxq.js": {
-    "file": "assets/SubNavTabs-BP3SgUxq.js",
+  "_SubNavTabs-Dyd7URde.js": {
+    "file": "assets/SubNavTabs-Dyd7URde.js",
     "name": "SubNavTabs",
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js"
     ]
   },
-  "_SupervisorLayout-DViryuJl.js": {
-    "file": "assets/SupervisorLayout-DViryuJl.js",
+  "_SupervisorLayout-Bdd7wyOj.js": {
+    "file": "assets/SupervisorLayout-Bdd7wyOj.js",
     "name": "SupervisorLayout",
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
@@ -29,14 +29,14 @@
     "file": "assets/UI-CfMjRmD0.css",
     "src": "_UI-CfMjRmD0.css"
   },
-  "_UI-DcCqjAAf.js": {
-    "file": "assets/UI-DcCqjAAf.js",
+  "_UI-Ddi-apQe.js": {
+    "file": "assets/UI-Ddi-apQe.js",
     "name": "UI",
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SubNavTabs-Dyd7URde.js"
     ],
     "css": [
       "assets/UI-CfMjRmD0.css"
@@ -54,8 +54,8 @@
     "file": "assets/leaflet-1DTFk8zz.css",
     "src": "_leaflet-1DTFk8zz.css"
   },
-  "_leaflet-src-Cal8jNU-.js": {
-    "file": "assets/leaflet-src-Cal8jNU-.js",
+  "_leaflet-src-BrzfvAF0.js": {
+    "file": "assets/leaflet-src-BrzfvAF0.js",
     "name": "leaflet-src",
     "imports": [
       "resources/js/app.js"
@@ -69,8 +69,8 @@
     "file": "assets/navigation-tFM25rx-.js",
     "name": "navigation"
   },
-  "_preventaStore-BnlpPWRk.js": {
-    "file": "assets/preventaStore-BnlpPWRk.js",
+  "_preventaStore-DfOzGhWO.js": {
+    "file": "assets/preventaStore-DfOzGhWO.js",
     "name": "preventaStore",
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
@@ -94,7 +94,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DbIeMtKA.css",
+    "file": "assets/app-1suZhSyf.css",
     "name": "app",
     "names": [
       "app.css"
@@ -108,7 +108,7 @@
     ]
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-a_j8YC0N.js",
+    "file": "assets/Login-BI3Hc6gP.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isDynamicEntry": true,
@@ -118,27 +118,27 @@
     ]
   },
   "resources/js/Pages/Supervisor/Admin/Permisos.vue": {
-    "file": "assets/Permisos-ukNEw32i.js",
+    "file": "assets/Permisos-VU8Am2J5.js",
     "name": "Permisos",
     "src": "resources/js/Pages/Supervisor/Admin/Permisos.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js"
+      "_SupervisorLayout-Bdd7wyOj.js"
     ]
   },
   "resources/js/Pages/Supervisor/AltasEdiciones/Index.vue": {
-    "file": "assets/Index-ACoUFdoK.js",
+    "file": "assets/Index-DMZqyhjD.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/AltasEdiciones/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js"
     ],
     "css": [
@@ -146,46 +146,46 @@
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Altas.vue": {
-    "file": "assets/Altas-DxrnoNNQ.js",
+    "file": "assets/Altas-JZvqKfio.js",
     "name": "Altas",
     "src": "resources/js/Pages/Supervisor/Auditoria/Altas.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/CambiosDia.vue": {
-    "file": "assets/CambiosDia-Db5u4iX0.js",
+    "file": "assets/CambiosDia-BKe6_jRE.js",
     "name": "CambiosDia",
     "src": "resources/js/Pages/Supervisor/Auditoria/CambiosDia.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/CambiosRuta.vue": {
-    "file": "assets/CambiosRuta-DjgcH65y.js",
+    "file": "assets/CambiosRuta-CgoCPG4N.js",
     "name": "CambiosRuta",
     "src": "resources/js/Pages/Supervisor/Auditoria/CambiosRuta.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue": {
-    "file": "assets/AuditoriaFotosModal-B7cpAYcl.js",
+    "file": "assets/AuditoriaFotosModal-ZxvbzSy2.js",
     "name": "AuditoriaFotosModal",
     "src": "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue",
     "isDynamicEntry": true,
@@ -195,69 +195,69 @@
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue": {
-    "file": "assets/AuditoriaSubTabs-CDgkiCQH.js",
+    "file": "assets/AuditoriaSubTabs-hO2vZqXN.js",
     "name": "AuditoriaSubTabs",
     "src": "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
-      "_AuditoriaSaneamientoSubTabs-XTsrw6iq.js"
+      "_AuditoriaSaneamientoSubTabs-BbLKQ3eL.js"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Historico.vue": {
-    "file": "assets/Historico-CL1lQ2Ap.js",
+    "file": "assets/Historico-DiPG5t-v.js",
     "name": "Historico",
     "src": "resources/js/Pages/Supervisor/Auditoria/Historico.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Inactivados.vue": {
-    "file": "assets/Inactivados-QUnA420Z.js",
+    "file": "assets/Inactivados-D6neOHLH.js",
     "name": "Inactivados",
     "src": "resources/js/Pages/Supervisor/Auditoria/Inactivados.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/ModificacionDatos.vue": {
-    "file": "assets/ModificacionDatos-BeEwi_wN.js",
+    "file": "assets/ModificacionDatos-B0m3bj4G.js",
     "name": "ModificacionDatos",
     "src": "resources/js/Pages/Supervisor/Auditoria/ModificacionDatos.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Auditoria/Preventas.vue": {
-    "file": "assets/Preventas-CeLqCE10.js",
+    "file": "assets/Preventas-5pra8r1L.js",
     "name": "Preventas",
     "src": "resources/js/Pages/Supervisor/Auditoria/Preventas.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue",
       "resources/js/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue": {
-    "file": "assets/AvanceFiltrosBar-Bps0La4I.js",
+    "file": "assets/AvanceFiltrosBar-DiV_1IH6.js",
     "name": "AvanceFiltrosBar",
     "src": "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue",
     "isDynamicEntry": true,
@@ -267,14 +267,14 @@
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Bpc.vue": {
-    "file": "assets/Bpc-i7QQMVv8.js",
+    "file": "assets/Bpc-CXLlPUWe.js",
     "name": "Bpc",
     "src": "resources/js/Pages/Supervisor/Avance/Bpc.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "__plugin-vue_export-helper-BDNMzG2s.js"
     ],
     "css": [
@@ -282,7 +282,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Cluster.vue": {
-    "file": "assets/Cluster-CjSzjbWl.js",
+    "file": "assets/Cluster-NQFNx6Lc.js",
     "name": "Cluster",
     "src": "resources/js/Pages/Supervisor/Avance/Cluster.vue",
     "isDynamicEntry": true,
@@ -290,16 +290,16 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SubNavTabs-Dyd7URde.js"
     ],
     "css": [
       "assets/Cluster-YxwSEpH_.css"
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Cumplimiento.vue": {
-    "file": "assets/Cumplimiento-DrPMTlJx.js",
+    "file": "assets/Cumplimiento-D8-wkSlA.js",
     "name": "Cumplimiento",
     "src": "resources/js/Pages/Supervisor/Avance/Cumplimiento.vue",
     "isDynamicEntry": true,
@@ -307,13 +307,13 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Entregas.vue": {
-    "file": "assets/Entregas-D3jDktfh.js",
+    "file": "assets/Entregas-DbRbOO0v.js",
     "name": "Entregas",
     "src": "resources/js/Pages/Supervisor/Avance/Entregas.vue",
     "isDynamicEntry": true,
@@ -321,13 +321,13 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Avance/HistoricoPreventas.vue": {
-    "file": "assets/HistoricoPreventas-DqSTu4W0.js",
+    "file": "assets/HistoricoPreventas-DOStG37D.js",
     "name": "HistoricoPreventas",
     "src": "resources/js/Pages/Supervisor/Avance/HistoricoPreventas.vue",
     "isDynamicEntry": true,
@@ -335,21 +335,21 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Horarios.vue": {
-    "file": "assets/Horarios-Y_QsyxYB.js",
+    "file": "assets/Horarios-DBID40u3.js",
     "name": "Horarios",
     "src": "resources/js/Pages/Supervisor/Avance/Horarios.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js"
     ],
     "css": [
@@ -363,7 +363,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Avance/Paretos.vue": {
-    "file": "assets/Paretos-Dnjy48pw.js",
+    "file": "assets/Paretos-D4JV4ART.js",
     "name": "Paretos",
     "src": "resources/js/Pages/Supervisor/Avance/Paretos.vue",
     "isDynamicEntry": true,
@@ -371,11 +371,11 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "resources/js/Pages/Supervisor/Avance/AvanceFiltrosBar.vue",
-      "_SubNavTabs-BP3SgUxq.js",
+      "_SubNavTabs-Dyd7URde.js",
       "resources/js/Pages/Supervisor/Preventas/ClienteFotosModal.vue"
     ],
     "css": [
@@ -388,18 +388,18 @@
     ]
   },
   "resources/js/Pages/Supervisor/Horarios/Index.vue": {
-    "file": "assets/Index-BPQb-FHW.js",
+    "file": "assets/Index-Au4x1RnX.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Horarios/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js"
+      "_SupervisorLayout-Bdd7wyOj.js"
     ]
   },
   "resources/js/Pages/Supervisor/Index.vue": {
-    "file": "assets/Index-Bc6bjp3u.js",
+    "file": "assets/Index-C-8xbV2R.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Index.vue",
     "isDynamicEntry": true,
@@ -407,23 +407,23 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js"
+      "_SupervisorLayout-Bdd7wyOj.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Cancelados.vue": {
-    "file": "assets/Cancelados-7FOdQBlD.js",
+    "file": "assets/Cancelados-CAT2od8O.js",
     "name": "Cancelados",
     "src": "resources/js/Pages/Supervisor/Ingesta/Cancelados.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Components/DropZone.vue": {
-    "file": "assets/DropZone-BK2TrrPM.js",
+    "file": "assets/DropZone-dIvNxaDS.js",
     "name": "DropZone",
     "src": "resources/js/Pages/Supervisor/Ingesta/Components/DropZone.vue",
     "isDynamicEntry": true,
@@ -433,7 +433,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue": {
-    "file": "assets/IngestaSubTabs-DgTzTCw5.js",
+    "file": "assets/IngestaSubTabs-f0u9O8V0.js",
     "name": "IngestaSubTabs",
     "src": "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue",
     "isDynamicEntry": true,
@@ -444,78 +444,78 @@
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Index.vue": {
-    "file": "assets/Index-oiSdylHw.js",
+    "file": "assets/Index-DIMgYMoQ.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Ingesta/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Snapshots.vue": {
-    "file": "assets/Snapshots-DLQxAAF3.js",
+    "file": "assets/Snapshots-q8QxlZI6.js",
     "name": "Snapshots",
     "src": "resources/js/Pages/Supervisor/Ingesta/Snapshots.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Ingesta/Upload.vue": {
-    "file": "assets/Upload-Bzb8nrlm.js",
+    "file": "assets/Upload-EcguCZ7D.js",
     "name": "Upload",
     "src": "resources/js/Pages/Supervisor/Ingesta/Upload.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Ingesta/Components/IngestaSubTabs.vue",
       "resources/js/Pages/Supervisor/Ingesta/Components/DropZone.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Jornadas.vue": {
-    "file": "assets/Jornadas-CD6dpqRQ.js",
+    "file": "assets/Jornadas-Cf7EZm8z.js",
     "name": "Jornadas",
     "src": "resources/js/Pages/Supervisor/Jornadas.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js"
+      "_SupervisorLayout-Bdd7wyOj.js"
     ]
   },
   "resources/js/Pages/Supervisor/Modulos/Index.vue": {
-    "file": "assets/Index-BmdHS-0B.js",
+    "file": "assets/Index-BGFh1B-0.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Modulos/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js"
+      "_SupervisorLayout-Bdd7wyOj.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Auditoria.vue": {
-    "file": "assets/Auditoria-DjgrEEW7.js",
+    "file": "assets/Auditoria-CHzXus8E.js",
     "name": "Auditoria",
     "src": "resources/js/Pages/Supervisor/Preventas/Auditoria.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/ClienteFotosModal.vue": {
-    "file": "assets/ClienteFotosModal-2OAp0CG1.js",
+    "file": "assets/ClienteFotosModal-DA1O2B0b.js",
     "name": "ClienteFotosModal",
     "src": "resources/js/Pages/Supervisor/Preventas/ClienteFotosModal.vue",
     "isDynamicEntry": true,
@@ -525,26 +525,26 @@
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Comparativos.vue": {
-    "file": "assets/Comparativos-HF1OBLgv.js",
+    "file": "assets/Comparativos-Bu_ARJok.js",
     "name": "Comparativos",
     "src": "resources/js/Pages/Supervisor/Preventas/Comparativos.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento.vue": {
-    "file": "assets/Cumplimiento-Cx-EjlaH.js",
+    "file": "assets/Cumplimiento-n4l9yVcL.js",
     "name": "Cumplimiento",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_preventaStore-BnlpPWRk.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_preventaStore-DfOzGhWO.js",
       "resources/js/Pages/Supervisor/Preventas/Cumplimiento/PreventaFiltrosBar.vue",
       "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabGeneral.vue",
       "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabHorarioIngreso.vue",
@@ -558,7 +558,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/PreventaFiltrosBar.vue": {
-    "file": "assets/PreventaFiltrosBar-C6ijjawp.js",
+    "file": "assets/PreventaFiltrosBar-yCNfapGc.js",
     "name": "PreventaFiltrosBar",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/PreventaFiltrosBar.vue",
     "isDynamicEntry": true,
@@ -566,119 +566,119 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_navigation-tFM25rx-.js",
-      "_SubNavTabs-BP3SgUxq.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_SubNavTabs-Dyd7URde.js",
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabAmpliacionPortafolio.vue": {
-    "file": "assets/TabAmpliacionPortafolio-BmlNceo8.js",
+    "file": "assets/TabAmpliacionPortafolio-CcT7WFXu.js",
     "name": "TabAmpliacionPortafolio",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabAmpliacionPortafolio.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabClientesVisitados.vue": {
-    "file": "assets/TabClientesVisitados-BYMVBUz5.js",
+    "file": "assets/TabClientesVisitados-D-2Z83H1.js",
     "name": "TabClientesVisitados",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabClientesVisitados.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCompraMinima.vue": {
-    "file": "assets/TabCompraMinima-BLETcvFR.js",
+    "file": "assets/TabCompraMinima-CGKS-s5N.js",
     "name": "TabCompraMinima",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCompraMinima.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCovers.vue": {
-    "file": "assets/TabCovers-C3qivRQF.js",
+    "file": "assets/TabCovers-CGHG-Hpd.js",
     "name": "TabCovers",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCovers.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCumplimientoObjetivo.vue": {
-    "file": "assets/TabCumplimientoObjetivo-DZf5esnK.js",
+    "file": "assets/TabCumplimientoObjetivo-CeebfgOa.js",
     "name": "TabCumplimientoObjetivo",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabCumplimientoObjetivo.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabEfectividadRuta.vue": {
-    "file": "assets/TabEfectividadRuta-DoYX6doh.js",
+    "file": "assets/TabEfectividadRuta-Kgxv6CzV.js",
     "name": "TabEfectividadRuta",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabEfectividadRuta.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabGeneral.vue": {
-    "file": "assets/TabGeneral-BML2YGSb.js",
+    "file": "assets/TabGeneral-D8o9lmkZ.js",
     "name": "TabGeneral",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabGeneral.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabHorarioIngreso.vue": {
-    "file": "assets/TabHorarioIngreso-BGdT-SxQ.js",
+    "file": "assets/TabHorarioIngreso-BzTXJd_T.js",
     "name": "TabHorarioIngreso",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabHorarioIngreso.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabPedidoReposicion.vue": {
-    "file": "assets/TabPedidoReposicion-CXiZa2_-.js",
+    "file": "assets/TabPedidoReposicion-BlsB-Oj_.js",
     "name": "TabPedidoReposicion",
     "src": "resources/js/Pages/Supervisor/Preventas/Cumplimiento/TabPedidoReposicion.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_preventaStore-BnlpPWRk.js"
+      "_preventaStore-DfOzGhWO.js"
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Diaria.vue": {
-    "file": "assets/Diaria-z_JLMzoq.js",
+    "file": "assets/Diaria-7OI8gXzm.js",
     "name": "Diaria",
     "src": "resources/js/Pages/Supervisor/Preventas/Diaria.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_SubNavTabs-BP3SgUxq.js",
+      "_SubNavTabs-Dyd7URde.js",
       "resources/js/Pages/Supervisor/Preventas/ClienteFotosModal.vue"
     ],
     "css": [
@@ -692,17 +692,17 @@
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Index.vue": {
-    "file": "assets/Index-gx4MEkOB.js",
+    "file": "assets/Index-CJZlptD6.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Preventas/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
-      "_SubNavTabs-BP3SgUxq.js",
+      "_leaflet-src-BrzfvAF0.js",
+      "_SubNavTabs-Dyd7URde.js",
       "_colors-CpIJSamE.js"
     ],
     "css": [
@@ -716,19 +716,19 @@
     ]
   },
   "resources/js/Pages/Supervisor/Preventas/Productos.vue": {
-    "file": "assets/Productos-DzB9Qb3T.js",
+    "file": "assets/Productos-CDr-lMw7.js",
     "name": "Productos",
     "src": "resources/js/Pages/Supervisor/Preventas/Productos.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo/Cercanos.vue": {
-    "file": "assets/Cercanos-CMgtxdsp.js",
+    "file": "assets/Cercanos-CtslvmwK.js",
     "name": "Cercanos",
     "src": "resources/js/Pages/Supervisor/Ruteo/Cercanos.vue",
     "isDynamicEntry": true,
@@ -736,14 +736,14 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "_colors-CpIJSamE.js",
       "resources/js/Pages/Supervisor/Ruteo/Layout.vue",
-      "_UI-DcCqjAAf.js"
+      "_UI-Ddi-apQe.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo/Index.vue": {
-    "file": "assets/Index-D2GuZIZ5.js",
+    "file": "assets/Index-BP-yt1PM.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Ruteo/Index.vue",
     "isDynamicEntry": true,
@@ -751,47 +751,47 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "_colors-CpIJSamE.js",
       "resources/js/Pages/Supervisor/Ruteo/Layout.vue",
-      "_UI-DcCqjAAf.js"
+      "_UI-Ddi-apQe.js"
     ]
   },
   "resources/js/Pages/Supervisor/Ruteo/Layout.vue": {
-    "file": "assets/Layout-DlZfO-lM.js",
+    "file": "assets/Layout-BQie3x5Z.js",
     "name": "Layout",
     "src": "resources/js/Pages/Supervisor/Ruteo/Layout.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Bd.vue": {
-    "file": "assets/Bd-CLQjnZ5t.js",
+    "file": "assets/Bd-w9njMaft.js",
     "name": "Bd",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Bd.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Calidad.vue": {
-    "file": "assets/Calidad-DvOqkE7B.js",
+    "file": "assets/Calidad-BqjJI_x4.js",
     "name": "Calidad",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Calidad.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ],
@@ -805,7 +805,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue": {
-    "file": "assets/ClienteFotosModal-D_o8UFnX.js",
+    "file": "assets/ClienteFotosModal-BrMonjug.js",
     "name": "ClienteFotosModal",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue",
     "isDynamicEntry": true,
@@ -815,25 +815,25 @@
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue": {
-    "file": "assets/SaneamientoSubTabs-DI0qR8zF.js",
+    "file": "assets/SaneamientoSubTabs-CRgFVnHY.js",
     "name": "SaneamientoSubTabs",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
-      "_AuditoriaSaneamientoSubTabs-XTsrw6iq.js"
+      "_AuditoriaSaneamientoSubTabs-BbLKQ3eL.js"
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Dias.vue": {
-    "file": "assets/Dias-DaWnUsLR.js",
+    "file": "assets/Dias-CB6OQzcN.js",
     "name": "Dias",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Dias.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ],
@@ -847,15 +847,15 @@
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Duplicados.vue": {
-    "file": "assets/Duplicados-B3wIb56u.js",
+    "file": "assets/Duplicados-B0v8OHsp.js",
     "name": "Duplicados",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Duplicados.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ],
@@ -869,15 +869,15 @@
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Intrusos.vue": {
-    "file": "assets/Intrusos-C5bTAzJ1.js",
+    "file": "assets/Intrusos-CIkiB-hY.js",
     "name": "Intrusos",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Intrusos.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_leaflet-src-BrzfvAF0.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ],
@@ -891,20 +891,20 @@
     ]
   },
   "resources/js/Pages/Supervisor/Saneamiento/Propuestas.vue": {
-    "file": "assets/Propuestas-BwYLVgfT.js",
+    "file": "assets/Propuestas-B36FKV8P.js",
     "name": "Propuestas",
     "src": "resources/js/Pages/Supervisor/Saneamiento/Propuestas.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
-      "_SupervisorLayout-DViryuJl.js",
+      "_SupervisorLayout-Bdd7wyOj.js",
       "resources/js/Pages/Supervisor/Saneamiento/Components/SaneamientoSubTabs.vue",
       "resources/js/Pages/Supervisor/Saneamiento/Components/ClienteFotosModal.vue"
     ]
   },
   "resources/js/Pages/Supervisor/Tracking/Historico.vue": {
-    "file": "assets/Historico-BunKXRmD.js",
+    "file": "assets/Historico-D2rtICfH.js",
     "name": "Historico",
     "src": "resources/js/Pages/Supervisor/Tracking/Historico.vue",
     "isDynamicEntry": true,
@@ -912,7 +912,7 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "resources/js/Pages/Supervisor/Tracking/Layout.vue"
     ],
@@ -921,7 +921,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Tracking/Index.vue": {
-    "file": "assets/Index-CEvgycUr.js",
+    "file": "assets/Index-BdaqM76v.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Tracking/Index.vue",
     "isDynamicEntry": true,
@@ -929,7 +929,7 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "resources/js/Pages/Supervisor/Tracking/Layout.vue"
     ],
@@ -938,19 +938,19 @@
     ]
   },
   "resources/js/Pages/Supervisor/Tracking/Layout.vue": {
-    "file": "assets/Layout-d7yZ03l0.js",
+    "file": "assets/Layout-B4iOj4Bc.js",
     "name": "Layout",
     "src": "resources/js/Pages/Supervisor/Tracking/Layout.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/Pages/Supervisor/Visitas/Avance.vue": {
-    "file": "assets/Avance-DkPGXGIi.js",
+    "file": "assets/Avance-BZbwB1x4.js",
     "name": "Avance",
     "src": "resources/js/Pages/Supervisor/Visitas/Avance.vue",
     "isDynamicEntry": true,
@@ -958,7 +958,7 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "resources/js/Pages/Supervisor/Visitas/Layout.vue"
     ],
@@ -967,7 +967,7 @@
     ]
   },
   "resources/js/Pages/Supervisor/Visitas/Index.vue": {
-    "file": "assets/Index-CdOYuCff.js",
+    "file": "assets/Index-CI1HySB5.js",
     "name": "Index",
     "src": "resources/js/Pages/Supervisor/Visitas/Index.vue",
     "isDynamicEntry": true,
@@ -975,7 +975,7 @@
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "resources/js/app.js",
       "_maps-jahvzkum.js",
-      "_leaflet-src-Cal8jNU-.js",
+      "_leaflet-src-BrzfvAF0.js",
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "resources/js/Pages/Supervisor/Visitas/Layout.vue"
     ],
@@ -984,19 +984,19 @@
     ]
   },
   "resources/js/Pages/Supervisor/Visitas/Layout.vue": {
-    "file": "assets/Layout-C6hRSlWw.js",
+    "file": "assets/Layout-CyaYAs3m.js",
     "name": "Layout",
     "src": "resources/js/Pages/Supervisor/Visitas/Layout.vue",
     "isDynamicEntry": true,
     "imports": [
       "_runtime-core.esm-bundler-CsLFOlZd.js",
       "_navigation-tFM25rx-.js",
-      "_SupervisorLayout-DViryuJl.js",
-      "_SubNavTabs-BP3SgUxq.js"
+      "_SupervisorLayout-Bdd7wyOj.js",
+      "_SubNavTabs-Dyd7URde.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-TrbezorJ.js",
+    "file": "assets/app-DCSVDu-b.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
