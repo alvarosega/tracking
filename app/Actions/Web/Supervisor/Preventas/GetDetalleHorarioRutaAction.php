@@ -25,7 +25,7 @@ class GetDetalleHorarioRutaAction
     /**
      * Obtiene el recorrido cronológico y auditoría detallada de una ruta.
      * En la app y en la web son los mismos clientes, todos extraídos de pan_ruteo.
-     * La tabla principal muestra la cartera planificada del día (ej. ~38 clientes de pan_ruteo)
+     * Muestra la cartera planificada del día (ej. ~38 clientes de pan_ruteo)
      * más un máximo de 2 a 3 visitas registradas fuera de plan (ad-hoc / oportunidad).
      * El cruce se realiza estrictamente por CLIENTE y se agrupa por RUTA (sin tomar en cuenta el vendedor).
      *
@@ -116,7 +116,7 @@ class GetDetalleHorarioRutaAction
             }
 
             // 3. Marcajes del sistema central (fact_visitas - Web ERP)
-            // Se cruzan únicamente contra los clientes programados para hoy en esta ruta
+            // Se cruzan únicamente contra los clientes programados para hoy en esta ruta (sin tomar en cuenta vendedor)
             $visitasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
                 ->where('fv.fecha_norm', $fechaNorm)
                 ->select([
@@ -252,7 +252,7 @@ class GetDetalleHorarioRutaAction
                         }
                     }
                 } else {
-                    // Visita fuera del plan del día realizada por esta ruta (máximo 2 a 3 visitas)
+                    // Visita fuera del plan del día realizada por esta ruta (máximo 0 a 3 visitas)
                     $fpKey = $cid > 0 ? "cid_{$cid}" : 'opp_' . md5(trim((string) $fm->opportunity_client_name) ?: (string) $fm->id);
 
                     if (!isset($visitasFueraPlan[$fpKey])) {
@@ -295,7 +295,7 @@ class GetDetalleHorarioRutaAction
 
             // 6. Construcción Unificada de la Pizarra de Paradas:
             // A) Exactamente los clientes del Plan de Ruteo del Día (estén o no visitados, con su cliente_id oficial)
-            // B) Clientes visitados hoy en esta ruta fuera de plan (máximo 2 a 3 registros adicionales)
+            // B) Clientes visitados hoy en esta ruta fuera de plan (máximo 0 a 3 registros adicionales)
             $paradas = [];
 
             // Paso A: Cartera planificada del día
@@ -329,12 +329,16 @@ class GetDetalleHorarioRutaAction
                     }
                 }
 
+                $diffInfo = $this->calcularDiferencia($hWeb, $hApp);
+
                 $paradas["id_{$cidInt}"] = [
                     'cliente' => trim((string) $pCli->cliente) ?: "Cliente #{$cidInt}",
                     'client_id' => $cidInt,
                     'hora_web' => $hWeb,
                     'hora_app' => $hApp,
                     'hora_orden' => $hOrden,
+                    'diferencia_segundos' => $diffInfo['segundos'],
+                    'diferencia_texto' => $diffInfo['texto'],
                     'tipo' => $tipoFinal,
                     'monto' => $montoFinal,
                     'check_out_web' => $web['check_out'] ?? null,
@@ -361,12 +365,16 @@ class GetDetalleHorarioRutaAction
                     $hOrden = $hApp;
                 }
 
+                $diffInfo = $this->calcularDiferencia($hWeb, $hApp);
+
                 $paradas["fp_{$fpKey}"] = [
                     'cliente' => $fp['cliente'],
                     'client_id' => $fp['client_id'],
                     'hora_web' => $hWeb,
                     'hora_app' => $hApp,
                     'hora_orden' => $hOrden,
+                    'diferencia_segundos' => $diffInfo['segundos'],
+                    'diferencia_texto' => $diffInfo['texto'],
                     'tipo' => $fp['tipo'],
                     'monto' => (float) $fp['monto'],
                     'check_out_web' => $fp['check_out_web'],
@@ -484,6 +492,48 @@ class GetDetalleHorarioRutaAction
                 'eventos' => [],
             ];
         }
+    }
+
+    /**
+     * Calcula la diferencia de tiempo entre marcaje Web y marcaje App.
+     */
+    private function calcularDiferencia(?string $hWeb, ?string $hApp): array
+    {
+        if (!$hWeb && !$hApp) {
+            return ['segundos' => null, 'texto' => '—'];
+        }
+        if ($hWeb && !$hApp) {
+            return ['segundos' => null, 'texto' => 'Solo Web'];
+        }
+        if (!$hWeb && $hApp) {
+            return ['segundos' => null, 'texto' => 'Solo App'];
+        }
+
+        $tWeb = strtotime($hWeb);
+        $tApp = strtotime($hApp);
+        if ($tWeb === false || $tApp === false) {
+            return ['segundos' => null, 'texto' => '—'];
+        }
+
+        $diff = $tApp - $tWeb;
+        $abs = abs($diff);
+        $sign = $diff >= 0 ? '+' : '-';
+
+        if ($abs === 0) {
+            $txt = '0s';
+        } elseif ($abs < 60) {
+            $txt = "{$sign}{$abs}s";
+        } elseif ($abs < 3600) {
+            $m = (int) floor($abs / 60);
+            $s = $abs % 60;
+            $txt = $s > 0 ? "{$sign}{$m}m {$s}s" : "{$sign}{$m}m";
+        } else {
+            $h = (int) floor($abs / 3600);
+            $m = (int) floor(($abs % 3600) / 60);
+            $txt = $m > 0 ? "{$sign}{$h}h {$m}m" : "{$sign}{$h}h";
+        }
+
+        return ['segundos' => $diff, 'texto' => $txt];
     }
 
     /**

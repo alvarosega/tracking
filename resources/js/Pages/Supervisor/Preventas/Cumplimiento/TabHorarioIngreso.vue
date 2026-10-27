@@ -379,6 +379,17 @@
                               </div>
                             </th>
                             <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'diferencia_segundos')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'diferencia_segundos' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Diferencia de Horario (Web vs App)"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Diferencia</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'diferencia_segundos'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
                               @click.stop="toggleSubtablaSort(r.ruta, 'tipo')"
                               class="px-2.5 py-1.5 text-center cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
                               :class="getSubtablaSort(r.ruta).col === 'tipo' ? 'text-[#0071E3]' : ''"
@@ -427,6 +438,17 @@
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_app ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
                               {{ ev.hora_app || '—' }}
+                            </td>
+                            <td class="px-2.5 py-1 text-center">
+                              <span
+                                v-if="ev.diferencia_texto && ev.diferencia_texto !== '—'"
+                                class="inline-flex px-1.5 py-0.2 rounded font-mono text-[9.5px] font-bold"
+                                :class="badgeColorDiferencia(ev)"
+                                :title="`Diferencia entre App (${ev.hora_app || '—'}) y Web (${ev.hora_web || '—'})`"
+                              >
+                                {{ ev.diferencia_texto }}
+                              </span>
+                              <span v-else class="text-[#C7C7CC] text-[11px] font-mono">—</span>
                             </td>
                             <td class="px-2.5 py-1 text-center">
                               <span
@@ -713,6 +735,11 @@ function getEventosOrdenados(ruta) {
     if (col === 'hora_app') {
       return compareHoras(a.hora_app, b.hora_app, mul)
     }
+    if (col === 'diferencia_segundos') {
+      const valA = a.diferencia_segundos !== null && a.diferencia_segundos !== undefined ? Number(a.diferencia_segundos) : 999999
+      const valB = b.diferencia_segundos !== null && b.diferencia_segundos !== undefined ? Number(b.diferencia_segundos) : 999999
+      return mul * (valA - valB)
+    }
     if (col === 'tipo') {
       return mul * String(a.tipo || '').localeCompare(String(b.tipo || ''))
     }
@@ -779,6 +806,23 @@ function badgeColorTipo(tipo) {
     return 'bg-purple-50 text-purple-700 border border-purple-200'
   }
   return 'bg-black/[0.04] text-[#1D1D1F]'
+}
+
+function badgeColorDiferencia(ev) {
+  if (!ev || ev.diferencia_segundos === null || ev.diferencia_segundos === undefined) {
+    if (ev?.diferencia_texto === 'Solo Web' || ev?.diferencia_texto === 'Solo App') {
+      return 'bg-slate-100 text-slate-600 border border-slate-200'
+    }
+    return 'text-[#C7C7CC]'
+  }
+  const s = Math.abs(ev.diferencia_segundos)
+  if (s <= 120) {
+    return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  }
+  if (s <= 600) {
+    return 'bg-amber-50 text-amber-700 border border-amber-200'
+  }
+  return 'bg-rose-50 text-rose-700 border border-rose-200'
 }
 
 const modalFoto = reactive({

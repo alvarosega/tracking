@@ -298,9 +298,51 @@
                             <th class="px-2.5 py-1.5 text-center w-8">#</th>
                             <th class="px-2.5 py-1.5 w-20">Código</th>
                             <th class="px-3 py-1.5">Cliente / PDV</th>
-                            <th class="px-2.5 py-1.5 text-center">Hora Check-in</th>
-                            <th class="px-2.5 py-1.5 text-center">Tiempo</th>
-                            <th class="px-2.5 py-1.5 text-right font-mono">Monto (Bs)</th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'check_in')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'check_in' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Check-in Web"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Check-in Web</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'check_in'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'hora_app')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'hora_app' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Check-in App"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Check-in App</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'hora_app'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'diferencia_segundos')"
+                              class="px-2.5 py-1.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'diferencia_segundos' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Diferencia Web vs App"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>Diferencia</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'diferencia_segundos'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
+                            <th class="px-2.5 py-1.5 text-center">Tiempo PDV</th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'monto')"
+                              class="px-2.5 py-1.5 text-right font-mono cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'monto' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Monto"
+                            >
+                              <div class="flex items-center justify-end gap-0.5">
+                                <span>Monto (Bs)</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'monto'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
                             <th class="px-2.5 py-1.5 text-center">Estatus</th>
                             <th class="px-2.5 py-1.5 text-center w-12">Foto</th>
                           </tr>
@@ -312,12 +354,38 @@
                             class="hover:bg-black/[0.02] transition-colors"
                           >
                             <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ cIdx + 1 }}</td>
-                            <td class="px-2.5 py-1 font-mono text-[10px] text-[#6E6E73]">{{ c.cliente_id || '—' }}</td>
-                            <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[240px]" :title="c.cliente">
-                              {{ c.cliente }}
+                            <td class="px-2.5 py-1 font-mono text-[10px]">
+                              <span v-if="c.cliente_id" class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold text-[#0071E3] bg-blue-50 border border-blue-200">
+                                #{{ c.cliente_id }}
+                              </span>
+                              <span v-else class="text-[#C7C7CC] text-[9px]">s/código</span>
                             </td>
-                            <td class="px-2.5 py-1 text-center font-mono">{{ c.check_in || '—' }}</td>
-                            <td class="px-2.5 py-1 text-center font-mono">{{ c.tiempo_pdv || '—' }}</td>
+                            <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[240px]" :title="c.cliente">
+                              <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">{{ c.cliente }}</span>
+                                <span v-if="c.categoria === 'Fuera de Plan'" class="px-1 py-0.2 rounded text-[8.5px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-300 shrink-0" title="Cliente no programado hoy en pan_ruteo">
+                                  Fuera Plan
+                                </span>
+                              </div>
+                            </td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="c.check_in ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
+                              {{ c.check_in || '—' }}
+                            </td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="c.hora_app ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
+                              {{ c.hora_app || '—' }}
+                            </td>
+                            <td class="px-2.5 py-1 text-center">
+                              <span
+                                v-if="c.diferencia_texto && c.diferencia_texto !== '—'"
+                                class="inline-flex px-1.5 py-0.2 rounded font-mono text-[9.5px] font-bold"
+                                :class="badgeColorDiferencia(c)"
+                                :title="`Diferencia entre App (${c.hora_app || '—'}) y Web (${c.check_in || '—'})`"
+                              >
+                                {{ c.diferencia_texto }}
+                              </span>
+                              <span v-else class="text-[#C7C7CC] text-[11px] font-mono">—</span>
+                            </td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#6E6E73]">{{ c.tiempo_pdv || '—' }}</td>
                             <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
                               {{ c.monto > 0 ? Number(c.monto).toFixed(2) : '—' }}
                             </td>
@@ -555,6 +623,51 @@ async function toggleVisitadosAcordeon(r) {
   }
 }
 
+const subtablaSort = reactive({})
+
+function getSubtablaSort(ruta) {
+  if (!subtablaSort[ruta]) {
+    subtablaSort[ruta] = { col: 'orden', dir: 'asc' }
+  }
+  return subtablaSort[ruta]
+}
+
+function toggleSubtablaSort(ruta, col) {
+  const current = getSubtablaSort(ruta)
+  if (current.col === col) {
+    current.dir = current.dir === 'asc' ? 'desc' : 'asc'
+  } else {
+    current.col = col
+    current.dir = (col === 'monto' ? 'desc' : 'asc')
+  }
+}
+
+function compareHoras(horaA, horaB, dir) {
+  const valA = horaA ? String(horaA).trim() : null
+  const valB = horaB ? String(horaB).trim() : null
+  if (!valA && !valB) return 0
+  if (!valA) return 1
+  if (!valB) return -1
+  return dir * valA.localeCompare(valB)
+}
+
+function badgeColorDiferencia(c) {
+  if (!c || c.diferencia_segundos === null || c.diferencia_segundos === undefined) {
+    if (c?.diferencia_texto === 'Solo Web' || c?.diferencia_texto === 'Solo App') {
+      return 'bg-slate-100 text-slate-600 border border-slate-200'
+    }
+    return 'text-[#C7C7CC]'
+  }
+  const s = Math.abs(c.diferencia_segundos)
+  if (s <= 120) {
+    return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  }
+  if (s <= 600) {
+    return 'bg-amber-50 text-amber-700 border border-amber-200'
+  }
+  return 'bg-rose-50 text-rose-700 border border-rose-200'
+}
+
 function clientesVisitasFiltrados(ruta) {
   const d = detallePorRuta[ruta]
   if (!d) return []
@@ -565,12 +678,36 @@ function clientesVisitasFiltrados(ruta) {
   const inactivos = (d.visitados_inactivos || []).map(c => ({ ...c, categoria: 'Visita Inactivo' }))
   const fueraPlan = (d.fuera_plan || []).map(c => ({ ...c, categoria: 'Fuera de Plan' }))
 
-  if (tab === 'visitados') return visitados
-  if (tab === 'no_visitados') return noVisitados
-  if (tab === 'inactivos') return inactivos
-  if (tab === 'fuera_plan') return fueraPlan
+  let lista = []
+  if (tab === 'visitados') lista = visitados
+  else if (tab === 'no_visitados') lista = noVisitados
+  else if (tab === 'inactivos') lista = inactivos
+  else if (tab === 'fuera_plan') lista = fueraPlan
+  else lista = [...visitados, ...noVisitados, ...inactivos, ...fueraPlan]
 
-  return [...visitados, ...noVisitados, ...inactivos, ...fueraPlan]
+  const { col, dir } = getSubtablaSort(ruta)
+  const mul = dir === 'asc' ? 1 : -1
+
+  return [...lista].sort((a, b) => {
+    if (col === 'cliente') {
+      return mul * String(a.cliente || '').localeCompare(String(b.cliente || ''))
+    }
+    if (col === 'check_in') {
+      return compareHoras(a.check_in, b.check_in, mul)
+    }
+    if (col === 'hora_app') {
+      return compareHoras(a.hora_app, b.hora_app, mul)
+    }
+    if (col === 'diferencia_segundos') {
+      const valA = a.diferencia_segundos !== null && a.diferencia_segundos !== undefined ? Number(a.diferencia_segundos) : 999999
+      const valB = b.diferencia_segundos !== null && b.diferencia_segundos !== undefined ? Number(b.diferencia_segundos) : 999999
+      return mul * (valA - valB)
+    }
+    if (col === 'monto') {
+      return mul * ((Number(a.monto) || 0) - (Number(b.monto) || 0))
+    }
+    return 0
+  })
 }
 
 function badgeColorEstatus(categoria) {
