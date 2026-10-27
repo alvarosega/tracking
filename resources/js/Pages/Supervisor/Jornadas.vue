@@ -1,6 +1,11 @@
 <template>
   <SupervisorLayout>
-    <div class="space-y-4">
+    <div class="space-y-4 font-sans">
+      <!-- Navegación Unificada: Jornadas / Horarios / Módulos -->
+      <div class="flex items-center justify-between">
+        <SubNavTabs :tabs="jornadasHorariosModulosTabs" currentTab="jornadas" />
+      </div>
+
       <!-- Encabezado con Métricas y Filtros -->
       <div class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -181,6 +186,8 @@
 import { ref, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
+import SubNavTabs from '@/Components/UI/SubNavTabs.vue';
+import { jornadasHorariosModulosTabs } from '@/Config/navigation';
 
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user);

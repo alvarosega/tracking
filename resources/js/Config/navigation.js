@@ -341,85 +341,83 @@ export const navigationConfig = {
     },
     {
       id: 'jornadas',
-      name: 'Control de Jornadas',
-      shortName: 'Jornadas',
+      name: 'Jornadas, Horarios & Módulos',
+      shortName: 'Jornadas & Horarios',
       route: 'supervisor.jornadas.index',
-      componentPrefix: 'Supervisor/Jornadas',
+      permissionModules: ['jornadas', 'horarios', 'modulos'],
+      componentPrefix: ['Supervisor/Jornadas', 'Supervisor/Horarios', 'Supervisor/Modulos'],
       icon: 'ClockIcon',
-      description: 'Aperturas, cierres remotos y control de turnos',
+      badge: 'CONTROL',
+      badgeColor: 'amber',
+      description: 'Monitoreo de jornadas, configuración de turnos y control de módulos móviles',
       submodules: [
+        // 1. Control de Jornadas
         {
           id: 'control',
+          module: 'jornadas',
           name: 'Monitoreo de Jornadas',
           route: 'supervisor.jornadas.index',
           component: 'Supervisor/Jornadas',
-          icon: 'ClockIcon'
+          icon: 'ClockIcon',
+          group: 'Control de Jornadas'
         },
         {
           id: 'cierre-masivo',
+          module: 'jornadas',
           name: 'Cierre Remoto Masivo',
           route: 'supervisor.jornadas.index',
           component: 'Supervisor/Jornadas',
-          icon: 'LockClosedIcon'
-        }
-      ]
-    },
-    {
-      id: 'horarios',
-      name: 'Matriz de Horarios',
-      shortName: 'Horarios',
-      route: 'supervisor.horarios.index',
-      componentPrefix: 'Supervisor/Horarios',
-      icon: 'CalendarIcon',
-      description: 'Configuración semanal de turnos por ruta',
-      submodules: [
+          icon: 'LockClosedIcon',
+          group: 'Control de Jornadas'
+        },
+
+        // 2. Matriz de Horarios
         {
           id: 'matriz',
+          module: 'horarios',
           name: 'Configuración de Turnos',
           route: 'supervisor.horarios.index',
           component: 'Supervisor/Horarios/Index',
-          icon: 'CalendarIcon'
+          icon: 'CalendarIcon',
+          group: 'Matriz de Horarios'
         },
         {
           id: 'activos',
+          module: 'horarios',
           name: 'Jornadas en Curso',
           route: 'supervisor.horarios.index',
           component: 'Supervisor/Horarios/Index',
-          icon: 'ActivityIcon'
-        }
-      ]
-    },
-    {
-      id: 'modulos',
-      name: 'Módulos & Ajustes',
-      shortName: 'Módulos',
-      route: 'supervisor.modulos.index',
-      componentPrefix: 'Supervisor/Modulos',
-      icon: 'AdjustmentsHorizontalIcon',
-      badge: 'APP',
-      badgeColor: 'amber',
-      description: 'Control de acceso a módulos móviles y parámetros',
-      submodules: [
+          icon: 'ActivityIcon',
+          group: 'Matriz de Horarios'
+        },
+
+        // 3. Módulos & Ajustes
         {
-          id: 'matriz',
+          id: 'matriz-modulos',
+          module: 'modulos',
           name: 'Matriz por Ruta',
           route: 'supervisor.modulos.index',
           component: 'Supervisor/Modulos/Index',
-          icon: 'TableCellsIcon'
+          icon: 'TableCellsIcon',
+          group: 'Módulos & Ajustes'
         },
         {
           id: 'global',
+          module: 'modulos',
           name: 'Ajustes Globales',
           route: 'supervisor.modulos.index',
           component: 'Supervisor/Modulos/Index',
-          icon: 'AdjustmentsHorizontalIcon'
+          icon: 'AdjustmentsHorizontalIcon',
+          group: 'Módulos & Ajustes'
         },
         {
           id: 'inventarios',
+          module: 'modulos',
           name: 'Stock PDV',
           route: 'supervisor.modulos.index',
           component: 'Supervisor/Modulos/Index',
-          icon: 'CubeIcon'
+          icon: 'CubeIcon',
+          group: 'Módulos & Ajustes'
         }
       ]
     },
@@ -563,6 +561,12 @@ export const visitasSubTabs = [
 export const trackingVisitasSubTabs = [
   ...trackingSubTabs,
   ...visitasSubTabs
+];
+
+export const jornadasHorariosModulosTabs = [
+  { id: 'jornadas', module: 'jornadas', name: 'Control de Jornadas', route: 'supervisor.jornadas.index', icon: 'ClockIcon', componentPrefix: 'Supervisor/Jornadas' },
+  { id: 'horarios', module: 'horarios', name: 'Matriz de Horarios', route: 'supervisor.horarios.index', icon: 'CalendarIcon', componentPrefix: 'Supervisor/Horarios' },
+  { id: 'modulos', module: 'modulos', name: 'Módulos & Ajustes', route: 'supervisor.modulos.index', icon: 'AdjustmentsHorizontalIcon', componentPrefix: 'Supervisor/Modulos' },
 ];
 
 export const ingestaSubTabs = [
