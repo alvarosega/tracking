@@ -109,17 +109,29 @@ class GetCumplimientoDataAction
 
         $carteraPorRuta = $carteraRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
 
-        // Mapeo de vendedor normalizado a ruta oficial
-        $vendedorARuta = [];
-        foreach ($catalogoRutas as $cr) {
-            if (!empty($cr->vendedor)) {
-                $vendedorARuta[$this->normalizarTexto($cr->vendedor)] = strtoupper(trim((string) $cr->ruta));
+        // Mapeo de cliente a ruta oficial desde pan_ruteo (cruce por cliente, agrupado por ruta, sin tomar en cuenta vendedor)
+        $clienteARutaNorm = [];
+        $clienteARutaAlfa = [];
+        try {
+            $clientesRutasTodas = DB::connection('supervisor')->table('pan_ruteo')
+                ->whereIn(DB::raw("TRIM(UPPER(ruta))"), array_map('strtoupper', array_map('trim', $rutasFiltradas)))
+                ->where('cliente_id', '>', 0)
+                ->select(['cliente', 'cliente_norm', 'ruta'])
+                ->get();
+
+            foreach ($clientesRutasTodas as $cRow) {
+                $r = strtoupper(trim((string) $cRow->ruta));
+                $n1 = $this->normalizarTexto((string) $cRow->cliente);
+                $n2 = $this->normalizarTexto((string) $cRow->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $cRow->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $cRow->cliente_norm);
+                if ($n1 !== '') $clienteARutaNorm[$n1] = $r;
+                if ($n2 !== '') $clienteARutaNorm[$n2] = $r;
+                if ($a1 !== '') $clienteARutaAlfa[$a1] = $r;
+                if ($a2 !== '') $clienteARutaAlfa[$a2] = $r;
             }
-        }
-        foreach ($carteraRaw as $cRow) {
-            if (!empty($cRow->vendedor)) {
-                $vendedorARuta[$this->normalizarTexto($cRow->vendedor)] = strtoupper(trim((string) $cRow->ruta));
-            }
+        } catch (\Throwable $e) {
+            Log::debug('Error precargando rutas de clientes en Cumplimiento: ' . $e->getMessage());
         }
 
         // B. fact_visitas: Marcajes del sistema central (web ERP)
@@ -132,9 +144,17 @@ class GetCumplimientoDataAction
 
             $rutasTargetSet = array_flip(array_map('strtoupper', array_map('trim', $rutasFiltradas)));
 
-            $factVisitasRaw = $rawVisitas->map(function ($row) use ($vendedorARuta) {
-                $empNorm = $this->normalizarTexto((string) ($row->empleado_norm ?: $row->empleado));
-                $row->ruta = $vendedorARuta[$empNorm] ?? null;
+            $factVisitasRaw = $rawVisitas->map(function ($row) use ($clienteARutaNorm, $clienteARutaAlfa) {
+                $n1 = $this->normalizarTexto((string) $row->cliente);
+                $n2 = $this->normalizarTexto((string) $row->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $row->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $row->cliente_norm);
+
+                $row->ruta = $clienteARutaNorm[$n1]
+                    ?? $clienteARutaNorm[$n2]
+                    ?? $clienteARutaAlfa[$a1]
+                    ?? $clienteARutaAlfa[$a2]
+                    ?? null;
                 return $row;
             })->filter(function ($row) use ($rutasTargetSet) {
                 $r = strtoupper(trim((string) ($row->ruta ?? '')));
@@ -986,5 +1006,17 @@ class GetCumplimientoDataAction
         ];
         $s = strtr($s, $replacements);
         return preg_replace('/\s+/', ' ', $s) ?? $s;
+    }
+
+    /**
+     * Normalización estricta alfanumérica eliminando signos de puntuación, puntos, comas, guiones.
+     */
+    private function normalizarAlfanumerico(?string $texto): string
+    {
+        if (empty($texto)) {
+            return '';
+        }
+        $s = $this->normalizarTexto($texto);
+        return preg_replace('/[^a-z0-9]/', '', $s) ?? '';
     }
 }

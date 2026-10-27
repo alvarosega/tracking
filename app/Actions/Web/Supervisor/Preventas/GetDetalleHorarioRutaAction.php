@@ -23,9 +23,9 @@ class GetDetalleHorarioRutaAction
     ];
 
     /**
-     * Obtiene el recorrido cronológico detallado de una ruta comparando paradas en sistema ERP y app móvil,
-     * integrando la cartera oficial planificada del día desde pan_ruteo para auditar clientes visitados vs pendientes.
-     * Cruza fact_visitas con pan_ruteo mediante normalización fonética y alfanumérica por nombre de cliente.
+     * Obtiene el recorrido cronológico y auditoría detallada de una ruta.
+     * En la app y en la web son los mismos clientes, todos extraídos de pan_ruteo.
+     * El cruce se realiza estrictamente por CLIENTE y se agrupa por RUTA (sin tomar en cuenta el vendedor).
      *
      * @param string $ruta
      * @param string|null $fecha
@@ -43,129 +43,76 @@ class GetDetalleHorarioRutaAction
         $diasFiltro = array_values(array_unique(array_merge($tuplaDias, array_map('strtolower', $tuplaDias))));
 
         $rutaClean = strtoupper(trim($ruta));
-        $vendedor = 'No Asignado';
 
         try {
-            // 1. Información de la Ruta y Vendedor Oficial
-            $dimInfo = DB::connection('supervisor')->table('dim_rutas')
+            // 1. Cartera Oficial Completa de pan_ruteo asignada a esta RUTA
+            // Todos los clientes de la ruta tienen su cliente_id y ruta definidos en pan_ruteo
+            $clientesRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                ->first();
-
-            if ($dimInfo && !empty($dimInfo->vendedor)) {
-                $vendedor = trim((string) $dimInfo->vendedor);
-            }
-
-            // 2. Cartera Planificada de pan_ruteo para el DÍA ESPECÍFICO de la fecha consultada
-            $carteraPlanDiaRaw = DB::connection('supervisor')->table('pan_ruteo')
-                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                ->where(function ($q) use ($diasFiltro): void {
-                    $q->whereIn(DB::raw("LOWER(TRIM(COALESCE(dia_norm, dia)))"), $diasFiltro)
-                      ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
-                })
                 ->where('cliente_id', '>', 0)
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
                     DB::raw("MAX(COALESCE(TRIM(cliente_norm), '')) as cliente_norm"),
+                    DB::raw("MAX(COALESCE(TRIM(dia), '')) as dia"),
+                    DB::raw("MAX(COALESCE(TRIM(dia_norm), '')) as dia_norm"),
                     DB::raw("MAX(COALESCE(TRIM(estado), 'ACTIVO')) as estado"),
                     DB::raw("MAX(COALESCE(TRIM(direccion), '')) as direccion"),
                     DB::raw("MAX(COALESCE(TRIM(referencia), '')) as referencia"),
                     DB::raw("MAX(latitud) as latitud"),
                     DB::raw("MAX(longitud) as longitud"),
                     DB::raw("MAX(tipo_negocio) as tipo_negocio"),
+                    DB::raw("MAX(vendedor) as vendedor"),
                 ])
                 ->groupBy('cliente_id')
                 ->get();
 
-            $carteraPlanDia = $carteraPlanDiaRaw->keyBy('cliente_id');
-
-            // 3. Cartera COMPLETA asignada a la ruta (todos los días) para resolver nombres y vendedor
-            $carteraTodaRuta = DB::connection('supervisor')->table('pan_ruteo')
+            // Vendedor únicamente para etiqueta descriptiva de la ruta
+            $dimInfo = DB::connection('supervisor')->table('dim_rutas')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                ->where('cliente_id', '>', 0)
-                ->select(['cliente_id', 'cliente', 'cliente_norm', 'vendedor'])
-                ->get();
+                ->first();
+            $vendedor = $dimInfo && !empty($dimInfo->vendedor)
+                ? trim((string) $dimInfo->vendedor)
+                : trim((string) ($clientesRuta->firstWhere('vendedor', '!=', null)->vendedor ?? 'No Asignado'));
 
-            if ($vendedor === 'No Asignado') {
-                $firstVend = $carteraTodaRuta->firstWhere('vendedor', '!=', null);
-                if ($firstVend && !empty($firstVend->vendedor)) {
-                    $vendedor = trim((string) $firstVend->vendedor);
-                }
-            }
+            // 2. Clientes que se debían visitar hoy según pan_ruteo (Plan de Ruteo del Día)
+            $carteraPlanDia = $clientesRuta->filter(function ($c) use ($diasFiltro) {
+                $d1 = strtolower(trim((string) ($c->dia_norm ?? '')));
+                $d2 = strtolower(trim((string) ($c->dia ?? '')));
+                return in_array($d1, $diasFiltro, true) || in_array($d2, $diasFiltro, true);
+            })->keyBy('cliente_id');
 
-            // 4. Mapeo Multi-Capa de Normalización de Nombres a cliente_id
-            $idPorNombreExacto = [];
+            // 3. Diccionarios de Cruce por Cliente (Nombre Exacto, Normalizado y Alfanumérico)
+            $clientePorId = [];
             $idPorNombreNorm = [];
             $idPorNombreAlfa = [];
             $nombreOficialPorId = [];
 
-            $registrarMapeo = function (?int $cid, ?string $nom1, ?string $nom2 = null) use (&$idPorNombreExacto, &$idPorNombreNorm, &$idPorNombreAlfa, &$nombreOficialPorId): void {
-                if (!$cid || $cid <= 0) {
-                    return;
+            foreach ($clientesRuta as $c) {
+                $cid = (int) $c->cliente_id;
+                $clientePorId[$cid] = $c;
+                $nom = trim((string) $c->cliente);
+                $nomNorm = trim((string) $c->cliente_norm);
+
+                $nombreOficialPorId[$cid] = $nom ?: ($nomNorm ?: "Cliente #{$cid}");
+
+                if ($nom !== '') {
+                    $idPorNombreNorm[$this->normalizarTexto($nom)] = $cid;
+                    $idPorNombreAlfa[$this->normalizarAlfanumerico($nom)] = $cid;
                 }
-                foreach ([$nom1, $nom2] as $nom) {
-                    if (!$nom) continue;
-                    $t = trim((string) $nom);
-                    if ($t === '') continue;
-
-                    if (!isset($nombreOficialPorId[$cid])) {
-                        $nombreOficialPorId[$cid] = $t;
-                    }
-
-                    $low = mb_strtolower($t, 'UTF-8');
-                    $norm = $this->normalizarTexto($t);
-                    $alfa = $this->normalizarAlfanumerico($t);
-
-                    if ($low !== '' && !isset($idPorNombreExacto[$low])) {
-                        $idPorNombreExacto[$low] = $cid;
-                    }
-                    if ($norm !== '' && !isset($idPorNombreNorm[$norm])) {
-                        $idPorNombreNorm[$norm] = $cid;
-                    }
-                    if ($alfa !== '' && !isset($idPorNombreAlfa[$alfa])) {
-                        $idPorNombreAlfa[$alfa] = $cid;
-                    }
+                if ($nomNorm !== '') {
+                    $idPorNombreNorm[$this->normalizarTexto($nomNorm)] = $cid;
+                    $idPorNombreAlfa[$this->normalizarAlfanumerico($nomNorm)] = $cid;
                 }
-            };
-
-            foreach ($carteraTodaRuta as $cRow) {
-                $registrarMapeo((int) $cRow->cliente_id, (string) $cRow->cliente, (string) $cRow->cliente_norm);
-            }
-            foreach ($carteraPlanDiaRaw as $pRow) {
-                $registrarMapeo((int) $pRow->cliente_id, (string) $pRow->cliente, (string) $pRow->cliente_norm);
             }
 
-            // 5. Ventas y pedidos del día para enriquecer montos y clientes con compra
-            $preventasHoyPorCliente = [];
-            try {
-                $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
-                    ->where('fecha_norm', $fechaNorm)
-                    ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                    ->where('cliente_id', '>', 0)
-                    ->select('cliente_id', 'cliente', DB::raw("SUM(monto_final) as total_monto"))
-                    ->groupBy('cliente_id', 'cliente')
-                    ->get();
-
-                foreach ($preventasHoy as $ph) {
-                    $cid = (int) $ph->cliente_id;
-                    $totMonto = (float) ($ph->total_monto ?: 0.0);
-                    if ($cid > 0) {
-                        $preventasHoyPorCliente[$cid] = $totMonto;
-                        $registrarMapeo($cid, (string) $ph->cliente);
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::debug("No se consultaron preventas en GetDetalleHorarioRutaAction: " . $e->getMessage());
-            }
-
-            // 6. Marcajes del sistema central (fact_visitas) - ERP / Web
-            $todasFilasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
+            // 4. Marcajes del sistema central (fact_visitas - Web ERP)
+            // Cruce estrictamente por CLIENTE contra los clientes de pan_ruteo de esta ruta (sin vendedor)
+            $visitasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
                 ->where('fv.fecha_norm', $fechaNorm)
                 ->select([
                     DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
                     DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
-                    'fv.empleado_norm',
-                    'fv.empleado',
                     DB::raw("COALESCE(NULLIF(TRIM(fv.tipo), ''), NULLIF(TRIM(fv.motivo), ''), 'Visita') as tipo"),
                     DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
                     DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
@@ -175,245 +122,221 @@ class GetDetalleHorarioRutaAction
                 ->orderBy('fv.check_in', 'asc')
                 ->get();
 
-            $vendedorNorm = $this->normalizarTexto($vendedor);
-
-            // Filtrar visitas asignadas a la ruta (por empleado O por cliente perteneciente a la cartera)
-            $filasSistemaRuta = $todasFilasSistema->filter(function ($fs) use ($vendedorNorm, $idPorNombreAlfa) {
-                if ($vendedorNorm !== 'no asignado' && $vendedorNorm !== '') {
-                    $empNorm1 = $this->normalizarTexto((string) $fs->empleado_norm);
-                    $empNorm2 = $this->normalizarTexto((string) $fs->empleado);
-                    if ($empNorm1 === $vendedorNorm || $empNorm2 === $vendedorNorm) {
-                        return true;
-                    }
-                }
-
-                $alfa1 = $this->normalizarAlfanumerico((string) $fs->cliente);
-                $alfa2 = $this->normalizarAlfanumerico((string) $fs->cliente_norm);
-                if (($alfa1 !== '' && isset($idPorNombreAlfa[$alfa1])) || ($alfa2 !== '' && isset($idPorNombreAlfa[$alfa2]))) {
-                    return true;
-                }
-
-                return false;
-            });
-
-            // 7. Cruce Global: Si alguna visita en fact_visitas no coincide con la cartera de la ruta,
-            // buscar su nombre en toda la tabla pan_ruteo para asociarle su cliente_id oficial
-            $nombresSinMatch = [];
-            foreach ($filasSistemaRuta as $fs) {
+            // Mapeo de visitas web acumuladas por cliente_id
+            $visitasWebPorCid = [];
+            foreach ($visitasSistema as $fs) {
+                $n1 = $this->normalizarTexto((string) $fs->cliente);
+                $n2 = $this->normalizarTexto((string) $fs->cliente_norm);
                 $a1 = $this->normalizarAlfanumerico((string) $fs->cliente);
                 $a2 = $this->normalizarAlfanumerico((string) $fs->cliente_norm);
-                if (!isset($idPorNombreAlfa[$a1]) && !isset($idPorNombreAlfa[$a2])) {
-                    if (!empty($fs->cliente)) $nombresSinMatch[] = trim((string) $fs->cliente);
-                    if (!empty($fs->cliente_norm)) $nombresSinMatch[] = trim((string) $fs->cliente_norm);
-                }
-            }
-            $nombresSinMatch = array_values(array_unique(array_filter($nombresSinMatch)));
 
-            if (!empty($nombresSinMatch)) {
-                try {
-                    $globales = DB::connection('supervisor')->table('pan_ruteo')
-                        ->where('cliente_id', '>', 0)
-                        ->where(function ($q) use ($nombresSinMatch): void {
-                            $q->whereIn('cliente', $nombresSinMatch)
-                              ->orWhereIn('cliente_norm', $nombresSinMatch);
-                        })
-                        ->select(['cliente_id', 'cliente', 'cliente_norm'])
-                        ->get();
+                $cid = $idPorNombreNorm[$n1]
+                    ?? $idPorNombreNorm[$n2]
+                    ?? $idPorNombreAlfa[$a1]
+                    ?? $idPorNombreAlfa[$a2]
+                    ?? null;
 
-                    foreach ($globales as $g) {
-                        $registrarMapeo((int) $g->cliente_id, (string) $g->cliente, (string) $g->cliente_norm);
+                if ($cid) {
+                    $hIn = trim((string) $fs->check_in);
+                    if (strlen($hIn) === 5) {
+                        $hIn .= ':00';
                     }
-                } catch (\Throwable $e) {
-                    Log::debug("Error consultando pan_ruteo global: " . $e->getMessage());
-                }
-            }
 
-            // Resolver ID con múltiples niveles de tolerancia
-            $resolverClienteId = function (?string $nom1, ?string $nom2 = null) use (&$idPorNombreExacto, &$idPorNombreNorm, &$idPorNombreAlfa): ?int {
-                foreach ([$nom2, $nom1] as $nom) {
-                    if (!$nom) continue;
-                    $low = mb_strtolower(trim((string) $nom), 'UTF-8');
-                    if (isset($idPorNombreExacto[$low])) return $idPorNombreExacto[$low];
-
-                    $norm = $this->normalizarTexto((string) $nom);
-                    if (isset($idPorNombreNorm[$norm])) return $idPorNombreNorm[$norm];
-
-                    $alfa = $this->normalizarAlfanumerico((string) $nom);
-                    if (isset($idPorNombreAlfa[$alfa])) return $idPorNombreAlfa[$alfa];
-                }
-                return null;
-            };
-
-            $paradas = [];
-
-            // 8. Procesar Visitas de fact_visitas (ERP / Web)
-            foreach ($filasSistemaRuta as $fs) {
-                $hIn = trim((string) $fs->check_in);
-                if (strlen($hIn) === 5) {
-                    $hIn .= ':00';
-                }
-
-                $cId = $resolverClienteId((string) $fs->cliente, (string) $fs->cliente_norm);
-                $key = $cId ? "id_{$cId}" : "alfa_" . $this->normalizarAlfanumerico((string) ($fs->cliente_norm ?: $fs->cliente));
-
-                $nombreCliente = ($cId && isset($nombreOficialPorId[$cId]))
-                    ? $nombreOficialPorId[$cId]
-                    : trim((string) $fs->cliente);
-
-                $montoFs = (float) ($fs->monto ?: 0.0);
-                if ($cId && isset($preventasHoyPorCliente[$cId]) && $preventasHoyPorCliente[$cId] > $montoFs) {
-                    $montoFs = $preventasHoyPorCliente[$cId];
-                }
-
-                $tipoFact = trim((string) $fs->tipo);
-                $tipoFinal = ($montoFs > 0 || mb_strtolower($tipoFact) === 'preventa') ? 'PreVenta' : ($tipoFact ?: 'Visita');
-
-                $enPlan = $cId ? $carteraPlanDia->has($cId) : false;
-
-                if (!isset($paradas[$key])) {
-                    $paradas[$key] = [
-                        'cliente' => $nombreCliente,
-                        'client_id' => $cId,
-                        'hora_web' => $hIn,
-                        'hora_app' => null,
-                        'hora_orden' => $hIn,
-                        'tipo' => $tipoFinal,
-                        'monto' => $montoFs,
-                        'check_out_web' => trim((string) $fs->check_out) ?: null,
-                        'tiempo_pdv_web' => trim((string) $fs->tiempo_pdv) ?: null,
-                        'foto_url' => null,
-                        'fotos_count' => 0,
-                        'tiene_fotos_historicas' => false,
-                        'en_plan' => $enPlan,
-                        'visitado' => true,
-                    ];
-                } else {
-                    if (strcmp($hIn, (string) $paradas[$key]['hora_web']) < 0) {
-                        $paradas[$key]['hora_web'] = $hIn;
-                        $paradas[$key]['hora_orden'] = $hIn;
-                    }
-                    $paradas[$key]['monto'] += $montoFs;
-                    if ($tipoFinal === 'PreVenta') {
-                        $paradas[$key]['tipo'] = 'PreVenta';
-                    }
-                    if ($cId && empty($paradas[$key]['client_id'])) {
-                        $paradas[$key]['client_id'] = $cId;
-                    }
-                    if ($enPlan) {
-                        $paradas[$key]['en_plan'] = true;
+                    if (!isset($visitasWebPorCid[$cid])) {
+                        $visitasWebPorCid[$cid] = [
+                            'check_in' => $hIn,
+                            'check_out' => trim((string) $fs->check_out) ?: null,
+                            'tiempo_pdv' => trim((string) $fs->tiempo_pdv) ?: null,
+                            'tipo' => trim((string) $fs->tipo) ?: 'Visita',
+                            'monto' => (float) ($fs->monto ?: 0.0),
+                        ];
+                    } else {
+                        if (strcmp($hIn, $visitasWebPorCid[$cid]['check_in']) < 0) {
+                            $visitasWebPorCid[$cid]['check_in'] = $hIn;
+                        }
+                        $visitasWebPorCid[$cid]['monto'] += (float) ($fs->monto ?: 0.0);
                     }
                 }
             }
 
-            // 9. Procesar Marcajes de la App Móvil (tabla visitas)
-            $fInicioDia = "{$fechaNorm} 00:00:00";
-            $fFinDia = "{$fechaNorm} 23:59:59";
+            // 5. Ventas / Preventas del día para montos oficiales
+            $preventasMontoPorCid = [];
+            try {
+                $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
+                    ->where('fecha_norm', $fechaNorm)
+                    ->where('cliente_id', '>', 0)
+                    ->select('cliente_id', DB::raw("SUM(monto_final) as total_monto"))
+                    ->groupBy('cliente_id')
+                    ->get();
 
+                foreach ($preventasHoy as $ph) {
+                    $preventasMontoPorCid[(int) $ph->cliente_id] = (float) $ph->total_monto;
+                }
+            } catch (\Throwable $e) {
+                Log::debug("Error consultando preventas: " . $e->getMessage());
+            }
+
+            // 6. Marcajes de la App Móvil (tabla visitas)
+            // Cruce por cliente_id perteneciente a la ruta O por route = $rutaClean
+            $cidsRuta = array_keys($clientePorId);
             $filasMovil = Visita::query()
-                ->whereRaw("TRIM(UPPER(route)) = ?", [$rutaClean])
-                ->whereBetween('visited_at', [$fInicioDia, $fFinDia])
+                ->whereBetween('visited_at', ["{$fechaNorm} 00:00:00", "{$fechaNorm} 23:59:59"])
+                ->where(function ($q) use ($rutaClean, $cidsRuta): void {
+                    $q->whereRaw("TRIM(UPPER(route)) = ?", [$rutaClean]);
+                    if (!empty($cidsRuta)) {
+                        $q->orWhereIn('client_id', $cidsRuta);
+                    }
+                })
                 ->orderBy('visited_at', 'asc')
                 ->get();
 
+            $visitasMovilPorCid = [];
             foreach ($filasMovil as $fm) {
-                $cid = $fm->client_id ? (int) $fm->client_id : null;
-                if (!$cid && !empty($fm->opportunity_client_name)) {
-                    $cid = $resolverClienteId((string) $fm->opportunity_client_name);
+                $cid = (int) ($fm->client_id ?? 0);
+                if ($cid <= 0 && !empty($fm->opportunity_client_name)) {
+                    $a = $this->normalizarAlfanumerico((string) $fm->opportunity_client_name);
+                    $cid = $idPorNombreAlfa[$a] ?? 0;
                 }
 
-                $horaM = $fm->visited_at ? $fm->visited_at->format('H:i:s') : '00:00:00';
+                if ($cid > 0) {
+                    $horaM = $fm->visited_at ? $fm->visited_at->format('H:i:s') : '00:00:00';
+                    $fotoUrl = null;
+                    $fotoRel = ltrim(str_replace('\\', '/', (string) $fm->photo_path), '/');
+                    if ($fotoRel !== '') {
+                        if (str_starts_with($fotoRel, 'http://') || str_starts_with($fotoRel, 'https://')) {
+                            $fotoUrl = $fotoRel;
+                        } elseif (str_starts_with($fotoRel, 'storage/')) {
+                            $fotoUrl = '/' . $fotoRel;
+                        } else {
+                            $fotoUrl = '/storage/' . $fotoRel;
+                        }
+                    }
 
-                $fotoUrl = null;
-                $fotoRel = ltrim(str_replace('\\', '/', (string) $fm->photo_path), '/');
-                if ($fotoRel !== '') {
-                    if (str_starts_with($fotoRel, 'http://') || str_starts_with($fotoRel, 'https://')) {
-                        $fotoUrl = $fotoRel;
-                    } elseif (str_starts_with($fotoRel, 'storage/')) {
-                        $fotoUrl = '/' . $fotoRel;
+                    if (!isset($visitasMovilPorCid[$cid])) {
+                        $visitasMovilPorCid[$cid] = [
+                            'hora_app' => $horaM,
+                            'foto_url' => $fotoUrl,
+                            'fotos_count' => $fotoUrl ? 1 : 0,
+                            'status' => (string) ($fm->status ?? 'VISITADO'),
+                        ];
                     } else {
-                        $fotoUrl = '/storage/' . $fotoRel;
+                        if (strcmp($horaM, $visitasMovilPorCid[$cid]['hora_app']) < 0) {
+                            $visitasMovilPorCid[$cid]['hora_app'] = $horaM;
+                        }
+                        if ($fotoUrl && empty($visitasMovilPorCid[$cid]['foto_url'])) {
+                            $visitasMovilPorCid[$cid]['foto_url'] = $fotoUrl;
+                            $visitasMovilPorCid[$cid]['fotos_count']++;
+                        }
+                    }
+                }
+            }
+
+            // 7. Construcción Unificada de la Pizarra de Paradas:
+            // A) Todos los clientes del Plan de Ruteo del Día (estén o no visitados)
+            // B) Clientes de esta ruta visitados hoy fuera de su día planificado (Fuera de Plan)
+            $paradas = [];
+            $todosCidsVisitados = array_values(array_unique(array_merge(
+                array_keys($visitasWebPorCid),
+                array_keys($visitasMovilPorCid)
+            )));
+
+            // Paso A: Procesar clientes del Plan del Día de pan_ruteo
+            foreach ($carteraPlanDia as $cid => $pCli) {
+                $web = $visitasWebPorCid[$cid] ?? null;
+                $app = $visitasMovilPorCid[$cid] ?? null;
+                $montoPrev = $preventasMontoPorCid[$cid] ?? 0.0;
+
+                $visitado = ($web !== null || $app !== null);
+
+                $hWeb = $web['check_in'] ?? null;
+                $hApp = $app['hora_app'] ?? null;
+
+                $hOrden = '99:99:99';
+                if ($hWeb && $hApp) {
+                    $hOrden = strcmp($hWeb, $hApp) < 0 ? $hWeb : $hApp;
+                } elseif ($hWeb) {
+                    $hOrden = $hWeb;
+                } elseif ($hApp) {
+                    $hOrden = $hApp;
+                }
+
+                $montoFinal = max((float) ($web['monto'] ?? 0.0), $montoPrev);
+                $tipoFinal = 'No Visitado';
+                if ($visitado) {
+                    if ($montoFinal > 0 || (isset($web['tipo']) && mb_strtolower($web['tipo']) === 'preventa')) {
+                        $tipoFinal = 'PreVenta';
+                    } else {
+                        $tipoFinal = $web['tipo'] ?? 'Visita';
                     }
                 }
 
-                $key = null;
-                if ($cid) {
-                    $key = "id_{$cid}";
-                } elseif (!empty($fm->opportunity_client_name)) {
-                    $key = "alfa_" . $this->normalizarAlfanumerico((string) $fm->opportunity_client_name);
-                } else {
-                    $key = "opp_{$fm->id}";
-                }
+                $paradas["id_{$cid}"] = [
+                    'cliente' => trim((string) $pCli->cliente) ?: "Cliente #{$cid}",
+                    'client_id' => $cid,
+                    'hora_web' => $hWeb,
+                    'hora_app' => $hApp,
+                    'hora_orden' => $hOrden,
+                    'tipo' => $tipoFinal,
+                    'monto' => $montoFinal,
+                    'check_out_web' => $web['check_out'] ?? null,
+                    'tiempo_pdv_web' => $web['tiempo_pdv'] ?? null,
+                    'foto_url' => $app['foto_url'] ?? null,
+                    'fotos_count' => $app['fotos_count'] ?? 0,
+                    'tiene_fotos_historicas' => false,
+                    'en_plan' => true,
+                    'visitado' => $visitado,
+                    'direccion' => trim((string) ($pCli->direccion ?? '')) ?: null,
+                ];
+            }
 
-                $enPlan = $cid ? $carteraPlanDia->has($cid) : false;
+            // Paso B: Procesar clientes de la ruta que NO eran del plan de hoy, pero se visitaron hoy
+            foreach ($todosCidsVisitados as $cid) {
+                if (!isset($paradas["id_{$cid}"])) {
+                    $pCli = $clientePorId[$cid] ?? null;
+                    $web = $visitasWebPorCid[$cid] ?? null;
+                    $app = $visitasMovilPorCid[$cid] ?? null;
+                    $montoPrev = $preventasMontoPorCid[$cid] ?? 0.0;
 
-                if (isset($paradas[$key])) {
-                    if ($paradas[$key]['hora_app'] === null || strcmp($horaM, (string) $paradas[$key]['hora_app']) < 0) {
-                        $paradas[$key]['hora_app'] = $horaM;
-                    }
-                    if (strcmp($horaM, (string) $paradas[$key]['hora_orden']) < 0) {
-                        $paradas[$key]['hora_orden'] = $horaM;
-                    }
-                    if ($fotoUrl && empty($paradas[$key]['foto_url'])) {
-                        $paradas[$key]['foto_url'] = $fotoUrl;
-                        $paradas[$key]['fotos_count']++;
-                    }
-                    if ($cid && empty($paradas[$key]['client_id'])) {
-                        $paradas[$key]['client_id'] = $cid;
-                    }
-                    if ($enPlan) {
-                        $paradas[$key]['en_plan'] = true;
-                    }
-                } else {
-                    $nombreCliente = ($cid && isset($nombreOficialPorId[$cid]))
-                        ? $nombreOficialPorId[$cid]
-                        : ($fm->opportunity_client_name ?: ($cid ? "CLIENTE #{$cid}" : 'CLIENTE APP S/N'));
+                    $hWeb = $web['check_in'] ?? null;
+                    $hApp = $app['hora_app'] ?? null;
 
-                    $paradas[$key] = [
-                        'cliente' => $nombreCliente,
+                    $hOrden = '99:99:99';
+                    if ($hWeb && $hApp) {
+                        $hOrden = strcmp($hWeb, $hApp) < 0 ? $hWeb : $hApp;
+                    } elseif ($hWeb) {
+                        $hOrden = $hWeb;
+                    } elseif ($hApp) {
+                        $hOrden = $hApp;
+                    }
+
+                    $montoFinal = max((float) ($web['monto'] ?? 0.0), $montoPrev);
+                    $tipoFinal = ($montoFinal > 0 || (isset($web['tipo']) && mb_strtolower($web['tipo']) === 'preventa'))
+                        ? 'PreVenta'
+                        : ($web['tipo'] ?? 'Visita');
+
+                    $nombre = $pCli ? trim((string) $pCli->cliente) : ($nombreOficialPorId[$cid] ?? "Cliente #{$cid}");
+
+                    $paradas["id_{$cid}"] = [
+                        'cliente' => $nombre,
                         'client_id' => $cid,
-                        'hora_web' => null,
-                        'hora_app' => $horaM,
-                        'hora_orden' => $horaM,
-                        'tipo' => $fm->is_opportunity ? 'Oportunidad' : 'Visita',
-                        'monto' => 0.0,
-                        'check_out_web' => null,
-                        'tiempo_pdv_web' => null,
-                        'foto_url' => $fotoUrl,
-                        'fotos_count' => $fotoUrl ? 1 : 0,
+                        'hora_web' => $hWeb,
+                        'hora_app' => $hApp,
+                        'hora_orden' => $hOrden,
+                        'tipo' => $tipoFinal,
+                        'monto' => $montoFinal,
+                        'check_out_web' => $web['check_out'] ?? null,
+                        'tiempo_pdv_web' => $web['tiempo_pdv'] ?? null,
+                        'foto_url' => $app['foto_url'] ?? null,
+                        'fotos_count' => $app['fotos_count'] ?? 0,
                         'tiene_fotos_historicas' => false,
-                        'en_plan' => $enPlan,
+                        'en_plan' => false, // Fuera del plan programado para hoy
                         'visitado' => true,
+                        'direccion' => $pCli ? trim((string) ($pCli->direccion ?? '')) : null,
                     ];
                 }
             }
 
-            // 10. Integrar Clientes de pan_ruteo Programados para Hoy que NO Fueron Visitados
-            foreach ($carteraPlanDia as $cid => $planCli) {
-                $key = "id_{$cid}";
-                if (!isset($paradas[$key])) {
-                    $paradas[$key] = [
-                        'cliente' => trim((string) $planCli->cliente) ?: "Cliente #{$cid}",
-                        'client_id' => $cid,
-                        'hora_web' => null,
-                        'hora_app' => null,
-                        'hora_orden' => '99:99:99', // Se agrupan al final en orden cronológico
-                        'tipo' => 'No Visitado',
-                        'monto' => 0.0,
-                        'check_out_web' => null,
-                        'tiempo_pdv_web' => null,
-                        'foto_url' => null,
-                        'fotos_count' => 0,
-                        'tiene_fotos_historicas' => false,
-                        'en_plan' => true,
-                        'visitado' => false,
-                        'direccion' => trim((string) ($planCli->direccion ?? '')) ?: null,
-                    ];
-                } else {
-                    $paradas[$key]['en_plan'] = true;
-                }
-            }
-
-            // 11. Calcular Totales y Métricas de Auditoría
+            // 8. Totales y Métricas de Evaluación
             $totalPlanDia = count($carteraPlanDia);
             $visitadosDelPlan = 0;
             $noVisitadosDelPlan = 0;
@@ -437,7 +360,7 @@ class GetDetalleHorarioRutaAction
                 ? round(($visitadosDelPlan / $totalPlanDia) * 100, 1)
                 : 0.0;
 
-            // 12. Fotos Históricas en la App Móvil
+            // 9. Comprobar si tienen fotos históricas en Visita
             $todosClientIds = array_values(array_filter(
                 array_column($paradas, 'client_id'),
                 fn ($id) => !empty($id)
@@ -467,7 +390,7 @@ class GetDetalleHorarioRutaAction
                 }
             }
 
-            // 13. Ordenar Cronológicamente (Primero los visitados por hora, luego los pendientes)
+            // 10. Ordenar Cronológicamente: primero los visitados por hora (1..N), luego los pendientes
             $eventos = array_values($paradas);
             usort($eventos, function ($a, $b) {
                 $cmp = strcmp((string) ($a['hora_orden'] ?? '99:99:99'), (string) ($b['hora_orden'] ?? '99:99:99'));
@@ -504,7 +427,7 @@ class GetDetalleHorarioRutaAction
             ]);
             return [
                 'ruta' => $ruta,
-                'vendedor' => $vendedor,
+                'vendedor' => 'No Asignado',
                 'fecha' => $fechaNorm,
                 'dia_semana' => $diaSemanaNombre ?? 'Lunes',
                 'total_eventos' => 0,
@@ -522,7 +445,7 @@ class GetDetalleHorarioRutaAction
     }
 
     /**
-     * Normaliza cadenas de texto para búsqueda (minúsculas, sin acentos ni diacríticos).
+     * Normaliza cadenas de texto para búsqueda (minúsculas, sin tildes ni diacríticos).
      */
     private function normalizarTexto(?string $str): string
     {
