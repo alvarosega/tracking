@@ -42,7 +42,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('ruteo', 'visor')) {
-                return app(SupervisorRuteoController::class)->index();
+                return app()->call([app(SupervisorRuteoController::class), 'index']);
             }
             if ($user->hasModuleAccess('ruteo', 'cercanos')) {
                 return redirect()->route('supervisor.ruteo.cercanos');
@@ -203,7 +203,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('tracking', 'vivo')) {
-                return app(SupervisorTrackingController::class)->index();
+                return app()->call([app(SupervisorTrackingController::class), 'index']);
             }
             if ($user->hasModuleAccess('tracking', 'historico')) {
                 return redirect()->route('supervisor.tracking.historico');
@@ -229,7 +229,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('altas-ediciones', 'listado') || $user->hasModuleAccess('altas-ediciones', 'cercanos')) {
-                return app(SupervisorAltasEdicionesController::class)->index(app(\App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction::class));
+                return app()->call([app(SupervisorAltasEdicionesController::class), 'index']);
             }
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Altas & Ediciones.');
         })->name('index');
@@ -249,7 +249,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('visitas', 'galeria')) {
-                return app(SupervisorVisitasController::class)->index();
+                return app()->call([app(SupervisorVisitasController::class), 'index']);
             }
             if ($user->hasModuleAccess('visitas', 'avance')) {
                 return redirect()->route('supervisor.visitas.avance');
@@ -275,7 +275,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('jornadas', 'control') || $user->hasModuleAccess('jornadas', 'cierre-masivo')) {
-                return app(SupervisorJornadasController::class)->index($request, app(\App\Actions\Web\Supervisor\Jornadas\GetJornadasDataAction::class));
+                return app()->call([app(SupervisorJornadasController::class), 'index']);
             }
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Control de Jornadas.');
         })->name('index');
@@ -294,7 +294,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('horarios', 'matriz') || $user->hasModuleAccess('horarios', 'activos')) {
-                return app(SupervisorHorariosController::class)->index();
+                return app()->call([app(SupervisorHorariosController::class), 'index']);
             }
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Matriz de Horarios.');
         })->name('index');
@@ -315,7 +315,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('modulos', 'matriz') || $user->hasModuleAccess('modulos', 'global') || $user->hasModuleAccess('modulos', 'inventarios')) {
-                return app(SupervisorModulosController::class)->index(app(\App\Actions\Web\Supervisor\Modulos\GetModulosInitDataAction::class));
+                return app()->call([app(SupervisorModulosController::class), 'index']);
             }
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Módulos & Ajustes.');
         })->name('index');
@@ -414,7 +414,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
             if ($user->hasModuleAccess('ingesta', 'dashboard')) {
-                return app(SupervisorIngestaController::class)->index();
+                return app()->call([app(SupervisorIngestaController::class), 'index']);
             }
             $submodules = ['ventas', 'preventas', 'ruteo', 'visitas', 'inventario', 'cancelados', 'snapshots'];
             foreach ($submodules as $sub) {
@@ -434,45 +434,45 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         // Ventas
         Route::middleware('module.access:ingesta,ventas')->group(function () {
             Route::get('/ventas', [SupervisorIngestaController::class, 'ventas'])->name('ventas');
-            Route::post('/ventas', [SupervisorIngestaController::class, 'uploadVentas'])->name('upload.ventas');
+            Route::post('/ventas', [SupervisorIngestaController::class, 'uploadVentas'])->middleware('module.access:ingesta,ventas,write')->name('upload.ventas');
         });
 
         // Preventas
         Route::middleware('module.access:ingesta,preventas')->group(function () {
             Route::get('/preventas', [SupervisorIngestaController::class, 'preventas'])->name('preventas');
-            Route::post('/preventas', [SupervisorIngestaController::class, 'uploadPreventas'])->name('upload.preventas');
+            Route::post('/preventas', [SupervisorIngestaController::class, 'uploadPreventas'])->middleware('module.access:ingesta,preventas,write')->name('upload.preventas');
         });
 
         // Ruteo
         Route::middleware('module.access:ingesta,ruteo')->group(function () {
             Route::get('/ruteo', [SupervisorIngestaController::class, 'ruteo'])->name('ruteo');
-            Route::post('/ruteo', [SupervisorIngestaController::class, 'uploadRuteo'])->name('upload.ruteo');
+            Route::post('/ruteo', [SupervisorIngestaController::class, 'uploadRuteo'])->middleware('module.access:ingesta,ruteo,write')->name('upload.ruteo');
         });
 
         // Visitas
         Route::middleware('module.access:ingesta,visitas')->group(function () {
             Route::get('/visitas', [SupervisorIngestaController::class, 'visitas'])->name('visitas');
-            Route::post('/visitas', [SupervisorIngestaController::class, 'uploadVisitas'])->name('upload.visitas');
+            Route::post('/visitas', [SupervisorIngestaController::class, 'uploadVisitas'])->middleware('module.access:ingesta,visitas,write')->name('upload.visitas');
         });
 
         // Inventario
         Route::middleware('module.access:ingesta,inventario')->group(function () {
             Route::get('/inventario', [SupervisorIngestaController::class, 'inventario'])->name('inventario');
-            Route::post('/inventario', [SupervisorIngestaController::class, 'uploadInventario'])->name('upload.inventario');
+            Route::post('/inventario', [SupervisorIngestaController::class, 'uploadInventario'])->middleware('module.access:ingesta,inventario,write')->name('upload.inventario');
         });
 
         // Cancelados
         Route::middleware('module.access:ingesta,cancelados')->group(function () {
             Route::get('/cancelados', [SupervisorIngestaController::class, 'cancelados'])->name('cancelados');
             Route::get('/cancelados/pendientes', [SupervisorIngestaController::class, 'canceladosPendientes'])->name('cancelados.pendientes');
-            Route::post('/preventas/autorizar-cancelados', [SupervisorIngestaController::class, 'autorizarCancelados'])->name('preventas.autorizar-cancelados');
+            Route::post('/preventas/autorizar-cancelados', [SupervisorIngestaController::class, 'autorizarCancelados'])->middleware('module.access:ingesta,cancelados,write')->name('preventas.autorizar-cancelados');
         });
 
         // Snapshots
         Route::middleware('module.access:ingesta,snapshots')->group(function () {
             Route::get('/snapshots', [SupervisorIngestaController::class, 'snapshots'])->name('snapshots');
             Route::get('/ruteo/snapshots', [SupervisorIngestaController::class, 'ruteoSnapshots'])->name('ruteo.snapshots');
-            Route::post('/ruteo/rollback', [SupervisorIngestaController::class, 'rollbackRuteo'])->name('ruteo.rollback');
+            Route::post('/ruteo/rollback', [SupervisorIngestaController::class, 'rollbackRuteo'])->middleware('module.access:ingesta,snapshots,write')->name('ruteo.rollback');
         });
     });
 

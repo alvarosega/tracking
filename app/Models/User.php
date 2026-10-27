@@ -68,8 +68,15 @@ class User extends Authenticatable
 
     public function canAccessWebPanel(): bool
     {
-        return in_array($this->role?->name, ['supervisor', 'superadministrador'], true)
+        return in_array($this->role?->name, ['supervisor', 'superadministrador', 'administrador', 'admin'], true)
             || in_array((int)$this->role_id, [1, 3], true);
+    }
+
+    public function canHaveCustomModulePermissions(): bool
+    {
+        return !$this->isSuperAdmin() && (
+            $this->isSupervisor() || in_array($this->role?->name, ['administrador', 'admin', 'supervisor'], true)
+        );
     }
 
     public function modulePermissions()
@@ -87,7 +94,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->isSupervisor()) {
+        if (!$this->canHaveCustomModulePermissions()) {
             return false;
         }
 

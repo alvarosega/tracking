@@ -6,14 +6,14 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-[17px] font-bold text-[#1D1D1F] tracking-tight">
-              Gestión de Permisos de Supervisores
+              Gestión de Permisos
             </h1>
             <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
               ROL SUPERADMIN
             </span>
           </div>
           <p class="text-[11px] text-[#86868B] mt-0.5">
-            Configuración y control granular de acceso a módulos y submódulos operativos por supervisor
+            Configuración y control granular de acceso a módulos y submódulos (incluyendo Centro de Ingesta) por supervisor y administrador
           </p>
         </div>
 
@@ -56,7 +56,7 @@
         >
           <div class="apple-glass-card rounded-[18px] p-3 shadow-sm border border-black/[0.04]">
             <div class="flex items-center justify-between mb-2.5 px-1">
-              <span class="text-[12px] font-bold text-[#1D1D1F]">Supervisores</span>
+              <span class="text-[12px] font-bold text-[#1D1D1F]">Usuarios Operativos</span>
               <span class="text-[10px] font-mono font-semibold text-[#86868B] bg-black/[0.04] px-2 py-0.5 rounded-full">
                 {{ supervisoresFiltrados.length }} usuarios
               </span>
@@ -67,7 +67,7 @@
               <input
                 v-model="busquedaSupervisor"
                 type="text"
-                placeholder="Buscar supervisor..."
+                placeholder="Buscar por usuario, rol o ruta..."
                 class="w-full px-3 py-1.5 pl-8 text-[11px] rounded-[10px] border border-black/[0.12] bg-white focus:outline-none focus:border-[#0071E3] font-sans"
               />
               <svg class="w-3.5 h-3.5 text-[#86868B] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +81,7 @@
                 v-if="supervisoresFiltrados.length === 0"
                 class="py-8 text-center text-[#86868B] text-[11px]"
               >
-                No se encontraron supervisores.
+                No se encontraron usuarios.
               </div>
 
               <div
@@ -94,7 +94,18 @@
                   : 'bg-white/80 hover:bg-white border-black/[0.05] text-[#1D1D1F]'"
               >
                 <div class="flex items-center justify-between">
-                  <div class="font-bold text-[12px] truncate">{{ sup.username }}</div>
+                  <div class="flex items-center gap-1.5 truncate">
+                    <span class="font-bold text-[12px] truncate">{{ sup.username }}</span>
+                    <span
+                      v-if="sup.role && sup.role !== 'supervisor'"
+                      class="text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded"
+                      :class="supervisorSeleccionado?.id === sup.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-purple-50 text-purple-700 border border-purple-200'"
+                    >
+                      {{ sup.role }}
+                    </span>
+                  </div>
                   <span
                     class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded"
                     :class="supervisorSeleccionado?.id === sup.id
@@ -106,7 +117,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-1 text-[10px]" :class="supervisorSeleccionado?.id === sup.id ? 'text-white/80' : 'text-[#86868B]'">
-                  <span>Ruta: {{ sup.ruta || 'Sin ruta' }}</span>
+                  <span>{{ sup.ruta ? 'Ruta: ' + sup.ruta : (sup.role || 'Sin ruta') }}</span>
                   <span v-if="sup.permissions_map?.is_all_allowed" class="italic">Acceso Global</span>
                   <span v-else-if="sup.total_custom_rules === 0" class="italic font-medium" :class="supervisorSeleccionado?.id === sup.id ? 'text-white/90' : 'text-amber-600'">Sin permisos</span>
                   <span v-else class="font-semibold">{{ sup.total_custom_rules }} reglas asignadas</span>
@@ -448,7 +459,9 @@ const supervisoresFiltrados = computed(() => {
   const query = busquedaSupervisor.value.toLowerCase().trim()
   if (!query) return supervisoresList.value
   return supervisoresList.value.filter(s =>
-    s.username.toLowerCase().includes(query) || (s.ruta && s.ruta.toLowerCase().includes(query))
+    s.username.toLowerCase().includes(query)
+    || (s.ruta && s.ruta.toLowerCase().includes(query))
+    || (s.role && s.role.toLowerCase().includes(query))
   )
 })
 

@@ -152,4 +152,32 @@ class ModuleCatalogAndAccessTest extends TestCase
         $this->assertTrue($superadmin->hasModuleAccess('ingesta', 'ventas'));
         $this->assertTrue($superadmin->hasModuleAccess('modulos', 'global'));
     }
+
+    public function test_administrador_role_can_have_custom_permissions(): void
+    {
+        $admin = new User();
+        $admin->id = 15;
+        $admin->setRelation('role', new Role(['name' => 'administrador']));
+
+        $p1 = new SupervisorModulePermission([
+            'user_id' => 15,
+            'module_key' => 'ingesta',
+            'submodule_key' => '',
+            'is_allowed' => true,
+            'can_write' => true,
+        ]);
+        $p2 = new SupervisorModulePermission([
+            'user_id' => 15,
+            'module_key' => 'ingesta',
+            'submodule_key' => 'preventas',
+            'is_allowed' => true,
+            'can_write' => true,
+        ]);
+
+        $admin->setRelation('modulePermissions', new Collection([$p1, $p2]));
+
+        $this->assertTrue($admin->canHaveCustomModulePermissions());
+        $this->assertTrue($admin->hasModuleAccess('ingesta', 'preventas'));
+        $this->assertFalse($admin->hasModuleAccess('ingesta', 'ventas'));
+    }
 }

@@ -27,8 +27,8 @@ class SupervisorAdminPermisosController extends Controller
     public function index(Request $request): Response
     {
         $supervisores = User::query()
-            ->whereHas('role', fn ($q) => $q->where('name', 'supervisor'))
-            ->with('modulePermissions')
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['supervisor', 'administrador', 'admin']))
+            ->with(['role', 'modulePermissions'])
             ->orderBy('username')
             ->get()
             ->map(function (User $user) {
@@ -36,6 +36,7 @@ class SupervisorAdminPermisosController extends Controller
                     'id' => $user->id,
                     'username' => $user->username,
                     'ruta' => $user->ruta ?? '',
+                    'role' => $user->role?->name ?? 'supervisor',
                     'is_active' => (bool)$user->is_active,
                     'permissions_map' => $user->getModulePermissionsMap(),
                     'total_custom_rules' => $user->modulePermissions->count(),
@@ -63,8 +64,8 @@ class SupervisorAdminPermisosController extends Controller
         ]);
 
         $user = User::findOrFail($userId);
-        if (!$user->isSupervisor()) {
-            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores.'], 400);
+        if (!$user->canHaveCustomModulePermissions()) {
+            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores o administradores.'], 400);
         }
 
         $moduleKey = (string)$request->input('module_key');
@@ -132,8 +133,8 @@ class SupervisorAdminPermisosController extends Controller
         ]);
 
         $user = User::findOrFail($userId);
-        if (!$user->isSupervisor()) {
-            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores.'], 400);
+        if (!$user->canHaveCustomModulePermissions()) {
+            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores o administradores.'], 400);
         }
 
         $items = $request->input('permissions', []);
@@ -195,8 +196,8 @@ class SupervisorAdminPermisosController extends Controller
         ]);
 
         $user = User::findOrFail($userId);
-        if (!$user->isSupervisor()) {
-            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores.'], 400);
+        if (!$user->canHaveCustomModulePermissions()) {
+            return response()->json(['message' => 'Solo se pueden configurar permisos para supervisores o administradores.'], 400);
         }
 
         $preset = $request->input('preset');
@@ -286,8 +287,8 @@ class SupervisorAdminPermisosController extends Controller
         $targetUser = User::findOrFail((int)$request->input('target_user_id'));
         $adminId = $request->user()?->id;
 
-        if (!$targetUser->isSupervisor()) {
-            return response()->json(['message' => 'El usuario de destino debe ser un supervisor.'], 400);
+        if (!$targetUser->canHaveCustomModulePermissions()) {
+            return response()->json(['message' => 'El usuario de destino debe ser un supervisor o administrador.'], 400);
         }
 
         DB::beginTransaction();
