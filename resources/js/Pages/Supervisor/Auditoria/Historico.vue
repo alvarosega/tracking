@@ -343,6 +343,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from './Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from './Components/AuditoriaFotosModal.vue';
@@ -387,21 +388,11 @@ async function consultar() {
   };
 
   try {
-    const res = await fetch(route('supervisor.auditoria.historico.consultar'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const { data } = await axios.post(route('supervisor.auditoria.historico.consultar'), payload);
     registrosCargados.value = data.registros || [];
   } catch (err) {
     console.error('[AuditoriaHistorico] Error:', err);
-    errorMsg.value = err.message || 'Error al obtener histórico de auditoría';
+    errorMsg.value = err.response?.data?.error || err.response?.data?.message || err.message || 'Error al obtener histórico de auditoría';
   } finally {
     cargando.value = false;
   }

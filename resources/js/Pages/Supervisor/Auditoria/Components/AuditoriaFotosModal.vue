@@ -200,6 +200,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import axios from 'axios';
 
 const abierto = ref(false);
 const cargando = ref(false);
@@ -248,13 +249,11 @@ async function abrir(clienteId, nombre = '', ruta = '') {
   isZoomed.value = false;
 
   try {
-    const res = await fetch(route('supervisor.auditoria.fotos-cliente', clienteId));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const { data } = await axios.get(route('supervisor.auditoria.fotos-cliente', clienteId));
     fotos.value = Array.isArray(data.fotos) ? data.fotos : [];
   } catch (err) {
     console.error('[AuditoriaFotosModal] Error:', err);
-    errorMsg.value = err.message || 'Error al obtener fotos del cliente';
+    errorMsg.value = err.response?.data?.error || err.response?.data?.message || err.message || 'Error al obtener fotos del cliente';
   } finally {
     cargando.value = false;
   }

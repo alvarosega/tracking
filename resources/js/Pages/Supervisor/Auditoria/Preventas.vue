@@ -299,6 +299,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from './Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from './Components/AuditoriaFotosModal.vue';
@@ -345,22 +346,13 @@ async function consultar() {
   errorMsg.value = null;
 
   try {
-    const res = await fetch(route('supervisor.auditoria.preventas.consultar'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-      },
-      body: JSON.stringify({
-        tipo_evento: tipoEvento.value,
-        fecha_inicio: fechaInicio.value || null,
-        fecha_fin: fechaFin.value || null,
-        limit: 500,
-      }),
+    const { data } = await axios.post(route('supervisor.auditoria.preventas.consultar'), {
+      tipo_evento: tipoEvento.value,
+      fecha_inicio: fechaInicio.value || null,
+      fecha_fin: fechaFin.value || null,
+      limit: 500,
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
     registrosCargados.value = data.registros || [];
     if (data.resumen) {
       resumen.total_eventos = Number(data.resumen.total_eventos || 0);
@@ -371,7 +363,7 @@ async function consultar() {
     }
   } catch (err) {
     console.error('[AuditoriaPreventas] Error:', err);
-    errorMsg.value = err.message || 'Fallo al obtener novedades de preventas';
+    errorMsg.value = err.response?.data?.error || err.response?.data?.message || err.message || 'Fallo al obtener novedades de preventas';
   } finally {
     cargando.value = false;
   }

@@ -560,6 +560,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from './Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from './Components/AuditoriaFotosModal.vue';
@@ -627,17 +628,7 @@ async function ejecutarConsulta() {
   };
 
   try {
-    const res = await fetch(route('supervisor.auditoria.inactivados.consultar'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const { data } = await axios.post(route('supervisor.auditoria.inactivados.consultar'), payload);
     registrosCargados.value = data.registros || [];
     totalRegistros.value = Number(data.total ?? registrosCargados.value.length);
     if (data.metricas) {
@@ -648,7 +639,7 @@ async function ejecutarConsulta() {
     }
   } catch (err) {
     console.error('[AuditoriaInactivados] Error:', err);
-    errorMsg.value = err.message || 'Error de conexión';
+    errorMsg.value = err.response?.data?.error || err.response?.data?.message || err.message || 'Error de conexión';
   } finally {
     cargando.value = false;
   }
@@ -774,30 +765,18 @@ async function confirmarResolucion() {
 
   modalResolucion.guardando = true;
   try {
-    const res = await fetch(route('supervisor.auditoria.inactivados.resolver'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-      },
-      body: JSON.stringify({
-        ids: modalResolucion.ids,
-        estado: estadoFinal,
-        observaciones: obs,
-        auditado_por: String(modalResolucion.auditor || 'SUPERVISOR').trim() || 'SUPERVISOR',
-      }),
+    await axios.post(route('supervisor.auditoria.inactivados.resolver'), {
+      ids: modalResolucion.ids,
+      estado: estadoFinal,
+      observaciones: obs,
+      auditado_por: String(modalResolucion.auditor || 'SUPERVISOR').trim() || 'SUPERVISOR',
     });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || err.detail || 'Error al resolver');
-    }
 
     cerrarModal();
     await ejecutarConsulta();
     mostrarNotificacion(`✓ ${cantidad} baja(s) ${estadoFinal === 'APROBADO' ? 'aprobada(s)' : 'rechazada(s)'} exitosamente.`);
   } catch (err) {
-    mostrarNotificacion(`Error: ${err.message}`, 'error');
+    mostrarNotificacion(`Error: ${err.response?.data?.error || err.response?.data?.detail || err.message}`, 'error');
   } finally {
     modalResolucion.guardando = false;
   }
