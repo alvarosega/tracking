@@ -497,10 +497,26 @@ export const navigationConfig = {
       route: 'supervisor.admin.permisos.index',
       componentPrefix: 'Supervisor/Admin',
       icon: 'KeyIcon',
-      badge: 'ADMIN',
+      badge: 'SUPERADMIN',
       badgeColor: 'purple',
-      description: 'Gestión y control de acceso a módulos por supervisor',
-      superAdminOnly: true
+      description: 'Gestión y control de acceso a módulos por supervisor y administración de usuarios',
+      superAdminOnly: true,
+      submodules: [
+        {
+          id: 'permisos',
+          name: 'Permisos Supervisores',
+          route: 'supervisor.admin.permisos.index',
+          component: 'Supervisor/Admin/Permisos',
+          icon: 'KeyIcon'
+        },
+        {
+          id: 'usuarios',
+          name: 'Administración de Usuarios',
+          route: 'supervisor.admin.usuarios.index',
+          component: 'Supervisor/Admin/Usuarios',
+          icon: 'UserGroupIcon'
+        }
+      ]
     }
   ],
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\SupervisorAdminPermisosController;
+use App\Http\Controllers\Web\SupervisorAdminUsuariosController;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
 use App\Http\Controllers\Web\SupervisorAuditoriaController;
 use App\Http\Controllers\Web\SupervisorAvanceController;
@@ -533,12 +534,23 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         });
     });
 
-    // Módulo Exclusivo Superadministrador: Gestión de Permisos de Supervisores
-    Route::prefix('admin/permisos')->name('admin.permisos.')->middleware(['superadmin'])->group(function () {
-        Route::get('/', [SupervisorAdminPermisosController::class, 'index'])->name('index');
-        Route::post('/user/{userId}/toggle', [SupervisorAdminPermisosController::class, 'toggle'])->name('toggle');
-        Route::post('/user/{userId}/batch', [SupervisorAdminPermisosController::class, 'batchSave'])->name('batch');
-        Route::post('/user/{userId}/preset', [SupervisorAdminPermisosController::class, 'preset'])->name('preset');
-        Route::post('/clone', [SupervisorAdminPermisosController::class, 'clone'])->name('clone');
+    // Módulo Exclusivo Superadministrador: Permisos & Administración de Usuarios
+    Route::prefix('admin')->name('admin.')->middleware(['superadmin'])->group(function () {
+        // Submódulo 1: Gestión de Permisos de Supervisores
+        Route::prefix('permisos')->name('permisos.')->group(function () {
+            Route::get('/', [SupervisorAdminPermisosController::class, 'index'])->name('index');
+            Route::post('/user/{userId}/toggle', [SupervisorAdminPermisosController::class, 'toggle'])->name('toggle');
+            Route::post('/user/{userId}/batch', [SupervisorAdminPermisosController::class, 'batchSave'])->name('batch');
+            Route::post('/user/{userId}/preset', [SupervisorAdminPermisosController::class, 'preset'])->name('preset');
+            Route::post('/clone', [SupervisorAdminPermisosController::class, 'clone'])->name('clone');
+        });
+
+        // Submódulo 2: Administración de Usuarios (Creación, Edición y Estado)
+        Route::prefix('usuarios')->name('usuarios.')->group(function () {
+            Route::get('/', [SupervisorAdminUsuariosController::class, 'index'])->name('index');
+            Route::post('/', [SupervisorAdminUsuariosController::class, 'store'])->name('store');
+            Route::put('/{userId}', [SupervisorAdminUsuariosController::class, 'update'])->name('update');
+            Route::patch('/{userId}/toggle-status', [SupervisorAdminUsuariosController::class, 'toggleStatus'])->name('toggle-status');
+        });
     });
 });

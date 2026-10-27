@@ -1,6 +1,9 @@
 <template>
   <SupervisorLayout title="Gestión de Permisos de Supervisores">
     <div class="space-y-4 max-w-7xl mx-auto pb-12 font-sans">
+      <!-- Navegación de Submódulos Admin (Permisos & Usuarios) -->
+      <AdminSubTabs active-tab="permisos" />
+
       <!-- Encabezado de la Vista -->
       <div class="apple-glass-card rounded-[18px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm border border-black/[0.04]">
         <div>
@@ -497,6 +500,7 @@ import { ref, computed, reactive, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
+import AdminSubTabs from './Components/AdminSubTabs.vue'
 
 const props = defineProps({
   supervisores: {
