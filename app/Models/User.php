@@ -91,9 +91,14 @@ class User extends Authenticatable
             return false;
         }
 
-        $permissions = $this->relationLoaded('modulePermissions')
-            ? $this->modulePermissions
-            : $this->modulePermissions()->get();
+        try {
+            $permissions = $this->relationLoaded('modulePermissions')
+                ? $this->modulePermissions
+                : $this->modulePermissions()->get();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo consultar supervisor_module_permissions (posible tabla pendiente de creacion): " . $e->getMessage());
+            return true;
+        }
 
         // Por defecto: Si no tiene registros configurados, NO TIENE PERMISOS
         if ($permissions->isEmpty()) {
@@ -162,9 +167,20 @@ class User extends Authenticatable
             ];
         }
 
-        $permissions = $this->relationLoaded('modulePermissions')
-            ? $this->modulePermissions
-            : $this->modulePermissions()->get();
+        try {
+            $permissions = $this->relationLoaded('modulePermissions')
+                ? $this->modulePermissions
+                : $this->modulePermissions()->get();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo consultar supervisor_module_permissions (posible tabla pendiente de creacion): " . $e->getMessage());
+            return [
+                'is_all_allowed' => true,
+                'modules' => [],
+                'submodules' => [],
+                'can_write' => [],
+                'expires_at' => [],
+            ];
+        }
 
         // Por defecto: no tiene permisos asignados
         if ($permissions->isEmpty()) {

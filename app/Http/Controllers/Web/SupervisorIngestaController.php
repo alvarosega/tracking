@@ -166,79 +166,106 @@ class SupervisorIngestaController extends Controller
 
     public function uploadVentas(Request $request, ProcessVentasIngestaAction $action): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:51200',
-        ]);
-
         try {
+            $this->validarArchivoIngesta($request);
             $file = $request->file('file');
             $resultado = $action->execute($file);
-            return response()->json(['status' => 'success', 'detalle' => $resultado, ...$resultado]);
+            return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Error en uploadVentas: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $e->getMessage(), 'detail' => $e->getMessage()], 400);
         }
     }
 
     public function uploadPreventas(Request $request, ProcessPreventasIngestaAction $action): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:51200',
-        ]);
-
         try {
+            $this->validarArchivoIngesta($request);
             $file = $request->file('file');
             $resultado = $action->execute($file);
-            return response()->json(['status' => 'success', 'detalle' => $resultado, ...$resultado]);
+            return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Error en uploadPreventas: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $e->getMessage(), 'detail' => $e->getMessage()], 400);
         }
     }
 
     public function uploadRuteo(Request $request, ProcessRuteoIngestaAction $action): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:51200',
-            'fecha_ruteo' => 'nullable|string',
-        ]);
-
         try {
+            $this->validarArchivoIngesta($request, ['fecha_ruteo' => 'nullable|string']);
             $file = $request->file('file');
             $fechaRuteo = $request->input('fecha_ruteo');
             $resultado = $action->execute($file, null, $fechaRuteo);
-            return response()->json(['status' => 'success', 'detalle' => $resultado, ...$resultado]);
+            return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Error en uploadRuteo: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $e->getMessage(), 'detail' => $e->getMessage()], 400);
         }
     }
 
     public function uploadVisitas(Request $request, ProcessVisitasIngestaAction $action): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:51200',
-        ]);
-
         try {
+            $this->validarArchivoIngesta($request);
             $file = $request->file('file');
             $resultado = $action->execute($file);
-            return response()->json(['status' => 'success', 'detalle' => $resultado, ...$resultado]);
+            return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Error en uploadVisitas: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $e->getMessage(), 'detail' => $e->getMessage()], 400);
         }
     }
 
     public function uploadInventario(Request $request, ProcessInventarioIngestaAction $action): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:51200',
-        ]);
-
         try {
+            $this->validarArchivoIngesta($request);
             $file = $request->file('file');
             $resultado = $action->execute($file);
-            return response()->json(['status' => 'success', 'detalle' => $resultado, ...$resultado]);
+            return response()->json(array_merge(['status' => 'success', 'detalle' => $resultado], $resultado));
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['message' => 'Error de validación: ' . implode(', ', $ve->validator->errors()->all())], 422);
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Error en uploadInventario: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $e->getMessage(), 'detail' => $e->getMessage()], 400);
         }
+    }
+
+    /**
+     * Valida la presencia y extensión de archivo de forma robusta e independiente de MIME types del servidor.
+     *
+     * @param array<string, mixed> $extraRules
+     */
+    protected function validarArchivoIngesta(Request $request, array $extraRules = []): void
+    {
+        $rules = array_merge([
+            'file' => [
+                'required',
+                'file',
+                'max:51200',
+                function ($attribute, $value, $fail) {
+                    if (!$value || !$value->isValid()) {
+                        $fail("El archivo no se subió correctamente o está corrupto.");
+                        return;
+                    }
+                    $ext = strtolower($value->getClientOriginalExtension());
+                    if (!in_array($ext, ['xlsx', 'csv', 'txt', 'xls', 'xlsm'], true)) {
+                        $fail("El archivo debe ser de formato .xlsx o .csv (extensión detectada: .{$ext})");
+                    }
+                },
+            ],
+        ], $extraRules);
+
+        $request->validate($rules);
     }
 
     public function canceladosPendientes(GetCanceladosPendientesAction $action): JsonResponse

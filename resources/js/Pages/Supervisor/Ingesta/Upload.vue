@@ -228,7 +228,7 @@ async function ejecutarIngesta(file) {
     const url = route(routeName)
     const { data } = await axios.post(url, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Accept': 'application/json',
       },
     })
 
