@@ -20,21 +20,16 @@ class ModuleCatalogAndAccessTest extends TestCase
 
         $moduleIds = array_column($catalog, 'id');
 
-        // Verificar módulos principales
+        // Verificar módulos principales canónicos (arquitectura unificada)
         $expectedModules = [
             'inicio',
-            'ruteo',
+            'auditoria',
             'avance',
             'preventas',
             'tracking',
-            'visitas',
             'altas-ediciones',
-            'saneamiento',
             'jornadas',
-            'horarios',
-            'modulos',
             'ingesta',
-            'auditoria',
         ];
 
         foreach ($expectedModules as $expected) {
@@ -47,6 +42,7 @@ class ModuleCatalogAndAccessTest extends TestCase
             $catalogIndexed[$item['id']] = array_column($item['submodules'], 'id');
         }
 
+        // 1. Auditoría, Saneamiento & Ruteo
         $this->assertContains('preventas', $catalogIndexed['auditoria']);
         $this->assertContains('inactivados', $catalogIndexed['auditoria']);
         $this->assertContains('cambios-ruta', $catalogIndexed['auditoria']);
@@ -54,20 +50,38 @@ class ModuleCatalogAndAccessTest extends TestCase
         $this->assertContains('cambios-dia', $catalogIndexed['auditoria']);
         $this->assertContains('altas', $catalogIndexed['auditoria']);
         $this->assertContains('historico', $catalogIndexed['auditoria']);
+        $this->assertContains('intrusos', $catalogIndexed['auditoria']);
+        $this->assertContains('duplicados', $catalogIndexed['auditoria']);
+        $this->assertContains('dias', $catalogIndexed['auditoria']);
+        $this->assertContains('calidad', $catalogIndexed['auditoria']);
+        $this->assertContains('bd', $catalogIndexed['auditoria']);
+        $this->assertContains('propuestas', $catalogIndexed['auditoria']);
+        $this->assertContains('visor', $catalogIndexed['auditoria']);
+        $this->assertContains('cercanos', $catalogIndexed['auditoria']);
 
+        // 2. Tracking en Vivo & Visitas
+        $this->assertContains('vivo', $catalogIndexed['tracking']);
+        $this->assertContains('historico', $catalogIndexed['tracking']);
+        $this->assertContains('galeria', $catalogIndexed['tracking']);
+        $this->assertContains('avance', $catalogIndexed['tracking']);
+
+        // 3. Preventas & Cumplimiento
+        $this->assertContains('cumplimiento', $catalogIndexed['preventas']);
+        $this->assertContains('productos', $catalogIndexed['preventas']);
+
+        // 4. Altas & Ediciones
         $this->assertContains('listado', $catalogIndexed['altas-ediciones']);
         $this->assertContains('cercanos', $catalogIndexed['altas-ediciones']);
 
+        // 5. Jornadas, Horarios & Módulos
         $this->assertContains('control', $catalogIndexed['jornadas']);
         $this->assertContains('cierre-masivo', $catalogIndexed['jornadas']);
+        $this->assertContains('matriz', $catalogIndexed['jornadas']);
+        $this->assertContains('activos', $catalogIndexed['jornadas']);
+        $this->assertContains('global', $catalogIndexed['jornadas']);
+        $this->assertContains('inventarios', $catalogIndexed['jornadas']);
 
-        $this->assertContains('matriz', $catalogIndexed['horarios']);
-        $this->assertContains('activos', $catalogIndexed['horarios']);
-
-        $this->assertContains('matriz', $catalogIndexed['modulos']);
-        $this->assertContains('global', $catalogIndexed['modulos']);
-        $this->assertContains('inventarios', $catalogIndexed['modulos']);
-
+        // 6. Ingesta
         $this->assertContains('dashboard', $catalogIndexed['ingesta']);
         $this->assertContains('ventas', $catalogIndexed['ingesta']);
         $this->assertContains('preventas', $catalogIndexed['ingesta']);

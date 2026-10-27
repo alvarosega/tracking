@@ -250,7 +250,7 @@
                     </label>
 
                     <div class="truncate">
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-[12px] font-bold text-[#1D1D1F]">{{ modulo.name }}</span>
                         <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-black/[0.04] text-[#86868B] border border-black/[0.06]">
                           {{ modulo.id }}
@@ -260,6 +260,12 @@
                           class="text-[9px] font-semibold text-[#86868B]"
                         >
                           ({{ contarSubmodulosActivos(modulo) }}/{{ modulo.submodules.length }} submódulos)
+                        </span>
+                        <span
+                          v-if="modulo.permission_modules && modulo.permission_modules.length > 1"
+                          class="text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200"
+                        >
+                          {{ modulo.permission_modules.join(' + ') }}
                         </span>
                       </div>
                       <p class="text-[10px] text-[#86868B] truncate mt-0.5">{{ modulo.description }}</p>
@@ -284,7 +290,7 @@
                 <!-- Submódulos Desplegables -->
                 <div
                   v-if="modulo.submodules && modulo.submodules.length > 0 && modulosExpandidos[modulo.id]"
-                  class="mt-3 pt-3 border-t border-black/[0.05] pl-6 space-y-2"
+                  class="mt-3 pt-3 border-t border-black/[0.05] sm:pl-3 space-y-3"
                 >
                   <div class="flex items-center justify-between pb-1">
                     <span class="text-[10px] font-bold uppercase tracking-wider text-[#86868B]">
@@ -311,26 +317,104 @@
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <!-- CASO A: MÓDULO ORGANIZADO POR GRUPOS (Módulos Unificados) -->
+                  <div v-if="moduloTieneGrupos(modulo)" class="space-y-3">
+                    <div
+                      v-for="grupo in obtenerGruposModulo(modulo)"
+                      :key="grupo.nombre"
+                      class="p-2.5 rounded-[12px] bg-black/[0.015] border border-black/[0.05] space-y-2"
+                    >
+                      <!-- Encabezado del Grupo -->
+                      <div class="flex items-center justify-between px-1">
+                        <div class="flex items-center gap-1.5">
+                          <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
+                          <span class="text-[11px] font-bold text-[#1D1D1F]">{{ grupo.nombre }}</span>
+                          <span class="text-[9px] font-mono font-semibold text-[#86868B] bg-white px-1.5 py-0.2 rounded border border-black/[0.06]">
+                            {{ contarSubmodulosGrupoActivos(modulo, grupo.submodules) }}/{{ grupo.submodules.length }}
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[9px] text-[#0071E3] font-semibold">
+                          <button
+                            type="button"
+                            @click="setGrupoSubmodulos(modulo, grupo.submodules, true)"
+                            class="hover:underline cursor-pointer"
+                            :disabled="!esModuloHabilitado(modulo.id)"
+                          >
+                            Activar grupo
+                          </button>
+                          <span>·</span>
+                          <button
+                            type="button"
+                            @click="setGrupoSubmodulos(modulo, grupo.submodules, false)"
+                            class="hover:underline cursor-pointer"
+                            :disabled="!esModuloHabilitado(modulo.id)"
+                          >
+                            Desactivar
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Submódulos del Grupo -->
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div
+                          v-for="sub in grupo.submodules"
+                          :key="getSubKey(modulo, sub)"
+                          class="p-2 rounded-[10px] border flex items-center justify-between gap-2 transition-all"
+                          :class="[
+                            esSubmoduloHabilitado(modulo, sub) && esModuloHabilitado(modulo.id)
+                              ? 'bg-white border-black/[0.08] shadow-2xs'
+                              : 'bg-black/[0.02] border-transparent opacity-60',
+                            !esModuloHabilitado(modulo.id) ? 'pointer-events-none' : ''
+                          ]"
+                        >
+                          <div class="truncate">
+                            <span class="text-[11px] font-medium text-[#1D1D1F] truncate block">{{ sub.name }}</span>
+                            <span v-if="sub.module_key" class="text-[8.5px] font-mono text-[#86868B]">
+                              {{ sub.module_key }}.{{ sub.id }}
+                            </span>
+                          </div>
+
+                          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                              type="checkbox"
+                              :disabled="!esModuloHabilitado(modulo.id)"
+                              :checked="esSubmoduloHabilitado(modulo, sub) && esModuloHabilitado(modulo.id)"
+                              @change="toggleSubmodulo(modulo, sub, $event.target.checked)"
+                              class="sr-only peer"
+                            />
+                            <div class="w-7 h-4 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#0071E3]"></div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CASO B: MÓDULO ESTÁNDAR (SIN GRUPOS) -->
+                  <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div
                       v-for="sub in modulo.submodules"
-                      :key="sub.id"
+                      :key="getSubKey(modulo, sub)"
                       class="p-2 rounded-[10px] border flex items-center justify-between gap-2 transition-all"
                       :class="[
-                        esSubmoduloHabilitado(modulo.id, sub.id) && esModuloHabilitado(modulo.id)
+                        esSubmoduloHabilitado(modulo, sub) && esModuloHabilitado(modulo.id)
                           ? 'bg-white border-black/[0.08]'
                           : 'bg-black/[0.02] border-transparent opacity-60',
                         !esModuloHabilitado(modulo.id) ? 'pointer-events-none' : ''
                       ]"
                     >
-                      <span class="text-[11px] font-medium text-[#1D1D1F] truncate">{{ sub.name }}</span>
+                      <div class="truncate">
+                        <span class="text-[11px] font-medium text-[#1D1D1F] truncate block">{{ sub.name }}</span>
+                        <span class="text-[8.5px] font-mono text-[#86868B]">
+                          {{ modulo.id }}.{{ sub.id }}
+                        </span>
+                      </div>
 
                       <label class="relative inline-flex items-center cursor-pointer shrink-0">
                         <input
                           type="checkbox"
                           :disabled="!esModuloHabilitado(modulo.id)"
-                          :checked="esSubmoduloHabilitado(modulo.id, sub.id) && esModuloHabilitado(modulo.id)"
-                          @change="toggleSubmodulo(modulo.id, sub.id, $event.target.checked)"
+                          :checked="esSubmoduloHabilitado(modulo, sub) && esModuloHabilitado(modulo.id)"
+                          @change="toggleSubmodulo(modulo, sub, $event.target.checked)"
                           class="sr-only peer"
                         />
                         <div class="w-7 h-4 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#0071E3]"></div>
@@ -480,6 +564,53 @@ function seleccionarSupervisor(sup) {
   cargarEstadoPermisos(sup)
 }
 
+function getSubKey(modulo, sub) {
+  const modKey = sub.module_key || modulo.id
+  return `${modKey}.${sub.id}`
+}
+
+function moduloTieneGrupos(modulo) {
+  return Array.isArray(modulo.submodules) && modulo.submodules.some(s => !!s.group)
+}
+
+function obtenerGruposModulo(modulo) {
+  if (!modulo.submodules) return []
+  const grupos = []
+  const mapa = new Map()
+
+  modulo.submodules.forEach(sub => {
+    const nombreGrupo = sub.group || 'General'
+    if (!mapa.has(nombreGrupo)) {
+      const g = { nombre: nombreGrupo, submodules: [] }
+      mapa.set(nombreGrupo, g)
+      grupos.push(g)
+    }
+    mapa.get(nombreGrupo).submodules.push(sub)
+  })
+
+  return grupos
+}
+
+function contarSubmodulosGrupoActivos(modulo, submodules) {
+  return submodules.filter(sub => esSubmoduloHabilitado(modulo, sub)).length
+}
+
+function setGrupoSubmodulos(modulo, submodules, estado) {
+  submodules.forEach(sub => {
+    const subKey = getSubKey(modulo, sub)
+    localPermisos.submodules[subKey] = estado
+  })
+  if (estado) {
+    localPermisos.modules[modulo.id] = true
+  } else {
+    const anyActive = modulo.submodules?.some(s => localPermisos.submodules[getSubKey(modulo, s)])
+    if (!anyActive) {
+      localPermisos.modules[modulo.id] = false
+    }
+  }
+  hayCambiosSinGuardar.value = true
+}
+
 function cargarEstadoPermisos(sup) {
   const map = sup.permissions_map || {}
   const isAll = !!map.is_all_allowed
@@ -491,29 +622,46 @@ function cargarEstadoPermisos(sup) {
   for (const k in localPermisos.expires_at) delete localPermisos.expires_at[k]
 
   props.catalog.forEach(mod => {
+    const pKeys = mod.permission_modules || [mod.id]
+
     if (isAll) {
       localPermisos.modules[mod.id] = true
-      localPermisos.can_write[mod.id] = true
-      localPermisos.expires_at[mod.id] = null
+      pKeys.forEach(k => {
+        localPermisos.modules[k] = true
+        localPermisos.can_write[k] = true
+        localPermisos.expires_at[k] = null
+      })
     } else {
-      localPermisos.modules[mod.id] = map.modules ? (map.modules[mod.id] === true) : false
-      localPermisos.can_write[mod.id] = map.can_write ? (map.can_write[mod.id] !== false) : true
-      localPermisos.expires_at[mod.id] = map.expires_at ? map.expires_at[mod.id] : null
+      const anyKeyActive = pKeys.some(k => map.modules && map.modules[k] === true)
+      localPermisos.modules[mod.id] = anyKeyActive
+      pKeys.forEach(k => {
+        localPermisos.modules[k] = map.modules ? (map.modules[k] === true) : false
+        localPermisos.can_write[k] = map.can_write ? (map.can_write[k] !== false) : true
+        localPermisos.expires_at[k] = map.expires_at ? map.expires_at[k] : null
+      })
     }
 
     if (mod.submodules && mod.submodules.length > 0) {
+      let anySubActive = false
       mod.submodules.forEach(sub => {
-        const subKey = `${mod.id}.${sub.id}`
+        const subKey = getSubKey(mod, sub)
         if (isAll) {
           localPermisos.submodules[subKey] = true
           localPermisos.can_write[subKey] = true
           localPermisos.expires_at[subKey] = null
+          anySubActive = true
         } else {
-          localPermisos.submodules[subKey] = map.submodules ? (map.submodules[subKey] === true) : false
+          const isSubActive = map.submodules ? (map.submodules[subKey] === true) : false
+          localPermisos.submodules[subKey] = isSubActive
           localPermisos.can_write[subKey] = map.can_write ? (map.can_write[subKey] !== false) : true
           localPermisos.expires_at[subKey] = map.expires_at ? map.expires_at[subKey] : null
+          if (isSubActive) anySubActive = true
         }
       })
+
+      if (anySubActive) {
+        localPermisos.modules[mod.id] = true
+      }
     }
   })
 }
@@ -522,14 +670,27 @@ function esModuloHabilitado(modId) {
   return localPermisos.modules[modId] === true
 }
 
-function esSubmoduloHabilitado(modId, subId) {
-  const subKey = `${modId}.${subId}`
-  return localPermisos.submodules[subKey] === true
+function esSubmoduloHabilitado(moduloOrId, subOrId) {
+  if (typeof moduloOrId === 'string' && typeof subOrId === 'string') {
+    if (localPermisos.submodules[`${moduloOrId}.${subOrId}`] !== undefined) {
+      return localPermisos.submodules[`${moduloOrId}.${subOrId}`] === true
+    }
+    const mod = props.catalog.find(m => m.id === moduloOrId)
+    const sub = mod?.submodules?.find(s => s.id === subOrId)
+    if (mod && sub) {
+      return localPermisos.submodules[getSubKey(mod, sub)] === true
+    }
+    return localPermisos.submodules[`${moduloOrId}.${subOrId}`] === true
+  }
+  const modulo = typeof moduloOrId === 'object' ? moduloOrId : props.catalog.find(m => m.id === moduloOrId)
+  const sub = typeof subOrId === 'object' ? subOrId : modulo?.submodules?.find(s => s.id === subOrId)
+  if (!modulo || !sub) return false
+  return localPermisos.submodules[getSubKey(modulo, sub)] === true
 }
 
 function contarSubmodulosActivos(modulo) {
   if (!modulo.submodules) return 0
-  return modulo.submodules.filter(sub => esSubmoduloHabilitado(modulo.id, sub.id)).length
+  return modulo.submodules.filter(sub => esSubmoduloHabilitado(modulo, sub)).length
 }
 
 function toggleExpandir(modId) {
@@ -540,35 +701,45 @@ function toggleModuloPrincipal(modId, checked) {
   localPermisos.modules[modId] = checked
   hayCambiosSinGuardar.value = true
 
-  // Si se apaga el módulo principal, apagar sus submódulos
+  const mod = props.catalog.find(m => m.id === modId)
+  if (!mod || !mod.submodules) return
+
   if (!checked) {
-    const mod = props.catalog.find(m => m.id === modId)
-    if (mod && mod.submodules) {
-      mod.submodules.forEach(sub => {
-        localPermisos.submodules[`${modId}.${sub.id}`] = false
-      })
-    }
+    mod.submodules.forEach(sub => {
+      localPermisos.submodules[getSubKey(mod, sub)] = false
+    })
+  } else {
+    // Si se enciende el módulo principal, activar todos sus submódulos
+    mod.submodules.forEach(sub => {
+      localPermisos.submodules[getSubKey(mod, sub)] = true
+    })
   }
 }
 
-function toggleSubmodulo(modId, subId, checked) {
-  const subKey = `${modId}.${subId}`
+function toggleSubmodulo(moduloOrId, subOrId, checked) {
+  const modulo = typeof moduloOrId === 'object' ? moduloOrId : props.catalog.find(m => m.id === moduloOrId)
+  const sub = typeof subOrId === 'object' ? subOrId : modulo?.submodules?.find(s => s.id === subOrId)
+  if (!modulo || !sub) return
+
+  const subKey = getSubKey(modulo, sub)
   localPermisos.submodules[subKey] = checked
   hayCambiosSinGuardar.value = true
 
-  // Si se enciende un submódulo, asegurar que el módulo principal esté encendido
   if (checked) {
-    localPermisos.modules[modId] = true
+    localPermisos.modules[modulo.id] = true
+  } else {
+    const anyActive = modulo.submodules?.some(s => localPermisos.submodules[getSubKey(modulo, s)])
+    if (!anyActive) {
+      localPermisos.modules[modulo.id] = false
+    }
   }
 }
 
 function setTodosSubmodulos(modulo, estado) {
   modulo.submodules.forEach(sub => {
-    localPermisos.submodules[`${modulo.id}.${sub.id}`] = estado
+    localPermisos.submodules[getSubKey(modulo, sub)] = estado
   })
-  if (estado) {
-    localPermisos.modules[modulo.id] = true
-  }
+  localPermisos.modules[modulo.id] = estado
   hayCambiosSinGuardar.value = true
 }
 
@@ -583,23 +754,64 @@ async function guardarMatrizCompleta() {
 
     props.catalog.forEach(mod => {
       const modAllowed = esModuloHabilitado(mod.id)
-      permissionsPayload.push({
-        module_key: mod.id,
-        submodule_key: '',
-        is_allowed: modAllowed,
-        can_write: localPermisos.can_write[mod.id] !== false,
-        expires_at: localPermisos.expires_at[mod.id] || null,
-      })
+      const pKeys = mod.permission_modules || [mod.id]
 
-      if (mod.submodules && mod.submodules.length > 0) {
-        mod.submodules.forEach(sub => {
-          const subKey = `${mod.id}.${sub.id}`
+      if (!modAllowed) {
+        // Módulo apagado: apagar raíces de permisos y todos sus submódulos
+        pKeys.forEach(k => {
           permissionsPayload.push({
-            module_key: mod.id,
-            submodule_key: sub.id,
-            is_allowed: modAllowed ? esSubmoduloHabilitado(mod.id, sub.id) : false,
-            can_write: localPermisos.can_write[subKey] !== false,
-            expires_at: localPermisos.expires_at[subKey] || null,
+            module_key: k,
+            submodule_key: '',
+            is_allowed: false,
+            can_write: false,
+            expires_at: null,
+          })
+        })
+
+        if (mod.submodules && mod.submodules.length > 0) {
+          mod.submodules.forEach(sub => {
+            const mKey = sub.module_key || mod.id
+            const subKey = getSubKey(mod, sub)
+            permissionsPayload.push({
+              module_key: mKey,
+              submodule_key: sub.id,
+              is_allowed: false,
+              can_write: localPermisos.can_write[subKey] !== false,
+              expires_at: localPermisos.expires_at[subKey] || null,
+            })
+          })
+        }
+      } else {
+        // Módulo encendido:
+        // 1. Guardar estado exacto de cada submódulo
+        if (mod.submodules && mod.submodules.length > 0) {
+          mod.submodules.forEach(sub => {
+            const mKey = sub.module_key || mod.id
+            const subKey = getSubKey(mod, sub)
+            const isSubAllowed = esSubmoduloHabilitado(mod, sub)
+            permissionsPayload.push({
+              module_key: mKey,
+              submodule_key: sub.id,
+              is_allowed: isSubAllowed,
+              can_write: localPermisos.can_write[subKey] !== false,
+              expires_at: localPermisos.expires_at[subKey] || null,
+            })
+          })
+        }
+
+        // 2. Guardar raíces de módulos de permisos requeridas por middleware
+        pKeys.forEach(k => {
+          const submodulesInK = mod.submodules ? mod.submodules.filter(s => (s.module_key || mod.id) === k) : []
+          const isKAllowed = submodulesInK.length > 0
+            ? submodulesInK.some(s => esSubmoduloHabilitado(mod, s))
+            : true
+
+          permissionsPayload.push({
+            module_key: k,
+            submodule_key: '',
+            is_allowed: isKAllowed,
+            can_write: localPermisos.can_write[k] !== false,
+            expires_at: localPermisos.expires_at[k] || null,
           })
         })
       }

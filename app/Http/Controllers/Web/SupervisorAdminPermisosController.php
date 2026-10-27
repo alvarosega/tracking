@@ -212,21 +212,25 @@ class SupervisorAdminPermisosController extends Controller
             if ($preset === 'enable_all') {
                 $insertData = [];
                 foreach ($catalog as $mod) {
-                    $insertData[] = [
-                        'user_id' => $user->id,
-                        'module_key' => $mod['id'],
-                        'submodule_key' => '',
-                        'is_allowed' => true,
-                        'can_write' => true,
-                        'expires_at' => null,
-                        'assigned_by' => $adminId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
-                    foreach ($mod['submodules'] as $sub) {
+                    $keys = $mod['permission_modules'] ?? [$mod['id']];
+                    foreach ($keys as $mKey) {
                         $insertData[] = [
                             'user_id' => $user->id,
-                            'module_key' => $mod['id'],
+                            'module_key' => $mKey,
+                            'submodule_key' => '',
+                            'is_allowed' => true,
+                            'can_write' => true,
+                            'expires_at' => null,
+                            'assigned_by' => $adminId,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    foreach ($mod['submodules'] as $sub) {
+                        $subModKey = $sub['module_key'] ?? $mod['id'];
+                        $insertData[] = [
+                            'user_id' => $user->id,
+                            'module_key' => $subModKey,
                             'submodule_key' => $sub['id'],
                             'is_allowed' => true,
                             'can_write' => true,
@@ -241,17 +245,20 @@ class SupervisorAdminPermisosController extends Controller
             } elseif ($preset === 'disable_all') {
                 $insertData = [];
                 foreach ($catalog as $mod) {
-                    $insertData[] = [
-                        'user_id' => $user->id,
-                        'module_key' => $mod['id'],
-                        'submodule_key' => '',
-                        'is_allowed' => false,
-                        'can_write' => false,
-                        'expires_at' => null,
-                        'assigned_by' => $adminId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
+                    $keys = $mod['permission_modules'] ?? [$mod['id']];
+                    foreach ($keys as $mKey) {
+                        $insertData[] = [
+                            'user_id' => $user->id,
+                            'module_key' => $mKey,
+                            'submodule_key' => '',
+                            'is_allowed' => false,
+                            'can_write' => false,
+                            'expires_at' => null,
+                            'assigned_by' => $adminId,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
                 }
                 SupervisorModulePermission::insert($insertData);
             }

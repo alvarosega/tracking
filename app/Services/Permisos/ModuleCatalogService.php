@@ -7,7 +7,8 @@ namespace App\Services\Permisos;
 class ModuleCatalogService
 {
     /**
-     * Retorna la lista canónica de módulos y submódulos disponibles para control de acceso.
+     * Retorna la lista canónica de módulos y submódulos disponibles para control de acceso,
+     * organizada fielmente según la arquitectura unificada del panel de supervisión.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -21,12 +22,31 @@ class ModuleCatalogService
                 'submodules' => [],
             ],
             [
-                'id' => 'ruteo',
-                'name' => 'Ruteo & Cobertura',
-                'description' => 'Planes de visita, polígonos GIS y clientes cercanos',
+                'id' => 'auditoria',
+                'name' => 'Auditoría, Saneamiento & Ruteo',
+                'description' => 'Auditoría de ruteo intra-día, saneamiento territorial y motor GIS de cobertura',
+                'permission_modules' => ['auditoria', 'saneamiento', 'ruteo'],
                 'submodules' => [
-                    ['id' => 'visor', 'name' => 'Visor y Fronteras'],
-                    ['id' => 'cercanos', 'name' => 'Clientes Cercanos'],
+                    // Grupo 1: Auditoría de Ruteo
+                    ['id' => 'preventas', 'module_key' => 'auditoria', 'name' => 'Preventas Intra-día', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'inactivados', 'module_key' => 'auditoria', 'name' => 'Bajas e Inactivados', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'cambios-ruta', 'module_key' => 'auditoria', 'name' => 'Cambios de Ruta', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'modificacion-datos', 'module_key' => 'auditoria', 'name' => 'Modificación de Datos', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'cambios-dia', 'module_key' => 'auditoria', 'name' => 'Cambios de Día', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'altas', 'module_key' => 'auditoria', 'name' => 'Altas y Reactivaciones', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'historico', 'module_key' => 'auditoria', 'name' => 'Histórico Resoluciones', 'group' => 'Auditoría de Ruteo'],
+
+                    // Grupo 2: Saneamiento Padrón
+                    ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Fronteras e Intrusos', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'duplicados', 'module_key' => 'saneamiento', 'name' => 'Clientes Duplicados', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'dias', 'module_key' => 'saneamiento', 'name' => 'Días Desalineados', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'calidad', 'module_key' => 'saneamiento', 'name' => 'Calidad de Datos', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'bd', 'module_key' => 'saneamiento', 'name' => 'Matriz Saneamiento BD', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'propuestas', 'module_key' => 'saneamiento', 'name' => 'Historial de Propuestas', 'group' => 'Saneamiento Padrón'],
+
+                    // Grupo 3: Ruteo & Cobertura
+                    ['id' => 'visor', 'module_key' => 'ruteo', 'name' => 'Visor y Fronteras', 'group' => 'Ruteo & Cobertura'],
+                    ['id' => 'cercanos', 'module_key' => 'ruteo', 'name' => 'Clientes Cercanos', 'group' => 'Ruteo & Cobertura'],
                 ],
             ],
             [
@@ -53,35 +73,18 @@ class ModuleCatalogService
                 ],
             ],
             [
-                'id' => 'auditoria',
-                'name' => 'Auditoría de Ruteo & Preventa',
-                'description' => 'Auditoría de novedades intra-día, cambios de ruta, bajas, modificaciones y reactivaciones',
-                'submodules' => [
-                    ['id' => 'preventas', 'name' => 'Preventas Intra-día'],
-                    ['id' => 'inactivados', 'name' => 'Bajas e Inactivados'],
-                    ['id' => 'cambios-ruta', 'name' => 'Cambios de Ruta'],
-                    ['id' => 'modificacion-datos', 'name' => 'Modificación de Datos'],
-                    ['id' => 'cambios-dia', 'name' => 'Cambios de Día'],
-                    ['id' => 'altas', 'name' => 'Altas y Reactivaciones'],
-                    ['id' => 'historico', 'name' => 'Histórico Resoluciones'],
-                ],
-            ],
-            [
                 'id' => 'tracking',
-                'name' => 'Tracking en Vivo',
-                'description' => 'Telemetría GPS, seguimiento en ruta y trayectorias semanales',
+                'name' => 'Tracking en Vivo & Visitas',
+                'description' => 'Telemetría GPS en tiempo real, patrones y auditoría fotográfica de visitas',
+                'permission_modules' => ['tracking', 'visitas'],
                 'submodules' => [
-                    ['id' => 'vivo', 'name' => 'Monitoreo en el Día'],
-                    ['id' => 'historico', 'name' => 'Patrones Semanales'],
-                ],
-            ],
-            [
-                'id' => 'visitas',
-                'name' => 'Auditoría Visitas',
-                'description' => 'Evidencia fotográfica en PDV y avance de cobertura presencial',
-                'submodules' => [
-                    ['id' => 'galeria', 'name' => 'Galería Fotográfica'],
-                    ['id' => 'avance', 'name' => 'Avance en Terreno'],
+                    // Grupo 1: Tracking GPS
+                    ['id' => 'vivo', 'module_key' => 'tracking', 'name' => 'Monitoreo en el Día', 'group' => 'Tracking GPS'],
+                    ['id' => 'historico', 'module_key' => 'tracking', 'name' => 'Patrones Semanales', 'group' => 'Tracking GPS'],
+
+                    // Grupo 2: Auditoría Visitas
+                    ['id' => 'galeria', 'module_key' => 'visitas', 'name' => 'Galería Fotográfica', 'group' => 'Auditoría Visitas'],
+                    ['id' => 'avance', 'module_key' => 'visitas', 'name' => 'Avance en Terreno', 'group' => 'Auditoría Visitas'],
                 ],
             ],
             [
@@ -94,44 +97,23 @@ class ModuleCatalogService
                 ],
             ],
             [
-                'id' => 'saneamiento',
-                'name' => 'Saneamiento Padrón',
-                'description' => 'Auditoría territorial, detección de intrusos, duplicados y calidad',
-                'submodules' => [
-                    ['id' => 'intrusos', 'name' => 'Fronteras e Intrusos'],
-                    ['id' => 'duplicados', 'name' => 'Clientes Duplicados'],
-                    ['id' => 'dias', 'name' => 'Días Desalineados'],
-                    ['id' => 'calidad', 'name' => 'Calidad de Datos'],
-                    ['id' => 'bd', 'name' => 'Matriz Saneamiento BD'],
-                    ['id' => 'propuestas', 'name' => 'Historial de Propuestas'],
-                ],
-            ],
-            [
                 'id' => 'jornadas',
-                'name' => 'Control de Jornadas',
-                'description' => 'Aperturas, cierres remotos y control de turnos de preventa',
+                'name' => 'Jornadas, Horarios & Módulos',
+                'description' => 'Monitoreo de jornadas, configuración de turnos y control de módulos móviles',
+                'permission_modules' => ['jornadas', 'horarios', 'modulos'],
                 'submodules' => [
-                    ['id' => 'control', 'name' => 'Monitoreo de Jornadas'],
-                    ['id' => 'cierre-masivo', 'name' => 'Cierre Remoto Masivo'],
-                ],
-            ],
-            [
-                'id' => 'horarios',
-                'name' => 'Matriz de Horarios',
-                'description' => 'Configuración semanal de turnos y franjas horarias por ruta',
-                'submodules' => [
-                    ['id' => 'matriz', 'name' => 'Configuración de Turnos'],
-                    ['id' => 'activos', 'name' => 'Jornadas en Curso'],
-                ],
-            ],
-            [
-                'id' => 'modulos',
-                'name' => 'Módulos Móviles & Ajustes',
-                'description' => 'Control de acceso a funciones de la app Android y parámetros operativos',
-                'submodules' => [
-                    ['id' => 'matriz', 'name' => 'Matriz por Ruta'],
-                    ['id' => 'global', 'name' => 'Ajustes Globales'],
-                    ['id' => 'inventarios', 'name' => 'Stock PDV / Auditoría'],
+                    // Grupo 1: Control de Jornadas
+                    ['id' => 'control', 'module_key' => 'jornadas', 'name' => 'Monitoreo de Jornadas', 'group' => 'Control de Jornadas'],
+                    ['id' => 'cierre-masivo', 'module_key' => 'jornadas', 'name' => 'Cierre Remoto Masivo', 'group' => 'Control de Jornadas'],
+
+                    // Grupo 2: Matriz de Horarios
+                    ['id' => 'matriz', 'module_key' => 'horarios', 'name' => 'Configuración de Turnos', 'group' => 'Matriz de Horarios'],
+                    ['id' => 'activos', 'module_key' => 'horarios', 'name' => 'Jornadas en Curso', 'group' => 'Matriz de Horarios'],
+
+                    // Grupo 3: Módulos & Ajustes
+                    ['id' => 'matriz', 'module_key' => 'modulos', 'name' => 'Matriz por Ruta', 'group' => 'Módulos & Ajustes'],
+                    ['id' => 'global', 'module_key' => 'modulos', 'name' => 'Ajustes Globales', 'group' => 'Módulos & Ajustes'],
+                    ['id' => 'inventarios', 'module_key' => 'modulos', 'name' => 'Stock PDV / Auditoría', 'group' => 'Módulos & Ajustes'],
                 ],
             ],
             [
@@ -152,4 +134,3 @@ class ModuleCatalogService
         ];
     }
 }
-
