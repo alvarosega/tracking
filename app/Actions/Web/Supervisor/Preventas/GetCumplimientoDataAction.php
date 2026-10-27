@@ -110,8 +110,23 @@ class GetCumplimientoDataAction
         $carteraPorRuta = $carteraRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
 
         // Mapeo de cliente a ruta oficial desde pan_ruteo (cruce por cliente, agrupado por ruta, sin tomar en cuenta vendedor)
+        // Prioridad 1: Clientes programados para HOY en la cartera de cada ruta
         $clienteARutaNorm = [];
         $clienteARutaAlfa = [];
+
+        foreach ($carteraRaw as $cRow) {
+            $r = strtoupper(trim((string) $cRow->ruta));
+            $n1 = $this->normalizarTexto((string) $cRow->cliente);
+            $n2 = $this->normalizarTexto((string) $cRow->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $cRow->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $cRow->cliente_norm);
+            if ($n1 !== '') $clienteARutaNorm[$n1] = $r;
+            if ($n2 !== '') $clienteARutaNorm[$n2] = $r;
+            if ($a1 !== '') $clienteARutaAlfa[$a1] = $r;
+            if ($a2 !== '') $clienteARutaAlfa[$a2] = $r;
+        }
+
+        // Prioridad 2: Otros días de la semana para clientes que no estén programados hoy
         try {
             $clientesRutasTodas = DB::connection('supervisor')->table('pan_ruteo')
                 ->whereIn(DB::raw("TRIM(UPPER(ruta))"), array_map('strtoupper', array_map('trim', $rutasFiltradas)))
@@ -125,10 +140,10 @@ class GetCumplimientoDataAction
                 $n2 = $this->normalizarTexto((string) $cRow->cliente_norm);
                 $a1 = $this->normalizarAlfanumerico((string) $cRow->cliente);
                 $a2 = $this->normalizarAlfanumerico((string) $cRow->cliente_norm);
-                if ($n1 !== '') $clienteARutaNorm[$n1] = $r;
-                if ($n2 !== '') $clienteARutaNorm[$n2] = $r;
-                if ($a1 !== '') $clienteARutaAlfa[$a1] = $r;
-                if ($a2 !== '') $clienteARutaAlfa[$a2] = $r;
+                if ($n1 !== '' && !isset($clienteARutaNorm[$n1])) $clienteARutaNorm[$n1] = $r;
+                if ($n2 !== '' && !isset($clienteARutaNorm[$n2])) $clienteARutaNorm[$n2] = $r;
+                if ($a1 !== '' && !isset($clienteARutaAlfa[$a1])) $clienteARutaAlfa[$a1] = $r;
+                if ($a2 !== '' && !isset($clienteARutaAlfa[$a2])) $clienteARutaAlfa[$a2] = $r;
             }
         } catch (\Throwable $e) {
             Log::debug('Error precargando rutas de clientes en Cumplimiento: ' . $e->getMessage());
