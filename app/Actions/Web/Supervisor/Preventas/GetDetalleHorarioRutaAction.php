@@ -48,7 +48,7 @@ class GetDetalleHorarioRutaAction
 
         try {
             // 1. Clientes que se debían visitar hoy según pan_ruteo (Plan de Ruteo del Día)
-            // Se filtran únicamente los clientes programados para hoy en esta ruta (ej. 38 clientes)
+            // Se filtran únicamente los clientes ACTIVOS programados para hoy en esta ruta (igual que en Efectividad)
             $carteraPlanDia = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where(function ($q) use ($diasFiltro): void {
@@ -56,6 +56,7 @@ class GetDetalleHorarioRutaAction
                       ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
+                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),

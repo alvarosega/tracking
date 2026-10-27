@@ -44,7 +44,7 @@ class GetDetalleVisitasRutaAction
         $rutaClean = strtoupper(trim($ruta));
 
         try {
-            // 1. Cartera de la ruta para el día según pan_ruteo
+            // 1. Cartera de la ruta para el día según pan_ruteo (Clientes ACTIVOS del día, igual que en Efectividad)
             $carteraTotalRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where(function ($q) use ($diasFiltro): void {
@@ -52,6 +52,7 @@ class GetDetalleVisitasRutaAction
                       ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
+                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
@@ -77,6 +78,7 @@ class GetDetalleVisitasRutaAction
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
                     DB::raw("MAX(COALESCE(TRIM(direccion), '')) as direccion"),
+                    DB::raw("MAX(COALESCE(TRIM(estado), 'ACTIVO')) as estado"),
                 ])
                 ->groupBy('cliente_id')
                 ->get()
@@ -249,13 +251,17 @@ class GetDetalleVisitasRutaAction
                     $fpKey = $cid > 0 ? "cid_{$cid}" : 'opp_' . md5(trim((string) $fm->opportunity_client_name) ?: (string) $fm->id);
 
                     if (!isset($visitasFueraPlan[$fpKey])) {
-                        $nombreFp = $cid > 0 && isset($otrosClientesRuta[$cid])
-                            ? trim((string) $otrosClientesRuta[$cid]->cliente)
+                        $pOtro = $cid > 0 ? ($otrosClientesRuta[$cid] ?? null) : null;
+                        $nombreFp = $pOtro
+                            ? trim((string) $pOtro->cliente)
                             : trim((string) ($fm->opportunity_client_name ?: ($cid > 0 ? "Cliente #{$cid}" : "Cliente Oportunidad")));
 
-                        $direccionFp = $cid > 0 && isset($otrosClientesRuta[$cid])
-                            ? trim((string) ($otrosClientesRuta[$cid]->direccion ?? ''))
+                        $direccionFp = $pOtro
+                            ? trim((string) ($pOtro->direccion ?? ''))
                             : '-';
+
+                        $stFp = $pOtro ? strtoupper(trim((string) ($pOtro->estado ?: 'ACTIVO'))) : 'ACTIVO';
+                        $esInactivo = $pOtro && !in_array($stFp, ['ACTIVO', 'ACTIVA', 'VIGENTE'], true);
 
                         $alfaFp = $this->normalizarAlfanumerico($nombreFp);
                         $webFp = $factVisitasPorNombreAlfa[$alfaFp] ?? null;
@@ -268,14 +274,15 @@ class GetDetalleVisitasRutaAction
                             'hora_app' => $horaM,
                             'tiempo_pdv' => $webFp['tiempo_pdv'] ?? null,
                             'monto' => $montoFp,
-                            'tipo' => $montoFp > 0 ? 'PreVenta' : ($fm->is_opportunity ? 'Oportunidad' : 'Fuera de Plan'),
-                            'motivo' => $montoFp > 0 ? 'PreVenta' : ($fm->status ?? 'Fuera de Plan'),
+                            'tipo' => $montoFp > 0 ? 'PreVenta' : ($fm->is_opportunity ? 'Oportunidad' : ($esInactivo ? 'Visita Inactivo' : 'Fuera de Plan')),
+                            'motivo' => $montoFp > 0 ? 'PreVenta' : ($fm->status ?? ($esInactivo ? 'Inactivo' : 'Fuera de Plan')),
                             'foto_url' => $fotoUrl,
                             'direccion' => $direccionFp,
                             'en_fact_visitas' => $webFp !== null,
                             'en_visitas_app' => true,
                             'comments_app' => (string) ($fm->comments ?? ''),
                             'status_app' => (string) ($fm->status ?? 'VISITADO'),
+                            'es_inactivo' => $esInactivo,
                         ];
                     } else {
                         if (strcmp($horaM, $visitasFueraPlan[$fpKey]['hora_app']) < 0) {
@@ -294,16 +301,11 @@ class GetDetalleVisitasRutaAction
             $visitadosInactivos = [];
             $fueraPlan = [];
 
-            $totalPlanActivo = 0;
+            $totalPlanActivo = count($carteraTotalRuta);
 
             foreach ($carteraTotalRuta as $cid => $p) {
                 $cidInt = (int) $cid;
                 $st = strtoupper(trim((string) ($p->estado ?: 'ACTIVO')));
-                $esActivo = in_array($st, ['ACTIVO', 'ACTIVA', 'VIGENTE'], true);
-
-                if ($esActivo) {
-                    $totalPlanActivo++;
-                }
 
                 $web = $visitasWebPorCid[$cidInt] ?? null;
                 $app = $visitasMovilPorCid[$cidInt] ?? null;
@@ -355,26 +357,25 @@ class GetDetalleVisitasRutaAction
                     'estado_ruteo' => $st,
                 ];
 
-                if ($esActivo) {
-                    $pasaCriterio = $estricto ? $enVisitasApp : $visitado;
-                    if ($pasaCriterio) {
-                        $visitadosActivos[] = $cRow;
-                    } else {
-                        $noVisitadosActivos[] = $cRow;
-                    }
+                $pasaCriterio = $estricto ? $enVisitasApp : $visitado;
+                if ($pasaCriterio) {
+                    $visitadosActivos[] = $cRow;
                 } else {
-                    if ($visitado) {
-                        $visitadosInactivos[] = $cRow;
-                    }
+                    $noVisitadosActivos[] = $cRow;
                 }
             }
 
-            // Visitas fuera de plan (máximo 0 a 3)
+            // Visitas fuera de plan o a clientes inactivos
             foreach ($visitasFueraPlan as $fp) {
                 $diffInfo = $this->calcularDiferencia($fp['check_in'], $fp['hora_app']);
                 $fp['diferencia_segundos'] = $diffInfo['segundos'];
                 $fp['diferencia_texto'] = $diffInfo['texto'];
-                $fueraPlan[] = $fp;
+
+                if (!empty($fp['es_inactivo'])) {
+                    $visitadosInactivos[] = $fp;
+                } else {
+                    $fueraPlan[] = $fp;
+                }
             }
 
             return [

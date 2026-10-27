@@ -87,6 +87,7 @@ class GetCumplimientoDataAction
                       ->orWhereIn('pr.dia', $diasFiltro);
                 })
                 ->where('pr.cliente_id', '>', 0)
+                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(pr.estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
                 ->select([
                     'pr.id',
                     'pr.ruta',
