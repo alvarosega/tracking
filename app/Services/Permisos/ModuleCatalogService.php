@@ -37,7 +37,7 @@ class ModuleCatalogService
                     ['id' => 'historico', 'module_key' => 'auditoria', 'name' => 'Histórico Resoluciones', 'group' => 'Auditoría de Ruteo'],
 
                     // Grupo 2: Saneamiento Padrón
-                    ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Fronteras e Intrusos', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Visor & Fronteras', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'duplicados', 'module_key' => 'saneamiento', 'name' => 'Clientes Duplicados', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'dias', 'module_key' => 'saneamiento', 'name' => 'Días Desalineados', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'calidad', 'module_key' => 'saneamiento', 'name' => 'Calidad de Datos', 'group' => 'Saneamiento Padrón'],
@@ -45,7 +45,7 @@ class ModuleCatalogService
                     ['id' => 'propuestas', 'module_key' => 'saneamiento', 'name' => 'Historial de Propuestas', 'group' => 'Saneamiento Padrón'],
 
                     // Grupo 3: Ruteo & Cobertura
-                    ['id' => 'visor', 'module_key' => 'ruteo', 'name' => 'Visor y Fronteras', 'group' => 'Ruteo & Cobertura'],
+                    ['id' => 'visor', 'module_key' => 'ruteo', 'name' => 'Visor & Fronteras', 'group' => 'Ruteo & Cobertura'],
                     ['id' => 'cercanos', 'module_key' => 'ruteo', 'name' => 'Clientes Cercanos', 'group' => 'Ruteo & Cobertura'],
                 ],
             ],

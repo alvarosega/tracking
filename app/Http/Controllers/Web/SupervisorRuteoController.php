@@ -21,16 +21,11 @@ use Inertia\Response;
 class SupervisorRuteoController extends Controller
 {
     /**
-     * Muestra la vista principal de Visor y Fronteras GIS.
+     * Redirige al módulo unificado de Visor & Fronteras en Saneamiento.
      */
-    public function index(GetCatalogoRutasAction $action): Response
+    public function index(): \Illuminate\Http\RedirectResponse
     {
-        $catalogoData = $action->execute();
-
-        return Inertia::render('Supervisor/Ruteo/Index', [
-            'catalogo_rutas' => $catalogoData['catalogo'],
-            'canales' => $catalogoData['canales'],
-        ]);
+        return redirect()->route('supervisor.saneamiento.intrusos');
     }
 
     /**

@@ -282,7 +282,7 @@ const firstRuteoRoute = computed(() => {
   if (allowedRuteoTabs.value.length > 0) {
     return route(allowedRuteoTabs.value[0].route);
   }
-  return route('supervisor.ruteo.index');
+  return route('supervisor.saneamiento.intrusos');
 });
 </script>
 

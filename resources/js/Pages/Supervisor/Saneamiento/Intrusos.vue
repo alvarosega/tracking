@@ -1,14 +1,14 @@
 <template>
-  <SupervisorLayout title="Saneamiento | Fronteras e Intrusos">
-    <div class="space-y-4">
+  <SupervisorLayout title="Saneamiento | Visor & Fronteras">
+    <div class="space-y-3 font-sans">
       <!-- Pestañas de Submódulos Saneamiento -->
       <SaneamientoSubTabs active-tab="intrusos" />
 
-      <!-- Barra de Filtros Dual: Canal, Capas de Polígonos y Puntos, Modo Color y Búsqueda -->
-      <div class="apple-glass-card p-2.5 sm:p-3 rounded-[16px] mb-3 relative select-none font-sans">
+      <!-- Barra de Filtros Unificada: Canal, Multiruta, Días de Visita, Modo Color, Consultar y Buscador -->
+      <div class="apple-glass-card p-2.5 sm:p-3 rounded-[16px] relative select-none font-sans">
         <div class="flex flex-wrap items-center justify-between gap-2.5 text-[11px]">
           
-          <!-- Controles Izquierda -->
+          <!-- Controles Izquierda (Filtros Principales) -->
           <div class="flex flex-wrap items-center gap-2">
             <!-- Selector de Canal -->
             <div class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1">
@@ -125,27 +125,64 @@
               </div>
             </div>
 
-            <!-- Conmutador de Modo de Color para Puntos -->
+            <!-- Filtro de Días de Visita (Segmented Control) -->
+            <div class="flex items-center apple-control-pill rounded-[10px] p-0.5 gap-0.5 text-[10px]">
+              <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider px-1">Días:</span>
+              <button
+                v-for="d in DIAS_SEMANA"
+                :key="d.val"
+                type="button"
+                @click="toggleDia(d.val)"
+                class="px-1.5 py-0.5 rounded-[6px] font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer"
+                :class="filtroDias.includes(d.val)
+                  ? 'bg-white text-slate-900 shadow-2xs border border-black/10'
+                  : 'text-[#6E6E73] hover:text-black hover:bg-black/5'"
+                :title="d.label"
+              >
+                <span class="w-2 h-2 rounded-full shrink-0 shadow-2xs" :style="{ backgroundColor: d.color }"></span>
+                <span>{{ d.corto }}</span>
+              </button>
+              <button
+                type="button"
+                @click="toggleTodosDias"
+                class="px-1.5 py-0.5 rounded-[6px] text-[9px] font-mono font-bold text-[#0071E3] hover:underline cursor-pointer border-l border-black/10 ml-0.5"
+                title="Seleccionar todos o reiniciar filtro de días"
+              >
+                {{ filtroDias.length === 6 ? 'Reset' : 'Todos' }}
+              </button>
+            </div>
+
+            <!-- Conmutador de Modo de Color para Puntos (Ruta | Día | Hallazgo) -->
             <div class="apple-segmented rounded-[10px] p-0.5 flex items-center text-[10px]">
               <button
                 type="button"
+                @click="cambiarModoColor('ruta')"
+                class="px-2 py-1 text-[10px] rounded-[7px] transition-all cursor-pointer"
+                :class="modoColorPuntos === 'ruta'
+                  ? 'apple-segmented-active text-[#1D1D1F] font-bold shadow-2xs'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F] font-semibold'"
+              >
+                Por Ruta
+              </button>
+              <button
+                type="button"
                 @click="cambiarModoColor('dia')"
-                class="px-2.5 py-1 text-[10px] rounded-[7px] transition-all cursor-pointer"
+                class="px-2 py-1 text-[10px] rounded-[7px] transition-all cursor-pointer"
                 :class="modoColorPuntos === 'dia'
                   ? 'apple-segmented-active text-[#1D1D1F] font-bold shadow-2xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F] font-semibold'"
               >
-                Color por Día
+                Por Día
               </button>
               <button
                 type="button"
                 @click="cambiarModoColor('estado')"
-                class="px-2.5 py-1 text-[10px] rounded-[7px] transition-all cursor-pointer"
+                class="px-2 py-1 text-[10px] rounded-[7px] transition-all cursor-pointer"
                 :class="modoColorPuntos === 'estado'
                   ? 'apple-segmented-active text-[#1D1D1F] font-bold shadow-2xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F] font-semibold'"
               >
-                Color por Hallazgo
+                Por Hallazgo
               </button>
             </div>
 
@@ -200,7 +237,7 @@
         </div>
       </div>
 
-      <!-- Contenedor Principal: Mapa y Panel Lateral -->
+      <!-- Contenedor Principal: Mapa Interactivo y Panel Lateral -->
       <div class="grid grid-cols-1 transition-all duration-300 gap-4" :class="panelReplegado ? 'lg:grid-cols-1' : 'lg:grid-cols-3'">
         
         <!-- Mapa Interactivo (2 cols o 1 col si panel está replegado) -->
@@ -209,23 +246,56 @@
           class="relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[580px] flex flex-col transition-all duration-300 border border-black/[0.06] bg-white/70 backdrop-blur-md"
         >
           <!-- Barra Superior del Mapa -->
-          <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
+          <div class="px-3 sm:px-4 py-2 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2 bg-white/80">
             <div class="flex items-center gap-2">
               <span
                 class="w-2 h-2 rounded-full transition-colors duration-300"
                 :class="cargando ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'"
               ></span>
-              <span class="font-bold text-[12px] text-ink">Mosaico Territorial & Inspección de Clientes</span>
+              <span class="font-bold text-[12px] text-ink">Visor & Fronteras Territorial</span>
               <span v-if="cargando" class="text-[9px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                Cargando...
+                Consultando...
               </span>
             </div>
-            <div class="flex items-center gap-2.5 text-[10px] font-mono">
+
+            <!-- KPIs y Conmutador de Capas Base -->
+            <div class="flex items-center gap-2 text-[10px] font-mono">
+              <!-- Selector de Capas de Mapa (Plano, OSM, Satélite) -->
+              <div class="hidden sm:flex items-center apple-segmented rounded-[8px] p-0.5 text-[9px] font-sans">
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('voyager')"
+                  class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-semibold"
+                  :class="capaActual === 'voyager' ? 'apple-segmented-active font-bold text-ink' : 'text-[#6E6E73] hover:text-ink'"
+                >
+                  Plano
+                </button>
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('osm')"
+                  class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-semibold"
+                  :class="capaActual === 'osm' ? 'apple-segmented-active font-bold text-ink' : 'text-[#6E6E73] hover:text-ink'"
+                >
+                  OSM
+                </button>
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('satellite')"
+                  class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-semibold"
+                  :class="capaActual === 'satellite' ? 'apple-segmented-active font-bold text-ink' : 'text-[#6E6E73] hover:text-ink'"
+                >
+                  Satélite
+                </button>
+              </div>
+
               <span class="text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                 Polígonos: <strong>{{ rutasPoligonos.length }}</strong>
               </span>
               <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Puntos: <strong>{{ clientesFronteras.length }}</strong>
+                Puntos: <strong>{{ clientesVisibles.length }}</strong><span v-if="clientesVisibles.length !== clientesFronteras.length">/{{ clientesFronteras.length }}</span>
+              </span>
+              <span v-if="totalIntrusos > 0" class="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 font-bold">
+                {{ totalIntrusos }} Intrusos
               </span>
               <button
                 v-if="panelReplegado"
@@ -305,25 +375,40 @@
           <!-- Contenedor del Mapa Leaflet -->
           <div id="mapaIntrusos" class="flex-1 w-full min-h-[500px] relative z-0"></div>
 
-          <!-- Leyenda Flotante Dinámica (Días vs Estado) -->
+          <!-- Leyenda Flotante Dinámica (Rutas vs Días vs Estado) -->
           <div class="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-neutral-200/80 rounded-card shadow-float px-3 py-2 text-[10px] z-20 space-y-1.5 max-w-[280px]">
             <div class="flex items-center justify-between gap-2 border-b border-neutral-100 pb-1">
               <span class="font-bold text-ink uppercase tracking-wider text-[9px]">
-                {{ modoColorPuntos === 'dia' ? 'Días de Visita (Puntos)' : 'Estado Territorial' }}
+                {{ modoColorPuntos === 'ruta' ? 'Color por Ruta' : (modoColorPuntos === 'dia' ? 'Días de Visita' : 'Estado Territorial') }}
               </span>
               <span class="text-[9px] font-mono text-ink-secondary">
-                {{ modoColorPuntos === 'dia' ? 'Por Jornada' : 'Auditoría' }}
+                {{ modoColorPuntos === 'ruta' ? `${rutasPuntos.length} rutas` : (modoColorPuntos === 'dia' ? 'Por Jornada' : 'Auditoría') }}
               </span>
             </div>
 
-            <!-- Leyenda por Día -->
-            <div v-if="modoColorPuntos === 'dia'" class="grid grid-cols-2 gap-x-2 gap-y-1 font-mono">
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#2563EB]"></span><span>Lunes</span></div>
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span><span>Martes</span></div>
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#EA580C]"></span><span>Miércoles</span></div>
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#9333EA]"></span><span>Jueves</span></div>
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#CA8A04]"></span><span>Viernes</span></div>
-              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#E11D48]"></span><span>Sábado</span></div>
+            <!-- Leyenda Modo: Ruta -->
+            <div v-if="modoColorPuntos === 'ruta'" class="space-y-1 max-h-40 overflow-y-auto custom-scroll font-mono text-[10px]">
+              <div
+                v-for="r in rutasPuntos"
+                :key="r"
+                class="flex items-center justify-between gap-2 px-1 py-0.5 rounded hover:bg-black/[0.02]"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" :style="{ backgroundColor: getColorRuta(r) }"></span>
+                  <span class="text-ink font-semibold truncate">{{ r }}</span>
+                </div>
+                <span class="text-[#86868B] text-[9px] tabular-nums font-bold">
+                  {{ clientesVisibles.filter(c => c.ruta === r).length }} pts
+                </span>
+              </div>
+            </div>
+
+            <!-- Leyenda Modo: Día -->
+            <div v-else-if="modoColorPuntos === 'dia'" class="grid grid-cols-2 gap-x-2 gap-y-1 font-mono">
+              <div v-for="d in DIAS_SEMANA" :key="d.val" class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full shadow-2xs" :style="{ backgroundColor: d.color }"></span>
+                <span>{{ d.label }}</span>
+              </div>
               <div class="col-span-2 pt-1 border-t border-neutral-100 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
                   <span class="w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-rose-200"></span>
@@ -336,18 +421,18 @@
               </div>
             </div>
 
-            <!-- Leyenda por Estado -->
+            <!-- Leyenda Modo: Estado -->
             <div v-else class="space-y-1">
               <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-2xs"></span>
                 <span class="text-ink-secondary">En frontera legítima</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-2xs"></span>
                 <span class="text-ink font-bold">Intruso (invade otra ruta)</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-600 shadow-2xs"></span>
                 <span class="text-ink-secondary">Huérfano (sin polígono)</span>
               </div>
             </div>
@@ -360,13 +445,13 @@
           class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[580px] transition-all duration-300 border border-black/[0.06] bg-white/70 backdrop-blur-md"
         >
           <!-- Pestañas del Panel Lateral con Botón de Repliegue -->
-          <div class="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
-            <div class="inline-flex bg-neutral-100 p-0.5 rounded-[10px] text-[11px]">
+          <div class="px-2.5 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
+            <div class="inline-flex bg-neutral-100 p-0.5 rounded-[10px] text-[10px]">
               <button
                 type="button"
                 @click="tabActivo = 'balance'"
                 :class="tabActivo === 'balance' ? 'bg-white font-bold text-ink shadow-2xs' : 'text-ink-secondary'"
-                class="px-2.5 py-1 rounded-[8px] transition-all cursor-pointer"
+                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer"
               >
                 Balance
               </button>
@@ -374,7 +459,7 @@
                 type="button"
                 @click="tabActivo = 'intrusos'"
                 :class="tabActivo === 'intrusos' ? 'bg-white font-bold text-ink shadow-2xs' : 'text-ink-secondary'"
-                class="px-2.5 py-1 rounded-[8px] transition-all cursor-pointer"
+                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer"
               >
                 Intrusos ({{ totalIntrusos }})
               </button>
@@ -382,9 +467,18 @@
                 type="button"
                 @click="tabActivo = 'huerfanos'"
                 :class="tabActivo === 'huerfanos' ? 'bg-white font-bold text-ink shadow-2xs' : 'text-ink-secondary'"
-                class="px-2.5 py-1 rounded-[8px] transition-all cursor-pointer"
+                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer"
               >
                 Huérfanos ({{ totalHuerfanos }})
+              </button>
+              <button
+                v-if="clienteSeleccionadoDetalle"
+                type="button"
+                @click="tabActivo = 'detalle'"
+                :class="tabActivo === 'detalle' ? 'bg-[#0071E3] font-bold text-white shadow-2xs' : 'text-blue-600 font-semibold'"
+                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer"
+              >
+                Ficha
               </button>
             </div>
 
@@ -416,7 +510,10 @@
                 class="p-2.5 rounded-card border border-neutral-200/70 bg-white/70 hover:bg-white shadow-2xs transition-all space-y-1.5"
               >
                 <div class="flex items-center justify-between">
-                  <span class="font-bold text-ink font-mono text-[12px]">{{ r.ruta }}</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0" :style="{ backgroundColor: getColorRuta(r.ruta) }"></span>
+                    <span class="font-bold text-ink font-mono text-[12px]">{{ r.ruta }}</span>
+                  </div>
                   <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-100 text-ink-secondary font-bold">
                     {{ r.total }} clientes
                   </span>
@@ -477,20 +574,23 @@
                   <span>ID: {{ cli.cliente_id }}</span>
                   <span>Ruta: <strong class="text-rose-700">{{ cli.ruta }}</strong></span>
                 </div>
-                <div class="text-[10px] text-ink-secondary pt-1 flex items-center justify-between border-t border-rose-100 gap-1">
+                <div class="text-[10px] text-ink-secondary pt-1 flex items-center justify-between border-t border-rose-100 gap-1 flex-wrap">
                   <span>
                     Invade: <strong class="text-emerald-700 font-mono">{{ cli.ruta_duena_poligono || cli.ruta_invadida || 'Otra ruta' }}</strong>
                   </span>
-                  <div class="flex items-center gap-1 shrink-0">
+                  <div class="flex items-center gap-1 shrink-0 flex-wrap">
+                    <button
+                      type="button"
+                      @click="seleccionarClienteYVerFicha(cli)"
+                      class="px-1.5 py-0.5 bg-white hover:bg-neutral-100 text-ink rounded text-[10px] font-bold border border-neutral-200 transition-all shadow-2xs cursor-pointer"
+                    >
+                      Ficha
+                    </button>
                     <button
                       type="button"
                       @click="abrirModalFotos(cli)"
                       class="px-1.5 py-0.5 bg-white hover:bg-neutral-100 text-ink rounded text-[10px] font-bold border border-neutral-200 transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
                     >
-                      <svg class="w-3 h-3 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
                       <span>Fotos</span>
                     </button>
                     <button
@@ -507,7 +607,7 @@
             </div>
 
             <!-- Tab 3: Lista de Huérfanos -->
-            <div v-else class="space-y-2">
+            <div v-else-if="tabActivo === 'huerfanos'" class="space-y-2">
               <div v-if="huerfanosFiltrados.length === 0" class="text-center py-16 text-[#86868B]">
                 No se detectaron clientes fuera de polígono.
               </div>
@@ -526,7 +626,14 @@
                   <span>ID: {{ cli.cliente_id }}</span>
                   <span>Ruta actual: <strong>{{ cli.ruta }}</strong></span>
                 </div>
-                <div class="pt-1 flex justify-end border-t border-amber-100">
+                <div class="pt-1 flex justify-end gap-1 border-t border-amber-100">
+                  <button
+                    type="button"
+                    @click="seleccionarClienteYVerFicha(cli)"
+                    class="px-1.5 py-0.5 bg-white hover:bg-neutral-100 text-ink rounded text-[10px] font-bold border border-neutral-200 shadow-2xs cursor-pointer"
+                  >
+                    Ficha
+                  </button>
                   <button
                     type="button"
                     @click="abrirModalFotos(cli)"
@@ -538,11 +645,102 @@
               </div>
             </div>
 
+            <!-- Tab 4: Ficha / Expediente del Cliente Seleccionado -->
+            <div v-else-if="tabActivo === 'detalle'" class="space-y-3">
+              <div v-if="!clienteSeleccionadoDetalle" class="text-center py-16 text-[#86868B]">
+                Haz clic en un cliente en el mapa o búscalo arriba para inspeccionar su ficha.
+              </div>
+              <div v-else class="space-y-3">
+                <div class="flex items-center justify-between pb-1 border-b border-black/[0.06]">
+                  <span class="text-[10px] font-mono uppercase font-bold text-[#86868B]">Ficha de Cliente</span>
+                  <button
+                    type="button"
+                    @click="tabActivo = 'balance'"
+                    class="text-[10px] font-semibold text-[#0071E3] hover:underline cursor-pointer"
+                  >
+                    ← Volver a Balance
+                  </button>
+                </div>
+
+                <div class="p-3 rounded-card border border-neutral-200/80 bg-white shadow-2xs space-y-2.5">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-bold text-ink text-[13px] leading-tight">{{ clienteSeleccionadoDetalle.cliente || 'Sin Nombre' }}</h4>
+                      <p class="text-[10px] text-[#86868B] font-mono mt-0.5">ID: {{ clienteSeleccionadoDetalle.cliente_id }}</p>
+                    </div>
+                    <span
+                      class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shrink-0"
+                      :class="clienteSeleccionadoDetalle.es_intruso ? 'bg-rose-600' : (clienteSeleccionadoDetalle.es_huerfano ? 'bg-amber-600' : 'bg-blue-600')"
+                    >
+                      {{ clienteSeleccionadoDetalle.es_intruso ? 'INTRUSO' : (clienteSeleccionadoDetalle.es_huerfano ? 'HUÉRFANO' : 'VÁLIDO') }}
+                    </span>
+                  </div>
+
+                  <div class="text-[11px] text-ink-secondary space-y-1 pt-1 border-t border-neutral-100">
+                    <div><span class="text-[#86868B]">Dirección:</span> {{ clienteSeleccionadoDetalle.direccion || 'Sin dirección registrada' }}</div>
+                    <div v-if="clienteSeleccionadoDetalle.tipo_negocio && clienteSeleccionadoDetalle.tipo_negocio !== '-'"><span class="text-[#86868B]">Tipo:</span> {{ clienteSeleccionadoDetalle.tipo_negocio }}</div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 text-[10px] font-mono pt-1.5 border-t border-neutral-100">
+                    <div class="p-1.5 rounded bg-neutral-50 border border-neutral-100">
+                      <div class="text-[9px] text-[#86868B] uppercase">Ruta Actual</div>
+                      <div class="font-bold text-ink" :style="{ color: getColorRuta(clienteSeleccionadoDetalle.ruta) }">{{ clienteSeleccionadoDetalle.ruta }}</div>
+                    </div>
+                    <div class="p-1.5 rounded bg-neutral-50 border border-neutral-100">
+                      <div class="text-[9px] text-[#86868B] uppercase">Día de Visita</div>
+                      <div class="font-bold" :style="{ color: getColorDia(clienteSeleccionadoDetalle.dia) }">{{ clienteSeleccionadoDetalle.dia }}</div>
+                    </div>
+                  </div>
+
+                  <div v-if="clienteSeleccionadoDetalle.es_intruso" class="p-2 rounded bg-rose-50 border border-rose-200 text-[10px] space-y-1">
+                    <div class="font-bold text-rose-800">⚠️ Invasión Territorial Detectada</div>
+                    <div class="text-rose-700">
+                      El cliente está dentro del polígono de la ruta <strong class="font-mono text-emerald-700">{{ clienteSeleccionadoDetalle.ruta_duena_poligono || clienteSeleccionadoDetalle.ruta_invadida || 'Otra' }}</strong>.
+                    </div>
+                    <button
+                      type="button"
+                      @click="proponerReasignacion(clienteSeleccionadoDetalle)"
+                      class="mt-1 w-full px-2 py-1 rounded bg-black hover:bg-neutral-800 text-white font-bold text-[10px] transition-all cursor-pointer text-center"
+                    >
+                      Proponer Reasignación a {{ clienteSeleccionadoDetalle.ruta_duena_poligono || clienteSeleccionadoDetalle.ruta_invadida }}
+                    </button>
+                  </div>
+
+                  <!-- Botones de Acción de Ficha -->
+                  <div class="pt-2 flex flex-wrap items-center gap-1.5 border-t border-neutral-100">
+                    <button
+                      type="button"
+                      @click="abrirModalFotos(clienteSeleccionadoDetalle)"
+                      class="flex-1 px-3 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white rounded text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <span>📷 Ver Fotos Visitas</span>
+                    </button>
+                    <a
+                      v-if="clienteSeleccionadoDetalle.latitud && clienteSeleccionadoDetalle.longitud"
+                      :href="'https://www.google.com/maps?q=' + clienteSeleccionadoDetalle.latitud + ',' + clienteSeleccionadoDetalle.longitud"
+                      target="_blank"
+                      class="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-ink rounded text-[11px] font-semibold flex items-center gap-1 transition-all border border-neutral-200"
+                    >
+                      <span>Maps ↗</span>
+                    </a>
+                    <a
+                      v-if="limpiarTelefono(clienteSeleccionadoDetalle.celular || clienteSeleccionadoDetalle.telefono)"
+                      :href="'https://wa.me/591' + limpiarTelefono(clienteSeleccionadoDetalle.celular || clienteSeleccionadoDetalle.telefono)"
+                      target="_blank"
+                      class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold flex items-center gap-1 transition-all shadow-2xs"
+                    >
+                      <span>WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
 
-      <!-- Tabla Inferior: Propuestas Pendientes de la Ruta -->
+      <!-- Tabla Inferior: Propuestas Territoriales Pendientes -->
       <div class="apple-glass-card rounded-[16px] shadow-subtle overflow-hidden border border-black/[0.06] bg-white/70 backdrop-blur-md">
         <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
           <div class="flex items-center gap-2">
@@ -649,7 +847,7 @@
         </div>
       </div>
 
-      <!-- Modal de Fotos -->
+      <!-- Modal de Fotos de Visitas -->
       <ClienteFotosModal
         :visible="modalFotosVisible"
         :cliente-id="clienteSeleccionadoFotos?.cliente_id"
@@ -662,7 +860,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -692,12 +890,38 @@ function getColorDia(dia) {
   return found ? found.color : '#6B7280'
 }
 
+const PALETA_RUTAS = [
+  '#0071E3', '#34C759', '#FF9500', '#AF52DE', '#FF2D55',
+  '#5856D6', '#00C7BE', '#FF3B30', '#32ADE6', '#A2845E',
+  '#6366F1', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6',
+  '#14B8A6', '#F43F5E', '#06B6D4', '#84CC16', '#D946EF',
+]
+
+function getColorRuta(ruta) {
+  if (!ruta) return '#6B7280'
+  const clean = String(ruta).trim().toUpperCase()
+  const idx = rutasPuntos.value.indexOf(clean)
+  if (idx >= 0) return PALETA_RUTAS[idx % PALETA_RUTAS.length]
+  let hash = 0
+  for (let i = 0; i < clean.length; i++) {
+    hash = clean.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return PALETA_RUTAS[Math.abs(hash) % PALETA_RUTAS.length]
+}
+
+function limpiarTelefono(tel) {
+  if (!tel) return ''
+  const clean = String(tel).replace(/\D/g, '')
+  return clean.length >= 7 ? clean : ''
+}
+
 // ── Estado ──
 const cargando = ref(false)
 const canalSeleccionado = ref('TDB')
 const rutasPoligonos = ref([])
 const rutasPuntos = ref([])
-const modoColorPuntos = ref('dia') // 'dia' | 'estado'
+const filtroDias = ref([]) // vacío = todos los días
+const modoColorPuntos = ref('dia') // 'ruta' | 'dia' | 'estado'
 const abiertoDropdownRutas = ref(false)
 const filtroTextoRutaDropdown = ref('')
 const tabActivo = ref('balance')
@@ -715,6 +939,9 @@ let searchTimeout = null
 const modalFotosVisible = ref(false)
 const clienteSeleccionadoFotos = ref(null)
 
+// Expediente Seleccionado
+const clienteSeleccionadoDetalle = ref(null)
+
 // Edición de Vértices
 const rutaSeleccionadaParaEditar = ref('')
 const rutaEnEdicion = ref(null)
@@ -722,11 +949,32 @@ const editandoVertices = ref(false)
 const guardandoFrontera = ref(false)
 let markersVertices = []
 
-// Leaflet
+// Leaflet y Capas Base
 let map = null
+let currentTileLayer = null
 let layerGroupPoligonos = null
 let layerGroupPuntos = null
 const mapaPoligonosPorRuta = new Map()
+const markersMap = new Map()
+const capaActual = ref('voyager')
+
+const TILE_LAYERS = {
+  voyager: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; CartoDB &copy; OpenStreetMap',
+    maxZoom: 19,
+  },
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19,
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri World Imagery',
+    maxZoom: 18,
+  },
+}
 
 // ── Computed ──
 const canalesDisponibles = computed(() => props.catalogo.canales || [])
@@ -745,11 +993,20 @@ const rutasDropdownList = computed(() => {
   return lista.filter(r => r.ruta.toUpperCase().includes(q))
 })
 
-const totalIntrusos = computed(() => clientesFronteras.value.filter(c => c.es_intruso).length)
-const totalHuerfanos = computed(() => clientesFronteras.value.filter(c => c.es_huerfano).length)
+const clientesVisibles = computed(() => {
+  if (filtroDias.value.length === 0 || filtroDias.value.length === 6) {
+    return clientesFronteras.value
+  }
+  return clientesFronteras.value.filter(c => {
+    const d = String(c.dia || '').trim().toUpperCase()
+    return filtroDias.value.includes(d)
+  })
+})
 
-const intrusosFiltrados = computed(() => clientesFronteras.value.filter(c => c.es_intruso))
-const huerfanosFiltrados = computed(() => clientesFronteras.value.filter(c => c.es_huerfano))
+const totalIntrusos = computed(() => clientesVisibles.value.filter(c => c.es_intruso).length)
+const totalHuerfanos = computed(() => clientesVisibles.value.filter(c => c.es_huerfano).length)
+const intrusosFiltrados = computed(() => clientesVisibles.value.filter(c => c.es_intruso))
+const huerfanosFiltrados = computed(() => clientesVisibles.value.filter(c => c.es_huerfano))
 
 const tienePoligonoActual = computed(() => {
   if (!rutaEnEdicion.value) return false
@@ -762,7 +1019,7 @@ const resumenRutas = computed(() => {
     rutasMap[r] = { ruta: r, total: 0, validos: 0, intrusos: 0, huerfanos: 0, conteoDias: {} }
   })
 
-  clientesFronteras.value.forEach(c => {
+  clientesVisibles.value.forEach(c => {
     const r = c.ruta
     if (rutasMap[r]) {
       rutasMap[r].total++
@@ -785,11 +1042,24 @@ onMounted(() => {
   rutasPoligonos.value = [...iniciales]
   rutasPuntos.value = [...iniciales]
 
+  // Configurar listeners globales para clics desde Popups de Leaflet
+  window.__abrirFotosCliente = (id, nombre, ruta) => {
+    abrirModalFotos({ cliente_id: id, cliente: nombre, ruta: ruta })
+  }
+  window.__enfocarExpediente = (id) => {
+    const cli = clientesFronteras.value.find(c => c.cliente_id == id)
+    if (cli) {
+      seleccionarClienteYVerFicha(cli)
+    }
+  }
+
   inicializarMapa()
   consultarTodo()
 })
 
 onUnmounted(() => {
+  delete window.__abrirFotosCliente
+  delete window.__enfocarExpediente
   if (map) {
     map.remove()
     map = null
@@ -806,13 +1076,23 @@ function inicializarMapa() {
     preferCanvas: true,
   }).setView([-17.7833, -63.1821], 12)
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; CartoDB &copy; OpenStreetMap',
-  }).addTo(map)
+  cambiarCapaMapa(capaActual.value)
 
   layerGroupPoligonos = L.layerGroup().addTo(map)
   layerGroupPuntos = L.layerGroup().addTo(map)
+}
+
+function cambiarCapaMapa(nombreCapa) {
+  if (!map || !TILE_LAYERS[nombreCapa]) return
+  capaActual.value = nombreCapa
+  if (currentTileLayer) {
+    map.removeLayer(currentTileLayer)
+  }
+  const conf = TILE_LAYERS[nombreCapa]
+  currentTileLayer = L.tileLayer(conf.url, {
+    maxZoom: conf.maxZoom,
+    attribution: conf.attribution,
+  }).addTo(map)
 }
 
 // ── Consultas ──
@@ -877,11 +1157,6 @@ async function cargarPropuestasPendientes() {
 }
 
 // ── Renderizado en Mapa ──
-const PALETA_RUTAS = [
-  '#0071E3', '#34C759', '#FF9500', '#AF52DE', '#FF2D55',
-  '#5856D6', '#00C7BE', '#FF3B30', '#32ADE6', '#A2845E',
-]
-
 function renderizarPoligonos() {
   if (!map || !layerGroupPoligonos) return
   layerGroupPoligonos.clearLayers()
@@ -889,8 +1164,8 @@ function renderizarPoligonos() {
 
   const visibles = mosaicoFronteras.value.filter(f => rutasPoligonos.value.includes(f.ruta))
 
-  visibles.forEach((f, idx) => {
-    const color = PALETA_RUTAS[idx % PALETA_RUTAS.length]
+  visibles.forEach((f) => {
+    const color = getColorRuta(f.ruta)
     const polygon = L.polygon(f.poligono_latlon, {
       color: color,
       weight: 2,
@@ -912,10 +1187,11 @@ function renderizarPoligonos() {
 function renderizarPuntos() {
   if (!map || !layerGroupPuntos) return
   layerGroupPuntos.clearLayers()
+  markersMap.clear()
 
   const bounds = []
 
-  clientesFronteras.value.forEach(cli => {
+  clientesVisibles.value.forEach(cli => {
     const lat = cli.latitud
     const lon = cli.longitud
     bounds.push([lat, lon])
@@ -925,7 +1201,17 @@ function renderizarPuntos() {
     let strokeColor = '#ffffff'
     let strokeWidth = 1.5
 
-    if (modoColorPuntos.value === 'dia') {
+    if (modoColorPuntos.value === 'ruta') {
+      color = getColorRuta(cli.ruta)
+      if (cli.es_intruso) {
+        strokeColor = '#DC2626'
+        strokeWidth = 2.5
+        radio = 5.5
+      } else if (cli.es_huerfano) {
+        strokeColor = '#D97706'
+        strokeWidth = 2
+      }
+    } else if (modoColorPuntos.value === 'dia') {
       color = getColorDia(cli.dia)
       if (cli.es_intruso) {
         strokeColor = '#DC2626'
@@ -951,23 +1237,73 @@ function renderizarPuntos() {
       color: strokeColor,
       weight: strokeWidth,
       fillColor: color,
-      fillOpacity: 0.9,
+      fillOpacity: 0.92,
     })
 
+    const tel = cli.celular || cli.telefono || ''
+    const cleanTel = limpiarTelefono(tel)
+    const statusLabel = cli.es_intruso ? 'INTRUSO' : (cli.es_huerfano ? 'HUÉRFANO' : 'EN FRONTERA')
+    const statusColorClass = cli.es_intruso ? 'bg-rose-600 text-white' : (cli.es_huerfano ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white')
+    const nombreEscapado = (cli.cliente || '').replace(/'/g, "\\'")
+
     const popupHtml = `
-      <div class="p-2 font-sans text-xs min-w-[200px]">
-        <div class="font-bold text-slate-900 leading-tight">${cli.cliente}</div>
-        <div class="text-[10px] text-slate-500 font-mono mt-0.5">ID: ${cli.cliente_id}</div>
-        <div class="text-[10px] text-slate-500 truncate">${cli.direccion || 'Sin dirección'}</div>
-        <div class="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
-          <span>Ruta: <strong>${cli.ruta}</strong></span>
-          <span class="px-1.5 py-0.5 rounded text-white font-bold" style="background-color: ${getColorDia(cli.dia)}">${cli.dia}</span>
+      <div class="p-2 font-sans text-xs min-w-[210px] max-w-[250px]">
+        <div class="flex items-start justify-between gap-1 mb-1">
+          <div class="font-bold text-slate-900 leading-tight">${cli.cliente || 'Sin nombre'}</div>
+          <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${statusColorClass}">
+            ${statusLabel}
+          </span>
         </div>
+        <div class="text-[10px] text-slate-500 font-mono">ID: ${cli.cliente_id}</div>
+        <div class="text-[10px] text-slate-500 truncate mt-0.5">${cli.direccion || 'Sin dirección'}</div>
+        
+        <div class="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
+          <span>Ruta: <strong style="color: ${getColorRuta(cli.ruta)}">${cli.ruta}</strong></span>
+          <span class="px-1.5 py-0.5 rounded text-white font-bold text-[9px]" style="background-color: ${getColorDia(cli.dia)}">${cli.dia}</span>
+        </div>
+        
         ${cli.es_intruso ? `<div class="mt-1 text-[10px] font-bold text-rose-600 font-mono">Invade: ${cli.ruta_duena_poligono || 'Otra ruta'}</div>` : ''}
+        
+        <div class="mt-2 pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1 font-sans text-[10px]">
+          <button
+            onclick="window.__abrirFotosCliente(${cli.cliente_id}, '${nombreEscapado}', '${cli.ruta}')"
+            class="px-2 py-0.5 rounded bg-[#0071E3] hover:bg-blue-700 text-white font-semibold transition-all cursor-pointer shadow-2xs"
+          >
+            📷 Fotos
+          </button>
+          <button
+            onclick="window.__enfocarExpediente(${cli.cliente_id})"
+            class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold transition-all cursor-pointer"
+          >
+            📄 Ficha
+          </button>
+          <a
+            href="https://www.google.com/maps?q=${lat},${lon}"
+            target="_blank"
+            class="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold inline-flex items-center gap-0.5"
+          >
+            Maps ↗
+          </a>
+          ${cleanTel ? `
+            <a
+              href="https://wa.me/591${cleanTel}"
+              target="_blank"
+              class="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-0.5"
+            >
+              WA
+            </a>
+          ` : ''}
+        </div>
       </div>
     `
     marker.bindPopup(popupHtml)
+
+    marker.on('click', () => {
+      clienteSeleccionadoDetalle.value = cli
+    })
+
     layerGroupPuntos.addLayer(marker)
+    markersMap.set(cli.cliente_id, marker)
   })
 
   if (bounds.length > 0 && !editandoVertices.value) {
@@ -979,7 +1315,7 @@ function renderizarPuntos() {
   }
 }
 
-// ── Conmutadores de Capas ──
+// ── Conmutadores de Capas & Días ──
 function alCambiarCanal() {
   const rutasCanal = rutasFiltradasPorCanal.value.map(r => r.ruta)
   rutasPoligonos.value = [...rutasCanal]
@@ -1013,6 +1349,25 @@ function togglePuntosRuta(ruta) {
   cargarPropuestasPendientes()
 }
 
+function toggleDia(diaVal) {
+  const idx = filtroDias.value.indexOf(diaVal)
+  if (idx > -1) {
+    filtroDias.value.splice(idx, 1)
+  } else {
+    filtroDias.value.push(diaVal)
+  }
+  renderizarPuntos()
+}
+
+function toggleTodosDias() {
+  if (filtroDias.value.length === 6) {
+    filtroDias.value = []
+  } else {
+    filtroDias.value = DIAS_SEMANA.map(d => d.val)
+  }
+  renderizarPuntos()
+}
+
 function cambiarModoColor(modo) {
   modoColorPuntos.value = modo
   renderizarPuntos()
@@ -1040,8 +1395,18 @@ function onSearchClienteInput() {
 function enfocarClienteEnMapa(cli) {
   resultadosBuscador.value = []
   queryBuscador.value = ''
+  seleccionarClienteYVerFicha(cli)
+
   if (!map || !cli.latitud || !cli.longitud) return
   map.setView([cli.latitud, cli.longitud], 17, { animate: true })
+  const m = markersMap.get(cli.cliente_id)
+  if (m) m.openPopup()
+}
+
+function seleccionarClienteYVerFicha(cli) {
+  clienteSeleccionadoDetalle.value = cli
+  tabActivo.value = 'detalle'
+  panelReplegado.value = false
 }
 
 // ── Acciones de Propuestas ──
@@ -1141,8 +1506,7 @@ function activarEdicionVertices() {
       weight: 2,
     }).addTo(map)
 
-    // Simulación de arrastre / edición con clicks o drag
-    marker.on('mousedown', function (e) {
+    marker.on('mousedown', function () {
       map.dragging.disable()
       function onMouseMove(moveEvent) {
         marker.setLatLng(moveEvent.latlng)
@@ -1199,4 +1563,3 @@ async function guardarFronteraActual() {
   }
 }
 </script>
-

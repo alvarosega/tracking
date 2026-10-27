@@ -99,7 +99,7 @@ export const navigationConfig = {
         {
           id: 'intrusos',
           module: 'saneamiento',
-          name: 'Fronteras e Intrusos',
+          name: 'Visor & Fronteras',
           route: 'supervisor.saneamiento.intrusos',
           component: 'Supervisor/Saneamiento/Intrusos',
           icon: 'MapPinIcon',
@@ -155,9 +155,9 @@ export const navigationConfig = {
         {
           id: 'visor',
           module: 'ruteo',
-          name: 'Visor y Fronteras',
-          route: 'supervisor.ruteo.index',
-          component: 'Supervisor/Ruteo/Index',
+          name: 'Visor & Fronteras',
+          route: 'supervisor.saneamiento.intrusos',
+          component: 'Supervisor/Saneamiento/Intrusos',
           icon: 'MapPinIcon',
           group: 'Ruteo & Cobertura'
         },
@@ -545,7 +545,7 @@ export const auditoriaSubTabs = [
 ];
 
 export const saneamientoSubTabs = [
-  { id: 'intrusos', module: 'saneamiento', name: 'Fronteras e Intrusos', route: 'supervisor.saneamiento.intrusos' },
+  { id: 'intrusos', module: 'saneamiento', name: 'Visor & Fronteras', route: 'supervisor.saneamiento.intrusos' },
   { id: 'duplicados', module: 'saneamiento', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
   { id: 'dias', module: 'saneamiento', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
   { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
@@ -554,7 +554,7 @@ export const saneamientoSubTabs = [
 ];
 
 export const ruteoSubTabs = [
-  { id: 'visor', module: 'ruteo', name: 'Visor y Fronteras', route: 'supervisor.ruteo.index' },
+  { id: 'visor', module: 'ruteo', name: 'Visor & Fronteras', route: 'supervisor.saneamiento.intrusos' },
   { id: 'cercanos', module: 'ruteo', name: 'Clientes Cercanos', route: 'supervisor.ruteo.cercanos' }
 ];
 

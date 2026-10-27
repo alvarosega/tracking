@@ -43,13 +43,13 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('ruteo')->name('ruteo.')->middleware('module.access:ruteo')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            if ($user->hasModuleAccess('ruteo', 'visor')) {
-                return app()->call([app(SupervisorRuteoController::class), 'index']);
+            if ($user->hasModuleAccess('ruteo', 'visor') || $user->hasModuleAccess('saneamiento', 'intrusos')) {
+                return redirect()->route('supervisor.saneamiento.intrusos');
             }
             if ($user->hasModuleAccess('ruteo', 'cercanos')) {
                 return redirect()->route('supervisor.ruteo.cercanos');
             }
-            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Ruteo.');
+            return redirect()->route('supervisor.saneamiento.intrusos');
         })->name('index');
 
         // Submódulo Visor y Fronteras
