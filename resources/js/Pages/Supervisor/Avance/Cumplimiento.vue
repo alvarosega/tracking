@@ -482,45 +482,116 @@
                         class="overflow-y-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[450px]"
                       >
                         <table class="w-full text-left border-collapse text-[10px]">
-                          <thead class="bg-[#F8F8FA] text-[#6E6E73] font-bold uppercase sticky top-0 z-10 text-[9px] tracking-wider border-b border-black/[0.06]">
+                          <thead class="bg-[#F8F8FA] text-[#6E6E73] font-bold uppercase sticky top-0 z-10 text-[9px] tracking-wider border-b border-black/[0.06] select-none">
                             <tr>
-                              <th class="py-1.5 px-2.5 w-10 text-center">#</th>
-                              <th class="py-1.5 px-2.5 w-24">Fecha</th>
-                              <th class="py-1.5 px-2.5 w-24">Día Semana</th>
-                              <th class="py-1.5 px-2.5 text-center w-28">Compradores</th>
-                              <th class="py-1.5 px-2.5 text-right w-28 font-mono">Venta Día (Bs)</th>
-                              <th class="py-1.5 px-2.5 text-right w-32 font-mono text-[#0071E3]">Acumulado (Bs)</th>
-                              <th class="py-1.5 px-2.5 text-center w-24">Facturas</th>
+                              <th class="py-1.5 px-2.5 w-12 text-center">#</th>
+                              <th
+                                class="py-1.5 px-2.5 w-28 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortDiasCol === 'fecha' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarDias('fecha')"
+                                title="Ordenar por Fecha"
+                              >
+                                <div class="flex items-center gap-1">
+                                  <span>Fecha</span>
+                                  <span v-if="sortDiasCol === 'fecha'" class="text-[10px]">{{ sortDiasDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 w-28 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortDiasCol === 'dia_semana' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarDias('dia_semana')"
+                                title="Ordenar por Día Semana"
+                              >
+                                <div class="flex items-center gap-1">
+                                  <span>Día Semana</span>
+                                  <span v-if="sortDiasCol === 'dia_semana'" class="text-[10px]">{{ sortDiasDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-center w-28 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortDiasCol === 'total_clientes' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarDias('total_clientes')"
+                                title="Ordenar por Compradores"
+                              >
+                                <div class="flex items-center justify-center gap-1">
+                                  <span>Compradores</span>
+                                  <span v-if="sortDiasCol === 'total_clientes'" class="text-[10px]">{{ sortDiasDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-right w-32 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortDiasCol === 'venta_total' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarDias('venta_total')"
+                                title="Ordenar por Venta Día"
+                              >
+                                <div class="flex items-center justify-end gap-1">
+                                  <span>Venta Día (Bs)</span>
+                                  <span v-if="sortDiasCol === 'venta_total'" class="text-[10px]">{{ sortDiasDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-right w-36 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortDiasCol === 'venta_acumulada' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarDias('venta_acumulada')"
+                                title="Ordenar por Acumulado"
+                              >
+                                <div class="flex items-center justify-end gap-1">
+                                  <span>Acumulado (Bs)</span>
+                                  <span v-if="sortDiasCol === 'venta_acumulada'" class="text-[10px]">{{ sortDiasDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-black/[0.03] bg-white font-mono tabular-nums">
                             <template v-for="(dia, didx) in diasRutaOrdenados" :key="dia.fecha">
                               <tr class="hover:bg-blue-50/30 transition-colors">
-                                <td class="py-1.5 px-2.5 text-center text-[#86868B]">{{ didx + 1 }}</td>
+                                <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    @click="toggleDiaInline(dia.fecha)"
+                                    class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
+                                    :class="diaSeleccionadoInline === dia.fecha ? 'rotate-90 text-[#0071E3]' : ''"
+                                    title="Desglosar clientes del día"
+                                  >
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                  <span>{{ didx + 1 }}</span>
+                                </td>
                                 <td class="py-1.5 px-2.5 font-bold text-[#1D1D1F]">{{ dia.fecha }}</td>
                                 <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ dia.dia_semana }}</td>
                                 <td class="py-1.5 px-2.5 text-center font-bold text-[#1D1D1F]">{{ dia.total_clientes }} cli</td>
                                 <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">Bs {{ formatNum(dia.venta_total, 2) }}</td>
                                 <td class="py-1.5 px-2.5 text-right font-bold text-[#0071E3]">Bs {{ formatNum(dia.venta_acumulada, 2) }}</td>
-                                <td class="py-1.5 px-2.5 text-center font-sans">
-                                  <button
-                                    type="button"
-                                    @click="toggleDiaInline(dia.fecha)"
-                                    class="px-2 py-0.5 text-[9px] font-bold rounded-[6px] transition-colors cursor-pointer"
-                                    :class="diaSeleccionadoInline === dia.fecha ? 'bg-[#0071E3] text-white' : 'bg-black/[0.04] text-[#0071E3] hover:bg-black/[0.08]'"
-                                  >
-                                    {{ diaSeleccionadoInline === dia.fecha ? 'Ocultar' : 'Ver Clientes' }}
-                                  </button>
-                                </td>
                               </tr>
-                              <!-- Detalle inline de clientes del día -->
+                              <!-- Detalle inline de clientes del día en acordeón -->
                               <tr v-if="diaSeleccionadoInline === dia.fecha" class="bg-blue-50/20">
-                                <td colspan="7" class="p-2 border-y border-black/[0.04]">
-                                  <div class="space-y-1">
-                                    <div v-for="cDia in dia.clientes" :key="cDia.cliente_id" class="flex items-center justify-between text-[9px] px-2 py-1 rounded bg-white border border-black/[0.04]">
-                                      <span class="font-sans font-bold text-[#1D1D1F]">{{ cDia.cliente }} (ID: {{ cDia.cliente_id }})</span>
-                                      <span class="text-[#6E6E73]">Preventista: {{ cDia.vendedor }}</span>
-                                      <span class="font-bold text-[#0071E3]">Bs {{ formatNum(cDia.monto_bs, 2) }}</span>
+                                <td colspan="6" class="p-2.5 border-y border-black/[0.05]">
+                                  <div class="apple-glass-card rounded-[10px] p-2.5 space-y-1.5 bg-white/90 border border-black/[0.05]">
+                                    <div class="flex items-center justify-between text-[10px] pb-1 border-b border-black/[0.04]">
+                                      <span class="font-bold text-[#1D1D1F]">
+                                        Compradores del {{ dia.fecha }} ({{ dia.clientes?.length || 0 }} clientes)
+                                      </span>
+                                      <span class="font-bold text-[#0071E3]">
+                                        Total Día: Bs {{ formatNum(dia.venta_total, 2) }}
+                                      </span>
+                                    </div>
+                                    <div class="space-y-1 max-h-[220px] overflow-y-auto custom-scroll pr-1">
+                                      <div
+                                        v-for="cDia in dia.clientes"
+                                        :key="cDia.cliente_id"
+                                        class="flex items-center justify-between text-[9px] px-2.5 py-1.5 rounded-[6px] bg-white border border-black/[0.04] hover:border-black/[0.1] transition-all"
+                                      >
+                                        <div class="flex items-center gap-2">
+                                          <span class="font-mono font-bold text-[#0071E3]">ID {{ cDia.cliente_id }}</span>
+                                          <span class="font-sans font-bold text-[#1D1D1F]">{{ cDia.cliente }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                          <span class="text-[#6E6E73] font-sans">Preventista: {{ cDia.vendedor }}</span>
+                                          <span class="font-bold font-mono text-[#0071E3]">Bs {{ formatNum(cDia.monto_bs, 2) }}</span>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
                                 </td>
@@ -536,63 +607,186 @@
                         class="overflow-y-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[450px]"
                       >
                         <table class="w-full text-left border-collapse text-[10px]">
-                          <thead class="bg-[#F8F8FA] text-[#6E6E73] font-bold uppercase sticky top-0 z-10 text-[9px] tracking-wider border-b border-black/[0.06]">
+                          <thead class="bg-[#F8F8FA] text-[#6E6E73] font-bold uppercase sticky top-0 z-10 text-[9px] tracking-wider border-b border-black/[0.06] select-none">
                             <tr>
-                              <th class="py-1.5 px-2.5 w-10 text-center">#</th>
-                              <th class="py-1.5 px-2.5 w-20">ID</th>
-                              <th class="py-1.5 px-2.5">Cliente</th>
-                              <th class="py-1.5 px-2.5 w-20">Día Visita</th>
-                              <th class="py-1.5 px-2.5 text-center w-20">Estado KPI</th>
-                              <th class="py-1.5 px-2.5 text-right w-24 font-mono">Monto Bs</th>
-                              <th class="py-1.5 px-2.5 text-right w-20 font-mono">% Aporte</th>
-                              <th class="py-1.5 px-2.5 text-center w-24">Acción</th>
+                              <th class="py-1.5 px-2.5 w-12 text-center">#</th>
+                              <th
+                                class="py-1.5 px-2.5 w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'cliente_id' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('cliente_id')"
+                                title="Ordenar por ID"
+                              >
+                                <div class="flex items-center gap-1">
+                                  <span>ID</span>
+                                  <span v-if="sortClientesCol === 'cliente_id'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'cliente' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('cliente')"
+                                title="Ordenar por Nombre de Cliente"
+                              >
+                                <div class="flex items-center gap-1">
+                                  <span>Cliente</span>
+                                  <span v-if="sortClientesCol === 'cliente'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'dia_visita' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('dia_visita')"
+                                title="Ordenar por Día de Visita"
+                              >
+                                <div class="flex items-center gap-1">
+                                  <span>Día Visita</span>
+                                  <span v-if="sortClientesCol === 'dia_visita'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('tiene_logro')"
+                                title="Ordenar por Estado KPI"
+                              >
+                                <div class="flex items-center justify-center gap-1">
+                                  <span>Estado KPI</span>
+                                  <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('monto_bs')"
+                                title="Ordenar por Monto Bs"
+                              >
+                                <div class="flex items-center justify-end gap-1">
+                                  <span>Monto Bs</span>
+                                  <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
+                              <th
+                                class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                :class="sortClientesCol === 'pct_ruta' ? 'text-[#0071E3]' : ''"
+                                @click="ordenarClientes('pct_ruta')"
+                                title="Ordenar por % Aporte"
+                              >
+                                <div class="flex items-center justify-end gap-1">
+                                  <span>% Aporte</span>
+                                  <span v-if="sortClientesCol === 'pct_ruta'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                </div>
+                              </th>
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-black/[0.03] bg-white font-mono tabular-nums">
-                            <tr
-                              v-for="(cli, cidx) in clientesRutaFiltrados"
-                              :key="cli.cliente_id"
-                              class="hover:bg-blue-50/30 transition-colors"
-                            >
-                              <td class="py-1.5 px-2.5 text-center text-[#86868B]">{{ cidx + 1 }}</td>
-                              <td class="py-1.5 px-2.5 font-bold text-[#6E6E73]">{{ cli.cliente_id }}</td>
-                              <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F]">
-                                {{ cli.cliente }}
-                                <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
-                              </td>
-                              <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
-                              <td class="py-1.5 px-2.5 text-center">
-                                <span
-                                  v-if="cli.tiene_logro"
-                                  class="px-1.5 py-0.2 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                >
-                                  CUMPLE
-                                </span>
-                                <span
-                                  v-else
-                                  class="px-1.5 py-0.2 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
-                                >
-                                  PENDIENTE
-                                </span>
-                              </td>
-                              <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">
-                                Bs {{ formatNum(cli.monto_bs, 2) }}
-                              </td>
-                              <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
-                                {{ formatPct(cli.pct_ruta) }}
-                              </td>
-                              <td class="py-1.5 px-2.5 text-center font-sans">
-                                <button
-                                  v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0"
-                                  type="button"
-                                  @click="abrirDetalleFechasCliente(cli, r.ruta)"
-                                  class="px-2 py-0.5 text-[9px] font-bold rounded-[6px] bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3] hover:text-white transition-colors cursor-pointer"
-                                >
-                                  Ver Detalle
-                                </button>
-                                <span v-else class="text-[#C7C7CC]">—</span>
-                              </td>
-                            </tr>
+                            <template v-for="(cli, cidx) in clientesRutaFiltrados" :key="cli.cliente_id">
+                              <tr class="hover:bg-blue-50/30 transition-colors">
+                                <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
+                                  <button
+                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0"
+                                    type="button"
+                                    @click="toggleClienteAccordion(cli, r.ruta)"
+                                    class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
+                                    :class="clienteExpandidoId === cli.cliente_id ? 'rotate-90 text-[#0071E3]' : ''"
+                                    title="Desglosar historial de compras"
+                                  >
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                  <span v-else class="inline-block w-4 mr-1"></span>
+                                  <span>{{ cidx + 1 }}</span>
+                                </td>
+                                <td class="py-1.5 px-2.5 font-bold text-[#6E6E73]">{{ cli.cliente_id }}</td>
+                                <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F]">
+                                  {{ cli.cliente }}
+                                  <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
+                                </td>
+                                <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
+                                <td class="py-1.5 px-2.5 text-center">
+                                  <span
+                                    v-if="cli.tiene_logro"
+                                    class="px-1.5 py-0.2 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  >
+                                    CUMPLE
+                                  </span>
+                                  <span
+                                    v-else
+                                    class="px-1.5 py-0.2 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
+                                  >
+                                    PENDIENTE
+                                  </span>
+                                </td>
+                                <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">
+                                  Bs {{ formatNum(cli.monto_bs, 2) }}
+                                </td>
+                                <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
+                                  {{ formatPct(cli.pct_ruta) }}
+                                </td>
+                              </tr>
+                              <!-- Detalle acordeón de facturas y fechas del cliente -->
+                              <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
+                                <td colspan="7" class="p-2.5 border-y border-black/[0.05]">
+                                  <div class="apple-glass-card rounded-[10px] p-3 space-y-2 bg-white/95 border border-black/[0.06] shadow-2xs">
+                                    <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
+                                      <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
+                                      <span>Cargando detalle de facturas de {{ cli.cliente }}...</span>
+                                    </div>
+                                    <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
+                                      <!-- Resumen Superior del Cliente -->
+                                      <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[8px] bg-[#F8F8FA] border border-black/[0.04] text-[10px] font-mono">
+                                        <div class="flex items-center gap-2">
+                                          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                          <span class="font-sans font-bold text-[#1D1D1F]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
+                                          <span class="text-[#86868B] font-sans">Ruta {{ r.ruta }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                          <div><span class="text-[#86868B] font-sans">Total: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
+                                          <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
+                                          <div><span class="text-[#86868B] font-sans">KPI: </span><span class="font-bold text-[#0071E3]">{{ detalleClienteFechasMap[cli.cliente_id]?.kpi_nombre }}</span></div>
+                                        </div>
+                                      </div>
+
+                                      <!-- Fechas y detalle de productos -->
+                                      <div
+                                        v-if="detalleClienteFechasMap[cli.cliente_id]?.fechas?.length > 0"
+                                        class="space-y-1.5 max-h-[250px] overflow-y-auto custom-scroll pr-1 font-mono"
+                                      >
+                                        <div
+                                          v-for="dia in detalleClienteFechasMap[cli.cliente_id].fechas"
+                                          :key="dia.fecha"
+                                          class="p-2 rounded-[8px] border border-black/[0.04] bg-white space-y-1 text-[10px]"
+                                        >
+                                          <div class="flex items-center justify-between border-b border-black/[0.04] pb-1">
+                                            <div class="flex items-center gap-2">
+                                              <span class="font-bold text-[#1D1D1F]">{{ dia.fecha }}</span>
+                                              <span class="text-[9px] text-[#86868B] font-sans">Factura(s): {{ dia.facturas }}</span>
+                                            </div>
+                                            <span class="font-bold text-[#0071E3]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs, 2) }}</span>
+                                          </div>
+                                          <div class="text-[9px] text-[#86868B] font-sans flex items-center justify-between">
+                                            <span>Preventista: {{ dia.vendedor }}</span>
+                                          </div>
+                                          <div v-if="dia.items && dia.items.length > 0" class="mt-1 space-y-0.5">
+                                            <div
+                                              v-for="(item, iidx) in dia.items"
+                                              :key="iidx"
+                                              class="flex items-center justify-between text-[9px] py-0.5 px-2 rounded bg-black/[0.02]"
+                                            >
+                                              <span class="text-[#48484A] truncate max-w-[340px] font-sans">{{ item.producto }} ({{ item.codigo }})</span>
+                                              <span class="font-bold text-[#1D1D1F] font-mono">{{ item.cantidad }} u - Bs {{ formatNum(item.monto_bs, 2) }}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div v-else class="text-center py-2 text-[10px] text-[#86868B] font-sans">
+                                        No se registraron ventas en las fechas seleccionadas.
+                                      </div>
+                                    </template>
+                                  </div>
+                                </td>
+                              </tr>
+                            </template>
                           </tbody>
                         </table>
                       </div>
@@ -640,67 +834,6 @@
         No se encontraron datos para los filtros especificados.
       </div>
 
-      <!-- MODAL HISTORIAL DE COMPRAS POR CLIENTE -->
-      <div
-        v-if="modalClienteVisible"
-        class="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-slate-900/30 backdrop-blur-md"
-        @click.self="cerrarModalCliente"
-      >
-        <div class="glass-dropdown rounded-[20px] max-w-2xl w-full p-5 space-y-3.5 max-h-[85vh] flex flex-col font-sans border border-white/80 shadow-float">
-          <div class="flex items-center justify-between pb-2.5 border-b border-black/[0.06]">
-            <div>
-              <h3 class="text-[13px] font-bold text-[#1D1D1F]">Historial de Compras</h3>
-              <p class="text-[10px] text-[#6E6E73]">
-                ID: <strong>{{ clienteActivo?.cliente_id }}</strong> - {{ clienteActivo?.cliente }} (Ruta: {{ rutaClienteActivo }})
-              </p>
-            </div>
-            <button type="button" @click="cerrarModalCliente" class="w-6 h-6 rounded-full hover:bg-black/[0.05] text-[#86868B] flex items-center justify-center cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div class="flex items-center justify-between apple-control-pill p-2.5 rounded-[12px] text-[11px] font-mono tabular-nums">
-            <div><span class="text-[#86868B] font-sans">Total: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechas?.total_monto_bs) }}</strong></div>
-            <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechas?.total_unidades || 0 }} u</strong></div>
-            <div><span class="text-[#86868B] font-sans">KPI: </span><span class="font-bold text-[#0071E3]">{{ detalleClienteFechas?.kpi_nombre }}</span></div>
-          </div>
-
-          <div v-if="cargandoDetalleCliente" class="py-8 text-center text-[11px] text-[#86868B]">
-            <div class="w-5 h-5 mx-auto mb-2 rounded-full border-2 border-[#0071E3] border-t-transparent animate-spin"></div>
-            Cargando facturas...
-          </div>
-
-          <div v-else-if="detalleClienteFechas?.fechas?.length > 0" class="overflow-y-auto custom-scroll space-y-1.5 flex-1 max-h-[500px] pr-1 font-mono">
-            <div
-              v-for="dia in detalleClienteFechas.fechas"
-              :key="dia.fecha"
-              class="p-2.5 rounded-[10px] border border-black/[0.06] bg-white/70 space-y-1"
-            >
-              <div class="flex items-center justify-between pb-1 border-b border-black/[0.04] text-[11px]">
-                <span class="font-bold text-[#1D1D1F]">{{ dia.fecha }}</span>
-                <span class="font-bold text-[#1D1D1F]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs) }}</span>
-              </div>
-              <div class="text-[10px] text-[#86868B] flex items-center justify-between font-sans">
-                <span>Factura(s): {{ dia.facturas }}</span>
-                <span>Preventista: {{ dia.vendedor }}</span>
-              </div>
-              <div class="mt-1 space-y-0.5">
-                <div
-                  v-for="(item, iidx) in dia.items"
-                  :key="iidx"
-                  class="flex items-center justify-between text-[9px] py-0.5 px-1 rounded bg-black/[0.02]"
-                >
-                  <span class="text-[#48484A] truncate max-w-[320px]">{{ item.producto }} ({{ item.codigo }})</span>
-                  <span class="font-bold text-[#1D1D1F]">{{ item.cantidad }} u - Bs {{ formatNum(item.monto_bs) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- MODAL INFO KPI (?) -->
       <div
         v-if="modalInfoKpiVisible"
@@ -741,7 +874,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
@@ -819,12 +952,44 @@ const diasRuta = ref([])
 const modoDetalleRuta = ref('dias') // 'dias' | 'clientes'
 const diaSeleccionadoInline = ref(null)
 
+// Ordenamiento de días
+const sortDiasCol = ref('fecha')
+const sortDiasDir = ref('asc')
+
+function ordenarDias(col) {
+  if (sortDiasCol.value === col) {
+    sortDiasDir.value = sortDiasDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortDiasCol.value = col
+    sortDiasDir.value = (col === 'fecha' || col === 'dia_semana') ? 'asc' : 'desc'
+  }
+}
+
 function toggleDiaInline(fecha) {
   diaSeleccionadoInline.value = diaSeleccionadoInline.value === fecha ? null : fecha
 }
 
 const diasRutaOrdenados = computed(() => {
-  return [...diasRuta.value].sort((a, b) => a.fecha.localeCompare(b.fecha))
+  const col = sortDiasCol.value
+  const dir = sortDiasDir.value === 'asc' ? 1 : -1
+  return [...diasRuta.value].sort((a, b) => {
+    if (col === 'fecha') {
+      return dir * String(a.fecha || '').localeCompare(String(b.fecha || ''))
+    }
+    if (col === 'dia_semana') {
+      return dir * String(a.dia_semana || '').localeCompare(String(b.dia_semana || ''))
+    }
+    if (col === 'total_clientes') {
+      return dir * (Number(a.total_clientes || 0) - Number(b.total_clientes || 0))
+    }
+    if (col === 'venta_total') {
+      return dir * (Number(a.venta_total || 0) - Number(b.venta_total || 0))
+    }
+    if (col === 'venta_acumulada') {
+      return dir * (Number(a.venta_acumulada || 0) - Number(b.venta_acumulada || 0))
+    }
+    return 0
+  })
 })
 
 const totalVentaDiasRuta = computed(() => {
@@ -833,6 +998,54 @@ const totalVentaDiasRuta = computed(() => {
 
 const filtroClientesTab = ref('compradores')
 const busquedaClienteTexto = ref('')
+
+// Ordenamiento de clientes
+const sortClientesCol = ref('monto_bs')
+const sortClientesDir = ref('desc')
+
+function ordenarClientes(col) {
+  if (sortClientesCol.value === col) {
+    sortClientesDir.value = sortClientesDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortClientesCol.value = col
+    sortClientesDir.value = (col === 'cliente' || col === 'dia_visita') ? 'asc' : 'desc'
+  }
+}
+
+// Acordeón de clientes
+const clienteExpandidoId = ref(null)
+const cargandoAccordionCliente = ref(false)
+const detalleClienteFechasMap = reactive({})
+
+async function toggleClienteAccordion(cliente, ruta) {
+  if (clienteExpandidoId.value === cliente.cliente_id) {
+    clienteExpandidoId.value = null
+    return
+  }
+
+  clienteExpandidoId.value = cliente.cliente_id
+
+  if (detalleClienteFechasMap[cliente.cliente_id]) {
+    return
+  }
+
+  cargandoAccordionCliente.value = true
+  try {
+    const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
+    const res = await axios.post('/supervisor/avance/cumplimiento/cliente-detalle-fechas', {
+      cliente_id: cliente.cliente_id,
+      ruta,
+      fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
+      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
+      kpi: kpiParaDetalle
+    })
+    detalleClienteFechasMap[cliente.cliente_id] = res.data
+  } catch (err) {
+    console.error('Error al cargar detalle fechas cliente:', err)
+  } finally {
+    cargandoAccordionCliente.value = false
+  }
+}
 
 const clientesConCompra = computed(() => {
   return carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
@@ -852,14 +1065,42 @@ const clientesRutaFiltrados = computed(() => {
       String(c.dia || c.dia_visita || '').toLowerCase().includes(q)
     )
   }
-  return lista
-})
 
-const modalClienteVisible = ref(false)
-const clienteActivo = ref(null)
-const rutaClienteActivo = ref('')
-const cargandoDetalleCliente = ref(false)
-const detalleClienteFechas = ref(null)
+  const copia = [...lista]
+  const col = sortClientesCol.value
+  const dir = sortClientesDir.value === 'asc' ? 1 : -1
+
+  copia.sort((a, b) => {
+    if (col === 'cliente_id') {
+      return dir * (Number(a.cliente_id || 0) - Number(b.cliente_id || 0))
+    }
+    if (col === 'cliente') {
+      return dir * String(a.cliente || '').localeCompare(String(b.cliente || ''))
+    }
+    if (col === 'dia_visita') {
+      const diaA = String(a.dia_visita || a.dia || '')
+      const diaB = String(b.dia_visita || b.dia || '')
+      return dir * diaA.localeCompare(diaB)
+    }
+    if (col === 'tiene_logro') {
+      const logroA = a.tiene_logro ? 1 : 0
+      const logroB = b.tiene_logro ? 1 : 0
+      if (logroA !== logroB) {
+        return dir * (logroA - logroB)
+      }
+      return Number(b.monto_bs || 0) - Number(a.monto_bs || 0)
+    }
+    if (col === 'monto_bs') {
+      return dir * (Number(a.monto_bs || 0) - Number(b.monto_bs || 0))
+    }
+    if (col === 'pct_ruta') {
+      return dir * (Number(a.pct_ruta || 0) - Number(b.pct_ruta || 0))
+    }
+    return 0
+  })
+
+  return copia
+})
 
 const modalInfoKpiVisible = ref(false)
 const kpiInfoActivo = ref(null)
@@ -949,6 +1190,8 @@ function cambiarModo(modo) {
   modoActivo.value = modo
   sessionStorage.setItem('avance_cumplimiento_submodo', modo)
   rutaExpandida.value = null
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
 
   if (modo !== 'resumen') {
     sortKpiCol.value = 'pct'
@@ -977,12 +1220,16 @@ function ejecutarConsulta() {
 async function toggleDetalleRuta(ruta) {
   if (rutaExpandida.value === ruta) {
     rutaExpandida.value = null
+    diaSeleccionadoInline.value = null
+    clienteExpandidoId.value = null
     return
   }
   rutaExpandida.value = ruta
   cargandoClientes.value = true
   carteraClientes.value = []
   diasRuta.value = []
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
 
   try {
     const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
@@ -995,6 +1242,7 @@ async function toggleDetalleRuta(ruta) {
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []
     diaSeleccionadoInline.value = null
+    clienteExpandidoId.value = null
     const tienenCompra = carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
     filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
   } catch (err) {
@@ -1002,36 +1250,6 @@ async function toggleDetalleRuta(ruta) {
   } finally {
     cargandoClientes.value = false
   }
-}
-
-async function abrirDetalleFechasCliente(cliente, ruta) {
-  clienteActivo.value = cliente
-  rutaClienteActivo.value = ruta
-  modalClienteVisible.value = true
-  cargandoDetalleCliente.value = true
-  detalleClienteFechas.value = null
-
-  try {
-    const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
-    const res = await axios.post('/supervisor/avance/cumplimiento/cliente-detalle-fechas', {
-      cliente_id: cliente.cliente_id,
-      ruta,
-      fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
-      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
-      kpi: kpiParaDetalle
-    })
-    detalleClienteFechas.value = res.data
-  } catch (err) {
-    console.error('Error al cargar detalle fechas cliente:', err)
-  } finally {
-    cargandoDetalleCliente.value = false
-  }
-}
-
-function cerrarModalCliente() {
-  modalClienteVisible.value = false
-  clienteActivo.value = null
-  detalleClienteFechas.value = null
 }
 
 function abrirModalInfoKpi(kpi) {
