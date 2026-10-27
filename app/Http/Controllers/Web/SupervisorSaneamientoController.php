@@ -31,6 +31,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Ruteo\GetCercanosDataRequest;
 use App\Http\Requests\Web\Ruteo\GetRuteoDataRequest;
 use App\Http\Requests\Web\Ruteo\GetVentasClienteRequest;
+use App\Models\Supervisor\PanRuteo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -67,6 +68,74 @@ class SupervisorSaneamientoController extends Controller
         );
 
         return response()->json($resultado);
+    }
+
+    /**
+     * Ajusta y modifica de manera dinámica el RTM de un cliente (Ruta y/o Día de visita).
+     */
+    public function ajustarRtm(Request $request, SavePropuestaAction $propuestaAction): JsonResponse
+    {
+        $request->validate([
+            'cliente_id' => ['required'],
+            'ruta_propuesta' => ['required', 'string'],
+            'dia_propuesto' => ['nullable', 'string'],
+            'aplicar_inmediato' => ['nullable', 'boolean'],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $clienteId = (int) $request->input('cliente_id');
+        $rutaPropuesta = strtoupper(trim((string) $request->input('ruta_propuesta')));
+        $diaPropuesto = strtoupper(trim((string) $request->input('dia_propuesto', '')));
+        $aplicarInmediato = $request->boolean('aplicar_inmediato', true);
+        $observaciones = (string) ($request->input('observaciones') ?: 'Ajuste dinámico RTM desde Visor y Fronteras');
+
+        $cliente = PanRuteo::query()->where('cliente_id', $clienteId)->first();
+        if (!$cliente) {
+            return response()->json([
+                'success' => false,
+                'message' => "Cliente ID {$clienteId} no encontrado en el padrón.",
+            ], 404);
+        }
+
+        $rutaActual = (string) ($cliente->ruta ?? '');
+        $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
+
+        // Registrar propuesta para trazabilidad en auditoría
+        $propuestaId = $propuestaAction->execute([
+            'tipo_hallazgo' => 'AJUSTE_RTM',
+            'cliente_id_origen' => $clienteId,
+            'cliente_nombre' => $cliente->cliente,
+            'ruta_actual' => $rutaActual,
+            'dia_actual' => $diaActual,
+            'ruta_propuesta' => $rutaPropuesta,
+            'dia_propuesto' => $diaPropuesto ?: $diaActual,
+            'accion_propuesta' => 'REASIGNAR_RTM',
+            'observaciones' => $observaciones,
+            'estado' => $aplicarInmediato ? 'APLICADO' : 'PENDIENTE',
+        ]);
+
+        // Si se aplica de inmediato, actualizar pan_ruteo
+        if ($aplicarInmediato) {
+            $updateData = ['ruta' => $rutaPropuesta];
+            if (!empty($diaPropuesto)) {
+                $updateData['dia_norm'] = $diaPropuesto;
+            }
+            PanRuteo::query()->where('cliente_id', $clienteId)->update($updateData);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $aplicarInmediato
+                ? "RTM actualizado: Cliente asignado a Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . "."
+                : "Propuesta de cambio RTM registrada como PENDIENTE.",
+            'propuesta_id' => $propuestaId,
+            'aplicado' => $aplicarInmediato,
+            'cliente_id' => $clienteId,
+            'ruta_anterior' => $rutaActual,
+            'ruta_nueva' => $rutaPropuesta,
+            'dia_anterior' => $diaActual,
+            'dia_nuevo' => $diaPropuesto ?: $diaActual,
+        ]);
     }
 
     /**

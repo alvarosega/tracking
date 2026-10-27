@@ -393,6 +393,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::middleware('module.access:saneamiento,visor')->group(function () {
             Route::get('/visor', [SupervisorSaneamientoController::class, 'visor'])->name('visor');
             Route::post('/visor/data', [SupervisorSaneamientoController::class, 'getVisorData'])->name('visor.data');
+            Route::post('/visor/ajustar-rtm', [SupervisorSaneamientoController::class, 'ajustarRtm'])->name('visor.ajustar-rtm');
+            Route::post('/fronteras/guardar', [SupervisorSaneamientoController::class, 'guardarFronteraRuta'])->name('fronteras.guardar');
         });
 
         // Submódulo 2: Clientes Cercanos (Radar Geográfico Espacial)

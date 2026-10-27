@@ -49,28 +49,27 @@
           <div class="flex items-center gap-1.5 text-xs font-mono">
             <span v-if="cargando" class="flex items-center gap-1 text-[11px] text-sky-600 animate-pulse font-medium">
               <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-              Cargando...
+              Consultando...
             </span>
-            <div class="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
+            <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
               <span class="text-slate-400 font-normal text-[11px]">Total:</span>
-              <span class="tabular-nums text-xs">{{ kpis.total }}</span>
+              <span class="tabular-nums">{{ kpis.total }}</span>
             </div>
-            <div v-if="kpis.con_gps > 0" class="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-semibold flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>{{ kpis.con_gps }} GPS</span>
+            <div class="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold text-[11px] tabular-nums">
+              {{ kpis.con_gps }} GPS
             </div>
           </div>
         </div>
 
-        <!-- Fila 2: Canal, Rutas, Solo Activos -->
+        <!-- Fila 2: Filtros de Canal, Rutas, Botón Consultar y Ajustar Fronteras -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pt-0.5">
           <!-- Filtro Dropdown: Canales -->
           <button
             type="button"
             @click.stop="toggleMenu('canales', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
           >
-            <span class="text-slate-400 font-normal">Canal:</span>
+            <span class="text-slate-500 font-normal">Canal:</span>
             <span class="font-bold text-slate-900">{{ labelCanales }}</span>
             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -81,27 +80,52 @@
           <button
             type="button"
             @click.stop="toggleMenu('rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
           >
-            <span class="text-slate-400 font-normal">Rutas:</span>
+            <span class="text-slate-500 font-normal">Rutas:</span>
             <span class="font-bold text-slate-900">{{ labelRutas }}</span>
             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
 
-          <!-- Toggle: Solo Activos -->
+          <!-- BOTÓN CONSULTAR (Móvil) -->
           <button
             type="button"
-            @click="toggleSoloActivos"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
+            @click="cargarDatos"
+            :disabled="cargando"
+            class="h-8 px-3.5 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
+            title="Consultar puntos y fronteras de rutas seleccionadas"
+          >
+            <svg v-if="!cargando" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <span v-else class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span>{{ cargando ? 'Cargando...' : 'Consultar' }}</span>
+          </button>
+
+          <!-- Botón Herramienta Frontera RTM (Móvil) -->
+          <button
+            type="button"
+            @click="mostrarHerramientaFronteras = !mostrarHerramientaFronteras"
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="mostrarHerramientaFronteras ? 'bg-purple-600 text-white border-purple-700' : 'bg-slate-100 text-slate-700 border-slate-300'"
+            title="Herramienta para editar y ajustar polígonos fronterizos RTM"
+          >
+            <span>🗺️ RTM</span>
+          </button>
+
+          <!-- Toggle: Solo Activos vs Todos -->
+          <button
+            type="button"
+            @click="soloActivos = !soloActivos"
+            class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0"
             :class="soloActivos
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
-            :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes. Clic para filtrar solo activos.'"
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              : 'bg-slate-100 text-slate-700 border-slate-300'"
           >
             <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
-            <span>{{ soloActivos ? 'Solo Activos' : 'Todos (Inc. Inactivos)' }}</span>
+            <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
         </div>
       </div>
@@ -122,7 +146,7 @@
           <button
             type="button"
             @click.stop="toggleMenu('canales', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
           >
             <span class="text-slate-400 font-normal">Canal:</span>
             <span class="font-bold text-slate-900">{{ labelCanales }}</span>
@@ -135,7 +159,7 @@
           <button
             type="button"
             @click.stop="toggleMenu('rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
           >
             <span class="text-slate-400 font-normal">Rutas:</span>
             <span class="font-semibold text-slate-900">{{ labelRutas }}</span>
@@ -145,7 +169,7 @@
           </button>
 
           <!-- Filtro Segmentado: Días de Visita -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <button
               v-for="d in diasSemana"
               :key="d.key"
@@ -163,8 +187,39 @@
             </button>
           </div>
 
+          <!-- BOTÓN CONSULTAR (Desktop) -->
+          <button
+            type="button"
+            @click="cargarDatos"
+            :disabled="cargando"
+            class="h-8 px-4 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
+            title="Consultar puntos y fronteras de rutas seleccionadas"
+          >
+            <svg v-if="!cargando" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <span v-else class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span>{{ cargando ? 'Consultando...' : 'Consultar' }}</span>
+          </button>
+
+          <!-- Botón de Herramienta: Ajustar Frontera RTM -->
+          <button
+            type="button"
+            @click="mostrarHerramientaFronteras = !mostrarHerramientaFronteras"
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="mostrarHerramientaFronteras
+              ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
+              : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'"
+            title="Herramienta para editar y ajustar polígonos fronterizos RTM"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+            </svg>
+            <span>Ajustar Frontera RTM</span>
+          </button>
+
           <!-- Selector de Modo de Coloración -->
-          <div class="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+          <div class="hidden lg:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <span class="text-[10px] font-mono text-slate-400 px-1.5">Color por:</span>
             <button
               type="button"
@@ -195,37 +250,32 @@
           <!-- Toggle: Solo Activos vs Todos -->
           <button
             type="button"
-            @click="toggleSoloActivos"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs"
+            @click="soloActivos = !soloActivos"
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
             :class="soloActivos
               ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
               : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
             :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes (activos e inactivos). Clic para filtrar solo activos.'"
           >
             <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
-            <span>{{ soloActivos ? 'Solo Activos' : 'Todos (Inc. Inactivos)' }}</span>
+            <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
 
           <!-- Checkboxes de Fronteras GIS -->
-          <div class="hidden xl:flex items-center space-x-3 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700">
+          <div class="hidden xl:flex items-center space-x-3 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" v-model="verFronteraRutas" @change="cargarDatos" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
+              <input type="checkbox" v-model="verFronteraRutas" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
               <span>Frontera Rutas</span>
             </label>
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" v-model="verFronteraDias" @change="cargarDatos" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
+              <input type="checkbox" v-model="verFronteraDias" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
               <span>Frontera Días</span>
             </label>
           </div>
         </div>
 
         <!-- Indicador de Carga, Selector Móvil y KPIs -->
-        <div class="flex items-center space-x-2 text-xs font-mono">
-          <span v-if="cargando" class="text-[11px] text-slate-500 flex items-center gap-1.5 animate-pulse mr-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-            Consultando...
-          </span>
-
+        <div class="flex items-center space-x-2 text-xs font-mono shrink-0">
           <div class="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-md flex items-center gap-1.5 shadow-2xs">
             <span class="text-slate-400">Total:</span>
             <span class="font-bold text-slate-900 tabular-nums">{{ kpis.total }}</span>
@@ -263,6 +313,15 @@
               <span class="truncate font-medium text-slate-700">{{ c }}</span>
             </label>
           </div>
+          <div class="pt-2 mt-1.5 border-t border-slate-100 flex justify-end">
+            <button
+              type="button"
+              @click="menuAbierto = null; cargarDatos();"
+              class="w-full py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            >
+              Consultar
+            </button>
+          </div>
         </div>
 
         <!-- Menú Rutas -->
@@ -284,7 +343,7 @@
           />
           <div class="max-h-56 overflow-y-auto space-y-1">
             <label v-for="r in rutasFiltradasEnDropdown" :key="r.ruta" class="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
-              <input type="checkbox" :value="r.ruta" v-model="filtroRutas" @change="cargarDatos" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
+              <input type="checkbox" :value="r.ruta" v-model="filtroRutas" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
               <div class="truncate flex items-center gap-2 flex-1">
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: getRutaColor(r.ruta) }"></span>
                 <span class="font-mono font-semibold text-slate-800">{{ formatRuta(r.ruta) }}</span>
@@ -292,19 +351,130 @@
               </div>
             </label>
           </div>
+          <div class="pt-2 mt-1.5 border-t border-slate-100 flex justify-end">
+            <button
+              type="button"
+              @click="menuAbierto = null; cargarDatos();"
+              class="w-full py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            >
+              Consultar
+            </button>
+          </div>
         </div>
       </Teleport>
+
+      <!-- BARRA DE HERRAMIENTAS: EDICIÓN Y AJUSTE DE FRONTERAS RTM -->
+      <div
+        v-if="mostrarHerramientaFronteras"
+        class="bg-purple-50/95 border-b border-purple-200/90 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs z-20 shrink-0"
+      >
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-purple-900 font-mono flex items-center gap-1">
+            <span>🗺️ Frontera RTM:</span>
+          </span>
+
+          <select
+            v-model="rutaParaAjustarFrontera"
+            @change="alCambiarRutaParaFrontera"
+            class="h-7 px-2.5 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer shadow-2xs"
+          >
+            <option value="">-- Seleccionar ruta a ajustar --</option>
+            <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
+              {{ formatRuta(r.ruta) }} ({{ r.canal }})
+            </option>
+          </select>
+
+          <!-- Controles de Edición -->
+          <template v-if="rutaParaAjustarFrontera">
+            <button
+              v-if="!editandoVertices"
+              type="button"
+              @click="activarEdicionVertices"
+              class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+              </svg>
+              <span>{{ tieneFronteraRutaActual ? 'Editar Vértices' : 'Dibujar / Generar' }}</span>
+            </button>
+
+            <button
+              v-if="!tieneFronteraRutaActual && !editandoVertices"
+              type="button"
+              @click="generarConvexHullRuta"
+              class="h-7 px-2.5 bg-white hover:bg-slate-100 text-purple-700 border border-purple-300 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
+              title="Calcular polígono envolvente automático a partir de los clientes GPS de esta ruta"
+            >
+              <span>Generar Convex Hull</span>
+            </button>
+
+            <template v-if="editandoVertices">
+              <span class="text-[11px] font-mono text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-300 font-medium">
+                Arrastra los vértices azules para ajustar el perímetro
+              </span>
+
+              <button
+                type="button"
+                @click="guardarFronteraRtm"
+                :disabled="guardandoFrontera"
+                class="h-7 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
+              </button>
+
+              <button
+                type="button"
+                @click="cancelarEdicionVertices"
+                class="h-7 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </template>
+          </template>
+        </div>
+
+        <button
+          type="button"
+          @click="mostrarHerramientaFronteras = false; cancelarEdicionVertices();"
+          class="text-purple-600 hover:text-purple-900 font-bold text-xs cursor-pointer ml-auto"
+        >
+          &times; Cerrar
+        </button>
+      </div>
 
       <!-- Contenedor Principal: Split Screen (Lista de Clientes + Mapa Leaflet) -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
         
-        <!-- Panel Lateral: Lista de Clientes / Expediente -->
+        <!-- Panel Lateral: Lista de Clientes / Expediente / Balance RTM -->
         <aside
-          class="w-full md:w-[360px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
+          class="w-full md:w-[370px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
           :class="vistaMovil === 'lista' ? 'flex' : 'hidden md:flex'"
         >
-          <!-- Vista 1: Listado de Clientes Filtrables -->
-          <template v-if="!clienteSeleccionado">
+          <!-- Selector de Pestaña del Panel Lateral (Lista vs Balance RTM) -->
+          <div v-if="!clienteSeleccionado" class="p-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between gap-1.5 shrink-0">
+            <div class="flex items-center bg-slate-200/80 p-0.5 rounded-lg flex-1">
+              <button
+                type="button"
+                @click="tabLateral = 'lista'"
+                class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
+                :class="tabLateral === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              >
+                Clientes ({{ clientesFiltradosLista.length }})
+              </button>
+              <button
+                type="button"
+                @click="tabLateral = 'balance'"
+                class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
+                :class="tabLateral === 'balance' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              >
+                Balance RTM
+              </button>
+            </div>
+          </div>
+
+          <!-- Vista 1A: Listado de Clientes Filtrables -->
+          <template v-if="!clienteSeleccionado && tabLateral === 'lista'">
             <!-- Buscador de Clientes -->
             <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center space-x-2">
               <div class="relative flex-1">
@@ -328,29 +498,32 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
                   </svg>
                 </div>
-                <p class="font-medium text-slate-600">Sin datos seleccionados</p>
-                <p class="text-[11px] text-slate-400">Selecciona al menos un canal o ruta comercial arriba para proyectar los puntos en El Alto.</p>
+                <p class="font-medium text-slate-600">Sin datos consultados</p>
+                <p class="text-[11px] text-slate-400">Selecciona canal(es) o ruta(s) y presiona el botón <strong>"Consultar"</strong> para proyectar la red de clientes.</p>
               </div>
 
-              <button
+              <div
                 v-for="c in clientesFiltradosLista"
                 :key="c.id"
-                type="button"
-                @click="abrirExpedienteCliente(c)"
-                class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group cursor-pointer"
-                :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-l-2 border-sky-600' : ''"
+                class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group relative border-l-2"
+                :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-sky-600' : 'border-transparent'"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <span class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1">
+                  <span
+                    @click="abrirExpedienteCliente(c)"
+                    class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1 cursor-pointer flex-1"
+                  >
                     {{ c.nombre }}
                   </span>
                   <div class="flex items-center gap-1 shrink-0">
-                    <span
-                      v-if="c.estado && c.estado.toLowerCase() !== 'activo'"
-                      class="text-[9px] font-mono px-1 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200"
+                    <button
+                      type="button"
+                      @click.stop="abrirModalAjusteRtm(c)"
+                      class="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-2xs"
+                      title="Ajustar y modificar dinámicamente el RTM de este cliente"
                     >
-                      INACTIVO
-                    </span>
+                      ✏️ RTM
+                    </button>
                     <span
                       class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
                       :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
@@ -359,8 +532,10 @@
                     </span>
                   </div>
                 </div>
-                <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{{ c.direccion }}</p>
-                <div class="flex items-center space-x-2 mt-1.5 text-[10px] text-slate-400 font-mono">
+
+                <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
+
+                <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-mono">
                   <span class="flex items-center gap-1 font-medium text-slate-700">
                     <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
                     {{ formatRuta(c.ruta) }}
@@ -370,7 +545,51 @@
                   <span>•</span>
                   <span>ID: {{ c.cliente_id }}</span>
                 </div>
-              </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Vista 1B: Balance RTM de Rutas Consultadas -->
+          <template v-else-if="!clienteSeleccionado && tabLateral === 'balance'">
+            <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
+              <div v-if="balanceRtmPorRuta.length === 0" class="p-8 text-center text-xs text-slate-400">
+                Consulta rutas para visualizar el balance de cartera y carga de días RTM.
+              </div>
+
+              <div
+                v-for="b in balanceRtmPorRuta"
+                :key="b.ruta"
+                class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 shadow-2xs text-xs"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: getRutaColor(b.ruta) }"></span>
+                    <span class="font-mono font-bold text-slate-900 text-xs">{{ formatRuta(b.ruta) }}</span>
+                    <span class="text-slate-400 text-[10px] font-mono">({{ b.canal }})</span>
+                  </div>
+                  <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
+                    {{ b.total }} clientes
+                  </span>
+                </div>
+
+                <!-- Distribución por Jornadas de Visita -->
+                <div class="pt-1.5 border-t border-slate-200/80">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
+                    Carga por Día:
+                  </div>
+                  <div class="grid grid-cols-6 gap-1 text-[10px] font-mono">
+                    <div
+                      v-for="d in diasSemana"
+                      :key="d.key"
+                      class="text-center py-1 rounded border"
+                      :class="(b.dias[d.key] || 0) > 0 ? 'bg-white border-slate-200 font-bold text-slate-900' : 'bg-slate-100/60 border-slate-200/40 text-slate-400'"
+                    >
+                      <div class="text-[8px] opacity-75 font-normal">{{ d.corto }}</div>
+                      <div class="text-[11px]">{{ b.dias[d.key] || 0 }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </template>
 
@@ -396,7 +615,7 @@
             </div>
 
             <!-- Ficha Resumen del Cliente -->
-            <div class="p-3.5 bg-white border-b border-slate-100 shrink-0 space-y-2">
+            <div class="p-3.5 bg-white border-b border-slate-100 shrink-0 space-y-2.5">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
                   <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.nombre }}</h3>
@@ -410,8 +629,25 @@
                 </span>
               </div>
 
-              <div class="flex items-center justify-between text-[10px] font-mono pt-1 text-slate-500 border-t border-slate-100">
-                <span>Día: <strong class="text-slate-800">{{ clienteSeleccionado.dia_norm || 'S/D' }}</strong></span>
+              <!-- Tarjeta de RTM Actual y Botón de Ajuste Dinámico -->
+              <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
+                <div class="flex items-center justify-between font-mono text-[11px]">
+                  <span>Ruta: <b :style="{ color: getRutaColor(clienteSeleccionado.ruta) }">{{ formatRuta(clienteSeleccionado.ruta) }}</b></span>
+                  <span>Día: <b :style="{ color: getDiaColor(clienteSeleccionado.dia_norm) }">{{ clienteSeleccionado.dia_norm || 'S/D' }}</b></span>
+                </div>
+                <button
+                  type="button"
+                  @click="abrirModalAjusteRtm(clienteSeleccionado)"
+                  class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                  <span>Ajustar RTM (Reasignar Ruta / Día)</span>
+                </button>
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-0.5">
                 <span>ID: {{ clienteSeleccionado.cliente_id }}</span>
                 <span v-if="clienteSeleccionado.celular || clienteSeleccionado.contacto" class="text-sky-600">
                   {{ clienteSeleccionado.celular || clienteSeleccionado.contacto }}
@@ -499,12 +735,13 @@
 
         <!-- Panel del Mapa Leaflet -->
         <div
-          class="flex-1 relative min-h-[400px] md:min-h-0 bg-slate-950"
+          class="flex-1 relative min-h-[350px] md:min-h-0 bg-slate-950"
           :class="vistaMovil === 'mapa' ? 'block' : 'hidden md:block'"
         >
+          <!-- Lienzo Leaflet -->
           <div id="map-visor" class="absolute inset-0 w-full h-full z-10"></div>
 
-          <!-- Selector de Capas de Mapa -->
+          <!-- Selector de Capas de Mapa Base -->
           <div class="absolute top-3 left-3 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
             <button
               v-for="(layer, key) in mapsConfig.tileLayers"
@@ -518,57 +755,25 @@
             </button>
           </div>
 
-          <!-- Leyenda de Días de Visita en el Mapa -->
+          <!-- Toast Flotante de Notificaciones -->
           <div
-            class="absolute bottom-2.5 left-2.5 right-2.5 sm:right-auto sm:bottom-4 sm:left-4 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1.5 sm:p-2 shadow-xl max-w-[calc(100vw-20px)] sm:max-w-md overflow-x-auto no-scrollbar"
+            v-if="toastMensaje"
+            class="absolute top-3 right-3 z-[99995] px-3.5 py-2 bg-emerald-900 text-white border border-emerald-700 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce"
           >
-            <div class="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2.5 text-[10px] sm:text-[11px] font-mono min-w-max">
-              <span class="text-slate-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1 pl-1">
-                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                </svg>
-                <span>Días:</span>
-              </span>
-
-              <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                <button
-                  v-for="d in diasSemana"
-                  :key="d.key"
-                  type="button"
-                  @click="toggleDia(d.key)"
-                  class="px-2 py-1 rounded-lg font-semibold text-[10px] sm:text-[11px] flex items-center gap-1.5 transition-all cursor-pointer select-none"
-                  :class="filtroDias.includes(d.key)
-                    ? 'bg-slate-900 text-white shadow-2xs font-bold ring-1 ring-slate-800'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  :title="`Filtrar por ${d.label}`"
-                >
-                  <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" :style="{ backgroundColor: d.color }"></span>
-                  <span>{{ d.corto }}</span>
-                </button>
-
-                <button
-                  type="button"
-                  @click="toggleTodosDias"
-                  class="px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer select-none border border-slate-200 ml-0.5"
-                  :class="filtroDias.length === 6 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                  title="Seleccionar todos o reiniciar filtro de días"
-                >
-                  {{ filtroDias.length === 6 ? 'Reset' : 'Todos' }}
-                </button>
-              </div>
-            </div>
+            <span>✅</span>
+            <span>{{ toastMensaje }}</span>
           </div>
 
-          <!-- Leyenda Dinámica Inteligente (Codificación por Color) -->
+          <!-- Leyenda Dinámica en Tiempo Real -->
           <div
             v-if="clientes.length > 0"
-            class="absolute bottom-16 right-2.5 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-52 sm:max-h-64 overflow-y-auto"
+            class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-64 overflow-y-auto"
           >
             <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                 Codificación: {{ modoColor.toUpperCase() }}
               </p>
-              <span class="text-[10px] font-mono text-slate-500">{{ elementosLeyenda.length }} tipos</span>
+              <span class="text-[10px] font-mono text-slate-500">{{ elementosLeyenda.length }} grupos</span>
             </div>
 
             <div class="space-y-1.5 text-[11px]">
@@ -588,6 +793,146 @@
         </div>
 
       </div>
+
+      <!-- ========================================== -->
+      <!-- MODAL PARA AJUSTAR RTM DE UN CLIENTE       -->
+      <!-- ========================================== -->
+      <Teleport to="body">
+        <div
+          v-if="modalAjusteRtm.show"
+          class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+          @click.self="modalAjusteRtm.show = false"
+        >
+          <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150">
+            <!-- Header Modal -->
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="text-xs font-bold text-slate-900">Ajustar RTM Comercial</h3>
+                  <p class="text-[11px] text-slate-500">Reasigna dinámicamente la ruta y día de visita</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                @click="modalAjusteRtm.show = false"
+                class="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <!-- Contenido Modal -->
+            <form @submit.prevent="confirmarAjusteRtm" class="p-5 space-y-4 text-xs">
+              <!-- Datos del Cliente -->
+              <div class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-1">
+                <div class="font-bold text-slate-900 text-xs">{{ modalAjusteRtm.cliente?.nombre }}</div>
+                <div class="text-[11px] text-slate-500 font-mono">ID: {{ modalAjusteRtm.cliente?.cliente_id }}</div>
+                <div class="text-[11px] text-slate-500 truncate">{{ modalAjusteRtm.cliente?.direccion }}</div>
+              </div>
+
+              <!-- Comparativa RTM Actual vs Nuevo -->
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-2.5 rounded-xl bg-slate-100 border border-slate-200">
+                  <div class="text-[10px] text-slate-500 uppercase font-bold font-mono">Ruta Actual</div>
+                  <div class="font-bold font-mono text-xs mt-0.5 text-slate-800">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</div>
+                  <div class="text-[11px] text-slate-500 mt-1 font-mono">Día: {{ modalAjusteRtm.cliente?.dia_norm || 'S/D' }}</div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <div class="text-[10px] text-indigo-700 uppercase font-bold font-mono">Nueva Asignación</div>
+                  <div class="font-bold font-mono text-xs mt-0.5 text-indigo-900">{{ formatRuta(formRtm.ruta_propuesta) }}</div>
+                  <div class="text-[11px] text-indigo-700 mt-1 font-mono">Día: {{ formRtm.dia_propuesto }}</div>
+                </div>
+              </div>
+
+              <!-- Formulario de Selección -->
+              <div class="space-y-3">
+                <!-- Selector de Nueva Ruta -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    Nueva Ruta RTM:
+                  </label>
+                  <select
+                    v-model="formRtm.ruta_propuesta"
+                    required
+                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
+                      {{ formatRuta(r.ruta) }} ({{ r.canal }}) - {{ r.vendedor || 'Sin vendedor' }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Selector de Nuevo Día de Visita -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    Nuevo Día de Visita:
+                  </label>
+                  <select
+                    v-model="formRtm.dia_propuesto"
+                    required
+                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option v-for="d in diasSemana" :key="d.key" :value="d.label">
+                      {{ d.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Motivo / Observaciones -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    Motivo / Observación:
+                  </label>
+                  <input
+                    type="text"
+                    v-model="formRtm.observaciones"
+                    placeholder="Ej: Rebalance territorial, corrección de frontera..."
+                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <!-- Checkbox de Aplicación Inmediata -->
+                <label class="flex items-center gap-2 p-2 bg-indigo-50/70 border border-indigo-200/80 rounded-lg cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    v-model="formRtm.aplicar_inmediato"
+                    class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                  />
+                  <div class="text-[11px] text-indigo-950">
+                    <span class="font-bold">Aplicar cambio inmediatamente</span> al padrón comercial
+                  </div>
+                </label>
+              </div>
+
+              <!-- Botones de Acción -->
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  @click="modalAjusteRtm.show = false"
+                  class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  :disabled="guardandoRtm"
+                  class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  <span v-if="guardandoRtm" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>{{ guardandoRtm ? 'Guardando...' : 'Confirmar Ajuste RTM' }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- VISOR LIGHTBOX MODAL CON ROTACIÓN -->
       <PhotoLightboxModal
@@ -609,9 +954,8 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
-import { getCanalColor, getRutaColor, formatRuta, getDiaColor, DIAS_SEMANA_CONFIG } from '@/Config/colors';
+import { getCanalColor, getRutaColor, formatRuta, getDiaColor } from '@/Config/colors';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 const props = defineProps({
   catalogo_rutas: {
@@ -622,21 +966,13 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  submoduloActivo: {
+    type: String,
+    default: 'visor',
+  },
 });
 
-const diasSemana = DIAS_SEMANA_CONFIG.filter(d => d.key !== 'DOMINGO');
-
-function limpiarTel(tel) {
-  if (!tel) return '';
-  const clean = String(tel).replace(/\D/g, '');
-  return clean.length >= 7 ? clean : '';
-}
-
-// Estado de Expediente & Fotos
-const clienteSeleccionado = ref(null);
-const visitasCliente = ref([]);
-const cargandoVisitas = ref(false);
-
+// Estado de Lightbox con Rotación
 const fotoLightbox = ref({
   show: false,
   url: '',
@@ -655,34 +991,16 @@ function abrirLightboxFoto(vis) {
   };
 }
 
-async function abrirExpedienteCliente(c) {
-  clienteActivoId.value = c.id;
-  clienteSeleccionado.value = c;
-  visitasCliente.value = [];
-  cargandoVisitas.value = true;
+const diasSemana = [
+  { key: 'LUNES', corto: 'LUN', label: 'LUNES', color: getDiaColor('LUNES') },
+  { key: 'MARTES', corto: 'MAR', label: 'MARTES', color: getDiaColor('MARTES') },
+  { key: 'MIERCOLES', corto: 'MIÉ', label: 'MIÉRCOLES', color: getDiaColor('MIERCOLES') },
+  { key: 'JUEVES', corto: 'JUE', label: 'JUEVES', color: getDiaColor('JUEVES') },
+  { key: 'VIERNES', corto: 'VIE', label: 'VIERNES', color: getDiaColor('VIERNES') },
+  { key: 'SABADO', corto: 'SÁB', label: 'SÁBADO', color: getDiaColor('SABADO') },
+];
 
-  if (map && c.latitud && c.longitud) {
-    map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
-    const m = markersMap.get(c.id);
-    if (m) m.openPopup();
-  }
-
-  try {
-    const res = await axios.post(`/supervisor/saneamiento/cercanos/cliente/${c.cliente_id}/visitas`);
-    visitasCliente.value = res.data.visitas || [];
-  } catch (err) {
-    console.error('Error al cargar visitas:', err);
-  } finally {
-    cargandoVisitas.value = false;
-  }
-}
-
-function cerrarExpediente() {
-  clienteSeleccionado.value = null;
-  clienteActivoId.value = null;
-  visitasCliente.value = [];
-}
-
+// Estados de Filtros Reactivos (NO autoejecutan consulta)
 const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : (props.canales?.[0] ? [props.canales[0]] : []));
 const filtroRutas = ref([]);
 const filtroDias = ref([]);
@@ -691,6 +1009,7 @@ const verFronteraDias = ref(true);
 const soloActivos = ref(true);
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
+const tabLateral = ref('lista'); // 'lista' | 'balance'
 const capaActual = ref(mapsConfig.defaultTileLayer || 'openStreetMap');
 
 // Modo de coloración: 'ruta' | 'dia' | 'canal'
@@ -701,11 +1020,39 @@ const posicionMenu = ref({ top: 0, left: 0 });
 const busquedaRuta = ref('');
 const busquedaCliente = ref('');
 const clienteActivoId = ref(null);
+const clienteSeleccionado = ref(null);
+const visitasCliente = ref([]);
+const cargandoVisitas = ref(false);
 
 const clientes = ref([]);
 const fronterasRutas = ref([]);
 const fronterasDias = ref([]);
 const kpis = ref({ total: 0, con_gps: 0, sin_gps: 0 });
+const toastMensaje = ref('');
+
+// ── Herramienta de Fronteras RTM ──
+const mostrarHerramientaFronteras = ref(false);
+const rutaParaAjustarFrontera = ref('');
+const editandoVertices = ref(false);
+const guardandoFrontera = ref(false);
+let markersVertices = [];
+let poligonoEnEdicion = null;
+let coordsPoligonoEnEdicion = [];
+
+// ── Modal de Ajuste Dinámico de RTM de Cliente ──
+const modalAjusteRtm = ref({
+  show: false,
+  cliente: null,
+});
+
+const formRtm = ref({
+  cliente_id: null,
+  ruta_propuesta: '',
+  dia_propuesto: 'LUNES',
+  observaciones: '',
+  aplicar_inmediato: true,
+});
+const guardandoRtm = ref(false);
 
 let map = null;
 let currentTileLayer = null;
@@ -751,6 +1098,35 @@ const clientesFiltradosLista = computed(() => {
   );
 });
 
+// Balance RTM agrupado por ruta y día
+const balanceRtmPorRuta = computed(() => {
+  if (clientes.value.length === 0) return [];
+  const mapRutas = new Map();
+
+  clientes.value.forEach(c => {
+    const rKey = c.ruta || 'SIN RUTA';
+    if (!mapRutas.has(rKey)) {
+      const rutaInfo = props.catalogo_rutas.find(r => r.ruta === rKey);
+      mapRutas.set(rKey, {
+        ruta: rKey,
+        canal: rutaInfo ? rutaInfo.canal : 'General',
+        total: 0,
+        con_gps: 0,
+        dias: {},
+      });
+    }
+
+    const item = mapRutas.get(rKey);
+    item.total++;
+    if (c.tiene_gps) item.con_gps++;
+
+    const dia = c.dia_norm || 'SIN DIA';
+    item.dias[dia] = (item.dias[dia] || 0) + 1;
+  });
+
+  return Array.from(mapRutas.values()).sort((a, b) => b.total - a.total);
+});
+
 // Elementos dinámicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0) return [];
@@ -785,6 +1161,11 @@ const elementosLeyenda = computed(() => {
   return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
 });
 
+const tieneFronteraRutaActual = computed(() => {
+  if (!rutaParaAjustarFrontera.value) return false;
+  return fronterasRutas.value.some(fr => fr.ruta.toUpperCase() === rutaParaAjustarFrontera.value.toUpperCase());
+});
+
 function setModoColor(modo) {
   modoColor.value = modo;
   renderizarEnMapa();
@@ -803,10 +1184,10 @@ function toggleMenu(nombre, e) {
   menuAbierto.value = nombre;
 }
 
+// Filtros: solo actualizan estado, NO autoejecutan consulta
 function onCanalesChange() {
   const validRutas = new Set(rutasDisponibles.value.map(r => r.ruta));
   filtroRutas.value = filtroRutas.value.filter(r => validRutas.has(r));
-  cargarDatos();
 }
 
 function seleccionarTodosCanales() {
@@ -821,12 +1202,10 @@ function limpiarCanales() {
 
 function seleccionarTodasRutas() {
   filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
-  cargarDatos();
 }
 
 function limpiarRutas() {
   filtroRutas.value = [];
-  cargarDatos();
 }
 
 function toggleDia(diaKey) {
@@ -836,7 +1215,6 @@ function toggleDia(diaKey) {
   } else {
     filtroDias.value.push(diaKey);
   }
-  cargarDatos();
 }
 
 function toggleTodosDias() {
@@ -845,15 +1223,12 @@ function toggleTodosDias() {
   } else {
     filtroDias.value = diasSemana.map(d => d.key);
   }
-  cargarDatos();
 }
 
-function toggleSoloActivos() {
-  soloActivos.value = !soloActivos.value;
-  cargarDatos();
-}
-
+// CONSULTA PRINCIPAL A BACKEND (Ejecutada por Botón Consultar)
 async function cargarDatos() {
+  menuAbierto.value = null;
+
   if (filtroRutas.value.length === 0 && filtroCanales.value.length === 0) {
     clientes.value = [];
     fronterasRutas.value = [];
@@ -893,6 +1268,296 @@ async function cargarDatos() {
     cargando.value = false;
   }
 }
+
+// ── LÓGICA DE EDICIÓN Y AJUSTE DE FRONTERAS RTM ──
+
+function alCambiarRutaParaFrontera() {
+  cancelarEdicionVertices();
+  if (!rutaParaAjustarFrontera.value) return;
+
+  // Si la ruta seleccionada ya tiene polígono en pantalla, centrar en ella
+  const fr = fronterasRutas.value.find(f => f.ruta.toUpperCase() === rutaParaAjustarFrontera.value.toUpperCase());
+  if (fr && fr.geojson && map) {
+    try {
+      const tempLayer = L.geoJSON(fr.geojson);
+      map.fitBounds(tempLayer.getBounds(), { padding: [40, 40] });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function limpiarMarkersVertices() {
+  markersVertices.forEach(m => {
+    if (map) map.removeLayer(m);
+  });
+  markersVertices = [];
+  if (poligonoEnEdicion && map) {
+    map.removeLayer(poligonoEnEdicion);
+    poligonoEnEdicion = null;
+  }
+}
+
+function cancelarEdicionVertices() {
+  editandoVertices.value = false;
+  limpiarMarkersVertices();
+  renderizarEnMapa();
+}
+
+function activarEdicionVertices() {
+  if (!rutaParaAjustarFrontera.value) return;
+  limpiarMarkersVertices();
+
+  const fr = fronterasRutas.value.find(f => f.ruta.toUpperCase() === rutaParaAjustarFrontera.value.toUpperCase());
+  if (fr && fr.geojson) {
+    // GeoJSON almacena [lng, lat]
+    const coordsGeo = fr.geojson.coordinates?.[0] || [];
+    coordsPoligonoEnEdicion = coordsGeo.map(pt => [Number(pt[1]), Number(pt[0])]);
+  } else {
+    generarConvexHullRuta();
+    return;
+  }
+
+  if (coordsPoligonoEnEdicion.length < 3) {
+    alert('Se requieren al menos 3 vértices para editar el polígono.');
+    return;
+  }
+
+  editandoVertices.value = true;
+  crearCapaEdicionPoligono();
+}
+
+function generarConvexHullRuta() {
+  if (!rutaParaAjustarFrontera.value) return;
+  const rutaSel = rutaParaAjustarFrontera.value.toUpperCase();
+  const clientesRutaGps = clientes.value.filter(c => c.tiene_gps && c.ruta.toUpperCase() === rutaSel);
+
+  if (clientesRutaGps.length < 3) {
+    alert(`La ruta ${rutaSel} tiene menos de 3 clientes con coordenadas GPS visibles. No se puede calcular Convex Hull.`);
+    return;
+  }
+
+  const puntos = clientesRutaGps.map(c => [c.latitud, c.longitud]);
+  const hull = calcularConvexHull(puntos);
+
+  if (hull.length < 3) {
+    alert('No se pudo generar un polígono cerrado con los puntos actuales.');
+    return;
+  }
+
+  coordsPoligonoEnEdicion = hull;
+  editandoVertices.value = true;
+  crearCapaEdicionPoligono();
+}
+
+// Algoritmo Convex Hull (Monotone Chain) en JS
+function calcularConvexHull(puntos) {
+  if (puntos.length <= 2) return puntos;
+  const pts = [...puntos].sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+      lower.pop();
+    }
+    lower.push(p);
+  }
+
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+      upper.pop();
+    }
+    upper.push(p);
+  }
+
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function crearCapaEdicionPoligono() {
+  if (!map || coordsPoligonoEnEdicion.length < 3) return;
+
+  const rutaColor = getRutaColor(rutaParaAjustarFrontera.value);
+
+  poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion, {
+    color: '#9333EA',
+    weight: 2.5,
+    dashArray: '4, 4',
+    fillColor: rutaColor,
+    fillOpacity: 0.18,
+  }).addTo(map);
+
+  map.fitBounds(poligonoEnEdicion.getBounds(), { padding: [40, 40] });
+
+  // Crear marcadores interactivos arrastrables en cada vértice
+  coordsPoligonoEnEdicion.forEach((pt, idx) => {
+    const marker = L.circleMarker(pt, {
+      radius: 6.5,
+      color: '#9333EA',
+      fillColor: '#FFFFFF',
+      fillOpacity: 1,
+      weight: 2.5,
+    }).addTo(map);
+
+    marker.on('mousedown', function () {
+      map.dragging.disable();
+
+      function onMouseMove(moveEvent) {
+        marker.setLatLng(moveEvent.latlng);
+        coordsPoligonoEnEdicion[idx] = [moveEvent.latlng.lat, moveEvent.latlng.lng];
+        if (poligonoEnEdicion) {
+          poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion);
+        }
+      }
+
+      function onMouseUp() {
+        map.off('mousemove', onMouseMove);
+        map.off('mouseup', onMouseUp);
+        map.dragging.enable();
+      }
+
+      map.on('mousemove', onMouseMove);
+      map.on('mouseup', onMouseUp);
+    });
+
+    markersVertices.push(marker);
+  });
+}
+
+async function guardarFronteraRtm() {
+  if (!rutaParaAjustarFrontera.value || coordsPoligonoEnEdicion.length < 3) return;
+  guardandoFrontera.value = true;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.fronteras.guardar')
+      : '/supervisor/saneamiento/fronteras/guardar';
+
+    const res = await axios.post(url, {
+      ruta: rutaParaAjustarFrontera.value,
+      coordenadas: coordsPoligonoEnEdicion,
+    });
+
+    if (res.data?.status === 'ok' || res.data?.frontera_id) {
+      mostrarToast(`Frontera RTM de ${formatRuta(rutaParaAjustarFrontera.value)} guardada exitosamente.`);
+      cancelarEdicionVertices();
+      await cargarDatos();
+    } else {
+      alert('Respuesta inesperada al guardar la frontera.');
+    }
+  } catch (err) {
+    console.error('Error al guardar frontera RTM:', err);
+    alert('Error de comunicación al guardar la frontera: ' + (err.response?.data?.message || err.message));
+  } finally {
+    guardandoFrontera.value = false;
+  }
+}
+
+// ── LÓGICA DE AJUSTE DINÁMICO DE RTM DE CLIENTES ──
+
+function abrirModalAjusteRtm(c) {
+  modalAjusteRtm.value = {
+    show: true,
+    cliente: c,
+  };
+
+  formRtm.value = {
+    cliente_id: c.cliente_id || c.id,
+    ruta_propuesta: c.ruta || (props.catalogo_rutas[0]?.ruta || ''),
+    dia_propuesto: c.dia_norm || 'LUNES',
+    observaciones: 'Ajuste dinámico RTM desde Visor',
+    aplicar_inmediato: true,
+  };
+}
+
+async function confirmarAjusteRtm() {
+  if (!formRtm.value.ruta_propuesta) return;
+  guardandoRtm.value = true;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.ajustar-rtm')
+      : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+    const res = await axios.post(url, formRtm.value);
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || 'RTM actualizado exitosamente');
+
+      // Actualizar cliente en memoria para reflejarlo en el mapa inmediatamente
+      const cliId = formRtm.value.cliente_id;
+      const target = clientes.value.find(c => (c.cliente_id == cliId || c.id == cliId));
+      if (target) {
+        target.ruta = res.data.ruta_nueva;
+        target.dia_norm = res.data.dia_nuevo;
+      }
+
+      if (clienteSeleccionado.value && (clienteSeleccionado.value.cliente_id == cliId || clienteSeleccionado.value.id == cliId)) {
+        clienteSeleccionado.value.ruta = res.data.ruta_nueva;
+        clienteSeleccionado.value.dia_norm = res.data.dia_nuevo;
+      }
+
+      modalAjusteRtm.value.show = false;
+      renderizarEnMapa();
+    } else {
+      alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
+    }
+  } catch (err) {
+    console.error('Error al ajustar RTM del cliente:', err);
+    alert('Error al ajustar RTM: ' + (err.response?.data?.message || err.message));
+  } finally {
+    guardandoRtm.value = false;
+  }
+}
+
+function mostrarToast(msg) {
+  toastMensaje.value = msg;
+  setTimeout(() => {
+    toastMensaje.value = '';
+  }, 4500);
+}
+
+// ── EXPEDIENTE Y VISITAS ──
+
+async function abrirExpedienteCliente(c) {
+  clienteActivoId.value = c.id;
+  clienteSeleccionado.value = c;
+  visitasCliente.value = [];
+
+  if (map && c.latitud && c.longitud) {
+    map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
+    const m = markersMap.get(c.id);
+    if (m) m.openPopup();
+  }
+
+  // Cargar fotos y visitas del cliente
+  cargandoVisitas.value = true;
+  try {
+    const res = await axios.post(`/supervisor/visitas/fotos/${c.cliente_id}`);
+    visitasCliente.value = res.data.visitas || [];
+  } catch (error) {
+    console.error('Error al cargar visitas:', error);
+  } finally {
+    cargandoVisitas.value = false;
+  }
+}
+
+function cerrarExpediente() {
+  clienteSeleccionado.value = null;
+  clienteActivoId.value = null;
+  visitasCliente.value = [];
+}
+
+function limpiarTel(t) {
+  if (!t) return '';
+  return String(t).replace(/\D/g, '');
+}
+
+// ── MAPA Y RENDERIZADO LEAFLET ──
 
 function cambiarCapaMapa(nombreCapa) {
   if (!map || !mapsConfig.tileLayers[nombreCapa]) return;
@@ -955,7 +1620,7 @@ function getMarkerColor(c) {
   }
   if (modoColor.value === 'canal') {
     const rutaInfo = props.catalogo_rutas.find(r => r.ruta === c.ruta);
-    return getCanalColor(rutaInfo ? rutaInfo.canal : 'DEFAULT');
+    return getCanalColor(rutaInfo ? rutaInfo.canal : 'General');
   }
   return getRutaColor(c.ruta);
 }
@@ -1026,22 +1691,48 @@ function renderizarEnMapa() {
       const cleanTel = limpiarTel(tel);
 
       marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 230px;">
+        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 240px;">
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
-            <span style="font-weight: 700; font-size: 12px;">${c.nombre}</span>
+            <span style="font-weight: 700; font-size: 12px;" class="truncate">${c.nombre}</span>
             <span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; ${c.estado && c.estado.toLowerCase() === 'activo' ? 'background: #ECFDF5; color: #047857;' : 'background: #FFF1F2; color: #BE123C;'}">${c.estado || 'Activo'}</span>
           </div>
-          <div style="color: #64748B; margin-bottom: 5px;">${c.direccion}</div>
-          <div style="display: flex; gap: 5px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px;">
+          <div style="color: #64748B; margin-bottom: 5px;" class="truncate">${c.direccion}</div>
+          <div style="display: flex; gap: 5px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; margin-bottom: 6px;">
             <span style="font-weight: bold; color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</span>
             <span>•</span>
             <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)}">${c.dia_norm || 'S/D'}</span>
             <span>•</span>
             <span>ID: ${c.cliente_id}</span>
           </div>
-          <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #E2E8F0; display: flex; gap: 6px;">
-            <a href="https://www.google.com/maps?q=${c.latitud},${c.longitud}" target="_blank" style="padding: 2px 6px; background: #F1F5F9; color: #334155; border-radius: 4px; text-decoration: none; font-size: 10px; font-weight: bold;">Maps ↗</a>
-            ${cleanTel ? `<a href="https://wa.me/591${cleanTel}" target="_blank" style="padding: 2px 6px; background: #059669; color: #FFFFFF; border-radius: 4px; text-decoration: none; font-size: 10px; font-weight: bold;">WhatsApp</a>` : ''}
+          <div style="display: flex; gap: 4px; border-top: 1px solid #F1F5F9; padding-top: 4px; flex-wrap: wrap;">
+            <button
+              onclick="window.__abrirModalAjusteRtm(${c.id})"
+              style="padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 10px; cursor: pointer; background: #6366F1; color: #FFFFFF; border: none;"
+            >
+              ✏️ Ajustar RTM
+            </button>
+            <button
+              onclick="window.__abrirExpedienteCliente(${c.id})"
+              style="padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; cursor: pointer; background: #0284C7; color: #FFFFFF; border: none;"
+            >
+              Fotos
+            </button>
+            <a
+              href="https://www.google.com/maps?q=${c.latitud},${c.longitud}"
+              target="_blank"
+              style="padding: 2px 5px; border-radius: 4px; font-weight: 600; font-size: 10px; text-decoration: none; background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1;"
+            >
+              Maps ↗
+            </a>
+            ${cleanTel ? `
+              <a
+                href="https://wa.me/591${cleanTel}"
+                target="_blank"
+                style="padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; text-decoration: none; background: #059669; color: #FFFFFF; border: none;"
+              >
+                WA
+              </a>
+            ` : ''}
           </div>
         </div>
       `);
@@ -1056,7 +1747,7 @@ function renderizarEnMapa() {
     }
   });
 
-  if (boundsList.length > 0) {
+  if (boundsList.length > 0 && !editandoVertices.value) {
     try {
       const groupBounds = L.featureGroup([fronterasRutasLayer, fronterasDiasLayer, markersLayer]).getBounds();
       if (groupBounds.isValid()) {
@@ -1066,6 +1757,19 @@ function renderizarEnMapa() {
       // Fallback
     }
   }
+}
+
+// Enlace global para llamadas desde popups de Leaflet
+if (typeof window !== 'undefined') {
+  window.__abrirExpedienteCliente = (id) => {
+    const c = clientes.value.find(item => item.id === id);
+    if (c) abrirExpedienteCliente(c);
+  };
+
+  window.__abrirModalAjusteRtm = (id) => {
+    const c = clientes.value.find(item => item.id === id);
+    if (c) abrirModalAjusteRtm(c);
+  };
 }
 
 onMounted(() => {
@@ -1078,10 +1782,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    delete window.__abrirExpedienteCliente;
+    delete window.__abrirModalAjusteRtm;
+  }
   if (map) {
     map.remove();
     map = null;
   }
 });
 </script>
-
