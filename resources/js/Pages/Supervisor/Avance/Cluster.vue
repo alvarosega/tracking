@@ -45,6 +45,15 @@
               </button>
               <button
                 type="button"
+                @click="cambiarAgrupacion('cluster_cliente')"
+                class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
+                :class="agrupacion === 'cluster_cliente' ? 'apple-segmented-active text-[#1D1D1F]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                title="Cluster ➔ Clientes"
+              >
+                Cluster ➔ Clientes
+              </button>
+              <button
+                type="button"
                 @click="cambiarAgrupacion('cluster')"
                 class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
                 :class="agrupacion === 'cluster' ? 'apple-segmented-active text-[#1D1D1F]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
@@ -54,32 +63,10 @@
               </button>
             </div>
 
-            <!-- Selector de Métrica (Monto, Cajas, Unidades) -->
-            <div class="inline-flex apple-segmented p-0.5 rounded-[9px] text-[10px]">
-              <button
-                type="button"
-                @click="cambiarMetrica('monto')"
-                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
-                :class="metrica === 'monto' ? 'apple-segmented-active text-[#0071E3]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-              >
-                Monto (Bs)
-              </button>
-              <button
-                type="button"
-                @click="cambiarMetrica('cajas')"
-                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
-                :class="metrica === 'cajas' ? 'apple-segmented-active text-[#0071E3]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-              >
-                Cajas (Cj)
-              </button>
-              <button
-                type="button"
-                @click="cambiarMetrica('unidades')"
-                class="px-2 py-1 rounded-[7px] transition-all cursor-pointer font-bold"
-                :class="metrica === 'unidades' ? 'apple-segmented-active text-[#0071E3]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-              >
-                Unidades (Und)
-              </button>
+            <!-- Indicador Métrica Fija (Monto Final) -->
+            <div class="hidden sm:inline-flex items-center gap-1.5 apple-control-pill px-2.5 py-1 rounded-[8px] text-[10px] font-bold text-[#0071E3]" title="Visualización exclusiva por Monto Final facturado">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
+              <span>Monto Final (Bs)</span>
             </div>
 
             <!-- Selector de Fechas (Desde - Corte) -->
@@ -384,20 +371,6 @@
                 Compacta
               </button>
             </div>
-
-            <!-- Botón Exportar CSV -->
-            <button
-              type="button"
-              @click="exportarCsv"
-              :disabled="cargando || filasOriginales.length === 0"
-              class="apple-control-pill px-2.5 py-1 rounded-[8px] text-[11px] font-bold text-[#1D1D1F] hover:bg-black/[0.04] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-              title="Descargar matriz en formato CSV para Excel"
-            >
-              <svg class="w-3.5 h-3.5 text-[#34C759]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span class="hidden sm:inline">Exportar</span>
-            </button>
 
             <!-- Botón Consultar -->
             <button
@@ -1216,8 +1189,8 @@ const avanceMenu = navigationConfig.mainMenu.find(m => m.id === 'avance')
 const avanceTabs = avanceMenu ? avanceMenu.submodules : []
 
 // Estado de Filtros
-const agrupacion = ref('cluster_jerarquia') // 'cluster_jerarquia' | 'cluster_ruta_jerarquia' | 'ruta_jerarquia' | 'cluster'
-const metrica = ref('monto') // 'monto' | 'cajas' | 'unidades'
+const agrupacion = ref('cluster_jerarquia') // 'cluster_jerarquia' | 'cluster_ruta_jerarquia' | 'ruta_jerarquia' | 'cluster_cliente' | 'cluster'
+const metrica = ref('monto') // siempre monto final Bs
 const fechaInicio = ref(props.catalogo.fecha_inicio_default || '')
 const fechaCorte = ref(props.catalogo.fecha_corte_default || '')
 
@@ -1290,6 +1263,7 @@ const etiquetaTituloAgrupacion = computed(() => {
   if (agrupacion.value === 'cluster_jerarquia') return 'Cluster y Jerarquías'
   if (agrupacion.value === 'cluster_ruta_jerarquia') return 'Cluster, Ruta y Jerarquías'
   if (agrupacion.value === 'ruta_jerarquia') return 'Ruta y Jerarquías'
+  if (agrupacion.value === 'cluster_cliente') return 'Cluster y Clientes'
   return 'Cluster'
 })
 
@@ -1502,17 +1476,11 @@ const aplicarPreset = (tipo) => {
   ejecutarConsulta()
 }
 
-// Handlers de cambio de agrupación y métrica
+// Handlers de cambio de agrupación
 const cambiarAgrupacion = (nueva) => {
   if (agrupacion.value === nueva) return
   agrupacion.value = nueva
   nodoSeleccionadoId.value = '__TOTAL__'
-  ejecutarConsulta()
-}
-
-const cambiarMetrica = (nueva) => {
-  if (metrica.value === nueva) return
-  metrica.value = nueva
   ejecutarConsulta()
 }
 
@@ -1719,9 +1687,8 @@ const datosMesHover = computed(() => {
 
 // ── FORMATOS Y ESTILOS ──
 const formatNum = (val) => {
-  if (val === null || val === undefined) return '0'
-  const dec = metrica.value === 'unidades' ? 0 : 2
-  return Number(val).toLocaleString('es-BO', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+  if (val === null || val === undefined) return '0.00'
+  return Number(val).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const formatearDiferencia = (val) => {
@@ -1758,6 +1725,8 @@ const obtenerEstiloBadgeNivel = (tipo) => {
       return 'bg-blue-50 text-[#0071E3] border border-blue-200'
     case 'ruta':
       return 'bg-purple-50 text-purple-700 border border-purple-200'
+    case 'cliente':
+      return 'bg-teal-50 text-teal-700 border border-teal-200'
     case 'j1':
       return 'bg-amber-50 text-amber-700 border border-amber-200'
     case 'j2':
@@ -1780,78 +1749,6 @@ const obtenerEstiloTextoNivel = (nivel) => {
     default:
       return 'text-[#6E6E73] text-[10px]'
   }
-}
-
-// ── EXPORTACIÓN CSV PARA EXCEL ──
-const exportarCsv = () => {
-  if (!filasOriginales.value.length || !meses.value.length) return
-
-  const headers = ['Nivel', 'Tipo', 'Elemento']
-  meses.value.forEach(m => {
-    headers.push(`${m.nombre} ${m.anio} TY`)
-    headers.push(`${m.nombre} ${m.anio} LY`)
-    headers.push(`${m.nombre} Dif`)
-    headers.push(`${m.nombre} % Crec`)
-  })
-  headers.push('Total TY', 'Total LY', 'Dif Total', '% Crec Total', '% Share')
-
-  const rows = []
-
-  const aplanarParaExportar = (nodes) => {
-    nodes.forEach(n => {
-      const row = [
-        n.nivel,
-        n.tipo,
-        `"${n.label.replace(/"/g, '""')}"`
-      ]
-      meses.value.forEach(m => {
-        const vm = n.valores_mes?.[m.key] || {}
-        row.push(vm.ty ?? 0)
-        row.push(vm.ly ?? 0)
-        row.push(vm.dif ?? 0)
-        row.push((vm.crec_pct ?? 0) + '%')
-      })
-      row.push(n.total_ty ?? 0)
-      row.push(n.total_ly ?? 0)
-      row.push(n.dif_total ?? 0)
-      row.push((n.crec_total_pct ?? 0) + '%')
-      row.push((n.share_pct ?? 0) + '%')
-      rows.push(row.join(','))
-
-      if (n.children && n.children.length) {
-        aplanarParaExportar(n.children)
-      }
-    })
-  }
-
-  aplanarParaExportar(filasOriginales.value)
-
-  // Fila Total
-  if (totales.value) {
-    const rowTot = ['-', 'TOTAL', '"TOTAL GENERAL"']
-    meses.value.forEach(m => {
-      const vm = totales.value.valores_mes?.[m.key] || {}
-      rowTot.push(vm.ty ?? 0)
-      rowTot.push(vm.ly ?? 0)
-      rowTot.push(vm.dif ?? 0)
-      rowTot.push((vm.crec_pct ?? 0) + '%')
-    })
-    rowTot.push(totales.value.total_ty ?? 0)
-    rowTot.push(totales.value.total_ly ?? 0)
-    rowTot.push(totales.value.dif_total ?? 0)
-    rowTot.push((totales.value.crec_total_pct ?? 0) + '%')
-    rowTot.push('100.0%')
-    rows.push(rowTot.join(','))
-  }
-
-  const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `Cluster_vs_LY_${agrupacion.value}_${fechaInicio.value}_al_${fechaCorte.value}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
 }
 </script>
 

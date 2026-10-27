@@ -68,22 +68,11 @@ class GetAvanceClusterMatrizAction
         $minLy = min(array_column($mesesMeta, 'ly_ini'));
         $maxLy = max(array_column($mesesMeta, 'ly_fin_full'));
 
-        // Configuración de métrica
-        $metrica = strtolower(trim($metrica));
-        if ($metrica === 'unidades') {
-            $colExpr = 'fv.cantidad';
-            $unidadLabel = 'Und';
-            $decimales = 0;
-        } elseif ($metrica === 'cajas') {
-            $colExpr = 'COALESCE(fv.cantidad_cajas, 0)';
-            $unidadLabel = 'Cj';
-            $decimales = 2;
-        } else {
-            $metrica = 'monto';
-            $colExpr = 'fv.monto_final';
-            $unidadLabel = 'Bs';
-            $decimales = 2;
-        }
+        // Configuración de métrica (fija a Monto Final Bs)
+        $metrica = 'monto';
+        $colExpr = 'fv.monto_final';
+        $unidadLabel = 'Bs';
+        $decimales = 2;
 
         // Filtros de Canales, Rutas y Clusters
         $canalesValidos = array_values(array_filter(array_map('trim', array_map('strtoupper', $canales)), fn ($c) => $c !== '' && $c !== 'TODOS' && $c !== 'TODAS'));
@@ -91,7 +80,7 @@ class GetAvanceClusterMatrizAction
         $clustersValidos = array_values(array_filter(array_map('trim', array_map('strtoupper', $clusters)), fn ($cl) => $cl !== '' && $cl !== 'TODOS' && $cl !== 'TODAS'));
 
         $agrupacion = strtolower(trim($agrupacion));
-        if (!in_array($agrupacion, ['cluster_jerarquia', 'cluster_ruta_jerarquia', 'ruta_jerarquia', 'cluster'], true)) {
+        if (!in_array($agrupacion, ['cluster_jerarquia', 'cluster_ruta_jerarquia', 'ruta_jerarquia', 'cluster_cliente', 'cluster'], true)) {
             $agrupacion = 'cluster_jerarquia';
         }
 
@@ -126,6 +115,14 @@ class GetAvanceClusterMatrizAction
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
                 DB::raw("SUM({$colExpr}) as valor"),
             ])->groupByRaw("cluster, fecha_norm");
+        } elseif ($agrupacion === 'cluster_cliente') {
+            $query->select([
+                DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
+                DB::raw("COALESCE(fv.cliente_id, 0) as cliente_id"),
+                DB::raw("COALESCE(NULLIF(TRIM(fv.cliente), ''), 'CLIENTE S/N') as cliente"),
+                DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
+                DB::raw("SUM({$colExpr}) as valor"),
+            ])->groupByRaw("cluster, cliente_id, cliente, fecha_norm");
         } elseif ($agrupacion === 'cluster_jerarquia') {
             $query->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
@@ -196,6 +193,64 @@ class GetAvanceClusterMatrizAction
                     'share_pct' => $sh,
                     'share_total_pct' => $sh,
                     'children' => [],
+                ], $mCl);
+            }
+        } elseif ($agrupacion === 'cluster_cliente') {
+            // Cluster (Nivel 0) -> Cliente (Nivel 1)
+            $rawTree = [];
+            foreach ($rawRows as $r) {
+                $cl = trim((string) $r->cluster);
+                $cId = (int) ($r->cliente_id ?? 0);
+                $cNom = trim((string) $r->cliente);
+                $f = substr((string) $r->fecha_norm, 0, 10);
+                $v = (float) ($r->valor ?? 0.0);
+
+                $rawTree[$cl][$cId]['nombre'] = $cNom;
+                $rawTree[$cl][$cId]['fechas'][$f] = ($rawTree[$cl][$cId]['fechas'][$f] ?? 0.0) + $v;
+            }
+
+            $clustersOrdenados = $this->ordenarClusters(array_keys($rawTree));
+            foreach ($clustersOrdenados as $cl) {
+                $clientesDict = $rawTree[$cl] ?? [];
+                $fechasCl = [];
+                $clienteNodes = [];
+
+                foreach ($clientesDict as $cId => $cData) {
+                    $cNom = $cData['nombre'];
+                    $fCli = $cData['fechas'] ?? [];
+                    $this->fusionarFechas($fCli, $fechasCl);
+
+                    $mCli = $this->calcMetricasNodo($fCli, $mesesMeta, $decimales);
+                    $clienteNodes[] = array_merge([
+                        'id' => "node_{$cl}__cli_{$cId}",
+                        'label' => $cId > 0 ? "{$cNom} ({$cId})" : $cNom,
+                        'tipo' => 'cliente',
+                        'nivel' => 1,
+                        'cliente_id' => $cId,
+                        'cliente_nombre' => $cNom,
+                        'share_pct' => 0.0,
+                        'share_total_pct' => $totalGeneralTy > 0 ? round(($mCli['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0,
+                        'children' => [],
+                    ], $mCli);
+                }
+
+                $mCl = $this->calcMetricasNodo($fechasCl, $mesesMeta, $decimales);
+                foreach ($clienteNodes as &$cN) {
+                    $cN['share_pct'] = $mCl['total_ty'] > 0 ? round(($cN['total_ty'] / $mCl['total_ty']) * 100.0, 1) : 0.0;
+                }
+                unset($cN);
+
+                usort($clienteNodes, fn ($a, $b) => $b['total_ty'] <=> $a['total_ty']);
+
+                $shCl = $totalGeneralTy > 0 ? round(($mCl['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0;
+                $filasArbol[] = array_merge([
+                    'id' => "node_{$cl}",
+                    'label' => $cl,
+                    'tipo' => 'cluster',
+                    'nivel' => 0,
+                    'share_pct' => $shCl,
+                    'share_total_pct' => $shCl,
+                    'children' => $clienteNodes,
                 ], $mCl);
             }
         } elseif ($agrupacion === 'cluster_jerarquia') {
