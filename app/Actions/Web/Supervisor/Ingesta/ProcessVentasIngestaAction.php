@@ -77,10 +77,11 @@ class ProcessVentasIngestaAction
                 continue;
             }
 
-            // Normalizar fecha_norm
+            // Normalizar fecha_norm y fecha
             $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw);
             $mapped['fecha_norm'] = $fechaNorm;
+            $mapped['fecha'] = $fechaNorm;
             if ($fechaNorm) {
                 $fechasOperativas[$fechaNorm] = true;
             }

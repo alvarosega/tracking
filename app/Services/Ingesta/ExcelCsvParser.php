@@ -543,4 +543,39 @@ class ExcelCsvParser
 
         return $str;
     }
+
+    /**
+     * Convierte valor de fecha y hora a 'YYYY-MM-DD HH:MM:SS' para columnas DATETIME de MySQL.
+     */
+    public static function normalizeDateTime(mixed $dateTimeValue): ?string
+    {
+        if ($dateTimeValue === null) {
+            return null;
+        }
+
+        $str = trim((string)$dateTimeValue);
+        if ($str === '' || $str === '1900-01-01' || strtolower($str) === 'none' || strtolower($str) === 'null') {
+            return null;
+        }
+
+        // Si viene con formato DD/MM/YYYY HH:MM:SS o DD-MM-YYYY HH:MM:SS
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
+            $sec = isset($m[6]) ? (int)$m[6] : 0;
+            return sprintf('%04d-%02d-%02d %02d:%02d:%02d', (int)$m[3], (int)$m[2], (int)$m[1], (int)$m[4], (int)$m[5], $sec);
+        }
+
+        // Si viene con formato YYYY-MM-DD HH:MM:SS
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
+            $sec = isset($m[6]) ? (int)$m[6] : 0;
+            return sprintf('%04d-%02d-%02d %02d:%02d:%02d', (int)$m[1], (int)$m[2], (int)$m[3], (int)$m[4], (int)$m[5], $sec);
+        }
+
+        // Si solo viene fecha (DD/MM/YYYY o YYYY-MM-DD)
+        $dateOnly = self::normalizeDate($str);
+        if ($dateOnly && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateOnly)) {
+            return "{$dateOnly} 00:00:00";
+        }
+
+        return $dateOnly;
+    }
 }

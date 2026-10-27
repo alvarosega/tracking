@@ -65,7 +65,9 @@ class ProcessVisitasIngestaAction
 
             $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw) ?? '';
+            $fechaFull = ExcelCsvParser::normalizeDateTime($mapped['fecha'] ?? $fechaRaw) ?? $fechaNorm;
             $mapped['fecha_norm'] = $fechaNorm;
+            $mapped['fecha'] = $fechaFull;
             if ($fechaNorm !== '') {
                 $fechasOperativas[$fechaNorm] = true;
             }
