@@ -45,11 +45,10 @@ class ModuleCatalogService
             ],
             [
                 'id' => 'preventas',
-                'name' => 'Preventa Diaria & Secuencia',
+                'name' => 'Preventa & Cumplimiento',
                 'description' => 'Seguimiento de preventa en tiempo real, cumplimiento Unilever y heatmap',
                 'submodules' => [
                     ['id' => 'cumplimiento', 'name' => 'Cumplimiento Unilever'],
-                    ['id' => 'diaria', 'name' => 'Preventa Diaria'],
                     ['id' => 'productos', 'name' => 'Productos & Heatmap'],
                     ['id' => 'auditoria', 'name' => 'Auditoría'],
                     ['id' => 'comparativos', 'name' => 'Comparativos'],

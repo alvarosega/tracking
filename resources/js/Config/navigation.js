@@ -115,7 +115,7 @@ export const navigationConfig = {
       icon: 'ChartBarIcon',
       badge: '100 PTS',
       badgeColor: 'amber',
-      description: 'Pizarra Unilever, Preventa Diaria, Productos y Auditoría',
+      description: 'Pizarra Unilever, Productos y Auditoría',
       submodules: [
         {
           id: 'cumplimiento',
@@ -123,13 +123,6 @@ export const navigationConfig = {
           route: 'supervisor.preventas.cumplimiento',
           component: 'Supervisor/Preventas/Cumplimiento',
           icon: 'ChartBarIcon'
-        },
-        {
-          id: 'diaria',
-          name: 'Preventa Diaria',
-          route: 'supervisor.preventas.diaria',
-          component: 'Supervisor/Preventas/Diaria',
-          icon: 'MapPinIcon'
         },
         {
           id: 'productos',
@@ -550,7 +543,6 @@ export const navigationConfig = {
 
 export const preventasSubTabs = [
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
-  { id: 'diaria', name: 'Preventa Diaria', route: 'supervisor.preventas.diaria' },
   { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' },
   { id: 'auditoria', name: 'Auditoría', route: 'supervisor.preventas.auditoria' },
   { id: 'comparativos', name: 'Comparativos', route: 'supervisor.preventas.comparativos' },

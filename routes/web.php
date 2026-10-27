@@ -140,7 +140,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('preventas')->name('preventas.')->middleware('module.access:preventas')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['mapa', 'cumplimiento', 'diaria', 'productos', 'auditoria', 'comparativos'];
+            $submodules = ['mapa', 'cumplimiento', 'productos', 'auditoria', 'comparativos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('preventas', $sub)) {
                     $target = $sub === 'mapa' ? 'index' : $sub;
@@ -172,12 +172,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/ampliacion/detalle', [SupervisorPreventasController::class, 'cumplimientoAmpliacionDetalle'])->name('cumplimiento.ampliacion.detalle');
         });
 
-        // Preventa Diaria
-        Route::middleware('module.access:preventas,diaria')->group(function () {
-            Route::get('/diaria', [SupervisorPreventasController::class, 'diaria'])->name('diaria');
-            Route::post('/diaria/data', [SupervisorPreventasController::class, 'diariaData'])->name('diaria.data');
-            Route::post('/diaria/ruta/{ruta}', [SupervisorPreventasController::class, 'rutaDetalle'])->name('diaria.ruta');
-        });
+        // Preventa Diaria (Redirigido a Cumplimiento Unilever)
+        Route::get('/diaria', function () {
+            return redirect()->route('supervisor.preventas.cumplimiento');
+        })->name('diaria');
 
         // Productos
         Route::middleware('module.access:preventas,productos')->group(function () {
