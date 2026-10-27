@@ -105,23 +105,81 @@ export const DIAS_SEMANA_CONFIG = [
   { key: 'DOMINGO', corto: 'Dom', label: 'Domingo', color: '#64748B', bg: '#F1F5F9', text: '#475569' },
 ];
 
-// Paleta Armonizada para Rutas Dinámicas (Alta distinción y elegancia)
+// Paleta Armonizada de Alto Contraste para Rutas (50 colores de máxima diferenciación perceptual)
 export const RUTA_PALETTE = [
-  '#0F172A', // Slate 900
-  '#0284C7', // Sky 600
-  '#059669', // Emerald 600
-  '#7C3AED', // Violet 600
-  '#D97706', // Amber 600
-  '#DC2626', // Red 600
-  '#0D9488', // Teal 600
-  '#DB2777', // Pink 600
-  '#4F46E5', // Indigo 600
-  '#CA8A04', // Yellow 600
-  '#2563EB', // Blue 600
-  '#9333EA', // Purple 600
+  '#E11D48', // 0: Rose Crimson
+  '#2563EB', // 1: Royal Blue
+  '#059669', // 2: Emerald Green
+  '#D97706', // 3: Amber Orange
+  '#7C3AED', // 4: Deep Violet
+  '#06B6D4', // 5: Electric Cyan
+  '#DB2777', // 6: Deep Pink
+  '#65A30D', // 7: Lime Green
+  '#EA580C', // 8: Vivid Orange
+  '#4F46E5', // 9: Indigo
+  '#0D9488', // 10: Teal
+  '#CA8A04', // 11: Yellow Ochre
+  '#9333EA', // 12: Bright Purple
+  '#0284C7', // 13: Light Blue
+  '#16A34A', // 14: Grass Green
+  '#DC2626', // 15: Crimson Red
+  '#8B5CF6', // 16: Lavender
+  '#0891B2', // 17: Ocean Cyan
+  '#D946EF', // 18: Magenta / Fuchsia
+  '#84CC16', // 19: Chartreuse
+  '#F97316', // 20: Coral
+  '#4338CA', // 21: Midnight Indigo
+  '#14B8A6', // 22: Mint
+  '#EAB308', // 23: Pure Yellow
+  '#A855F7', // 24: Orchid
+  '#3B82F6', // 25: Cobalt
+  '#15803D', // 26: Forest Green
+  '#BE123C', // 27: Ruby
+  '#0E7490', // 28: Deep Cyan
+  '#C026D3', // 29: Berry Purple
+  '#4D7C0F', // 30: Olive Green
+  '#C2410C', // 31: Rust / Sienna
+  '#312E81', // 32: Deep Navy
+  '#047857', // 33: Dark Pine
+  '#A16207', // 34: Bronze Gold
+  '#701A75', // 35: Plum
+  '#1E40AF', // 36: Dark Cobalt
+  '#065F46', // 37: Jungle Green
+  '#991B1B', // 38: Burgundy
+  '#0F172A', // 39: Slate Charcoal
+  '#EC4899', // 40: Hot Pink
+  '#0369A1', // 41: Steel Blue
+  '#10B981', // 42: Sea Green
+  '#F59E0B', // 43: Warm Amber
+  '#6366F1', // 44: Cornflower
+  '#0F766E', // 45: Deep Teal
+  '#F43F5E', // 46: Coral Red
+  '#854D0E', // 47: Caramel Brown
+  '#6D28D9', // 48: Dark Violet
+  '#064E3B', // 49: Dark Evergreen
 ];
 
 const rutaColorCache = new Map();
+
+/**
+ * Registra un catálogo de rutas ordenadas asignando colores únicos y no colisionantes
+ * mediante dispersión coprima (salto de 19 posiciones).
+ */
+export function registerRutasCatalogo(catalogo) {
+  if (!catalogo) return;
+  const list = Array.isArray(catalogo) ? catalogo : Object.values(catalogo);
+  const uniqueRutas = Array.from(new Set(
+    list.map(item => (typeof item === 'string' ? item : (item?.ruta || ''))).filter(r => String(r).trim() !== '')
+  )).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }));
+
+  uniqueRutas.forEach((ruta, i) => {
+    const clean = String(ruta).toUpperCase().trim();
+    if (!rutaColorCache.has(clean)) {
+      const index = (i * 19) % RUTA_PALETTE.length;
+      rutaColorCache.set(clean, RUTA_PALETTE[index]);
+    }
+  });
+}
 
 /**
  * Retorna el color principal de un canal comercial.
@@ -141,22 +199,32 @@ export function getCanalBadge(canal) {
   return CANAL_COLORS[key] || CANAL_COLORS.DEFAULT;
 }
 
+function fmix32(h) {
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0);
+}
+
 /**
- * Retorna el color asignado a una ruta, manejando valores nulos con gracia.
+ * Retorna el color asignado a una ruta con máxima dispersión cromática.
  */
 export function getRutaColor(ruta) {
   if (!ruta || String(ruta).trim() === '' || String(ruta).toLowerCase() === 'null') {
     return '#64748B'; // Slate 500 para Sin Ruta
   }
-  const cleanRuta = String(ruta).trim();
+  const cleanRuta = String(ruta).toUpperCase().trim();
   if (!rutaColorCache.has(cleanRuta)) {
-    // Generador de índice determinista por hash del nombre de la ruta
-    let hash = 0;
+    // Hash Murmur3 con mixer fmix32 para evitar colisiones en nombres contiguos (ej. 6A y 6B)
+    let h = 0x811c9dc5;
     for (let i = 0; i < cleanRuta.length; i++) {
-      hash = cleanRuta.charCodeAt(i) + ((hash << 5) - hash);
+      h = Math.imul(h ^ cleanRuta.charCodeAt(i), 0x5bd1e995);
+      h ^= h >>> 15;
     }
-    const colorIndex = Math.abs(hash) % RUTA_PALETTE.length;
-    rutaColorCache.set(cleanRuta, RUTA_PALETTE[colorIndex]);
+    const index = fmix32(h) % RUTA_PALETTE.length;
+    rutaColorCache.set(cleanRuta, RUTA_PALETTE[index]);
   }
   return rutaColorCache.get(cleanRuta);
 }

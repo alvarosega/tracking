@@ -797,139 +797,293 @@
       <!-- ========================================== -->
       <!-- MODAL PARA AJUSTAR RTM DE UN CLIENTE       -->
       <!-- ========================================== -->
+      <!-- MODAL DE CLIENTE Y MENÚ DE AJUSTAR RTM (Se abre directamente al hacer clic en un punto) -->
       <Teleport to="body">
         <div
           v-if="modalAjusteRtm.show"
-          class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+          class="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
           @click.self="modalAjusteRtm.show = false"
         >
-          <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150">
-            <!-- Header Modal -->
-            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 class="text-xs font-bold text-slate-900">Ajustar RTM Comercial</h3>
-                  <p class="text-[11px] text-slate-500">Reasigna dinámicamente la ruta y día de visita</p>
+          <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150">
+            <!-- Header Modal con Datos del Cliente -->
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-3 shrink-0">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span
+                    class="text-[10px] font-mono font-bold px-2 py-0.5 rounded text-white shadow-2xs"
+                    :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"
+                  >
+                    {{ formatRuta(modalAjusteRtm.cliente?.ruta) }}
+                  </span>
+                  <span
+                    class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase"
+                    :class="(modalAjusteRtm.cliente?.estado || '').toLowerCase() === 'activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'"
+                  >
+                    {{ modalAjusteRtm.cliente?.estado || 'Activo' }}
+                  </span>
+                  <span class="text-[11px] text-slate-500 font-mono">
+                    ID: {{ modalAjusteRtm.cliente?.cliente_id }}
+                  </span>
+                  <span v-if="modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta)" class="text-[10px] text-slate-400 font-mono">
+                    ({{ modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta) }})
+                  </span>
+                </div>
+
+                <h3 class="text-sm font-bold text-slate-900 mt-1 line-clamp-1 leading-snug">
+                  {{ modalAjusteRtm.cliente?.nombre }}
+                </h3>
+                <p class="text-[11px] text-slate-500 truncate mt-0.5">
+                  {{ modalAjusteRtm.cliente?.direccion || 'Sin dirección registrada' }}
+                </p>
+
+                <!-- Acciones Rápidas (Maps, WA, Llamar) -->
+                <div class="flex items-center gap-1.5 mt-2 flex-wrap text-[10px] font-semibold">
+                  <a
+                    v-if="modalAjusteRtm.cliente?.latitud && modalAjusteRtm.cliente?.longitud"
+                    :href="'https://www.google.com/maps?q=' + modalAjusteRtm.cliente?.latitud + ',' + modalAjusteRtm.cliente?.longitud"
+                    target="_blank"
+                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300/80 flex items-center gap-1 transition-colors"
+                  >
+                    📍 Maps ↗
+                  </a>
+                  <a
+                    v-if="getCleanTel(modalAjusteRtm.cliente)"
+                    :href="'https://wa.me/591' + getCleanTel(modalAjusteRtm.cliente)"
+                    target="_blank"
+                    class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center gap-1 transition-colors"
+                  >
+                    💬 WhatsApp
+                  </a>
+                  <a
+                    v-if="getCleanTel(modalAjusteRtm.cliente)"
+                    :href="'tel:' + getCleanTel(modalAjusteRtm.cliente)"
+                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300/80 flex items-center gap-1 transition-colors"
+                  >
+                    📞 {{ modalAjusteRtm.cliente?.celular || modalAjusteRtm.cliente?.contacto }}
+                  </a>
                 </div>
               </div>
+
               <button
                 type="button"
                 @click="modalAjusteRtm.show = false"
-                class="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer"
+                class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none p-1 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Cerrar modal"
               >
                 &times;
               </button>
             </div>
 
-            <!-- Contenido Modal -->
-            <form @submit.prevent="confirmarAjusteRtm" class="p-5 space-y-4 text-xs">
-              <!-- Datos del Cliente -->
-              <div class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-1">
-                <div class="font-bold text-slate-900 text-xs">{{ modalAjusteRtm.cliente?.nombre }}</div>
-                <div class="text-[11px] text-slate-500 font-mono">ID: {{ modalAjusteRtm.cliente?.cliente_id }}</div>
-                <div class="text-[11px] text-slate-500 truncate">{{ modalAjusteRtm.cliente?.direccion }}</div>
-              </div>
+            <!-- Selector de Pestañas del Modal (Ajustar RTM activo por defecto) -->
+            <div class="flex items-center border-b border-slate-200 bg-slate-100/70 px-4 pt-1 gap-2 text-xs shrink-0 select-none">
+              <button
+                type="button"
+                @click="modalAjusteRtm.tabActivo = 'rtm'"
+                class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+                :class="modalAjusteRtm.tabActivo === 'rtm' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+                <span>Ajustar RTM (Ruta / Día)</span>
+              </button>
 
-              <!-- Comparativa RTM Actual vs Nuevo -->
-              <div class="grid grid-cols-2 gap-3">
-                <div class="p-2.5 rounded-xl bg-slate-100 border border-slate-200">
-                  <div class="text-[10px] text-slate-500 uppercase font-bold font-mono">Ruta Actual</div>
-                  <div class="font-bold font-mono text-xs mt-0.5 text-slate-800">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</div>
-                  <div class="text-[11px] text-slate-500 mt-1 font-mono">Día: {{ modalAjusteRtm.cliente?.dia_norm || 'S/D' }}</div>
-                </div>
+              <button
+                type="button"
+                @click="modalAjusteRtm.tabActivo = 'visitas'"
+                class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+                :class="modalAjusteRtm.tabActivo === 'visitas' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                </svg>
+                <span>Fotos & Visitas</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                  {{ visitasCliente.length }}
+                </span>
+              </button>
+            </div>
 
-                <div class="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
-                  <div class="text-[10px] text-indigo-700 uppercase font-bold font-mono">Nueva Asignación</div>
-                  <div class="font-bold font-mono text-xs mt-0.5 text-indigo-900">{{ formatRuta(formRtm.ruta_propuesta) }}</div>
-                  <div class="text-[11px] text-indigo-700 mt-1 font-mono">Día: {{ formRtm.dia_propuesto }}</div>
-                </div>
-              </div>
-
-              <!-- Formulario de Selección -->
-              <div class="space-y-3">
-                <!-- Selector de Nueva Ruta -->
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
-                    Nueva Ruta RTM:
-                  </label>
-                  <select
-                    v-model="formRtm.ruta_propuesta"
-                    required
-                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
-                      {{ formatRuta(r.ruta) }} ({{ r.canal }}) - {{ r.vendedor || 'Sin vendedor' }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Selector de Nuevo Día de Visita -->
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
-                    Nuevo Día de Visita:
-                  </label>
-                  <select
-                    v-model="formRtm.dia_propuesto"
-                    required
-                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option v-for="d in diasSemana" :key="d.key" :value="d.label">
-                      {{ d.label }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Motivo / Observaciones -->
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-700 mb-1">
-                    Motivo / Observación:
-                  </label>
-                  <input
-                    type="text"
-                    v-model="formRtm.observaciones"
-                    placeholder="Ej: Rebalance territorial, corrección de frontera..."
-                    class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <!-- Checkbox de Aplicación Inmediata -->
-                <label class="flex items-center gap-2 p-2 bg-indigo-50/70 border border-indigo-200/80 rounded-lg cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    v-model="formRtm.aplicar_inmediato"
-                    class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                  />
-                  <div class="text-[11px] text-indigo-950">
-                    <span class="font-bold">Aplicar cambio inmediatamente</span> al padrón comercial
+            <!-- CUERPO DEL MODAL (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scroll text-xs">
+              <!-- TAB 1: FORMULARIO DE AJUSTE RTM -->
+              <form v-if="modalAjusteRtm.tabActivo === 'rtm'" @submit.prevent="confirmarAjusteRtm" class="space-y-4">
+                <!-- Comparativa RTM Actual vs Nueva Propuesta -->
+                <div class="grid grid-cols-2 gap-3">
+                  <!-- Tarjeta Actual -->
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1">
+                    <div class="text-[10px] text-slate-500 uppercase font-bold font-mono tracking-wider">
+                      Asignación Actual
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"></span>
+                      <span class="font-bold font-mono text-xs text-slate-800">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 font-mono">
+                      Día: <b :style="{ color: getDiaColor(modalAjusteRtm.cliente?.dia_norm) }">{{ modalAjusteRtm.cliente?.dia_norm || 'S/D' }}</b>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">
+                      Vendedor: {{ getVendedorRuta(modalAjusteRtm.cliente?.ruta) }}
+                    </div>
                   </div>
-                </label>
-              </div>
 
-              <!-- Botones de Acción -->
-              <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  @click="modalAjusteRtm.show = false"
-                  class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
+                  <!-- Tarjeta Propuesta -->
+                  <div class="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-1">
+                    <div class="text-[10px] text-indigo-700 uppercase font-bold font-mono tracking-wider">
+                      Nueva Asignación RTM
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(formRtm.ruta_propuesta) }"></span>
+                      <span class="font-bold font-mono text-xs text-indigo-950">{{ formatRuta(formRtm.ruta_propuesta) }}</span>
+                    </div>
+                    <div class="text-[11px] text-indigo-900 font-mono">
+                      Día: <b :style="{ color: getDiaColor(formRtm.dia_propuesto) }">{{ formRtm.dia_propuesto }}</b>
+                    </div>
+                    <div class="text-[10px] text-indigo-600/80 truncate">
+                      Vendedor: {{ getVendedorRuta(formRtm.ruta_propuesta) }}
+                    </div>
+                  </div>
+                </div>
 
-                <button
-                  type="submit"
-                  :disabled="guardandoRtm"
-                  class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-                >
-                  <span v-if="guardandoRtm" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>{{ guardandoRtm ? 'Guardando...' : 'Confirmar Ajuste RTM' }}</span>
-                </button>
+                <!-- Selectores de Ruta y Día -->
+                <div class="space-y-3 pt-1">
+                  <!-- Selector de Nueva Ruta -->
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                      Nueva Ruta RTM:
+                    </label>
+                    <select
+                      v-model="formRtm.ruta_propuesta"
+                      required
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                    >
+                      <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
+                        {{ formatRuta(r.ruta) }} ({{ r.canal }}) — {{ r.vendedor || 'Sin vendedor' }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Selector de Nuevo Día de Visita -->
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                      Nuevo Día de Visita:
+                    </label>
+                    <select
+                      v-model="formRtm.dia_propuesto"
+                      required
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                    >
+                      <option v-for="d in diasSemana" :key="d.key" :value="d.label">
+                        {{ d.label }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Motivo / Observaciones -->
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                      Motivo / Observación del Ajuste:
+                    </label>
+                    <input
+                      type="text"
+                      v-model="formRtm.observaciones"
+                      placeholder="Ej: Rebalanceo territorial, ajuste de frontera..."
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                    />
+                  </div>
+
+                  <!-- Checkbox de Aplicación Inmediata -->
+                  <label class="flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-200/90 rounded-xl cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      v-model="formRtm.aplicar_inmediato"
+                      class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                    />
+                    <div class="text-[11px] text-indigo-950">
+                      <span class="font-bold">Aplicar cambio inmediatamente</span> al padrón comercial (actualiza PanRuteo)
+                    </div>
+                  </label>
+                </div>
+
+                <!-- Botones de Acción del Formulario -->
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    @click="modalAjusteRtm.show = false"
+                    class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer transition-colors"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    :disabled="guardandoRtm"
+                    class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    <span v-if="guardandoRtm" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>{{ guardandoRtm ? 'Guardando Ajuste...' : 'Confirmar Ajuste RTM' }}</span>
+                  </button>
+                </div>
+              </form>
+
+              <!-- TAB 2: HISTORIAL DE VISITAS & FOTOS DE PREVENTA -->
+              <div v-else class="space-y-3">
+                <div v-if="cargandoVisitas" class="py-10 text-center text-xs text-slate-400 animate-pulse flex flex-col items-center justify-center gap-2">
+                  <span class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                  <span>Cargando fotos y visitas registradas en terreno...</span>
+                </div>
+
+                <div v-else-if="visitasCliente.length === 0" class="py-10 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <p class="font-medium text-slate-600">Sin visitas recientes con fotografía</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Este cliente no registra evidencias fotográficas de preventa aún.</p>
+                </div>
+
+                <div v-else class="space-y-3">
+                  <div
+                    v-for="vis in visitasCliente"
+                    :key="vis.id"
+                    class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl text-xs space-y-2 shadow-2xs"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono text-slate-700 font-bold text-[11px]">{{ vis.fecha }} {{ vis.hora }}</span>
+                        <span class="text-slate-400 font-mono text-[10px]">Ruta: {{ formatRuta(vis.route) }}</span>
+                      </div>
+                      <span
+                        class="px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-bold"
+                        :class="vis.status === 'VISITED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'"
+                      >
+                        {{ vis.status || 'VISITADO' }}
+                      </span>
+                    </div>
+
+                    <p v-if="vis.comments" class="text-[11px] text-slate-600 italic bg-white p-2 rounded-lg border border-slate-200/60">
+                      "{{ vis.comments }}"
+                    </p>
+
+                    <!-- Thumbnail con Visor Lightbox y Rotación -->
+                    <div
+                      v-if="vis.photo_url"
+                      class="mt-1 group/photo relative cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-slate-900"
+                      @click="abrirLightboxFoto(vis)"
+                      title="Clic para ampliar y rotar foto"
+                    >
+                      <img
+                        :src="vis.photo_url"
+                        alt="Foto de visita"
+                        class="w-full h-44 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                      />
+                      <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold backdrop-blur-[1px]">
+                        <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                        </svg>
+                        <span>Ver & Girar Foto 🔍</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </Teleport>
@@ -954,7 +1108,7 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
-import { getCanalColor, getRutaColor, formatRuta, getDiaColor } from '@/Config/colors';
+import { getCanalColor, getRutaColor, formatRuta, getDiaColor, registerRutasCatalogo } from '@/Config/colors';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -1043,6 +1197,7 @@ let coordsPoligonoEnEdicion = [];
 const modalAjusteRtm = ref({
   show: false,
   cliente: null,
+  tabActivo: 'rtm',
 });
 
 const formRtm = ref({
@@ -1261,6 +1416,7 @@ async function cargarDatos() {
     fronterasDias.value = res.data.fronteras_dias || [];
     kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0 };
 
+    registerRutasCatalogo(clientes.value.map(c => c.ruta));
     renderizarEnMapa();
   } catch (error) {
     console.error('Error al consultar datos de ruteo:', error);
@@ -1457,12 +1613,52 @@ async function guardarFronteraRtm() {
   }
 }
 
-// ── LÓGICA DE AJUSTE DINÁMICO DE RTM DE CLIENTES ──
+// ── LÓGICA DE AJUSTE DINÁMICO DE RTM DE CLIENTES Y MODAL DE PUNTO ──
 
-function abrirModalAjusteRtm(c) {
+function getCleanTel(c) {
+  if (!c) return '';
+  return limpiarTel(c.celular || c.contacto);
+}
+
+function getVendedorRuta(ruta) {
+  if (!ruta) return 'Sin asignar';
+  const r = props.catalogo_rutas.find(item => item.ruta === ruta);
+  return r?.vendedor || 'Sin vendedor';
+}
+
+function getCanalRuta(ruta) {
+  if (!ruta) return '';
+  const r = props.catalogo_rutas.find(item => item.ruta === ruta);
+  return r?.canal || '';
+}
+
+async function cargarVisitasCliente(clienteId) {
+  if (!clienteId) {
+    visitasCliente.value = [];
+    return;
+  }
+  cargandoVisitas.value = true;
+  visitasCliente.value = [];
+  try {
+    const res = await axios.post(`/supervisor/visitas/fotos/${clienteId}`);
+    visitasCliente.value = res.data.visitas || [];
+  } catch (error) {
+    console.error('Error al cargar visitas:', error);
+    visitasCliente.value = [];
+  } finally {
+    cargandoVisitas.value = false;
+  }
+}
+
+function abrirModalPuntoCliente(c) {
+  if (!c) return;
+  clienteActivoId.value = c.id;
+  clienteSeleccionado.value = c;
+
   modalAjusteRtm.value = {
     show: true,
     cliente: c,
+    tabActivo: 'rtm',
   };
 
   formRtm.value = {
@@ -1472,7 +1668,16 @@ function abrirModalAjusteRtm(c) {
     observaciones: 'Ajuste dinámico RTM desde Visor',
     aplicar_inmediato: true,
   };
+
+  if (map && c.latitud && c.longitud) {
+    map.panTo([c.latitud, c.longitud], { animate: true, duration: 0.5 });
+  }
+
+  cargarVisitasCliente(c.cliente_id);
 }
+
+const abrirModalAjusteRtm = abrirModalPuntoCliente;
+const abrirExpedienteCliente = abrirModalPuntoCliente;
 
 async function confirmarAjusteRtm() {
   if (!formRtm.value.ruta_propuesta) return;
@@ -1501,6 +1706,7 @@ async function confirmarAjusteRtm() {
         clienteSeleccionado.value.dia_norm = res.data.dia_nuevo;
       }
 
+      registerRutasCatalogo([res.data.ruta_nueva]);
       modalAjusteRtm.value.show = false;
       renderizarEnMapa();
     } else {
@@ -1519,31 +1725,6 @@ function mostrarToast(msg) {
   setTimeout(() => {
     toastMensaje.value = '';
   }, 4500);
-}
-
-// ── EXPEDIENTE Y VISITAS ──
-
-async function abrirExpedienteCliente(c) {
-  clienteActivoId.value = c.id;
-  clienteSeleccionado.value = c;
-  visitasCliente.value = [];
-
-  if (map && c.latitud && c.longitud) {
-    map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
-    const m = markersMap.get(c.id);
-    if (m) m.openPopup();
-  }
-
-  // Cargar fotos y visitas del cliente
-  cargandoVisitas.value = true;
-  try {
-    const res = await axios.post(`/supervisor/visitas/fotos/${c.cliente_id}`);
-    visitasCliente.value = res.data.visitas || [];
-  } catch (error) {
-    console.error('Error al cargar visitas:', error);
-  } finally {
-    cargandoVisitas.value = false;
-  }
 }
 
 function cerrarExpediente() {
@@ -1679,7 +1860,7 @@ function renderizarEnMapa() {
       const markerColor = getMarkerColor(c);
 
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: 5.5,
+        radius: 6,
         fillColor: markerColor,
         color: '#FFFFFF',
         weight: 1.5,
@@ -1687,58 +1868,27 @@ function renderizarEnMapa() {
         fillOpacity: 0.95,
       });
 
-      const tel = c.celular || c.contacto || '';
-      const cleanTel = limpiarTel(tel);
-
-      marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 240px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
-            <span style="font-weight: 700; font-size: 12px;" class="truncate">${c.nombre}</span>
-            <span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; ${c.estado && c.estado.toLowerCase() === 'activo' ? 'background: #ECFDF5; color: #047857;' : 'background: #FFF1F2; color: #BE123C;'}">${c.estado || 'Activo'}</span>
-          </div>
-          <div style="color: #64748B; margin-bottom: 5px;" class="truncate">${c.direccion}</div>
-          <div style="display: flex; gap: 5px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; margin-bottom: 6px;">
-            <span style="font-weight: bold; color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</span>
+      marker.bindTooltip(`
+        <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
+          <div style="font-weight: 700; color: #0F172A;">${c.nombre}</div>
+          <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${c.direccion || 'Sin dirección registrada'}</div>
+          <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
+            <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
             <span>•</span>
-            <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)}">${c.dia_norm || 'S/D'}</span>
+            <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
             <span>•</span>
-            <span>ID: ${c.cliente_id}</span>
+            <span style="color: #475569;">ID: ${c.cliente_id}</span>
           </div>
-          <div style="display: flex; gap: 4px; border-top: 1px solid #F1F5F9; padding-top: 4px; flex-wrap: wrap;">
-            <button
-              onclick="window.__abrirModalAjusteRtm(${c.id})"
-              style="padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 10px; cursor: pointer; background: #6366F1; color: #FFFFFF; border: none;"
-            >
-              ✏️ Ajustar RTM
-            </button>
-            <button
-              onclick="window.__abrirExpedienteCliente(${c.id})"
-              style="padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; cursor: pointer; background: #0284C7; color: #FFFFFF; border: none;"
-            >
-              Fotos
-            </button>
-            <a
-              href="https://www.google.com/maps?q=${c.latitud},${c.longitud}"
-              target="_blank"
-              style="padding: 2px 5px; border-radius: 4px; font-weight: 600; font-size: 10px; text-decoration: none; background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1;"
-            >
-              Maps ↗
-            </a>
-            ${cleanTel ? `
-              <a
-                href="https://wa.me/591${cleanTel}"
-                target="_blank"
-                style="padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; text-decoration: none; background: #059669; color: #FFFFFF; border: none;"
-              >
-                WA
-              </a>
-            ` : ''}
-          </div>
+          <div style="margin-top: 3px; font-size: 9px; font-weight: 700; color: #4F46E5;">👉 Clic para abrir Menú RTM</div>
         </div>
-      `);
+      `, {
+        direction: 'top',
+        offset: [0, -6],
+        opacity: 0.98,
+      });
 
       marker.on('click', () => {
-        abrirExpedienteCliente(c);
+        abrirModalPuntoCliente(c);
       });
 
       marker.addTo(markersLayer);
@@ -1759,20 +1909,21 @@ function renderizarEnMapa() {
   }
 }
 
-// Enlace global para llamadas desde popups de Leaflet
+// Enlace global para llamadas desde el exterior
 if (typeof window !== 'undefined') {
   window.__abrirExpedienteCliente = (id) => {
     const c = clientes.value.find(item => item.id === id);
-    if (c) abrirExpedienteCliente(c);
+    if (c) abrirModalPuntoCliente(c);
   };
 
   window.__abrirModalAjusteRtm = (id) => {
     const c = clientes.value.find(item => item.id === id);
-    if (c) abrirModalAjusteRtm(c);
+    if (c) abrirModalPuntoCliente(c);
   };
 }
 
 onMounted(() => {
+  registerRutasCatalogo(props.catalogo_rutas);
   nextTick(() => {
     initMap();
     if (filtroCanales.value.length > 0 || filtroRutas.value.length > 0) {
