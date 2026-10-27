@@ -47,27 +47,6 @@
             {{ allowedSaneamientoTabs.length }}
           </span>
         </Link>
-
-        <!-- Segmento 3: Ruteo & Cobertura -->
-        <Link
-          v-if="hasRuteoAccess"
-          :href="firstRuteoRoute"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
-          :class="currentSection === 'ruteo'
-            ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
-            : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]'"
-        >
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-          </svg>
-          <span>Ruteo & Cobertura</span>
-          <span
-            class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold"
-            :class="currentSection === 'ruteo' ? 'bg-white/25 text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
-          >
-            {{ allowedRuteoTabs.length }}
-          </span>
-        </Link>
       </div>
 
       <div class="hidden sm:flex items-center text-[10px] font-mono text-[#86868B] px-2 font-semibold">
@@ -216,52 +195,39 @@ const allowedSaneamientoTabs = computed(() => {
   return saneamientoSubTabs.filter((tab) => isSubAllowed('saneamiento', tab.id));
 });
 
-const allowedRuteoTabs = computed(() => {
-  return ruteoSubTabs.filter((tab) => isSubAllowed('ruteo', tab.id));
-});
-
 const hasAuditoriaAccess = computed(() => allowedAuditoriaTabs.value.length > 0);
 const hasSaneamientoAccess = computed(() => allowedSaneamientoTabs.value.length > 0);
-const hasRuteoAccess = computed(() => allowedRuteoTabs.value.length > 0);
 
 const accessibleSectionsCount = computed(() => {
   return (hasAuditoriaAccess.value ? 1 : 0) +
-         (hasSaneamientoAccess.value ? 1 : 0) +
-         (hasRuteoAccess.value ? 1 : 0);
+         (hasSaneamientoAccess.value ? 1 : 0);
 });
 
 const allAllowedTabs = computed(() => [
   ...allowedAuditoriaTabs.value,
   ...allowedSaneamientoTabs.value,
-  ...allowedRuteoTabs.value,
 ]);
 
 const currentSection = computed(() => {
   const isAuditoriaTab = auditoriaSubTabs.some((t) => t.id === props.activeTab);
   if (isAuditoriaTab && hasAuditoriaAccess.value) return 'auditoria';
 
-  const isSaneamientoTab = saneamientoSubTabs.some((t) => t.id === props.activeTab);
+  const isSaneamientoTab = saneamientoSubTabs.some((t) => t.id === props.activeTab) || props.activeTab === 'intrusos' || props.activeTab === 'visor';
   if (isSaneamientoTab && hasSaneamientoAccess.value) return 'saneamiento';
-
-  const isRuteoTab = ruteoSubTabs.some((t) => t.id === props.activeTab);
-  if (isRuteoTab && hasRuteoAccess.value) return 'ruteo';
 
   if (hasAuditoriaAccess.value) return 'auditoria';
   if (hasSaneamientoAccess.value) return 'saneamiento';
-  if (hasRuteoAccess.value) return 'ruteo';
   return 'auditoria';
 });
 
 const sectionSubtitle = computed(() => {
   if (currentSection.value === 'auditoria') return 'Auditoría Intra-día';
-  if (currentSection.value === 'saneamiento') return 'Calidad & GIS';
-  return 'Motor GIS & Cobertura';
+  return 'Saneamiento Padrón & Motor GIS';
 });
 
 const currentTabsList = computed(() => {
   if (currentSection.value === 'auditoria') return allowedAuditoriaTabs.value;
-  if (currentSection.value === 'saneamiento') return allowedSaneamientoTabs.value;
-  return allowedRuteoTabs.value;
+  return allowedSaneamientoTabs.value;
 });
 
 const firstAuditoriaRoute = computed(() => {
@@ -275,14 +241,7 @@ const firstSaneamientoRoute = computed(() => {
   if (allowedSaneamientoTabs.value.length > 0) {
     return route(allowedSaneamientoTabs.value[0].route);
   }
-  return route('supervisor.saneamiento.intrusos');
-});
-
-const firstRuteoRoute = computed(() => {
-  if (allowedRuteoTabs.value.length > 0) {
-    return route(allowedRuteoTabs.value[0].route);
-  }
-  return route('supervisor.saneamiento.intrusos');
+  return route('supervisor.saneamiento.visor');
 });
 </script>
 

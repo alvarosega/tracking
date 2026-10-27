@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
+use App\Actions\Web\Supervisor\Ruteo\GetCatalogoRutasAction;
+use App\Actions\Web\Supervisor\Ruteo\GetCercanosInitDataAction;
+use App\Actions\Web\Supervisor\Ruteo\GetClientesCercanosAction;
+use App\Actions\Web\Supervisor\Ruteo\GetRuteoDataAction;
+use App\Actions\Web\Supervisor\Ruteo\GetVentasClienteAction;
+use App\Actions\Web\Supervisor\Ruteo\GetVisitasClienteAction;
+use App\Actions\Web\Supervisor\Ruteo\ResolveMapsUrlAction;
 use App\Actions\Web\Supervisor\Saneamiento\AuditarCalidadAction;
 use App\Actions\Web\Supervisor\Saneamiento\AuditarDiasDesalineadosAction;
 use App\Actions\Web\Supervisor\Saneamiento\AuditarDuplicadosAction;
@@ -21,6 +28,9 @@ use App\Actions\Web\Supervisor\Saneamiento\SavePropuestaAction;
 use App\Actions\Web\Supervisor\Saneamiento\SearchClientesSaneamientoAction;
 use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Ruteo\GetCercanosDataRequest;
+use App\Http\Requests\Web\Ruteo\GetRuteoDataRequest;
+use App\Http\Requests\Web\Ruteo\GetVentasClienteRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,16 +39,112 @@ use Inertia\Response;
 class SupervisorSaneamientoController extends Controller
 {
     /**
-     * Vista 1: Fronteras e Intrusos Territoriales.
+     * Vista 1: Visor y Fronteras GIS (Mosaico Territorial y Puntos).
      */
-    public function intrusos(GetSaneamientoCatalogoAction $catalogoAction): Response
+    public function visor(GetCatalogoRutasAction $action): Response
     {
-        $catalogo = $catalogoAction->execute();
+        $catalogoData = $action->execute();
 
-        return Inertia::render('Supervisor/Saneamiento/Intrusos', [
-            'catalogo' => $catalogo,
-            'submoduloActivo' => 'intrusos',
+        return Inertia::render('Supervisor/Saneamiento/Visor', [
+            'catalogo_rutas' => $catalogoData['catalogo'],
+            'canales' => $catalogoData['canales'],
+            'submoduloActivo' => 'visor',
         ]);
+    }
+
+    /**
+     * Datos espaciales de clientes y polígonos para Visor y Fronteras.
+     */
+    public function getVisorData(GetRuteoDataRequest $request, GetRuteoDataAction $action): JsonResponse
+    {
+        $resultado = $action->execute(
+            canales: $request->canales(),
+            rutas: $request->rutas(),
+            dias: $request->dias(),
+            verFronteraRutas: $request->verFronteraRutas(),
+            verFronteraDias: $request->verFronteraDias(),
+            soloActivos: $request->soloActivos()
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Vista 2: Clientes Cercanos (Radar Geográfico Espacial).
+     */
+    public function cercanos(GetCercanosInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Saneamiento/Cercanos', [
+            'catalogo_rutas' => $initData['catalogo_rutas'] ?? [],
+            'canales' => $initData['canales'] ?? [],
+            'anios_disponibles' => $initData['anios_disponibles'] ?? [2026],
+            'anio_default' => $initData['anio_default'] ?? 2026,
+            'meses_default' => $initData['meses_default'] ?? [1, 2, 3],
+            'submoduloActivo' => 'cercanos',
+        ]);
+    }
+
+    /**
+     * Clientes en radio de búsqueda para Clientes Cercanos.
+     */
+    public function getCercanosData(GetCercanosDataRequest $request, GetClientesCercanosAction $action): JsonResponse
+    {
+        $data = $action->execute(
+            lat: $request->latitud(),
+            lng: $request->longitud(),
+            radio: $request->radio(),
+            canales: $request->canales(),
+            rutas: $request->rutas(),
+            meses: $request->meses(),
+            anio: $request->anio(),
+            soloActivos: $request->soloActivos()
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Resuelve URLs cortas de Google Maps a coordenadas WGS84.
+     */
+    public function resolverEnlaceMaps(Request $request, ResolveMapsUrlAction $action): JsonResponse
+    {
+        $input = (string) ($request->input('url') ?? $request->input('input', ''));
+        $coords = $action->execute($input);
+
+        return response()->json($coords);
+    }
+
+    /**
+     * Historial de ventas del cliente para el panel de cercanos.
+     */
+    public function getVentasCliente(GetVentasClienteRequest $request, string|int $clienteId, GetVentasClienteAction $action): JsonResponse
+    {
+        $resultado = $action->execute(
+            clienteId: $clienteId,
+            anio: $request->anio(),
+            meses: $request->meses()
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Historial de visitas y fotos del cliente para el panel de cercanos.
+     */
+    public function getVisitasCliente(string|int $clienteId, GetVisitasClienteAction $action): JsonResponse
+    {
+        $visitas = $action->execute($clienteId);
+        return response()->json($visitas);
+    }
+
+    /**
+     * Alias de compatibilidad: Fronteras e Intrusos Territoriales.
+     */
+    public function intrusos(GetCatalogoRutasAction $action): Response
+    {
+        return $this->visor($action);
     }
 
     /**

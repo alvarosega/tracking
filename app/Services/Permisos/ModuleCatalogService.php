@@ -23,9 +23,9 @@ class ModuleCatalogService
             ],
             [
                 'id' => 'auditoria',
-                'name' => 'Auditoría, Saneamiento & Ruteo',
-                'description' => 'Auditoría de ruteo intra-día, saneamiento territorial y motor GIS de cobertura',
-                'permission_modules' => ['auditoria', 'saneamiento', 'ruteo'],
+                'name' => 'Auditoría & Saneamiento',
+                'description' => 'Auditoría de ruteo intra-día, visor territorial y saneamiento del padrón de clientes',
+                'permission_modules' => ['auditoria', 'saneamiento'],
                 'submodules' => [
                     // Grupo 1: Auditoría de Ruteo
                     ['id' => 'preventas', 'module_key' => 'auditoria', 'name' => 'Preventas Intra-día', 'group' => 'Auditoría de Ruteo'],
@@ -37,16 +37,14 @@ class ModuleCatalogService
                     ['id' => 'historico', 'module_key' => 'auditoria', 'name' => 'Histórico Resoluciones', 'group' => 'Auditoría de Ruteo'],
 
                     // Grupo 2: Saneamiento Padrón
-                    ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Visor & Fronteras', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'visor', 'module_key' => 'saneamiento', 'name' => 'Visor y Fronteras', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'cercanos', 'module_key' => 'saneamiento', 'name' => 'Clientes Cercanos', 'group' => 'Saneamiento Padrón'],
+                    ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Fronteras & Intrusos', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'duplicados', 'module_key' => 'saneamiento', 'name' => 'Clientes Duplicados', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'dias', 'module_key' => 'saneamiento', 'name' => 'Días Desalineados', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'calidad', 'module_key' => 'saneamiento', 'name' => 'Calidad de Datos', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'bd', 'module_key' => 'saneamiento', 'name' => 'Matriz Saneamiento BD', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'propuestas', 'module_key' => 'saneamiento', 'name' => 'Historial de Propuestas', 'group' => 'Saneamiento Padrón'],
-
-                    // Grupo 3: Ruteo & Cobertura
-                    ['id' => 'visor', 'module_key' => 'ruteo', 'name' => 'Visor & Fronteras', 'group' => 'Ruteo & Cobertura'],
-                    ['id' => 'cercanos', 'module_key' => 'ruteo', 'name' => 'Clientes Cercanos', 'group' => 'Ruteo & Cobertura'],
                 ],
             ],
             [

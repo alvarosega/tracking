@@ -14,7 +14,6 @@ use App\Http\Controllers\Web\SupervisorIngestaController;
 use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
-use App\Http\Controllers\Web\SupervisorRuteoController;
 use App\Http\Controllers\Web\SupervisorSaneamientoController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
@@ -39,32 +38,15 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     // Dashboard General
     Route::get('/', [SupervisorIndexController::class, 'index'])->name('index');
 
-    // Módulo Ruteo & Cobertura GIS
-    Route::prefix('ruteo')->name('ruteo.')->middleware('module.access:ruteo')->group(function () {
-        Route::get('/', function (\Illuminate\Http\Request $request) {
-            $user = $request->user();
-            if ($user->hasModuleAccess('ruteo', 'visor') || $user->hasModuleAccess('saneamiento', 'intrusos')) {
-                return redirect()->route('supervisor.saneamiento.intrusos');
-            }
-            if ($user->hasModuleAccess('ruteo', 'cercanos')) {
-                return redirect()->route('supervisor.ruteo.cercanos');
-            }
-            return redirect()->route('supervisor.saneamiento.intrusos');
-        })->name('index');
-
-        // Submódulo Visor y Fronteras
-        Route::middleware('module.access:ruteo,visor')->group(function () {
-            Route::post('/data', [SupervisorRuteoController::class, 'getData'])->name('data');
-        });
-
-        // Submódulo Clientes Cercanos
-        Route::middleware('module.access:ruteo,cercanos')->group(function () {
-            Route::get('/cercanos', [SupervisorRuteoController::class, 'cercanos'])->name('cercanos');
-            Route::post('/cercanos/data', [SupervisorRuteoController::class, 'getCercanosData'])->name('cercanos.data');
-            Route::post('/cercanos/resolver-enlace', [SupervisorRuteoController::class, 'resolverEnlaceMaps'])->name('cercanos.resolver-enlace');
-            Route::post('/cercanos/cliente/{clienteId}/ventas', [SupervisorRuteoController::class, 'getVentasCliente'])->name('cercanos.cliente.ventas');
-            Route::post('/cercanos/cliente/{clienteId}/visitas', [SupervisorRuteoController::class, 'getVisitasCliente'])->name('cercanos.cliente.visitas');
-        });
+    // Redirección y compatibilidad: Ruteo & Cobertura migrado a Saneamiento Padrón
+    Route::prefix('ruteo')->name('ruteo.')->group(function () {
+        Route::get('/', fn() => redirect()->route('supervisor.saneamiento.visor'))->name('index');
+        Route::post('/data', [SupervisorSaneamientoController::class, 'getVisorData'])->name('data');
+        Route::get('/cercanos', fn() => redirect()->route('supervisor.saneamiento.cercanos'))->name('cercanos');
+        Route::post('/cercanos/data', [SupervisorSaneamientoController::class, 'getCercanosData'])->name('cercanos.data');
+        Route::post('/cercanos/resolver-enlace', [SupervisorSaneamientoController::class, 'resolverEnlaceMaps'])->name('cercanos.resolver-enlace');
+        Route::post('/cercanos/cliente/{clienteId}/ventas', [SupervisorSaneamientoController::class, 'getVentasCliente'])->name('cercanos.cliente.ventas');
+        Route::post('/cercanos/cliente/{clienteId}/visitas', [SupervisorSaneamientoController::class, 'getVisitasCliente'])->name('cercanos.cliente.visitas');
     });
 
     // Módulo Avance Mensual & Cumplimiento Estratégico (KPIs)
@@ -398,7 +380,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('saneamiento')->name('saneamiento.')->middleware('module.access:saneamiento')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['intrusos', 'duplicados', 'dias', 'calidad', 'bd', 'propuestas'];
+            $submodules = ['visor', 'cercanos', 'duplicados', 'dias', 'calidad', 'bd', 'propuestas', 'intrusos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('saneamiento', $sub)) {
                     return redirect()->route("supervisor.saneamiento.{$sub}");
@@ -407,9 +389,24 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Saneamiento.');
         })->name('index');
 
-        // Intrusos y Fronteras
+        // Submódulo 1: Visor y Fronteras (Mosaico Territorial y Puntos)
+        Route::middleware('module.access:saneamiento,visor')->group(function () {
+            Route::get('/visor', [SupervisorSaneamientoController::class, 'visor'])->name('visor');
+            Route::post('/visor/data', [SupervisorSaneamientoController::class, 'getVisorData'])->name('visor.data');
+        });
+
+        // Submódulo 2: Clientes Cercanos (Radar Geográfico Espacial)
+        Route::middleware('module.access:saneamiento,cercanos')->group(function () {
+            Route::get('/cercanos', [SupervisorSaneamientoController::class, 'cercanos'])->name('cercanos');
+            Route::post('/cercanos/data', [SupervisorSaneamientoController::class, 'getCercanosData'])->name('cercanos.data');
+            Route::post('/cercanos/resolver-enlace', [SupervisorSaneamientoController::class, 'resolverEnlaceMaps'])->name('cercanos.resolver-enlace');
+            Route::post('/cercanos/cliente/{clienteId}/ventas', [SupervisorSaneamientoController::class, 'getVentasCliente'])->name('cercanos.cliente.ventas');
+            Route::post('/cercanos/cliente/{clienteId}/visitas', [SupervisorSaneamientoController::class, 'getVisitasCliente'])->name('cercanos.cliente.visitas');
+        });
+
+        // Intrusos y Fronteras (compatibilidad / auditoría)
         Route::middleware('module.access:saneamiento,intrusos')->group(function () {
-            Route::get('/intrusos', [SupervisorSaneamientoController::class, 'intrusos'])->name('intrusos');
+            Route::get('/intrusos', [SupervisorSaneamientoController::class, 'visor'])->name('intrusos');
             Route::get('/fronteras/todas', [SupervisorSaneamientoController::class, 'fronterasTodas'])->name('fronteras.todas');
             Route::post('/fronteras/clientes-activos', [SupervisorSaneamientoController::class, 'clientesActivos'])->name('fronteras.clientes-activos');
             Route::get('/fronteras/propuestas-pendientes', [SupervisorSaneamientoController::class, 'propuestasPendientesFronteras'])->name('fronteras.propuestas-pendientes');

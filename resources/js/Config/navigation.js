@@ -20,15 +20,15 @@ export const navigationConfig = {
     },
     {
       id: 'auditoria',
-      name: 'Auditoría, Saneamiento & Ruteo',
-      shortName: 'Auditoría & Ruteo',
+      name: 'Auditoría & Saneamiento',
+      shortName: 'Auditoría & Saneamiento',
       route: 'supervisor.auditoria.preventas',
-      permissionModules: ['auditoria', 'saneamiento', 'ruteo'],
-      componentPrefix: ['Supervisor/Auditoria', 'Supervisor/Saneamiento', 'Supervisor/Ruteo'],
+      permissionModules: ['auditoria', 'saneamiento'],
+      componentPrefix: ['Supervisor/Auditoria', 'Supervisor/Saneamiento'],
       icon: 'ShieldCheckIcon',
       badge: 'AUDIT/GIS',
       badgeColor: 'amber',
-      description: 'Auditoría de ruteo, saneamiento del padrón y motor GIS de cobertura',
+      description: 'Auditoría de ruteo, saneamiento del padrón y visor territorial',
       submodules: [
         // 1. Auditoría de Ruteo
         {
@@ -97,12 +97,21 @@ export const navigationConfig = {
 
         // 2. Saneamiento Padrón
         {
-          id: 'intrusos',
+          id: 'visor',
           module: 'saneamiento',
-          name: 'Visor & Fronteras',
-          route: 'supervisor.saneamiento.intrusos',
-          component: 'Supervisor/Saneamiento/Intrusos',
+          name: 'Visor y Fronteras',
+          route: 'supervisor.saneamiento.visor',
+          component: 'Supervisor/Saneamiento/Visor',
           icon: 'MapPinIcon',
+          group: 'Saneamiento Padrón'
+        },
+        {
+          id: 'cercanos',
+          module: 'saneamiento',
+          name: 'Clientes Cercanos',
+          route: 'supervisor.saneamiento.cercanos',
+          component: 'Supervisor/Saneamiento/Cercanos',
+          icon: 'RadarIcon',
           group: 'Saneamiento Padrón'
         },
         {
@@ -149,26 +158,6 @@ export const navigationConfig = {
           component: 'Supervisor/Saneamiento/Propuestas',
           icon: 'ClipboardDocumentCheckIcon',
           group: 'Saneamiento Padrón'
-        },
-
-        // 3. Ruteo & Cobertura
-        {
-          id: 'visor',
-          module: 'ruteo',
-          name: 'Visor & Fronteras',
-          route: 'supervisor.saneamiento.intrusos',
-          component: 'Supervisor/Saneamiento/Intrusos',
-          icon: 'MapPinIcon',
-          group: 'Ruteo & Cobertura'
-        },
-        {
-          id: 'cercanos',
-          module: 'ruteo',
-          name: 'Clientes Cercanos',
-          route: 'supervisor.ruteo.cercanos',
-          component: 'Supervisor/Ruteo/Cercanos',
-          icon: 'RadarIcon',
-          group: 'Ruteo & Cobertura'
         }
       ]
     },
@@ -545,7 +534,8 @@ export const auditoriaSubTabs = [
 ];
 
 export const saneamientoSubTabs = [
-  { id: 'intrusos', module: 'saneamiento', name: 'Visor & Fronteras', route: 'supervisor.saneamiento.intrusos' },
+  { id: 'visor', module: 'saneamiento', name: 'Visor y Fronteras', route: 'supervisor.saneamiento.visor' },
+  { id: 'cercanos', module: 'saneamiento', name: 'Clientes Cercanos', route: 'supervisor.saneamiento.cercanos' },
   { id: 'duplicados', module: 'saneamiento', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
   { id: 'dias', module: 'saneamiento', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
   { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
@@ -553,15 +543,11 @@ export const saneamientoSubTabs = [
   { id: 'propuestas', module: 'saneamiento', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
 ];
 
-export const ruteoSubTabs = [
-  { id: 'visor', module: 'ruteo', name: 'Visor & Fronteras', route: 'supervisor.saneamiento.intrusos' },
-  { id: 'cercanos', module: 'ruteo', name: 'Clientes Cercanos', route: 'supervisor.ruteo.cercanos' }
-];
+export const ruteoSubTabs = [];
 
 export const auditoriaSaneamientoSubTabs = [
   ...auditoriaSubTabs,
-  ...saneamientoSubTabs,
-  ...ruteoSubTabs
+  ...saneamientoSubTabs
 ];
 
 export const trackingSubTabs = [
