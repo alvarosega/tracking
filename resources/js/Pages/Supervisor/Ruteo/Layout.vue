@@ -1,16 +1,9 @@
 <template>
   <SupervisorLayout full-bleed>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
-      <!-- Pestañas de Submódulo -->
-      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 h-11 flex items-center justify-between shrink-0 relative z-30">
-        <div class="flex items-center space-x-2">
-          <SubNavTabs :tabs="ruteoTabs" />
-        </div>
-
-        <div class="hidden sm:flex items-center space-x-2 text-[11px] font-mono text-slate-500">
-          <span class="w-2 h-2 rounded-full bg-sky-500"></span>
-          <span>Motor GIS & Fronteras</span>
-        </div>
+      <!-- Pestañas Unificadas (Auditoría, Saneamiento, Ruteo) -->
+      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 shrink-0 relative z-30">
+        <AuditoriaSaneamientoSubTabs :active-tab="currentActiveTab" :compact="true" />
       </div>
 
       <div class="flex-1 flex flex-col min-h-0 overflow-hidden relative">
@@ -21,10 +14,23 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
-import SubNavTabs from '@/Components/UI/SubNavTabs.vue';
-import { navigationConfig } from '@/Config/navigation';
+import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 
-const ruteoMenu = navigationConfig.mainMenu.find(m => m.id === 'ruteo');
-const ruteoTabs = ruteoMenu ? ruteoMenu.submodules : [];
+const props = defineProps({
+  activeTab: {
+    type: String,
+    default: null,
+  },
+});
+
+const page = usePage();
+
+const currentActiveTab = computed(() => {
+  if (props.activeTab) return props.activeTab;
+  if (page.component === 'Supervisor/Ruteo/Cercanos') return 'cercanos';
+  return 'visor';
+});
 </script>

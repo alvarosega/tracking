@@ -1,13 +1,14 @@
 <template>
-  <div v-if="allAllowedTabs.length > 0" class="space-y-2 mb-3.5 select-none font-sans">
+  <div v-if="allAllowedTabs.length > 0" :class="compact ? 'space-y-1.5 select-none font-sans' : 'space-y-2 mb-3.5 select-none font-sans'">
     <!-- NIVEL 1: CONMUTADOR DE SECCIÓN (APPLE LIQUID GLASS SEGMENTED CONTROL) -->
     <div
-      v-if="hasAuditoriaAccess && hasSaneamientoAccess"
+      v-if="accessibleSectionsCount > 1"
       class="apple-glass-card rounded-[14px] p-1 flex items-center justify-between gap-2 max-w-full overflow-x-auto no-scrollbar border border-white/80 shadow-2xs"
     >
       <div class="flex items-center gap-1 min-w-max">
-        <!-- Segmento Auditoría de Ruteo -->
+        <!-- Segmento 1: Auditoría de Ruteo -->
         <Link
+          v-if="hasAuditoriaAccess"
           :href="firstAuditoriaRoute"
           class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
           :class="currentSection === 'auditoria'
@@ -26,8 +27,9 @@
           </span>
         </Link>
 
-        <!-- Segmento Saneamiento Padrón -->
+        <!-- Segmento 2: Saneamiento Padrón -->
         <Link
+          v-if="hasSaneamientoAccess"
           :href="firstSaneamientoRoute"
           class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
           :class="currentSection === 'saneamiento'
@@ -45,10 +47,31 @@
             {{ allowedSaneamientoTabs.length }}
           </span>
         </Link>
+
+        <!-- Segmento 3: Ruteo & Cobertura -->
+        <Link
+          v-if="hasRuteoAccess"
+          :href="firstRuteoRoute"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
+          :class="currentSection === 'ruteo'
+            ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
+            : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]'"
+        >
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+          </svg>
+          <span>Ruteo & Cobertura</span>
+          <span
+            class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold"
+            :class="currentSection === 'ruteo' ? 'bg-white/25 text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
+          >
+            {{ allowedRuteoTabs.length }}
+          </span>
+        </Link>
       </div>
 
       <div class="hidden sm:flex items-center text-[10px] font-mono text-[#86868B] px-2 font-semibold">
-        Módulo Unificado • {{ currentSection === 'auditoria' ? 'Auditoría Intra-día' : 'Calidad & GIS' }}
+        Módulo Unificado • {{ sectionSubtitle }}
       </div>
     </div>
 
@@ -128,8 +151,18 @@
           </svg>
 
           <!-- 13. Historial de Propuestas -->
-          <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg v-else-if="tab.id === 'propuestas'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.09 1.976 1.052 1.976 2.188V8.25M8.25 8.25H6.75A2.25 2.25 0 004.5 10.5v9A2.25 2.25 0 006.75 21.75h10.5A2.25 2.25 0 0019.5 19.5v-9A2.25 2.25 0 0017.25 8.25H15.75m-7.5 0h7.5m-7.5 3h7.5m-7.5 3h5.25" />
+          </svg>
+
+          <!-- 14. Visor y Fronteras -->
+          <svg v-else-if="tab.id === 'visor'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+          </svg>
+
+          <!-- 15. Clientes Cercanos -->
+          <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0-6a3 3 0 100-6 3 3 0 000 6z" />
           </svg>
 
           <span>{{ tab.name }}</span>
@@ -142,12 +175,16 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { auditoriaSubTabs, saneamientoSubTabs } from '@/Config/navigation';
+import { auditoriaSubTabs, saneamientoSubTabs, ruteoSubTabs } from '@/Config/navigation';
 
 const props = defineProps({
   activeTab: {
     type: String,
     required: true,
+  },
+  compact: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -179,25 +216,52 @@ const allowedSaneamientoTabs = computed(() => {
   return saneamientoSubTabs.filter((tab) => isSubAllowed('saneamiento', tab.id));
 });
 
+const allowedRuteoTabs = computed(() => {
+  return ruteoSubTabs.filter((tab) => isSubAllowed('ruteo', tab.id));
+});
+
 const hasAuditoriaAccess = computed(() => allowedAuditoriaTabs.value.length > 0);
 const hasSaneamientoAccess = computed(() => allowedSaneamientoTabs.value.length > 0);
+const hasRuteoAccess = computed(() => allowedRuteoTabs.value.length > 0);
+
+const accessibleSectionsCount = computed(() => {
+  return (hasAuditoriaAccess.value ? 1 : 0) +
+         (hasSaneamientoAccess.value ? 1 : 0) +
+         (hasRuteoAccess.value ? 1 : 0);
+});
 
 const allAllowedTabs = computed(() => [
   ...allowedAuditoriaTabs.value,
   ...allowedSaneamientoTabs.value,
+  ...allowedRuteoTabs.value,
 ]);
 
 const currentSection = computed(() => {
   const isAuditoriaTab = auditoriaSubTabs.some((t) => t.id === props.activeTab);
   if (isAuditoriaTab && hasAuditoriaAccess.value) return 'auditoria';
-  if (!hasAuditoriaAccess.value && hasSaneamientoAccess.value) return 'saneamiento';
-  return isAuditoriaTab ? 'auditoria' : 'saneamiento';
+
+  const isSaneamientoTab = saneamientoSubTabs.some((t) => t.id === props.activeTab);
+  if (isSaneamientoTab && hasSaneamientoAccess.value) return 'saneamiento';
+
+  const isRuteoTab = ruteoSubTabs.some((t) => t.id === props.activeTab);
+  if (isRuteoTab && hasRuteoAccess.value) return 'ruteo';
+
+  if (hasAuditoriaAccess.value) return 'auditoria';
+  if (hasSaneamientoAccess.value) return 'saneamiento';
+  if (hasRuteoAccess.value) return 'ruteo';
+  return 'auditoria';
+});
+
+const sectionSubtitle = computed(() => {
+  if (currentSection.value === 'auditoria') return 'Auditoría Intra-día';
+  if (currentSection.value === 'saneamiento') return 'Calidad & GIS';
+  return 'Motor GIS & Cobertura';
 });
 
 const currentTabsList = computed(() => {
-  return currentSection.value === 'auditoria'
-    ? allowedAuditoriaTabs.value
-    : allowedSaneamientoTabs.value;
+  if (currentSection.value === 'auditoria') return allowedAuditoriaTabs.value;
+  if (currentSection.value === 'saneamiento') return allowedSaneamientoTabs.value;
+  return allowedRuteoTabs.value;
 });
 
 const firstAuditoriaRoute = computed(() => {
@@ -212,6 +276,13 @@ const firstSaneamientoRoute = computed(() => {
     return route(allowedSaneamientoTabs.value[0].route);
   }
   return route('supervisor.saneamiento.intrusos');
+});
+
+const firstRuteoRoute = computed(() => {
+  if (allowedRuteoTabs.value.length > 0) {
+    return route(allowedRuteoTabs.value[0].route);
+  }
+  return route('supervisor.ruteo.index');
 });
 </script>
 
