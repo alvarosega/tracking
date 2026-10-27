@@ -239,12 +239,90 @@
                     {{ errorDetalle[r.ruta] }}
                   </div>
                   <div v-else-if="detallePorRuta[r.ruta]" class="apple-glass-card rounded-[12px] overflow-hidden">
-                    <div class="px-3 py-2 border-b border-black/[0.06] flex items-center justify-between bg-white/50 text-[11px]">
-                      <span class="font-bold text-[#1D1D1F]">
-                        Recorrido Cronológico: {{ r.ruta }} ({{ r.vendedor }})
-                      </span>
-                      <span class="apple-control-pill px-2 py-0.5 rounded-[6px] font-mono text-[10px] text-[#6E6E73]">
-                        Total Registros: <strong>{{ detallePorRuta[r.ruta].total_eventos || 0 }}</strong>
+                    <!-- Barra de Resumen y Métricas de pan_ruteo -->
+                    <div class="px-3 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/60 text-[11px]">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-bold text-[#1D1D1F] text-[12px]">
+                          Auditoría de Ruta: {{ r.ruta }} ({{ r.vendedor }})
+                        </span>
+                        <span class="text-[10px] font-mono text-[#6E6E73] bg-black/[0.04] px-2 py-0.5 rounded-[6px]">
+                          {{ detallePorRuta[r.ruta].dia_semana || 'Plan del Día' }} · {{ detallePorRuta[r.ruta].fecha }}
+                        </span>
+                      </div>
+
+                      <!-- Métricas Clave de pan_ruteo vs Visitas -->
+                      <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
+                        <!-- Plan del Día (pan_ruteo) -->
+                        <span class="apple-control-pill px-2.5 py-0.5 rounded-[6px] text-[#1D1D1F] font-semibold" title="Clientes programados para hoy en pan_ruteo">
+                          Plan del Día: <strong class="font-mono text-[#0071E3] font-bold">{{ detallePorRuta[r.ruta].totales?.plan_dia ?? 0 }}</strong>
+                        </span>
+
+                        <!-- Visitados del Plan -->
+                        <span class="apple-control-pill px-2.5 py-0.5 rounded-[6px] text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9] font-bold" title="Clientes programados que sí fueron visitados">
+                          Visitados: <strong class="font-mono">{{ detallePorRuta[r.ruta].totales?.visitados_del_plan ?? 0 }}</strong>
+                          <span class="font-medium text-[9px] ml-0.5">({{ detallePorRuta[r.ruta].totales?.cobertura_pct ?? 0 }}%)</span>
+                        </span>
+
+                        <!-- No Visitados / Pendientes -->
+                        <span
+                          class="apple-control-pill px-2.5 py-0.5 rounded-[6px] font-bold"
+                          :class="(detallePorRuta[r.ruta].totales?.no_visitados ?? 0) > 0 ? 'text-[#C9342C] bg-[#FDF0EF] border border-[#FADCD5]' : 'text-[#6E6E73]'"
+                          title="Clientes de pan_ruteo que no registran visita hoy"
+                        >
+                          Pendientes: <strong class="font-mono">{{ detallePorRuta[r.ruta].totales?.no_visitados ?? 0 }}</strong>
+                        </span>
+
+                        <!-- Fuera de Plan -->
+                        <span
+                          v-if="(detallePorRuta[r.ruta].totales?.fuera_plan ?? 0) > 0"
+                          class="apple-control-pill px-2.5 py-0.5 rounded-[6px] text-[#86868B] font-medium"
+                          title="Visitas realizadas a clientes no agendados hoy"
+                        >
+                          Fuera Plan: <strong class="font-mono font-bold text-[#1D1D1F]">{{ detallePorRuta[r.ruta].totales?.fuera_plan }}</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Barra de Filtros Segmentados de la Subtabla -->
+                    <div class="px-3 py-1.5 border-b border-black/[0.04] bg-[#F8F8FA] flex items-center justify-between gap-2 flex-wrap text-[10px]">
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          @click.stop="setSubtablaFiltro(r.ruta, 'todos')"
+                          class="px-2 py-0.5 rounded-[6px] transition-colors font-semibold cursor-pointer"
+                          :class="getSubtablaFiltro(r.ruta) === 'todos' ? 'bg-[#0071E3] text-white shadow-xs' : 'text-[#6E6E73] hover:bg-black/[0.05]'"
+                        >
+                          Todos ({{ detallePorRuta[r.ruta].total_eventos || 0 }})
+                        </button>
+                        <button
+                          type="button"
+                          @click.stop="setSubtablaFiltro(r.ruta, 'visitados')"
+                          class="px-2 py-0.5 rounded-[6px] transition-colors font-semibold cursor-pointer"
+                          :class="getSubtablaFiltro(r.ruta) === 'visitados' ? 'bg-[#1E6B37] text-white shadow-xs' : 'text-[#6E6E73] hover:bg-black/[0.05]'"
+                        >
+                          Visitados ({{ detallePorRuta[r.ruta].totales?.visitados ?? 0 }})
+                        </button>
+                        <button
+                          type="button"
+                          @click.stop="setSubtablaFiltro(r.ruta, 'pendientes')"
+                          class="px-2 py-0.5 rounded-[6px] transition-colors font-semibold cursor-pointer"
+                          :class="getSubtablaFiltro(r.ruta) === 'pendientes' ? 'bg-[#C9342C] text-white shadow-xs' : 'text-[#6E6E73] hover:bg-black/[0.05]'"
+                        >
+                          Pendientes ({{ detallePorRuta[r.ruta].totales?.no_visitados ?? 0 }})
+                        </button>
+                        <button
+                          v-if="(detallePorRuta[r.ruta].totales?.fuera_plan ?? 0) > 0"
+                          type="button"
+                          @click.stop="setSubtablaFiltro(r.ruta, 'fuera_plan')"
+                          class="px-2 py-0.5 rounded-[6px] transition-colors font-semibold cursor-pointer"
+                          :class="getSubtablaFiltro(r.ruta) === 'fuera_plan' ? 'bg-neutral-700 text-white shadow-xs' : 'text-[#6E6E73] hover:bg-black/[0.05]'"
+                        >
+                          Fuera de Plan ({{ detallePorRuta[r.ruta].totales?.fuera_plan }})
+                        </button>
+                      </div>
+
+                      <span class="text-[#86868B] font-mono">
+                        Mostrando: <strong>{{ getEventosOrdenados(r.ruta).length }}</strong> clientes
                       </span>
                     </div>
 
@@ -333,8 +411,16 @@
                           >
                             <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ ev.orden }}</td>
                             <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="ev.cliente">
-                              <span>{{ ev.cliente }}</span>
-                              <span v-if="ev.client_id" class="text-[9px] font-mono text-[#86868B] ml-1.5">#{{ ev.client_id }}</span>
+                              <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">{{ ev.cliente }}</span>
+                                <span v-if="ev.client_id" class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold text-[#0071E3] bg-blue-50 border border-blue-200 shrink-0">
+                                  #{{ ev.client_id }}
+                                </span>
+                                <span v-else class="text-[9px] text-[#C7C7CC] shrink-0 font-mono">s/código</span>
+                                <span v-if="ev.en_plan === false" class="px-1 py-0.2 rounded text-[8.5px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-300 shrink-0" title="Cliente no programado hoy en pan_ruteo">
+                                  Fuera Plan
+                                </span>
+                              </div>
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_web ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
                               {{ ev.hora_web || '—' }}
@@ -347,7 +433,7 @@
                                 class="inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold"
                                 :class="badgeColorTipo(ev.tipo)"
                               >
-                                {{ ev.tipo || 'Visita' }}
+                                {{ ev.tipo || (ev.visitado === false ? 'No Visitado' : 'Visita') }}
                               </span>
                             </td>
                             <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
@@ -573,6 +659,7 @@ const rutasOrdenadas = computed(() => {
 })
 
 const subtablaSort = reactive({})
+const subtablaFiltro = reactive({})
 
 function getSubtablaSort(ruta) {
   if (!subtablaSort[ruta]) {
@@ -591,12 +678,29 @@ function toggleSubtablaSort(ruta, col) {
   }
 }
 
+function getSubtablaFiltro(ruta) {
+  return subtablaFiltro[ruta] || 'todos'
+}
+
+function setSubtablaFiltro(ruta, f) {
+  subtablaFiltro[ruta] = f
+}
+
 function getEventosOrdenados(ruta) {
   const eventos = detallePorRuta[ruta]?.eventos || []
+  const filtro = getSubtablaFiltro(ruta)
+
+  const filtrados = eventos.filter(ev => {
+    if (filtro === 'visitados') return ev.visitado !== false
+    if (filtro === 'pendientes') return ev.visitado === false
+    if (filtro === 'fuera_plan') return ev.en_plan === false
+    return true
+  })
+
   const { col, dir } = getSubtablaSort(ruta)
   const mul = dir === 'asc' ? 1 : -1
 
-  return [...eventos].sort((a, b) => {
+  return [...filtrados].sort((a, b) => {
     if (col === 'orden') {
       return mul * ((Number(a.orden) || 0) - (Number(b.orden) || 0))
     }
@@ -629,6 +733,7 @@ watch(
   () => {
     Object.keys(acordeonAbierto).forEach(k => delete acordeonAbierto[k])
     Object.keys(detallePorRuta).forEach(k => delete detallePorRuta[k])
+    Object.keys(subtablaFiltro).forEach(k => delete subtablaFiltro[k])
   }
 )
 
@@ -658,6 +763,9 @@ async function toggleRecorridoAcordeon(r) {
 
 function badgeColorTipo(tipo) {
   const t = String(tipo || '').toLowerCase()
+  if (t.includes('no visitado') || t.includes('pendiente')) {
+    return 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'
+  }
   if (t.includes('preventa') || t.includes('venta')) {
     return 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
   }
