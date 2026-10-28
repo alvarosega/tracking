@@ -9,6 +9,8 @@ use App\Services\Ingesta\IngestaValidator;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ProcessVentasIngestaAction
@@ -39,6 +41,7 @@ class ProcessVentasIngestaAction
 
         if ($totalLeidas === 0) {
             return [
+                'status' => 'success',
                 'filas_leidas' => 0,
                 'filas_afectadas' => 0,
                 'filas_insertadas' => 0,
@@ -52,6 +55,7 @@ class ProcessVentasIngestaAction
                 'cancelados' => 0,
                 'filas_identicas' => 0,
                 'sin_cambios' => 0,
+                'filas_ignoradas' => 0,
                 'filas_con_discrepancia' => 0,
                 'monto_total' => 0.0,
                 'volumen_total' => 0.0,
@@ -65,7 +69,12 @@ class ProcessVentasIngestaAction
         // Mapeo, sanitización y deduplicación intra-archivo
         $dedupMap = [];
         $fechasOperativas = [];
-        $montoTotal = 0.0;
+
+        $decimalCols = [
+            'monto', 'monto_final', 'descuento', 'descuento2', 'descuento_socio',
+            'descuento_cliente', 'descuento_grupo', 'descuento_volumen',
+            'cantidad_cajas', 'precio_unitario', 'precio_paquete'
+        ];
 
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'FACT_VENTAS');
@@ -77,23 +86,67 @@ class ProcessVentasIngestaAction
                 continue;
             }
 
-            // Normalizar fecha_norm y fecha
+            // Normalizar fecha_norm y fecha (YYYY-MM-DD)
             $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw);
-            $mapped['fecha_norm'] = $fechaNorm;
-            $mapped['fecha'] = $fechaNorm;
-            if ($fechaNorm) {
-                $fechasOperativas[$fechaNorm] = true;
+            if (!$fechaNorm || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaNorm)) {
+                continue;
             }
 
-            // Normalizar monto
-            $monto = isset($mapped['monto_final']) ? (float)$mapped['monto_final'] : (isset($mapped['monto']) ? (float)$mapped['monto'] : 0.0);
-            $mapped['monto_final'] = $monto;
-            $montoTotal += $monto;
+            $mapped['fecha_norm'] = $fechaNorm;
+            $mapped['fecha'] = $fechaNorm;
+            $fechasOperativas[$fechaNorm] = true;
+
+            // Sanitizar cliente_id (columna obligatoria NOT NULL en BD)
+            $clienteId = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int)$mapped['cliente_id'] : 0;
+            $mapped['cliente_id'] = $clienteId;
+
+            // Sanitizar columnas decimales (evitar error 1366 Incorrect decimal value: '' en MySQL strict mode)
+            foreach ($decimalCols as $dc) {
+                if (array_key_exists($dc, $mapped)) {
+                    $rawVal = $mapped[$dc];
+                    if ($rawVal === null || trim((string)$rawVal) === '') {
+                        $mapped[$dc] = 0.0;
+                    } else {
+                        $cleanVal = str_replace([' ', ','], ['', '.'], trim((string)$rawVal));
+                        $mapped[$dc] = is_numeric($cleanVal) ? (float)$cleanVal : 0.0;
+                    }
+                }
+            }
+
+            // Garantizar coherencia entre monto y monto_final si alguno no viene especificado
+            $monto = (float)($mapped['monto'] ?? 0.0);
+            $montoFinal = (float)($mapped['monto_final'] ?? 0.0);
+            if ($montoFinal === 0.0 && $monto > 0.0) {
+                $mapped['monto_final'] = $monto;
+            } elseif ($monto === 0.0 && $montoFinal > 0.0) {
+                $mapped['monto'] = $montoFinal;
+            }
 
             // Normalizar cantidad
-            $mapped['cantidad'] = isset($mapped['cantidad']) ? (int)$mapped['cantidad'] : 0;
-            $mapped['revertida'] = isset($mapped['revertida']) && trim((string)$mapped['revertida']) !== '' ? trim((string)$mapped['revertida']) : 'No';
+            $mapped['cantidad'] = isset($mapped['cantidad']) && is_numeric($mapped['cantidad']) ? (int)$mapped['cantidad'] : 0;
+
+            // Normalizar revertida
+            $rev = isset($mapped['revertida']) ? trim((string)$mapped['revertida']) : '';
+            $mapped['revertida'] = in_array(strtolower($rev), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes'], true) ? 'Si' : 'No';
+
+            // Derivar cliente_norm y vendedor_norm si no vienen
+            if (!empty($mapped['cliente']) && empty($mapped['cliente_norm'])) {
+                $mapped['cliente_norm'] = mb_strtoupper(trim((string)$mapped['cliente']), 'UTF-8');
+            }
+            if (!empty($mapped['vendedor']) && empty($mapped['vendedor_norm'])) {
+                $mapped['vendedor_norm'] = mb_strtoupper(trim((string)$mapped['vendedor']), 'UTF-8');
+            }
+
+            // Derivar mes a partir de fecha_norm si no viene
+            if (empty($mapped['mes'])) {
+                $mapped['mes'] = (int)date('m', strtotime($fechaNorm));
+            }
+
+            // Asignar origen por defecto
+            if (empty($mapped['origen'])) {
+                $mapped['origen'] = 'VEN';
+            }
 
             $k = "{$ventaId}_{$productoId}";
             $dedupMap[$k] = $mapped;
@@ -103,7 +156,13 @@ class ProcessVentasIngestaAction
         sort($fechasValidas);
 
         if (empty($fechasValidas)) {
-            throw new Exception("El archivo no contiene fechas válidas para procesar el rango de ventas.");
+            throw new Exception("El archivo no contiene registros con fechas y claves válidas (ventaId, productoId, fecha).");
+        }
+
+        // Calcular monto total exacto deduplicado
+        $montoTotal = 0.0;
+        foreach ($dedupMap as $item) {
+            $montoTotal += (float)($item['monto_final'] ?? 0.0);
         }
 
         $fechaMin = $fechasValidas[0];
@@ -111,33 +170,35 @@ class ProcessVentasIngestaAction
 
         $conn = DB::connection('supervisor');
 
-        // Asegurar tabla auditoria_ventas_discrepancias
-        try {
-            $conn->statement("
-                CREATE TABLE IF NOT EXISTS `auditoria_ventas_discrepancias` (
-                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    `archivo_origen` VARCHAR(255) NOT NULL,
-                    `venta_id` BIGINT NOT NULL,
-                    `producto_id` BIGINT NOT NULL,
-                    `fecha` VARCHAR(50) NULL,
-                    `cliente_id` BIGINT NULL,
-                    `monto_anterior` DECIMAL(12, 4) NULL,
-                    `monto_nuevo` DECIMAL(12, 4) NULL,
-                    `cantidad_anterior` BIGINT NULL,
-                    `cantidad_nueva` BIGINT NULL,
-                    `revertida_anterior` VARCHAR(10) NULL,
-                    `revertida_nueva` VARCHAR(10) NULL,
-                    `estado_revision` VARCHAR(20) DEFAULT 'REGISTRADO',
-                    `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_aud_vta_prod` (`venta_id`, `producto_id`),
-                    INDEX `idx_aud_vta_estado` (`estado_revision`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-        } catch (\Throwable) {}
+        // Asegurar tabla auditoria_ventas_discrepancias sin ejecutar DDL innecesario en cada ingesta
+        if (!Schema::connection('supervisor')->hasTable('auditoria_ventas_discrepancias')) {
+            try {
+                $conn->statement("
+                    CREATE TABLE IF NOT EXISTS `auditoria_ventas_discrepancias` (
+                        `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        `archivo_origen` VARCHAR(255) NOT NULL,
+                        `venta_id` BIGINT NOT NULL,
+                        `producto_id` BIGINT NOT NULL,
+                        `fecha` VARCHAR(50) NULL,
+                        `cliente_id` BIGINT NULL,
+                        `monto_anterior` DECIMAL(12, 4) NULL,
+                        `monto_nuevo` DECIMAL(12, 4) NULL,
+                        `cantidad_anterior` BIGINT NULL,
+                        `cantidad_nueva` BIGINT NULL,
+                        `revertida_anterior` VARCHAR(10) NULL,
+                        `revertida_nueva` VARCHAR(10) NULL,
+                        `estado_revision` VARCHAR(20) DEFAULT 'PENDIENTE',
+                        `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX `idx_aud_vta_prod` (`venta_id`, `producto_id`),
+                        INDEX `idx_aud_vta_estado` (`estado_revision`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            } catch (\Throwable) {}
+        }
 
         // Obtener columnas existentes en fact_ventas
         try {
-            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_ventas');
+            $colsDb = Schema::connection('supervisor')->getColumnListing('fact_ventas');
         } catch (\Throwable) {
             $colsDb = [];
         }
@@ -156,21 +217,20 @@ class ProcessVentasIngestaAction
         }
         $colsDbFlip = array_flip($colsDb);
 
-        // 1. Consultar registros existentes en BD para el rango de fechas
+        // 1. Consultar registros existentes en BD para las fechas en batches de 100
+        // (Aprovecha idx_fv_fecha_norm y evita traer cientos de miles de registros de fechas no presentes)
         $filasDb = [];
-        if (count($fechasValidas) <= 200) {
-            $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
-            $filasDb = $conn->select("
+        $chunksFechas = array_chunk($fechasValidas, 100);
+        foreach ($chunksFechas as $chunkF) {
+            $placeholders = implode(',', array_fill(0, count($chunkF), '?'));
+            $rowsChunk = $conn->select("
                 SELECT id, venta_id, producto_id, monto_final, cantidad, revertida, fecha_norm, cliente_id
                 FROM fact_ventas
                 WHERE fecha_norm IN ({$placeholders})
-            ", $fechasValidas);
-        } else {
-            $filasDb = $conn->select("
-                SELECT id, venta_id, producto_id, monto_final, cantidad, revertida, fecha_norm, cliente_id
-                FROM fact_ventas
-                WHERE fecha_norm >= ? AND fecha_norm <= ?
-            ", [$fechaMin, $fechaMax]);
+            ", $chunkF);
+            foreach ($rowsChunk as $r) {
+                $filasDb[] = $r;
+            }
         }
 
         $existentes = [];
@@ -190,9 +250,9 @@ class ProcessVentasIngestaAction
             $clavesArchivo[$k] = true;
             $vid = (int)$row['venta_id'];
             $pid = (int)$row['producto_id'];
-            $montoNuevo = (float)$row['monto_final'];
-            $cantNueva = (int)$row['cantidad'];
-            $revNueva = (string)$row['revertida'];
+            $montoNuevo = (float)($row['monto_final'] ?? 0.0);
+            $cantNueva = (int)($row['cantidad'] ?? 0);
+            $revNueva = (string)($row['revertida'] ?? 'No');
 
             // Filtrar solo columnas presentes en la tabla fact_ventas
             $dbRow = [];
@@ -216,6 +276,7 @@ class ProcessVentasIngestaAction
 
                 if ($huboCambio) {
                     $modificadasUpdates[] = [
+                        'id' => (int)$prev->id,
                         'row' => $dbRow,
                         'venta_id' => $vid,
                         'producto_id' => $pid,
@@ -233,6 +294,7 @@ class ProcessVentasIngestaAction
                         'cantidad_nueva' => $cantNueva,
                         'revertida_anterior' => $revAnt,
                         'revertida_nueva' => $revNueva,
+                        'estado_revision' => 'PENDIENTE',
                     ];
                 } else {
                     $identicasCount++;
@@ -240,11 +302,27 @@ class ProcessVentasIngestaAction
             }
         }
 
-        // 3. Venta Diaria es Carga Acumulativa:
-        // Las ventas previas que no vienen en este archivo NO se eliminan para no destruir registros
-        // de otros distribuidores, vendedores o rutas del mismo día en producción.
-        // Las facturas anuladas o revertidas se detectan y auditan explícitamente mediante el campo revertida.
-        $idsAEliminar = [];
+        // 3. Normalizar estructura de columnas para inserción en chunks
+        // Evita el error "Column count doesn't match value count at row X" y desalineación de columnas en Laravel PDO
+        if (!empty($nuevasRecords)) {
+            $allCols = [];
+            foreach ($nuevasRecords as $rec) {
+                foreach (array_keys($rec) as $cKey) {
+                    $allCols[$cKey] = true;
+                }
+            }
+            $canonicalCols = array_keys($allCols);
+
+            $uniformRecords = [];
+            foreach ($nuevasRecords as $rec) {
+                $uRow = [];
+                foreach ($canonicalCols as $cKey) {
+                    $uRow[$cKey] = array_key_exists($cKey, $rec) ? $rec[$cKey] : null;
+                }
+                $uniformRecords[] = $uRow;
+            }
+            $nuevasRecords = $uniformRecords;
+        }
 
         // 4. Operaciones en Transacción Atómica
         $chunkSize = 300;
@@ -257,14 +335,15 @@ class ProcessVentasIngestaAction
                 }
             }
 
-            // B. Actualización explícita de Modificados
+            // B. Actualización explícita de Modificados por ID Primario
             foreach ($modificadasUpdates as $item) {
                 $updateData = $item['row'];
-                unset($updateData['venta_id'], $updateData['producto_id']);
-                $conn->table('fact_ventas')
-                    ->where('venta_id', $item['venta_id'])
-                    ->where('producto_id', $item['producto_id'])
-                    ->update($updateData);
+                unset($updateData['id'], $updateData['venta_id'], $updateData['producto_id']);
+                if (!empty($updateData)) {
+                    $conn->table('fact_ventas')
+                        ->where('id', $item['id'])
+                        ->update($updateData);
+                }
             }
 
             // C. Insertar auditoría de discrepancias
@@ -276,10 +355,14 @@ class ProcessVentasIngestaAction
             }
         });
 
-        // 5. Bitácora en sys_cargas
+        // 5. Bitácora en sys_cargas con ID incremental seguro
         $totalAfectadas = count($nuevasRecords) + count($modificadasUpdates);
         try {
+            $maxId = $conn->table('sys_cargas')->max('id');
+            $nextId = $maxId ? ((int)$maxId + 1) : 1;
+
             $conn->table('sys_cargas')->insert([
+                'id' => $nextId,
                 'archivo_original' => $filename,
                 'archivo_almacenado' => $filePath,
                 'sha256' => $fileHash,
@@ -295,7 +378,7 @@ class ProcessVentasIngestaAction
                 'fecha_ingesta' => now(),
             ]);
         } catch (\Throwable $eSys) {
-            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+            Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
         }
 
         $rangoStr = "{$fechaMin} al {$fechaMax}";
@@ -312,7 +395,7 @@ class ProcessVentasIngestaAction
             'modificados' => count($modificadasUpdates),
             'filas_eliminadas' => 0,
             'eliminadas' => 0,
-            'cancelados' => 0,
+            'cancelados' => count($alteradasAuditoria),
             'filas_identicas' => $identicasCount,
             'sin_cambios' => $identicasCount,
             'filas_ignoradas' => $identicasCount,
@@ -324,4 +407,3 @@ class ProcessVentasIngestaAction
         ];
     }
 }
-
