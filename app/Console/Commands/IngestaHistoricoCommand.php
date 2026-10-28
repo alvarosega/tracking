@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +22,8 @@ class IngestaHistoricoCommand extends Command
      */
     protected $signature = 'ingesta:historico 
                             {archivo : Ruta relativa dentro de storage/app/}
-                            {--connection= : Conexión de base de datos a utilizar (por defecto supervisor)}';
+                            {--connection= : Conexión de base de datos a utilizar (por defecto supervisor)}
+                            {--force : Forzar la reingesta incluso si el hash sha256 del archivo ya fue completado}';
 
     /**
      * Descripción del comando en consola.
@@ -33,7 +33,7 @@ class IngestaHistoricoCommand extends Command
     protected $description = 'Ingesta masiva de archivo histórico de ventas (FACT_VENTAS) de alto rendimiento para MariaDB';
 
     /**
-     * Tamaño del lote para inserción masiva en base de datos.
+     * Tamaño del lote para inserción masiva en base de datos (seguro para límites de MariaDB).
      */
     private const CHUNK_SIZE = 500;
 
@@ -128,7 +128,6 @@ class IngestaHistoricoCommand extends Command
      */
     public function handle(): int
     {
-        // Optimización estricta de memoria y timeouts para CloudLinux LVE
         @ini_set('memory_limit', '1024M');
         @set_time_limit(0);
 
@@ -146,18 +145,28 @@ class IngestaHistoricoCommand extends Command
         $nombreArchivo = basename($rutaArchivo);
         $fileHash = @hash_file('sha256', $rutaArchivo) ?: md5($nombreArchivo . filemtime($rutaArchivo));
 
+        // Control de Idempotencia: previene duplicar si el archivo ya fue completado
+        if (!$this->option('force')) {
+            $cargaPrevia = $db->table('sys_cargas')
+                ->where('sha256', $fileHash)
+                ->where('estado', 'COMPLETADO')
+                ->first();
+
+            if ($cargaPrevia) {
+                $this->error("El archivo [{$nombreArchivo}] ya fue procesado con éxito (Carga ID: {$cargaPrevia->id}).");
+                $this->line("Para forzar la reingesta use la bandera --force.");
+                return Command::FAILURE;
+            }
+        }
+
         $this->info("Iniciando ingesta masiva de archivo histórico: {$nombreArchivo}");
         $this->line("Ruta física: {$rutaArchivo}");
 
-        // Asegurar tablas auxiliares y columnas de esquema
-        $this->asegurarTablaDiscrepancias();
         $colsDbFlip = $this->obtenerColumnasFactVentas();
         $canonicalCols = !empty($colsDbFlip) ? array_keys($colsDbFlip) : self::CANONICAL_FACT_VENTAS_COLUMNS;
 
-        // Registrar inicio en bitácora sys_cargas
         $cargaId = $this->registrarInicioSysCargas($db, $nombreArchivo, $rutaArchivo, $fileHash);
 
-        // Inicializar SplFileObject en streaming
         try {
             $file = new SplFileObject($rutaArchivo, 'r');
             $file->setFlags(SplFileObject::READ_CSV | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
@@ -168,22 +177,17 @@ class IngestaHistoricoCommand extends Command
             return Command::FAILURE;
         }
 
-        // Configuración de la barra de progreso
         $progressBar = $this->output->createProgressBar();
         $progressBar->setFormat(" %current% filas procesadas [%bar%] %elapsed% (Mem: %memory%)\n");
         $progressBar->start();
 
         $totalLeidas = 0;
         $totalInsertadas = 0;
-        $totalOmitidos = 0;
-        $totalDiscrepancias = 0;
         $montoTotalFinal = '0.000000';
         $fechaMin = null;
         $fechaMax = null;
 
-        $batchRawCount = 0;
-        $chunkMap = [];
-        $intraChunkDiscrepancias = [];
+        $currentChunk = [];
         $headerMap = [];
         $headersProcesados = false;
         $chunkNumber = 0;
@@ -194,7 +198,7 @@ class IngestaHistoricoCommand extends Command
                     continue;
                 }
 
-                // 1. Procesar y validar cabeceras en la línea 1 antes de iterar
+                // 1. Validar y procesar cabecera en línea 1
                 if (!$headersProcesados) {
                     if (isset($row[0])) {
                         $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $row[0]);
@@ -207,7 +211,7 @@ class IngestaHistoricoCommand extends Command
 
                 $totalLeidas++;
 
-                // 2. Mapeo y Normalización por fila
+                // 2. Mapear y normalizar
                 $mapped = $this->mapearFila($row, $headerMap);
                 $normalizada = $this->normalizarFila($mapped);
 
@@ -215,19 +219,16 @@ class IngestaHistoricoCommand extends Command
                     continue;
                 }
 
-                $ventaId = (int) $normalizada['venta_id'];
-                $productoId = (int) $normalizada['producto_id'];
                 $fechaNorm = (string) $normalizada['fecha_norm'];
                 $montoFinal = (float) ($normalizada['monto_final'] ?? 0.0);
 
-                // Acumulación con precisión exacta de 6 decimales mediante bcadd
+                // Acumulación de alta precisión con bcadd
                 if (function_exists('bcadd')) {
                     $montoTotalFinal = bcadd($montoTotalFinal, sprintf('%.6f', $montoFinal), 6);
                 } else {
                     $montoTotalFinal = sprintf('%.6f', (float) $montoTotalFinal + $montoFinal);
                 }
 
-                // Actualizar rangos de fecha operativa
                 if ($fechaMin === null || $fechaNorm < $fechaMin) {
                     $fechaMin = $fechaNorm;
                 }
@@ -235,66 +236,21 @@ class IngestaHistoricoCommand extends Command
                     $fechaMax = $fechaNorm;
                 }
 
-                // Filtrar exclusivamente columnas presentes en tabla fact_ventas
+                // Filtrar exclusivamente columnas presentes en fact_ventas (excluyendo id)
                 $dbRow = [];
-                foreach ($normalizada as $col => $val) {
-                    if (isset($colsDbFlip[$col])) {
-                        $dbRow[$col] = $val;
-                    }
+                foreach ($canonicalCols as $col) {
+                    $dbRow[$col] = $normalizada[$col] ?? null;
                 }
 
-                // 3. Regla "Prevalece el primero" en colisiones intra-chunk
-                $compositeKey = "{$fechaNorm}_{$ventaId}_{$productoId}";
-                if (isset($chunkMap[$compositeKey])) {
-                    // Prevalece el primer registro en el mapa de inserción. Comprobar discrepancia de monto
-                    $firstRow = $chunkMap[$compositeKey];
-                    $montoFirst = (float) ($firstRow['monto_final'] ?? 0.0);
+                $currentChunk[] = $dbRow;
 
-                    if (abs($montoFirst - $montoFinal) > 0.000001) {
-                        $intraChunkDiscrepancias[] = [
-                            'archivo_origen' => $nombreArchivo,
-                            'venta_id' => $ventaId,
-                            'producto_id' => $productoId,
-                            'fecha_norm' => $fechaNorm,
-                            'cliente_id' => isset($normalizada['cliente_id']) ? (int) $normalizada['cliente_id'] : null,
-                            'monto_anterior' => $montoFirst,
-                            'monto_nuevo' => $montoFinal,
-                            'cantidad_anterior' => (int) ($firstRow['cantidad'] ?? 0),
-                            'cantidad_nueva' => (int) ($normalizada['cantidad'] ?? 0),
-                            'revertida_anterior' => (string) ($firstRow['revertida'] ?? 'No'),
-                            'revertida_nueva' => (string) ($normalizada['revertida'] ?? 'No'),
-                            'estado_revision' => 'REGISTRADO',
-                            'detectado_en' => now(),
-                        ];
-                    }
-                } else {
-                    // Registrar el primer registro único para este lote
-                    $chunkMap[$compositeKey] = $dbRow;
-                }
+                // 3. Inserción masiva en chunks de 500
+                if (count($currentChunk) >= self::CHUNK_SIZE) {
+                    $this->insertarChunk($db, $currentChunk);
+                    $totalInsertadas += count($currentChunk);
+                    $progressBar->advance(count($currentChunk));
 
-                $batchRawCount++;
-
-                // 4. Ejecución del chunk al alcanzar el límite (1,500 registros leídos)
-                if ($batchRawCount >= self::CHUNK_SIZE) {
-                    $resChunk = $this->procesarChunk(
-                        $db,
-                        $batchRawCount,
-                        $chunkMap,
-                        $intraChunkDiscrepancias,
-                        $nombreArchivo,
-                        $canonicalCols
-                    );
-
-                    $totalInsertadas += $resChunk['insertadas'];
-                    $totalOmitidos += $resChunk['omitidas'];
-                    $totalDiscrepancias += $resChunk['discrepancias'];
-
-                    $progressBar->advance($batchRawCount);
-
-                    // Limpieza estricta de memoria por lote
-                    $batchRawCount = 0;
-                    $chunkMap = [];
-                    $intraChunkDiscrepancias = [];
+                    $currentChunk = [];
                     $chunkNumber++;
 
                     if ($chunkNumber % 10 === 0) {
@@ -303,24 +259,12 @@ class IngestaHistoricoCommand extends Command
                 }
             }
 
-            // Procesar último chunk residual si contiene registros
-            if ($batchRawCount > 0) {
-                $resChunk = $this->procesarChunk(
-                    $db,
-                    $batchRawCount,
-                    $chunkMap,
-                    $intraChunkDiscrepancias,
-                    $nombreArchivo,
-                    $canonicalCols
-                );
-
-                $totalInsertadas += $resChunk['insertadas'];
-                $totalOmitidos += $resChunk['omitidas'];
-                $totalDiscrepancias += $resChunk['discrepancias'];
-
-                $progressBar->advance($batchRawCount);
-
-                unset($chunkMap, $intraChunkDiscrepancias);
+            // Procesar último chunk residual
+            if (!empty($currentChunk)) {
+                $this->insertarChunk($db, $currentChunk);
+                $totalInsertadas += count($currentChunk);
+                $progressBar->advance(count($currentChunk));
+                unset($currentChunk);
             }
 
             $progressBar->finish();
@@ -341,19 +285,17 @@ class IngestaHistoricoCommand extends Command
             return Command::FAILURE;
         }
 
-        // 5. Actualizar bitácora sys_cargas con el resumen final
+        // 4. Actualizar bitácora sys_cargas
         $this->actualizarSysCargasFinal(
             $db,
             $cargaId,
             $totalLeidas,
             $totalInsertadas,
-            $totalOmitidos,
-            $totalDiscrepancias,
             $fechaMin,
             $fechaMax
         );
 
-        // 6. Consulta de cuadre y Salida en Consola
+        // 5. Verificación matemática exacta contra MariaDB
         $montoConsolidadoDb = 0.0;
         if ($fechaMin !== null && $fechaMax !== null) {
             try {
@@ -377,10 +319,8 @@ class IngestaHistoricoCommand extends Command
         $this->table(
             ['Métrica', 'Valor'],
             [
-                ['Total Leídas', number_format($totalLeidas, 0, '.', ',')],
-                ['Insertadas', number_format($totalInsertadas, 0, '.', ',')],
-                ['Duplicados Omitidos', number_format($totalOmitidos, 0, '.', ',')],
-                ['Discrepancias', number_format($totalDiscrepancias, 0, '.', ',')],
+                ['Total Leídas (Archivo)', number_format($totalLeidas, 0, '.', ',')],
+                ['Insertadas en BD (fact_ventas)', number_format($totalInsertadas, 0, '.', ',')],
                 ['Monto Bruto Leído (Archivo)', number_format($montoBrutoArchivo, 2, '.', ',')],
                 ['Monto Consolidado en BD (fact_ventas)', number_format($montoConsolidadoDb, 2, '.', ',')],
                 ['Diferencia de Cuadre', number_format($diferenciaCuadre, 2, '.', ',')],
@@ -391,144 +331,29 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Procesa un chunk de registros dentro de una transacción con rollback en caso de fallo.
+     * Inserta un chunk de registros dentro de una transacción atómica.
      *
-     * @param int $rawCount
-     * @param array<string, array<string, mixed>> $chunkMap
-     * @param array<int, array<string, mixed>> $intraChunkDiscrepancias
-     * @param array<int, string> $canonicalCols
-     * @return array{insertadas: int, omitidas: int, discrepancias: int}
+     * @param array<int, array<string, mixed>> $chunk
      * @throws Throwable
      */
-    protected function procesarChunk(
-        ConnectionInterface $db,
-        int $rawCount,
-        array $chunkMap,
-        array $intraChunkDiscrepancias,
-        string $nombreArchivo,
-        array $canonicalCols
-    ): array {
-        if (empty($chunkMap)) {
-            return [
-                'insertadas' => 0,
-                'omitidas' => $rawCount,
-                'discrepancias' => count($intraChunkDiscrepancias),
-            ];
-        }
-
-        $discrepanciasParaInsertar = $intraChunkDiscrepancias;
-        $totalDiscrepancias = count($intraChunkDiscrepancias);
-
-        // Lista de registros únicos prevaleciendo el primer registro
-        $dedupedChunk = array_values($chunkMap);
-
-        // Normalizar estructura del array para garantizar que todos los registros posean idénticas columnas
-        $uniformChunk = [];
-        foreach ($dedupedChunk as $row) {
-            $uniformRow = [];
-            foreach ($canonicalCols as $col) {
-                $uniformRow[$col] = array_key_exists($col, $row) ? $row[$col] : null;
-            }
-            $uniformChunk[] = $uniformRow;
+    protected function insertarChunk(ConnectionInterface $db, array $chunk): void
+    {
+        if (empty($chunk)) {
+            return;
         }
 
         $db->beginTransaction();
         try {
-            // Inserción masiva ignorando claves primarias/únicas existentes
-            $insertedCount = (int) $db->table('fact_ventas')->insertOrIgnore($uniformChunk);
-            $omittedEnDb = count($uniformChunk) - $insertedCount;
-
-            // Si hubo omisión de registros contra la base de datos, validar colisiones de montos mediante tuplas
-            if ($omittedEnDb > 0) {
-                $tuples = [];
-                foreach ($uniformChunk as $row) {
-                    $tuples[] = [
-                        (string) $row['fecha_norm'],
-                        (int) $row['venta_id'],
-                        (int) $row['producto_id'],
-                    ];
-                }
-
-                // Consultas por tuplas en bloques de 500 para evitar desbordes de parámetros
-                $tupleChunks = array_chunk($tuples, 500);
-                $dbMap = [];
-
-                foreach ($tupleChunks as $tChunk) {
-                    $placeholders = implode(',', array_fill(0, count($tChunk), '(?, ?, ?)'));
-                    $bindings = [];
-                    foreach ($tChunk as $t) {
-                        $bindings[] = $t[0]; // fecha_norm
-                        $bindings[] = $t[1]; // venta_id
-                        $bindings[] = $t[2]; // producto_id
-                    }
-
-                    $querySql = "SELECT id, fecha_norm, venta_id, producto_id, monto_final, cantidad, revertida, cliente_id 
-                                 FROM fact_ventas 
-                                 WHERE (fecha_norm, venta_id, producto_id) IN ({$placeholders})";
-
-                    $dbRows = $db->select($querySql, $bindings);
-
-                    foreach ($dbRows as $dRow) {
-                        $key = "{$dRow->fecha_norm}_{$dRow->venta_id}_{$dRow->producto_id}";
-                        $dbMap[$key] = $dRow;
-                    }
-                }
-
-                foreach ($uniformChunk as $row) {
-                    $k = "{$row['fecha_norm']}_{$row['venta_id']}_{$row['producto_id']}";
-                    if (isset($dbMap[$k])) {
-                        $prev = $dbMap[$k];
-                        $montoAnt = (float) ($prev->monto_final ?? 0.0);
-                        $montoNuevo = (float) ($row['monto_final'] ?? 0.0);
-
-                        // Comparación con precisión exacta de 6 decimales
-                        if (abs($montoAnt - $montoNuevo) > 0.000001) {
-                            $discrepanciasParaInsertar[] = [
-                                'archivo_origen' => $nombreArchivo,
-                                'venta_id' => (int) $row['venta_id'],
-                                'producto_id' => (int) $row['producto_id'],
-                                'fecha_norm' => (string) $row['fecha_norm'],
-                                'cliente_id' => isset($row['cliente_id']) ? (int) $row['cliente_id'] : null,
-                                'monto_anterior' => $montoAnt,
-                                'monto_nuevo' => $montoNuevo,
-                                'cantidad_anterior' => (int) ($prev->cantidad ?? 0),
-                                'cantidad_nueva' => (int) ($row['cantidad'] ?? 0),
-                                'revertida_anterior' => (string) ($prev->revertida ?? 'No'),
-                                'revertida_nueva' => (string) ($row['revertida'] ?? 'No'),
-                                'estado_revision' => 'REGISTRADO',
-                                'detectado_en' => now(),
-                            ];
-                            $totalDiscrepancias++;
-                        }
-                    }
-                }
-            }
-
-            // Inserción de discrepancias detectadas (tanto intra-chunk como contra BD)
-            if (!empty($discrepanciasParaInsertar)) {
-                $discrepanciasChunks = array_chunk($discrepanciasParaInsertar, 500);
-                foreach ($discrepanciasChunks as $dChunk) {
-                    $db->table('auditoria_ventas_discrepancias')->insert($dChunk);
-                }
-            }
-
+            $db->table('fact_ventas')->insert($chunk);
             $db->commit();
         } catch (Throwable $e) {
             $db->rollBack();
             throw $e;
         }
-
-        $totalOmitidas = $rawCount - $insertedCount;
-
-        return [
-            'insertadas' => $insertedCount,
-            'omitidas' => $totalOmitidas,
-            'discrepancias' => $totalDiscrepancias,
-        ];
     }
 
     /**
-     * Valida que las cabeceras en la línea 1 contengan las columnas requeridas para FACT_VENTAS.
+     * Valida que la cabecera contenga las columnas mínimas para operar.
      *
      * @param array<int, mixed> $headers
      * @throws RuntimeException
@@ -563,13 +388,13 @@ class IngestaHistoricoCommand extends Command
         if (!$tieneVenta || !$tieneProducto || !$tieneFecha || !$tieneMonto) {
             $muestra = implode(', ', array_slice(array_map('strval', $headers), 0, 8));
             throw new RuntimeException(
-                "Cabeceras inválidas en la línea 1: No se encontraron las columnas esenciales requeridas para FACT_VENTAS (venta_id, producto_id, fecha, monto). Cabeceras detectadas: [{$muestra}]"
+                "Cabeceras inválidas en la línea 1: faltan columnas esenciales (venta_id, producto_id, fecha, monto). Detectadas: [{$muestra}]"
             );
         }
     }
 
     /**
-     * Construye un mapa directo [índice => columna_db] para lectura $O(1)$ por fila.
+     * Construye un mapa directo [índice => columna_db].
      *
      * @param array<int, mixed> $headers
      * @return array<int, string>
@@ -591,7 +416,7 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Mapea un array indexado de fila a sus columnas correspondientes.
+     * Mapea el array de fila según las columnas detectadas.
      *
      * @param array<int, mixed> $row
      * @param array<int, string> $headerMap
@@ -609,10 +434,10 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Normaliza los tipos de datos de una fila según especificaciones técnicas.
+     * Normaliza los tipos de datos de una fila.
      *
      * @param array<string, mixed> $mapped
-     * @return array<string, mixed>|null Retorna null si la fila no tiene clave obligatoria válida.
+     * @return array<string, mixed>|null Retorna null si la fila carece de clave obligatoria válida.
      */
     protected function normalizarFila(array $mapped): ?array
     {
@@ -623,7 +448,7 @@ class IngestaHistoricoCommand extends Command
             return null;
         }
 
-        // 1. Normalización de fecha_norm ('Y-m-d')
+        // 1. Normalización de fecha
         $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
         $fechaNorm = $this->parseFechaNorm($fechaRaw);
         if (!$fechaNorm) {
@@ -635,11 +460,11 @@ class IngestaHistoricoCommand extends Command
         $mapped['fecha_norm'] = $fechaNorm;
         $mapped['fecha'] = $fechaNorm;
 
-        // 2. Normalización de cliente_norm y vendedor_norm con transliteración limpia
+        // 2. Normalización de cadenas de texto
         $mapped['cliente_norm'] = $this->normalizarTextoLimpio($mapped['cliente_norm'] ?? ($mapped['cliente'] ?? ''));
         $mapped['vendedor_norm'] = $this->normalizarTextoLimpio($mapped['vendedor_norm'] ?? ($mapped['vendedor'] ?? ''));
 
-        // 3. Normalización de columnas monetarias con alta precisión (6 decimales)
+        // 3. Normalización monetaria (precisión a 6 decimales)
         foreach (self::DECIMAL_COLUMNS as $dc) {
             if (array_key_exists($dc, $mapped)) {
                 $mapped[$dc] = $this->parseMonetary($mapped[$dc]);
@@ -655,7 +480,7 @@ class IngestaHistoricoCommand extends Command
             $mapped['monto'] = $montoFinal;
         }
 
-        // 4. Sanitización de enteros y strings operativas
+        // 4. Casteo de enteros y atributos operativos
         $mapped['cliente_id'] = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int) $mapped['cliente_id'] : 0;
         $mapped['cantidad'] = isset($mapped['cantidad']) && is_numeric($mapped['cantidad']) ? (int) $mapped['cantidad'] : 0;
 
@@ -666,12 +491,10 @@ class IngestaHistoricoCommand extends Command
         $rev = isset($mapped['revertida']) ? trim((string) $mapped['revertida']) : '';
         $mapped['revertida'] = in_array(strtolower($rev), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes'], true) ? 'Si' : 'No';
 
-        // Normalización de hora
         if (isset($mapped['hora'])) {
             $mapped['hora'] = $this->parseHora($mapped['hora']);
         }
 
-        // Derivación de mes y origen si no se encuentran explícitos
         if (empty($mapped['mes']) || !is_numeric($mapped['mes'])) {
             $mapped['mes'] = (int) date('m', strtotime($fechaNorm));
         } else {
@@ -682,7 +505,7 @@ class IngestaHistoricoCommand extends Command
             $mapped['origen'] = 'VEN';
         }
 
-        // Truncado de cadenas para respetar límites VARCHAR de base de datos
+        // Truncado de seguridad contra límites VARCHAR
         foreach (self::COLUMN_LIMITS as $colName => $maxLen) {
             if (isset($mapped[$colName]) && is_string($mapped[$colName]) && mb_strlen($mapped[$colName], 'UTF-8') > $maxLen) {
                 $mapped[$colName] = mb_substr($mapped[$colName], 0, $maxLen, 'UTF-8');
@@ -693,7 +516,7 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Parsea fechas desde formato 'd/m/Y' o 'Y-m-d' nativo hacia 'Y-m-d'.
+     * Parsea fechas hacia formato 'Y-m-d'.
      */
     protected function parseFechaNorm(mixed $fechaRaw): ?string
     {
@@ -706,24 +529,20 @@ class IngestaHistoricoCommand extends Command
             return null;
         }
 
-        // 1. Formato d/m/Y o d-m-Y
         if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/', $str, $m)) {
             return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
         }
 
-        // 2. Formato Y-m-d o Y/m/d
         if (preg_match('/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/', $str, $m)) {
             return sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3]);
         }
 
-        // 3. Serial de número de fecha de Excel (ej: 45212)
         if (is_numeric($str) && (float) $str > 30000 && (float) $str < 60000) {
             $days = (int) floor((float) $str);
             $unixTime = ($days - 25569) * 86400;
             return gmdate('Y-m-d', $unixTime);
         }
 
-        // 4. Fallback con strtotime
         $ts = strtotime($str);
         if ($ts !== false && $ts > 0) {
             return date('Y-m-d', $ts);
@@ -750,7 +569,6 @@ class IngestaHistoricoCommand extends Command
             $trimmed = mb_convert_encoding($trimmed, 'UTF-8', 'ISO-8859-1');
         }
 
-        // Transliteración nativa según especificación técnica obligatoria
         $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $trimmed);
         if ($translit === false) {
             $translit = @iconv('UTF-8', 'ASCII//TRANSLIT', $trimmed);
@@ -759,9 +577,7 @@ class IngestaHistoricoCommand extends Command
             }
         }
 
-        // Limpiar tildes residuales de iconv y compactar espacios múltiples asegurando texto limpio
         $limpio = preg_replace(["/['`^~]/", '/\s+/'], ['', ' '], (string) $translit);
-
         return strtoupper(trim((string) $limpio));
     }
 
@@ -815,7 +631,6 @@ class IngestaHistoricoCommand extends Command
             return null;
         }
 
-        // Fracción decimal de Excel (ej: 0.670138)
         if (is_numeric($str) && (float) $str >= 0 && (float) $str < 1) {
             $totalSeconds = (int) round((float) $str * 86400);
             $h = floor($totalSeconds / 3600);
@@ -871,7 +686,6 @@ class IngestaHistoricoCommand extends Command
             }
         } catch (Throwable $e) {
             Log::warning("No se pudo registrar inicio en sys_cargas: " . $e->getMessage());
-            $this->warn("Aviso: No se pudo registrar la entrada en sys_cargas ({$e->getMessage()}). Continuando ingesta...");
             return null;
         }
     }
@@ -884,8 +698,6 @@ class IngestaHistoricoCommand extends Command
         ?int $cargaId,
         int $totalLeidas,
         int $totalInsertadas,
-        int $totalOmitidos,
-        int $totalDiscrepancias,
         ?string $fechaMin,
         ?string $fechaMax
     ): void {
@@ -899,8 +711,8 @@ class IngestaHistoricoCommand extends Command
                 'filas_afectadas' => $totalInsertadas,
                 'filas_nuevas' => $totalInsertadas,
                 'filas_actualizadas' => 0,
-                'filas_ignoradas' => $totalOmitidos,
-                'filas_con_discrepancia' => $totalDiscrepancias,
+                'filas_ignoradas' => 0,
+                'filas_con_discrepancia' => 0,
                 'rango_inicio' => $fechaMin ?? '-',
                 'rango_fin' => $fechaMax ?? '-',
             ];
@@ -932,51 +744,22 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Verifica y asegura la existencia de la tabla de auditoría de discrepancias según especificación física.
+     * Obtiene el listado de columnas reales de fact_ventas excluyendo 'id'.
+     *
+     * @return array<string, int>
      */
-    protected function asegurarTablaDiscrepancias(): void
-    {
-        try {
-            $connName = $this->getConnectionName();
-            $schema = Schema::connection($connName);
-
-            if (!$schema->hasTable('auditoria_ventas_discrepancias')) {
-                $schema->create('auditoria_ventas_discrepancias', function (Blueprint $table) {
-                    $table->id();
-                    $table->string('archivo_origen', 255);
-                    $table->bigInteger('venta_id');
-                    $table->bigInteger('producto_id');
-                    $table->date('fecha_norm');
-                    $table->bigInteger('cliente_id')->nullable();
-                    $table->decimal('monto_anterior', 16, 6)->nullable();
-                    $table->decimal('monto_nuevo', 16, 6)->nullable();
-                    $table->bigInteger('cantidad_anterior')->nullable();
-                    $table->bigInteger('cantidad_nueva')->nullable();
-                    $table->string('revertida_anterior', 10)->nullable();
-                    $table->string('revertida_nueva', 10)->nullable();
-                    $table->string('estado_revision', 20)->default('REGISTRADO');
-                    $table->timestamp('detectado_en')->useCurrent();
-                    $table->index(['venta_id', 'producto_id'], 'idx_aud_vta_prod');
-                    $table->index('estado_revision', 'idx_aud_vta_estado');
-                });
-            }
-        } catch (Throwable $e) {
-            Log::warning("No se pudo verificar o crear tabla auditoria_ventas_discrepancias: " . $e->getMessage());
-        }
-    }
-
     protected function obtenerColumnasFactVentas(): array
     {
         try {
             $connName = $this->getConnectionName();
             $cols = Schema::connection($connName)->getColumnListing('fact_ventas');
             if (!empty($cols)) {
-                $cols = array_diff($cols, ['id']);
+                $cols = array_values(array_diff($cols, ['id']));
                 return array_flip($cols);
             }
         } catch (Throwable) {}
 
-        $canonical = array_diff(self::CANONICAL_FACT_VENTAS_COLUMNS, ['id']);
+        $canonical = array_values(array_diff(self::CANONICAL_FACT_VENTAS_COLUMNS, ['id']));
         return array_flip($canonical);
     }
 
@@ -992,13 +775,11 @@ class IngestaHistoricoCommand extends Command
             return $rutaEstandar;
         }
 
-        // Soporte para Laravel 11 disk 'local' que apunta por defecto a storage/app/private
         $rutaPrivate = storage_path('app/private/' . $relativa);
         if (file_exists($rutaPrivate)) {
             return $rutaPrivate;
         }
 
-        // Si se suministró ruta absoluta o relativa directa al archivo existente
         if (file_exists($archivoArg)) {
             return realpath($archivoArg) ?: $archivoArg;
         }
@@ -1025,7 +806,6 @@ class IngestaHistoricoCommand extends Command
             return (string) $connOption;
         }
 
-        // En producción y desarrollo el módulo supervisor utiliza la conexión 'supervisor'
         if (!app()->environment('testing') && config('database.connections.supervisor')) {
             return 'supervisor';
         }
