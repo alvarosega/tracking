@@ -46,14 +46,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
 
-    // Módulo Pedidos Rechazados (Android App - Soporte plural y singular para Retrofit)
-    foreach (['pedidos-rechazados', 'pedido-rechazado'] as $prefix) {
+    // Módulo Pedidos Rechazados (Android App - Soporte plural, singular, guiones y guiones bajos para Retrofit)
+    foreach (['pedidos-rechazados', 'pedidos_rechazados', 'pedido-rechazado', 'pedido_rechazado', 'rechazos', 'rechazo'] as $prefix) {
         Route::prefix($prefix)->group(function (): void {
-            Route::get('/motivos', [PedidoRechazadoController::class, 'motivos']);
-            Route::get('/preventas-pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
+            Route::match(['get', 'post'], '/motivos', [PedidoRechazadoController::class, 'motivos']);
+            Route::match(['get', 'post'], '/preventas-pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
+            Route::match(['get', 'post'], '/preventas_pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
             Route::post('/', [PedidoRechazadoController::class, 'store']);
             Route::post('/store', [PedidoRechazadoController::class, 'store']);
-            Route::get('/historial', [PedidoRechazadoController::class, 'historial']);
+            Route::match(['get', 'post'], '/historial', [PedidoRechazadoController::class, 'historial']);
         });
     }
 

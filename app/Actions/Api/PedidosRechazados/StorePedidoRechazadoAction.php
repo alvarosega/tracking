@@ -110,6 +110,25 @@ class StorePedidoRechazadoAction
             }
         }
 
+        // 2.1 Enriquecer datos desde pan_ruteo si clienteId está presente y faltan campos
+        if ($clienteId && (empty($clienteNombre) || empty($codigoCliente) || empty($ruta))) {
+            try {
+                $cliRow = DB::connection('supervisor')
+                    ->table('pan_ruteo')
+                    ->where('cliente_id', $clienteId)
+                    ->select('nombre_cliente', 'codigo_cliente', 'ruta')
+                    ->first();
+
+                if ($cliRow) {
+                    $clienteNombre = $clienteNombre ?: ($cliRow->nombre_cliente ?? null);
+                    $codigoCliente = $codigoCliente ?: ($cliRow->codigo_cliente ?? null);
+                    $ruta = $ruta ?: ($cliRow->ruta ?? null);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo enriquecer datos de cliente desde pan_ruteo: ' . $e->getMessage());
+            }
+        }
+
         // 3. Manejo de foto opcional
         $photoPath = null;
         if ($photo) {
@@ -164,7 +183,7 @@ class StorePedidoRechazadoAction
                 'precio_unitario' => $precioUnit,
                 'monto_rechazado' => $montoItem,
                 'motivo_especifico' => !empty($it['motivo_especifico']) && $it['motivo_especifico'] !== 'null' ? (string) $it['motivo_especifico'] : null,
-                'created_at' => now(),
+                'created_at' => $nowBolivia,
             ];
         }
 

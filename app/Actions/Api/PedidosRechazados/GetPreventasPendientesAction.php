@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class GetPreventasPendientesAction
 {
     /**
-     * Calcula y devuelve las preventas tomadas (D-2) pendientes de justificar frente a las ventas facturadas (D-1).
+     * Calcula y devuelve las preventas pendientes de justificar frente a las ventas facturadas/reparto.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -22,26 +22,18 @@ class GetPreventasPendientesAction
         int|string|null $clienteId = null,
         ?string $ruta = null
     ): array {
-        // 1. Cálculo de fechas operativas por defecto: D-2 (preventa) vs D-1 (facturación)
         $now = now('America/La_Paz');
-
-        if ($now->isMonday()) {
-            $defaultFechaPreventa = $now->copy()->subDays(3)->toDateString(); // Viernes
-        } else {
-            $defaultFechaPreventa = $now->copy()->subDays(2)->toDateString(); // Anteayer (D-2)
-        }
-
-        $fechaPreventa = $fechaPreventaParam ?: $defaultFechaPreventa;
+        $today = $now->toDateString();
 
         try {
-            // 2. Preventas ya justificadas por el vendedor en la BD local
+            // 1. Preventas ya justificadas por el vendedor en la BD local
             $preventasYaJustificadas = PedidoRechazado::query()
                 ->where('user_id', $user->id)
                 ->whereNotNull('nro_preventa')
                 ->pluck('nro_preventa')
                 ->toArray();
 
-            // 3. Consultar las preventas tomadas en fecha D-2 asignadas al vendedor en ERP
+            // 2. Consultar fact_preventas en supervisor DB
             $query = DB::connection('supervisor')->table('fact_preventas as p');
 
             if (!empty($ruta)) {
@@ -49,17 +41,21 @@ class GetPreventasPendientesAction
             } else {
                 $query->where(function ($q) use ($user): void {
                     $hasCondition = false;
-                    if (!empty($user->name)) {
-                        $q->where('p.vendedor', $user->name);
+                    $username = trim((string) ($user->username ?? ''));
+                    $userRuta = trim((string) ($user->ruta ?? ''));
+                    $userName = trim((string) ($user->name ?? ''));
+
+                    if (!empty($userName)) {
+                        $q->where('p.vendedor', $userName);
                         $hasCondition = true;
                     }
-                    if (!empty($user->username)) {
-                        $q->orWhere('p.username_vendedor', $user->username)
-                          ->orWhere('p.ruta', $user->username);
+                    if (!empty($username)) {
+                        $q->orWhere('p.username_vendedor', $username)
+                          ->orWhere('p.ruta', $username);
                         $hasCondition = true;
                     }
-                    if (!empty($user->ruta)) {
-                        $q->orWhere('p.ruta', $user->ruta);
+                    if (!empty($userRuta)) {
+                        $q->orWhere('p.ruta', $userRuta);
                         $hasCondition = true;
                     }
                     if (!$hasCondition) {
@@ -68,8 +64,23 @@ class GetPreventasPendientesAction
                 });
             }
 
-            if (!empty($fechaPreventa)) {
-                $query->where('p.fecha_norm', $fechaPreventa);
+            // 3. Filtro de fecha:
+            // Si el cliente envía una fecha explícita (?fecha_preventa=YYYY-MM-DD), respetarla.
+            // Si NO envía fecha, consultar preventas recientes pendientes de justificar (últimos 7 días).
+            // Si fact_ventas aún no tiene registros de hoy (entregas en curso), se acota hasta ayer para evitar
+            // mostrar preventas frescas del día que aún no han salido a reparto.
+            if (!empty($fechaPreventaParam)) {
+                $query->where('p.fecha_norm', $fechaPreventaParam);
+            } else {
+                $hasVentasToday = DB::connection('supervisor')
+                    ->table('fact_ventas')
+                    ->where('fecha_norm', $today)
+                    ->exists();
+
+                $hasta = $hasVentasToday ? $today : $now->copy()->subDay()->toDateString();
+                $desde = $now->copy()->subDays(7)->toDateString();
+
+                $query->whereBetween('p.fecha_norm', [$desde, $hasta]);
             }
 
             if (!empty($clienteId)) {
@@ -95,7 +106,7 @@ class GetPreventasPendientesAction
                 'p.categoria',
                 'p.cantidad as cantidad_preventa',
                 'p.precio_lista',
-                'p.monto_final'
+                'p.monto_final',
             ])->get();
 
             if ($items->isEmpty()) {
@@ -149,7 +160,7 @@ class GetPreventasPendientesAction
                         'total_items_facturados' => 0,
                         'total_items_rechazados' => 0,
                         'items_rechazados' => [],
-                        'items' => []
+                        'items' => [],
                     ];
                 }
 

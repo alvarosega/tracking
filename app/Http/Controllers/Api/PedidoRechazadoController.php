@@ -49,10 +49,17 @@ class PedidoRechazadoController extends Controller
     ): JsonResponse {
         try {
             $user = $request->user();
+            $photo = $request->file('photo')
+                ?? $request->file('foto')
+                ?? $request->file('image')
+                ?? $request->file('imagen')
+                ?? $request->file('file')
+                ?? $request->file('evidence');
+
             $pedidoRechazado = $action->execute(
                 user: $user,
                 data: $request->validated(),
-                photo: $request->file('photo')
+                photo: $photo
             );
 
             return response()->json([
@@ -69,7 +76,7 @@ class PedidoRechazadoController extends Controller
             Log::error('Error registrando pedido rechazado en servidor: ' . $e->getMessage(), [
                 'exception' => $e,
                 'user_id' => $request->user()?->id,
-                'payload' => $request->except(['photo', 'items']),
+                'payload' => $request->except(['photo', 'foto', 'image', 'file', 'items']),
                 'items_count' => count((array) $request->input('items', [])),
             ]);
 
@@ -89,15 +96,15 @@ class PedidoRechazadoController extends Controller
         GetPreventasPendientesAction $action
     ): JsonResponse {
         try {
-            $fecha = $request->query('fecha_preventa', $request->query('fecha'));
-            $clienteId = $request->query('cliente_id');
-            $ruta = $request->query('ruta');
+            $fecha = $request->input('fecha_preventa', $request->input('fecha'));
+            $clienteId = $request->input('cliente_id', $request->input('client_id'));
+            $ruta = $request->input('ruta', $request->input('route'));
 
             $preventas = $action->execute(
                 user: $request->user(),
-                fechaPreventaParam: is_string($fecha) && $fecha !== 'null' ? $fecha : null,
+                fechaPreventaParam: is_string($fecha) && $fecha !== 'null' && $fecha !== '' ? $fecha : null,
                 clienteId: is_string($clienteId) || is_numeric($clienteId) ? $clienteId : null,
-                ruta: is_string($ruta) && $ruta !== 'null' ? $ruta : null
+                ruta: is_string($ruta) && $ruta !== 'null' && $ruta !== '' ? $ruta : null
             );
 
             return response()->json([
@@ -128,9 +135,9 @@ class PedidoRechazadoController extends Controller
         GetHistorialPedidosRechazadosAction $action
     ): JsonResponse {
         try {
-            $fechaInput = $request->input('fecha');
-            $fecha = (is_string($fechaInput) && $fechaInput !== 'null' && $fechaInput !== '') ? $fechaInput : date('Y-m-d');
-            $clienteId = $request->input('cliente_id');
+            $fechaInput = $request->input('fecha', $request->input('fecha_rechazo'));
+            $fecha = (is_string($fechaInput) && $fechaInput !== 'null' && $fechaInput !== '') ? $fechaInput : null;
+            $clienteId = $request->input('cliente_id', $request->input('client_id'));
 
             $rechazos = $action->execute(
                 user: $request->user(),
