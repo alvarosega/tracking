@@ -21,8 +21,14 @@ class ProcessVentasIngestaAction
     ) {}
 
     /**
-     * Procesa la ingesta de archivo de Ventas (FACT_VENTAS) de forma escalable por lotes (chunked streaming),
-     * manteniendo el consumo de memoria en < 30 MB incluso con cientos de miles de filas.
+     * Procesa la ingesta de archivos de Ventas (FACT_VENTAS) de cortes diarios/parciales.
+     * Implementa el modelo de snapshot acumulativo idéntico al motor de Python:
+     * - Recupera los registros existentes de la base de datos para la ventana de fechas operativas del archivo.
+     * - Compara por (venta_id, producto_id).
+     * - Inserta registros NUEVOS.
+     * - Actualiza registros MODIFICADOS (detectando cambios en monto, cantidad o revertida) y audita discrepancia.
+     * - Elimina registros PURGADOS (presentes en BD para ese rango de fechas pero ausentes en el archivo) y audita discrepancia.
+     * - Ignora registros IDÉNTICOS sin cambios.
      *
      * @return array<string, mixed>
      */
@@ -58,7 +64,7 @@ class ProcessVentasIngestaAction
                         `cantidad_nueva` BIGINT NULL,
                         `revertida_anterior` VARCHAR(10) NULL,
                         `revertida_nueva` VARCHAR(10) NULL,
-                        `estado_revision` VARCHAR(20) DEFAULT 'PENDIENTE',
+                        `estado_revision` VARCHAR(20) DEFAULT 'REGISTRADO',
                         `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         INDEX `idx_aud_vta_prod` (`venta_id`, `producto_id`),
                         INDEX `idx_aud_vta_estado` (`estado_revision`)
@@ -101,178 +107,54 @@ class ProcessVentasIngestaAction
             'cantidad_cajas', 'precio_unitario', 'precio_paquete'
         ];
 
+        $colLimits = [
+            'hora' => 10,
+            'revertida' => 10,
+            'nit' => 50,
+            'tipo_pago' => 50,
+            'dia_visita' => 50,
+            'precio_lista' => 50,
+            'cluster_t' => 50,
+            'cluster_c' => 50,
+            'origen' => 50,
+            'oficina' => 100,
+            'vendedor_username' => 100,
+            'distribuidor_username' => 100,
+            'zona' => 100,
+            'codigo' => 100,
+            'categoria' => 100,
+            'dp_group' => 100,
+            'proveedor' => 100,
+            'tipo_negocio' => 100,
+            'nro_factura' => 100,
+            'ruta' => 100,
+            'canal' => 100,
+            'tipo_objeto' => 100,
+            'mercado' => 100,
+            'empresa' => 100,
+            'jerarquia1' => 100,
+            'jerarquia2' => 100,
+            'jerarquia3' => 100,
+            'escala_descuento' => 100,
+            'escala_producto' => 100,
+            'marca' => 100,
+            'cliente' => 255,
+            'cliente_norm' => 255,
+            'vendedor' => 255,
+            'vendedor_norm' => 255,
+            'distribuidor' => 255,
+            'producto' => 255,
+            'cuf' => 255,
+            'razon_social' => 255,
+            'supervisor' => 255,
+            'descripcion_unificada' => 255,
+        ];
+
+        // 1. Lectura, mapeo y deduplicación intra-archivo (keep='last')
+        $filasArchivo = [];
+        $fechasValidasSet = [];
         $totalLeidas = 0;
-        $totalNuevas = 0;
-        $totalModificadas = 0;
-        $totalIdenticas = 0;
-        $totalDiscrepancias = 0;
-        $montoTotal = 0.0;
-        $fechaMin = null;
-        $fechaMax = null;
 
-        $batch = [];
-        $batchSize = 2000;
-
-        // Callback para procesar cada lote de 2000 filas de forma atómica y liberar RAM
-        $processBatch = function (array $rows) use (
-            $conn,
-            $colsDbFlip,
-            $filename,
-            &$totalNuevas,
-            &$totalModificadas,
-            &$totalIdenticas,
-            &$totalDiscrepancias
-        ) {
-            if (empty($rows)) {
-                return;
-            }
-
-            // Deduplicar dentro del lote por venta_id_producto_id
-            $batchDedup = [];
-            $ventasIds = [];
-
-            foreach ($rows as $row) {
-                $vid = (int)$row['venta_id'];
-                $pid = (int)$row['producto_id'];
-                $k = "{$vid}_{$pid}";
-                $batchDedup[$k] = $row;
-                $ventasIds[$vid] = true;
-            }
-
-            // Consultar en BD solo los venta_id presentes en este lote
-            $ventasList = array_keys($ventasIds);
-            $existentes = [];
-
-            if (!empty($ventasList)) {
-                $chunksVentas = array_chunk($ventasList, 500);
-                foreach ($chunksVentas as $chunkV) {
-                    $placeholders = implode(',', array_fill(0, count($chunkV), '?'));
-                    $rowsDb = $conn->select("
-                        SELECT id, venta_id, producto_id, monto_final, cantidad, revertida
-                        FROM fact_ventas
-                        WHERE venta_id IN ({$placeholders})
-                    ", $chunkV);
-
-                    foreach ($rowsDb as $r) {
-                        $k = "{$r->venta_id}_{$r->producto_id}";
-                        $existentes[$k] = $r;
-                    }
-                }
-            }
-
-            $nuevasRecords = [];
-            $modificadasUpdates = [];
-            $alteradasAuditoria = [];
-
-            foreach ($batchDedup as $k => $row) {
-                $vid = (int)$row['venta_id'];
-                $pid = (int)$row['producto_id'];
-                $montoNuevo = (float)($row['monto_final'] ?? 0.0);
-                $cantNueva = (int)($row['cantidad'] ?? 0);
-                $revNueva = (string)($row['revertida'] ?? 'No');
-
-                // Filtrar solo columnas presentes en tabla fact_ventas
-                $dbRow = [];
-                foreach ($row as $colName => $colVal) {
-                    if (isset($colsDbFlip[$colName])) {
-                        $dbRow[$colName] = $colVal;
-                    }
-                }
-
-                if (!isset($existentes[$k])) {
-                    $nuevasRecords[] = $dbRow;
-                } else {
-                    $prev = $existentes[$k];
-                    $montoAnt = (float)($prev->monto_final ?? 0.0);
-                    $cantAnt = (int)($prev->cantidad ?? 0);
-                    $revAnt = (string)($prev->revertida ?? 'No');
-
-                    $huboCambio = (abs($montoAnt - $montoNuevo) > 0.01) ||
-                                  ($cantAnt !== $cantNueva) ||
-                                  (strtolower($revAnt) !== strtolower($revNueva));
-
-                    if ($huboCambio) {
-                        $modificadasUpdates[] = [
-                            'id' => (int)$prev->id,
-                            'row' => $dbRow,
-                        ];
-
-                        $alteradasAuditoria[] = [
-                            'archivo_origen' => $filename,
-                            'venta_id' => $vid,
-                            'producto_id' => $pid,
-                            'fecha' => (string)($row['fecha_norm'] ?? $row['fecha'] ?? ''),
-                            'cliente_id' => isset($row['cliente_id']) ? (int)$row['cliente_id'] : null,
-                            'monto_anterior' => $montoAnt,
-                            'monto_nuevo' => $montoNuevo,
-                            'cantidad_anterior' => $cantAnt,
-                            'cantidad_nueva' => $cantNueva,
-                            'revertida_anterior' => $revAnt,
-                            'revertida_nueva' => $revNueva,
-                            'estado_revision' => 'PENDIENTE',
-                        ];
-                    } else {
-                        $totalIdenticas++;
-                    }
-                }
-            }
-
-            // Normalizar uniformidad de columnas para inserción en chunks
-            if (!empty($nuevasRecords)) {
-                $allCols = [];
-                foreach ($nuevasRecords as $rec) {
-                    foreach (array_keys($rec) as $cKey) {
-                        $allCols[$cKey] = true;
-                    }
-                }
-                $canonicalCols = array_keys($allCols);
-
-                $uniformRecords = [];
-                foreach ($nuevasRecords as $rec) {
-                    $uRow = [];
-                    foreach ($canonicalCols as $cKey) {
-                        $uRow[$cKey] = array_key_exists($cKey, $rec) ? $rec[$cKey] : null;
-                    }
-                    $uniformRecords[] = $uRow;
-                }
-                $nuevasRecords = $uniformRecords;
-            }
-
-            // Ejecutar operaciones en BD dentro de una transacción atómica por lote
-            $conn->transaction(function () use ($conn, $nuevasRecords, $modificadasUpdates, $alteradasAuditoria) {
-                if (!empty($nuevasRecords)) {
-                    $chunks = array_chunk($nuevasRecords, 300);
-                    foreach ($chunks as $chunk) {
-                        $conn->table('fact_ventas')->insert($chunk);
-                    }
-                }
-
-                foreach ($modificadasUpdates as $item) {
-                    $updateData = $item['row'];
-                    unset($updateData['id'], $updateData['venta_id'], $updateData['producto_id']);
-                    if (!empty($updateData)) {
-                        $conn->table('fact_ventas')
-                            ->where('id', $item['id'])
-                            ->update($updateData);
-                    }
-                }
-
-                if (!empty($alteradasAuditoria)) {
-                    $chunksAud = array_chunk($alteradasAuditoria, 300);
-                    foreach ($chunksAud as $chunk) {
-                        $conn->table('auditoria_ventas_discrepancias')->insert($chunk);
-                    }
-                }
-            });
-
-            $totalNuevas += count($nuevasRecords);
-            $totalModificadas += count($modificadasUpdates);
-            $totalDiscrepancias += count($alteradasAuditoria);
-
-            unset($batchDedup, $ventasIds, $existentes, $nuevasRecords, $modificadasUpdates, $alteradasAuditoria);
-        };
-
-        // Streaming fila por fila consumiendo generador de bajo consumo
         foreach ($this->parser->streamRows($filePath, $filename) as $r) {
             $totalLeidas++;
             $mapped = $this->validator->mapRow($r, 'FACT_VENTAS');
@@ -287,19 +169,13 @@ class ProcessVentasIngestaAction
             // Normalizar fecha_norm y fecha (YYYY-MM-DD)
             $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw);
-            if (!$fechaNorm || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaNorm)) {
+            if (!$fechaNorm || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaNorm) || $fechaNorm === '1900-01-01') {
                 continue;
             }
 
             $mapped['fecha_norm'] = $fechaNorm;
             $mapped['fecha'] = $fechaNorm;
-
-            if ($fechaMin === null || $fechaNorm < $fechaMin) {
-                $fechaMin = $fechaNorm;
-            }
-            if ($fechaMax === null || $fechaNorm > $fechaMax) {
-                $fechaMax = $fechaNorm;
-            }
+            $fechasValidasSet[$fechaNorm] = true;
 
             // Sanitizar cliente_id (columna obligatoria NOT NULL en BD)
             $clienteId = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int)$mapped['cliente_id'] : 0;
@@ -328,8 +204,6 @@ class ProcessVentasIngestaAction
                 $mapped['monto'] = $montoFinal;
             }
 
-            $montoTotal += $montoFinal;
-
             // Normalizar cantidad
             $mapped['cantidad'] = isset($mapped['cantidad']) && is_numeric($mapped['cantidad']) ? (int)$mapped['cantidad'] : 0;
 
@@ -351,48 +225,6 @@ class ProcessVentasIngestaAction
             }
 
             // Truncar strings para respetar estrictamente las longitudes VARCHAR de la base de datos
-            $colLimits = [
-                'hora' => 10,
-                'revertida' => 10,
-                'nit' => 50,
-                'tipo_pago' => 50,
-                'dia_visita' => 50,
-                'precio_lista' => 50,
-                'cluster_t' => 50,
-                'cluster_c' => 50,
-                'origen' => 50,
-                'oficina' => 100,
-                'vendedor_username' => 100,
-                'distribuidor_username' => 100,
-                'zona' => 100,
-                'codigo' => 100,
-                'categoria' => 100,
-                'dp_group' => 100,
-                'proveedor' => 100,
-                'tipo_negocio' => 100,
-                'nro_factura' => 100,
-                'ruta' => 100,
-                'canal' => 100,
-                'tipo_objeto' => 100,
-                'mercado' => 100,
-                'empresa' => 100,
-                'jerarquia1' => 100,
-                'jerarquia2' => 100,
-                'jerarquia3' => 100,
-                'escala_descuento' => 100,
-                'escala_producto' => 100,
-                'marca' => 100,
-                'cliente' => 255,
-                'cliente_norm' => 255,
-                'vendedor' => 255,
-                'vendedor_norm' => 255,
-                'distribuidor' => 255,
-                'producto' => 255,
-                'cuf' => 255,
-                'razon_social' => 255,
-                'supervisor' => 255,
-                'descripcion_unificada' => 255,
-            ];
             foreach ($colLimits as $colName => $maxLen) {
                 if (isset($mapped[$colName]) && is_string($mapped[$colName]) && mb_strlen($mapped[$colName], 'UTF-8') > $maxLen) {
                     $mapped[$colName] = mb_substr($mapped[$colName], 0, $maxLen, 'UTF-8');
@@ -409,24 +241,15 @@ class ProcessVentasIngestaAction
                 $mapped['origen'] = 'VEN';
             }
 
-            $batch[] = $mapped;
-
-            if (count($batch) >= $batchSize) {
-                $processBatch($batch);
-                $batch = [];
-            }
+            // Deduplicación intra-archivo conservando la última ocurrencia (idéntico a Python keep='last')
+            $k = "{$ventaId}_{$productoId}";
+            $filasArchivo[$k] = $mapped;
         }
 
-        // Procesar último remanente de lote
-        if (!empty($batch)) {
-            $processBatch($batch);
-            $batch = [];
-        }
-
-        if ($totalLeidas === 0) {
+        if (empty($filasArchivo)) {
             return [
                 'status' => 'success',
-                'filas_leidas' => 0,
+                'filas_leidas' => $totalLeidas,
                 'filas_afectadas' => 0,
                 'filas_insertadas' => 0,
                 'filas_nuevas' => 0,
@@ -448,12 +271,193 @@ class ProcessVentasIngestaAction
             ];
         }
 
-        $totalAfectadas = $totalNuevas + $totalModificadas;
+        $fechasValidas = array_keys($fechasValidasSet);
+        sort($fechasValidas);
+        $fechaMin = $fechasValidas[0];
+        $fechaMax = end($fechasValidas);
+
+        // 2. Recuperar existentes de la ventana de fechas operativas en MySQL (en una sola consulta rápida)
+        if (count($fechasValidas) <= 200) {
+            $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
+            $filasDb = $conn->select("
+                SELECT id, venta_id, producto_id, monto_final, cantidad, revertida, fecha_norm, cliente_id
+                FROM fact_ventas
+                WHERE fecha_norm IN ({$placeholders})
+            ", $fechasValidas);
+        } else {
+            $rawDb = $conn->select("
+                SELECT id, venta_id, producto_id, monto_final, cantidad, revertida, fecha_norm, cliente_id
+                FROM fact_ventas
+                WHERE fecha_norm >= ? AND fecha_norm <= ?
+            ", [$fechaMin, $fechaMax]);
+            $fechasFlip = array_flip($fechasValidas);
+            $filasDb = array_filter($rawDb, fn($r) => isset($fechasFlip[(string)$r->fecha_norm]));
+        }
+
+        $existentes = [];
+        foreach ($filasDb as $r) {
+            $k = "{$r->venta_id}_{$r->producto_id}";
+            $existentes[$k] = $r;
+        }
+        unset($filasDb);
+
+        // 3. Clasificar filas del archivo (Nuevas, Modificadas, Idénticas)
+        $clavesArchivo = [];
+        $nuevasRecords = [];
+        $modificadasUpdates = [];
+        $alteradasAuditoria = [];
+        $identicasCount = 0;
+        $montoTotal = 0.0;
+
+        foreach ($filasArchivo as $k => $row) {
+            $vid = (int)$row['venta_id'];
+            $pid = (int)$row['producto_id'];
+            $clavesArchivo[$k] = true;
+
+            $montoNuevo = (float)($row['monto_final'] ?? 0.0);
+            $cantNueva = (int)($row['cantidad'] ?? 0);
+            $revNueva = (string)($row['revertida'] ?? 'No');
+            $montoTotal += $montoNuevo;
+
+            // Filtrar solo columnas presentes en tabla fact_ventas
+            $dbRow = [];
+            foreach ($row as $colName => $colVal) {
+                if (isset($colsDbFlip[$colName])) {
+                    $dbRow[$colName] = $colVal;
+                }
+            }
+
+            if (!isset($existentes[$k])) {
+                $nuevasRecords[] = $dbRow;
+            } else {
+                $prev = $existentes[$k];
+                $montoAnt = (float)($prev->monto_final ?? 0.0);
+                $cantAnt = (int)($prev->cantidad ?? 0);
+                $revAnt = (string)($prev->revertida ?? 'No');
+
+                $huboCambio = (abs($montoAnt - $montoNuevo) > 0.01) ||
+                              ($cantAnt !== $cantNueva) ||
+                              (strtolower($revAnt) !== strtolower($revNueva));
+
+                if ($huboCambio) {
+                    $modificadasUpdates[] = [
+                        'id' => (int)$prev->id,
+                        'venta_id' => $vid,
+                        'producto_id' => $pid,
+                        'data' => $dbRow,
+                    ];
+
+                    $alteradasAuditoria[] = [
+                        'archivo_origen' => $filename,
+                        'venta_id' => $vid,
+                        'producto_id' => $pid,
+                        'fecha' => (string)($row['fecha_norm'] ?? $row['fecha'] ?? ''),
+                        'cliente_id' => isset($row['cliente_id']) ? (int)$row['cliente_id'] : null,
+                        'monto_anterior' => $montoAnt,
+                        'monto_nuevo' => $montoNuevo,
+                        'cantidad_anterior' => $cantAnt,
+                        'cantidad_nueva' => $cantNueva,
+                        'revertida_anterior' => $revAnt,
+                        'revertida_nueva' => $revNueva,
+                        'estado_revision' => 'REGISTRADO',
+                    ];
+                } else {
+                    $identicasCount++;
+                }
+            }
+        }
+
+        // 4. Detectar registros eliminados en el origen dentro de la ventana de fechas
+        $clavesEliminadas = array_diff_key($existentes, $clavesArchivo);
+        $idsAEliminar = [];
+
+        foreach ($clavesEliminadas as $k => $prev) {
+            $idsAEliminar[] = (int)$prev->id;
+
+            $alteradasAuditoria[] = [
+                'archivo_origen' => $filename,
+                'venta_id' => (int)$prev->venta_id,
+                'producto_id' => (int)$prev->producto_id,
+                'fecha' => (string)($prev->fecha_norm ?? ''),
+                'cliente_id' => isset($prev->cliente_id) ? (int)$prev->cliente_id : null,
+                'monto_anterior' => (float)($prev->monto_final ?? 0.0),
+                'monto_nuevo' => 0.0,
+                'cantidad_anterior' => (int)($prev->cantidad ?? 0),
+                'cantidad_nueva' => 0,
+                'revertida_anterior' => (string)($prev->revertida ?? 'No'),
+                'revertida_nueva' => 'Eliminada',
+                'estado_revision' => 'REGISTRADO',
+            ];
+        }
+
+        // 5. Inserciones, Actualizaciones y Eliminaciones atómicas en Base de Datos
+        $conn->transaction(function () use ($conn, $nuevasRecords, $modificadasUpdates, $idsAEliminar, $alteradasAuditoria) {
+            // A. Inserciones de filas nuevas en bloques de 500
+            if (!empty($nuevasRecords)) {
+                $allCols = [];
+                foreach ($nuevasRecords as $rec) {
+                    foreach (array_keys($rec) as $ck) {
+                        $allCols[$ck] = true;
+                    }
+                }
+                $canonicalCols = array_keys($allCols);
+
+                $uniformRecords = [];
+                foreach ($nuevasRecords as $rec) {
+                    $uRow = [];
+                    foreach ($canonicalCols as $ck) {
+                        $uRow[$ck] = array_key_exists($ck, $rec) ? $rec[$ck] : null;
+                    }
+                    $uniformRecords[] = $uRow;
+                }
+
+                $chunks = array_chunk($uniformRecords, 500);
+                foreach ($chunks as $chunk) {
+                    $conn->table('fact_ventas')->insert($chunk);
+                }
+            }
+
+            // B. Actualizaciones de registros modificados
+            if (!empty($modificadasUpdates)) {
+                foreach ($modificadasUpdates as $item) {
+                    $updateData = $item['data'];
+                    unset($updateData['id'], $updateData['venta_id'], $updateData['producto_id']);
+                    if (!empty($updateData)) {
+                        $conn->table('fact_ventas')
+                            ->where('id', $item['id'])
+                            ->update($updateData);
+                    }
+                }
+            }
+
+            // C. Eliminaciones de registros purgados dentro de la ventana
+            if (!empty($idsAEliminar)) {
+                $chunksDel = array_chunk($idsAEliminar, 500);
+                foreach ($chunksDel as $chunkIds) {
+                    $conn->table('fact_ventas')->whereIn('id', $chunkIds)->delete();
+                }
+            }
+
+            // D. Registro en auditoria_ventas_discrepancias
+            if (!empty($alteradasAuditoria)) {
+                $chunksAud = array_chunk($alteradasAuditoria, 500);
+                foreach ($chunksAud as $chunkAud) {
+                    $conn->table('auditoria_ventas_discrepancias')->insert($chunkAud);
+                }
+            }
+        });
+
+        $totalNuevas = count($nuevasRecords);
+        $totalModificadas = count($modificadasUpdates);
+        $totalEliminadas = count($idsAEliminar);
+        $totalDiscrepancias = count($alteradasAuditoria);
+        $totalAfectadas = $totalNuevas + $totalModificadas + $totalEliminadas;
+
         $fechaMinStr = $fechaMin ?? date('Y-m-d');
         $fechaMaxStr = $fechaMax ?? date('Y-m-d');
         $rangoStr = "{$fechaMinStr} al {$fechaMaxStr}";
 
-        // Reconectar la BD tras el streaming masivo para asegurar la sesión de Laravel
+        // Reconectar la BD tras la transacción para mantener viva la sesión de Laravel
         try {
             DB::connection('supervisor')->reconnect();
             DB::reconnect();
@@ -474,7 +478,7 @@ class ProcessVentasIngestaAction
                 'filas_afectadas' => $totalAfectadas,
                 'filas_nuevas' => $totalNuevas,
                 'filas_actualizadas' => $totalModificadas,
-                'filas_ignoradas' => $totalIdenticas,
+                'filas_ignoradas' => $identicasCount,
                 'filas_con_discrepancia' => $totalDiscrepancias,
                 'rango_inicio' => $fechaMinStr,
                 'rango_fin' => $fechaMaxStr,
@@ -496,12 +500,12 @@ class ProcessVentasIngestaAction
             'filas_alteradas' => $totalModificadas,
             'filas_actualizadas' => $totalModificadas,
             'modificados' => $totalModificadas,
-            'filas_eliminadas' => 0,
-            'eliminadas' => 0,
-            'cancelados' => $totalDiscrepancias,
-            'filas_identicas' => $totalIdenticas,
-            'sin_cambios' => $totalIdenticas,
-            'filas_ignoradas' => $totalIdenticas,
+            'filas_eliminadas' => $totalEliminadas,
+            'eliminadas' => $totalEliminadas,
+            'cancelados' => $totalEliminadas,
+            'filas_identicas' => $identicasCount,
+            'sin_cambios' => $identicasCount,
+            'filas_ignoradas' => $identicasCount,
             'filas_con_discrepancia' => $totalDiscrepancias,
             'monto_total' => round($montoTotal, 2),
             'volumen_total' => round($montoTotal, 2),
