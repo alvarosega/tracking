@@ -97,12 +97,14 @@ class PedidoRechazadoController extends Controller
     ): JsonResponse {
         try {
             $fecha = $request->input('fecha_preventa', $request->input('fecha'));
+            $fechaVenta = $request->input('fecha_venta', $request->input('fecha_entrega'));
             $clienteId = $request->input('cliente_id', $request->input('client_id'));
             $ruta = $request->input('ruta', $request->input('route'));
 
             $preventas = $action->execute(
                 user: $request->user(),
                 fechaPreventaParam: is_string($fecha) && $fecha !== 'null' && $fecha !== '' ? $fecha : null,
+                fechaVentaParam: is_string($fechaVenta) && $fechaVenta !== 'null' && $fechaVenta !== '' ? $fechaVenta : null,
                 clienteId: is_string($clienteId) || is_numeric($clienteId) ? $clienteId : null,
                 ruta: is_string($ruta) && $ruta !== 'null' && $ruta !== '' ? $ruta : null
             );

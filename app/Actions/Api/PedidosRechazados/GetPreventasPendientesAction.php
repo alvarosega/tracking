@@ -12,28 +12,62 @@ use Illuminate\Support\Facades\Log;
 class GetPreventasPendientesAction
 {
     /**
-     * Calcula y devuelve las preventas pendientes de justificar frente a las ventas facturadas/reparto.
+     * Calcula y devuelve las preventas tomadas pendientes de justificar frente a las ventas facturadas (entregas).
+     *
+     * Reglas del ciclo operativo según el día actual en que se consulta:
+     * - Lunes: Entregas del Sábado y Domingo cruzadas con Preventas del Viernes (D-3).
+     * - Martes: Entregas del Lunes cruzadas con Preventas del Sábado (D-3).
+     * - Miércoles: Entregas del Martes (D-1) cruzadas con Preventas del Lunes (D-2).
+     * - Jueves: Entregas del Miércoles (D-1) cruzadas con Preventas del Martes (D-2).
+     * - Viernes: Entregas del Jueves (D-1) cruzadas con Preventas del Miércoles (D-2).
+     * - Sábado: Entregas del Viernes (D-1) cruzadas con Preventas del Jueves (D-2).
+     * - Domingo: Entregas del Sábado (D-1) cruzadas con Preventas del Viernes (D-2).
      *
      * @return array<int, array<string, mixed>>
      */
     public function execute(
         User $user,
         ?string $fechaPreventaParam = null,
+        ?string $fechaVentaParam = null,
         int|string|null $clienteId = null,
         ?string $ruta = null
     ): array {
         $now = now('America/La_Paz');
-        $today = $now->toDateString();
+
+        // 1. Determinar fechas por defecto del ciclo operativo según el día de la semana:
+        if ($now->isMonday()) {
+            // Lunes: Preventa Viernes (D-3) vs Entregas Sábado (D-2) y Domingo (D-1)
+            $defaultFechasPreventa = [$now->copy()->subDays(3)->toDateString()];
+            $defaultFechasVenta = [
+                $now->copy()->subDays(2)->toDateString(),
+                $now->copy()->subDays(1)->toDateString(),
+            ];
+        } elseif ($now->isTuesday()) {
+            // Martes: Preventa Sábado (D-3) vs Entregas Lunes (D-1)
+            $defaultFechasPreventa = [$now->copy()->subDays(3)->toDateString()];
+            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
+        } elseif ($now->isSunday()) {
+            // Domingo: Preventa Viernes (D-2) vs Entregas Sábado (D-1)
+            $defaultFechasPreventa = [$now->copy()->subDays(2)->toDateString()];
+            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
+        } else {
+            // Miércoles, Jueves, Viernes, Sábado: Preventa anteayer (D-2) vs Entregas ayer (D-1)
+            $defaultFechasPreventa = [$now->copy()->subDays(2)->toDateString()];
+            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
+        }
+
+        $fechasPreventa = !empty($fechaPreventaParam) ? [$fechaPreventaParam] : $defaultFechasPreventa;
+        $fechasVenta = !empty($fechaVentaParam) ? [$fechaVentaParam] : $defaultFechasVenta;
 
         try {
-            // 1. Preventas ya justificadas por el vendedor en la BD local
+            // 2. Preventas ya justificadas por el vendedor en la BD local (pedidos_rechazados)
             $preventasYaJustificadas = PedidoRechazado::query()
                 ->where('user_id', $user->id)
                 ->whereNotNull('nro_preventa')
                 ->pluck('nro_preventa')
                 ->toArray();
 
-            // 2. Consultar fact_preventas en supervisor DB
+            // 3. Consultar fact_preventas en supervisor DB
             $query = DB::connection('supervisor')->table('fact_preventas as p');
 
             if (!empty($ruta)) {
@@ -64,24 +98,7 @@ class GetPreventasPendientesAction
                 });
             }
 
-            // 3. Filtro de fecha:
-            // Si el cliente envía una fecha explícita (?fecha_preventa=YYYY-MM-DD), respetarla.
-            // Si NO envía fecha, consultar preventas recientes pendientes de justificar (últimos 7 días).
-            // Si fact_ventas aún no tiene registros de hoy (entregas en curso), se acota hasta ayer para evitar
-            // mostrar preventas frescas del día que aún no han salido a reparto.
-            if (!empty($fechaPreventaParam)) {
-                $query->where('p.fecha_norm', $fechaPreventaParam);
-            } else {
-                $hasVentasToday = DB::connection('supervisor')
-                    ->table('fact_ventas')
-                    ->where('fecha_norm', $today)
-                    ->exists();
-
-                $hasta = $hasVentasToday ? $today : $now->copy()->subDay()->toDateString();
-                $desde = $now->copy()->subDays(7)->toDateString();
-
-                $query->whereBetween('p.fecha_norm', [$desde, $hasta]);
-            }
+            $query->whereIn('p.fecha_norm', $fechasPreventa);
 
             if (!empty($clienteId)) {
                 $query->where('p.cliente_id', $clienteId);
@@ -113,7 +130,7 @@ class GetPreventasPendientesAction
                 return [];
             }
 
-            // 4. Obtener cantidades facturadas en fact_ventas (pre_venta_id = nro_preventa + producto_id)
+            // 4. Obtener cantidades facturadas en fact_ventas (entregas) en las fechas de entrega correspondientes
             $nrosPreventa = $items->pluck('nro_preventa')->filter()->unique()->toArray();
             $ventasPorItem = [];
 
@@ -128,6 +145,7 @@ class GetPreventasPendientesAction
                           });
                     })
                     ->whereIn('pre_venta_id', $nrosPreventa)
+                    ->whereIn('fecha_norm', $fechasVenta)
                     ->select('pre_venta_id', 'producto_id', DB::raw('SUM(cantidad) as total_facturado'))
                     ->groupBy('pre_venta_id', 'producto_id')
                     ->get();
