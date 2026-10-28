@@ -337,12 +337,66 @@ class ProcessVentasIngestaAction
             $rev = isset($mapped['revertida']) ? trim((string)$mapped['revertida']) : '';
             $mapped['revertida'] = in_array(strtolower($rev), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes'], true) ? 'Si' : 'No';
 
+            // Normalizar hora (convierte número fraccionario de Excel tipo 0.67013888888888884 a HH:MM:SS)
+            if (array_key_exists('hora', $mapped)) {
+                $mapped['hora'] = ExcelCsvParser::normalizeTime($mapped['hora']);
+            }
+
             // Derivar cliente_norm y vendedor_norm
             if (!empty($mapped['cliente']) && empty($mapped['cliente_norm'])) {
                 $mapped['cliente_norm'] = mb_strtoupper(trim((string)$mapped['cliente']), 'UTF-8');
             }
             if (!empty($mapped['vendedor']) && empty($mapped['vendedor_norm'])) {
                 $mapped['vendedor_norm'] = mb_strtoupper(trim((string)$mapped['vendedor']), 'UTF-8');
+            }
+
+            // Truncar strings para respetar estrictamente las longitudes VARCHAR de la base de datos
+            $colLimits = [
+                'hora' => 10,
+                'revertida' => 10,
+                'nit' => 50,
+                'tipo_pago' => 50,
+                'dia_visita' => 50,
+                'precio_lista' => 50,
+                'cluster_t' => 50,
+                'cluster_c' => 50,
+                'origen' => 50,
+                'oficina' => 100,
+                'vendedor_username' => 100,
+                'distribuidor_username' => 100,
+                'zona' => 100,
+                'codigo' => 100,
+                'categoria' => 100,
+                'dp_group' => 100,
+                'proveedor' => 100,
+                'tipo_negocio' => 100,
+                'nro_factura' => 100,
+                'ruta' => 100,
+                'canal' => 100,
+                'tipo_objeto' => 100,
+                'mercado' => 100,
+                'empresa' => 100,
+                'jerarquia1' => 100,
+                'jerarquia2' => 100,
+                'jerarquia3' => 100,
+                'escala_descuento' => 100,
+                'escala_producto' => 100,
+                'marca' => 100,
+                'cliente' => 255,
+                'cliente_norm' => 255,
+                'vendedor' => 255,
+                'vendedor_norm' => 255,
+                'distribuidor' => 255,
+                'producto' => 255,
+                'cuf' => 255,
+                'razon_social' => 255,
+                'supervisor' => 255,
+                'descripcion_unificada' => 255,
+            ];
+            foreach ($colLimits as $colName => $maxLen) {
+                if (isset($mapped[$colName]) && is_string($mapped[$colName]) && mb_strlen($mapped[$colName], 'UTF-8') > $maxLen) {
+                    $mapped[$colName] = mb_substr($mapped[$colName], 0, $maxLen, 'UTF-8');
+                }
             }
 
             // Derivar mes a partir de fecha_norm si no viene

@@ -686,4 +686,47 @@ class ExcelCsvParser
 
         return $dateOnly;
     }
+
+    /**
+     * Convierte valor de hora (número serial de tiempo de Excel, ej: 0.6701388... o string '16:05:00') a 'HH:MM:SS' de máx 10 caracteres.
+     */
+    public static function normalizeTime(mixed $timeValue): ?string
+    {
+        if ($timeValue === null) {
+            return null;
+        }
+
+        $str = trim((string)$timeValue);
+        if ($str === '' || strtolower($str) === 'null' || strtolower($str) === 'none') {
+            return null;
+        }
+
+        // Si es número decimal entre 0 y 1 (serial de tiempo de Excel, ej: 0.67013888888888884)
+        if (is_numeric($str) && (float)$str >= 0 && (float)$str < 1.0) {
+            $totalSeconds = (int)round((float)$str * 86400);
+            $hours = (int)floor($totalSeconds / 3600) % 24;
+            $minutes = (int)floor(($totalSeconds % 3600) / 60);
+            $seconds = $totalSeconds % 60;
+            return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        // Si ya viene con formato HH:MM:SS o HH:MM
+        if (preg_match('/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
+            $hours = (int)$m[1] % 24;
+            $minutes = (int)$m[2] % 60;
+            $seconds = isset($m[3]) ? ((int)$m[3] % 60) : 0;
+            return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        // Si viene con fecha y hora completa, extraer solo hora
+        if (preg_match('/\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
+            $hours = (int)$m[1] % 24;
+            $minutes = (int)$m[2] % 60;
+            $seconds = isset($m[3]) ? ((int)$m[3] % 60) : 0;
+            return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        // Fallback: recortar a 10 caracteres para respetar la longitud de columna VARCHAR(10)
+        return substr($str, 0, 10);
+    }
 }
