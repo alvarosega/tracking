@@ -78,7 +78,7 @@ class GetAvanceCumplimientoDataAction
         // 2. Metas de las Rutas (Cartera pan_ruteo, fact_metas, fact_metas_kpi)
         $metasTodas = $this->obtenerMetasKpis($mesYm);
 
-        // 3. Catálogo de Rutas y Canales (dim_rutas)
+        // 3. Catálogo Base de Rutas y Canales (dim_rutas)
         $rutasDimRaw = DB::connection('supervisor')->table('dim_rutas')
             ->select([
                 DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
@@ -87,24 +87,25 @@ class GetAvanceCumplimientoDataAction
             ])
             ->get();
 
-        $rutasDim = [];
+        $rutasCatalogo = [];
         foreach ($rutasDimRaw as $rd) {
-            $rutasDim[$rd->ruta_clean] = [
+            $rutasCatalogo[$rd->ruta_clean] = [
                 'canal' => $rd->canal,
                 'vendedor' => $rd->vendedor,
             ];
         }
 
-        // 4. Extracción de Ventas en el Rango
+        // 4. Extracción de Ventas en el Rango (fact_ventas)
         $ventasQuery = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
             ->where('fecha_norm', '<=', $fechaCorte)
-            ->where('monto_final', '>', 0)
+            ->where('monto_final', '!=', 0)
             ->where(function ($q): void {
                 $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
             })
             ->select([
                 DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
+                DB::raw("COALESCE(NULLIF(TRIM(UPPER(canal)), ''), 'SIN CANAL') as canal_factura"),
                 DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                 'cliente_id',
                 DB::raw("TRIM(codigo) as codigo"),
@@ -118,34 +119,101 @@ class GetAvanceCumplimientoDataAction
 
         $ventasRaw = $ventasQuery->get();
 
-        // 5. Definición del Universo de Rutas
+        // Enriquecer catálogo dinámico con rutas y canales reales presentes en las ventas
+        $ventasRutaCount = [];
+        $canalesPorRuta = [];
+        foreach ($ventasRaw as $v) {
+            $rc = $v->ruta_clean;
+            $ventasRutaCount[$rc] = ($ventasRutaCount[$rc] ?? 0) + 1;
+
+            $cFact = strtoupper(trim((string) ($v->canal_factura ?? '')));
+            $vFact = trim((string) ($v->vendedor_factura ?? ''));
+
+            if ($cFact !== '' && $cFact !== 'SIN CANAL') {
+                $canalesPorRuta[$rc][$cFact] = ($canalesPorRuta[$rc][$cFact] ?? 0) + 1;
+            }
+
+            if (!isset($rutasCatalogo[$rc])) {
+                $rutasCatalogo[$rc] = [
+                    'canal' => ($cFact !== '' && $cFact !== 'SIN CANAL') ? $cFact : 'SIN CANAL',
+                    'vendedor' => ($vFact !== '' && $vFact !== 'Sin Asignar') ? $vFact : ($rc === 'SIN RUTA' ? 'Venta Oficina / Sin Asignar' : 'No Asignado'),
+                ];
+            } else {
+                if (($rutasCatalogo[$rc]['canal'] === 'SIN CANAL' || $rutasCatalogo[$rc]['canal'] === '') && $cFact !== '' && $cFact !== 'SIN CANAL') {
+                    $rutasCatalogo[$rc]['canal'] = $cFact;
+                }
+                if (($rutasCatalogo[$rc]['vendedor'] === 'No Asignado' || $rutasCatalogo[$rc]['vendedor'] === 'Sin Asignar') && $vFact !== '' && $vFact !== 'Sin Asignar') {
+                    $rutasCatalogo[$rc]['vendedor'] = $vFact;
+                }
+            }
+        }
+
+        // Si una ruta tenía canal sin definir, asignar el canal más frecuente en sus facturas
+        foreach ($canalesPorRuta as $rc => $cCounts) {
+            if ($rutasCatalogo[$rc]['canal'] === 'SIN CANAL') {
+                arsort($cCounts);
+                $rutasCatalogo[$rc]['canal'] = (string) array_key_first($cCounts);
+            }
+        }
+
+        // Asegurar rutas presentes en metas oficiales
+        foreach ($metasTodas as $rName => $_) {
+            if (!isset($rutasCatalogo[$rName])) {
+                $rutasCatalogo[$rName] = [
+                    'canal' => 'SIN CANAL',
+                    'vendedor' => 'No Asignado',
+                ];
+            }
+        }
+
+        // 5. Definición del Universo de Rutas con Filtros Transparentes
         $canalesFiltroSet = array_flip(array_map('strtoupper', array_map('trim', array_filter($canales, fn ($c) => $c && !in_array(strtoupper(trim($c)), ['TODOS', 'TODAS'], true)))));
         $rutasFiltroSet = array_flip(array_map('strtoupper', array_map('trim', array_filter($rutas, fn ($r) => $r && !in_array(strtoupper(trim($r)), ['TODAS', 'TODOS'], true)))));
 
         $universo = [];
-        foreach ($rutasDim as $rName => $rMeta) {
-            if (!empty($canalesFiltroSet) && !isset($canalesFiltroSet[strtoupper(trim((string) $rMeta['canal']))])) {
-                continue;
-            }
-            if (!empty($rutasFiltroSet) && !isset($rutasFiltroSet[strtoupper(trim($rName))])) {
-                continue;
-            }
-            $universo[$rName] = true;
-        }
+        foreach ($rutasCatalogo as $rName => $rMeta) {
+            $rNameUpper = strtoupper(trim($rName));
+            $rCanalUpper = strtoupper(trim((string) ($rMeta['canal'] ?? '')));
 
-        // Si no se pasaron filtros de canal, incluir también rutas de ventas o metas
-        if (empty($canalesFiltroSet)) {
-            foreach ($metasTodas as $rName => $_) {
-                if (empty($rutasFiltroSet) || isset($rutasFiltroSet[strtoupper(trim($rName))])) {
+            // Si es 'SIN RUTA' y no hubo ventas sin ruta en este período, no incluirla
+            if ($rName === 'SIN RUTA' && !isset($ventasRutaCount['SIN RUTA'])) {
+                continue;
+            }
+
+            // 1. Filtro puntual de Rutas (si el usuario seleccionó rutas en el selector)
+            if (!empty($rutasFiltroSet) && !isset($rutasFiltroSet[$rNameUpper])) {
+                continue;
+            }
+
+            // 2. Filtro de Canales (si el usuario seleccionó uno o más canales)
+            if (!empty($canalesFiltroSet)) {
+                // Coincidencia directa por el canal asignado a la ruta
+                if (isset($canalesFiltroSet[$rCanalUpper])) {
                     $universo[$rName] = true;
+                    continue;
                 }
-            }
-            foreach ($ventasRaw as $v) {
-                $rc = $v->ruta_clean;
-                if ($rc !== 'SIN RUTA' && (empty($rutasFiltroSet) || isset($rutasFiltroSet[strtoupper(trim($rc))]))) {
-                    $universo[$rc] = true;
+
+                // Si la ruta tuvo facturas registradas bajo el canal filtrado
+                if (isset($canalesPorRuta[$rName])) {
+                    $tieneCanal = false;
+                    foreach ($canalesPorRuta[$rName] as $cNombre => $cnt) {
+                        if (isset($canalesFiltroSet[strtoupper(trim($cNombre))])) {
+                            $tieneCanal = true;
+                            break;
+                        }
+                    }
+                    if ($tieneCanal) {
+                        $universo[$rName] = true;
+                        continue;
+                    }
                 }
+
+                // No cumple con el filtro de canal
+                continue;
             }
+
+            // Sin filtro de canal: se incluyen todas las rutas activas
+            $universo[$rName] = true;
         }
 
         $universoRutas = array_keys($universo);
@@ -178,6 +246,19 @@ class GetAvanceCumplimientoDataAction
                 continue;
             }
 
+            // Si hay filtro de canales activo, validar que la transacción individual corresponda al canal
+            if (!empty($canalesFiltroSet)) {
+                $cFactUpper = strtoupper(trim((string) ($v->canal_factura ?? '')));
+                $rCanalUpper = strtoupper(trim((string) ($rutasCatalogo[$targetRuta]['canal'] ?? '')));
+                $canalCoincide = ($cFactUpper !== '' && $cFactUpper !== 'SIN CANAL')
+                    ? isset($canalesFiltroSet[$cFactUpper])
+                    : isset($canalesFiltroSet[$rCanalUpper]);
+
+                if (!$canalCoincide) {
+                    continue;
+                }
+            }
+
             $cid = (int) ($v->cliente_id ?: 0);
             $monto = (float) $v->monto;
             $prod = (string) $v->producto;
@@ -207,12 +288,19 @@ class GetAvanceCumplimientoDataAction
             }
         }
 
-        // Lista de canales presentes en el universo
+        // Lista consolidada de canales disponibles en el catálogo y ventas
         $canalesSet = [];
-        foreach ($universoRutas as $r) {
-            $c = $rutasDim[$r]['canal'] ?? 'SIN CANAL';
-            if ($c !== 'SIN CANAL') {
+        foreach ($rutasCatalogo as $r => $meta) {
+            $c = trim((string) ($meta['canal'] ?? ''));
+            if ($c !== '' && $c !== 'SIN CANAL') {
                 $canalesSet[$c] = true;
+            }
+        }
+        foreach ($canalesPorRuta as $r => $cMap) {
+            foreach ($cMap as $cNombre => $cnt) {
+                if ($cNombre !== '' && $cNombre !== 'SIN CANAL') {
+                    $canalesSet[$cNombre] = true;
+                }
             }
         }
         $canalesDisponibles = array_merge(['TODOS'], array_keys($canalesSet));
@@ -227,7 +315,7 @@ class GetAvanceCumplimientoDataAction
             }
 
             foreach ($universoRutas as $ruta) {
-                $infoDim = $rutasDim[$ruta] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
+                $infoDim = $rutasCatalogo[$ruta] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
                 $metasR = $metasTodas[$ruta] ?? [];
                 $kpisInfo = [];
                 $pctList = [];
@@ -340,7 +428,7 @@ class GetAvanceCumplimientoDataAction
         $totCRepeticion = 0;
 
         foreach ($universoRutas as $ruta) {
-            $infoDim = $rutasDim[$ruta] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
+            $infoDim = $rutasCatalogo[$ruta] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
             $metaMes = round((float) ($metasTodas[$ruta][$clave] ?? 0.0), 2);
             $metaDia = (!$esCobertura && $dTot > 0)
                 ? round($metaMes / $dTot, 2)

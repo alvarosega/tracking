@@ -33,9 +33,50 @@ class GetAvanceInitDataAction
         $catalogoRutas = $catalogoData['catalogo'];
         $canales = $catalogoData['canales'];
 
+        // Enriquecer dinámicamente con rutas y canales reales presentes en fact_ventas
+        try {
+            $rutasExistentes = $catalogoRutas->pluck('ruta')->map(fn ($r) => strtoupper(trim((string) $r)))->flip()->toArray();
+
+            $rutasFactVentas = DB::connection('supervisor')->table('fact_ventas')
+                ->whereNotNull('ruta')
+                ->where(DB::raw("TRIM(ruta)"), '!=', '')
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta"),
+                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(canal)), ''), 'SIN CANAL') as canal"),
+                    DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado') as vendedor"),
+                ])
+                ->distinct()
+                ->get();
+
+            $catalogoArray = $catalogoRutas->toArray();
+            $canalesSet = array_flip($canales);
+
+            foreach ($rutasFactVentas as $rf) {
+                $rUpper = $rf->ruta;
+                if (!isset($rutasExistentes[$rUpper])) {
+                    $catalogoArray[] = [
+                        'ruta' => $rUpper,
+                        'canal' => $rf->canal,
+                        'vendedor' => $rf->vendedor,
+                    ];
+                    $rutasExistentes[$rUpper] = true;
+                }
+                if ($rf->canal !== 'SIN CANAL' && !isset($canalesSet[$rf->canal])) {
+                    $canales[] = $rf->canal;
+                    $canalesSet[$rf->canal] = true;
+                }
+            }
+
+            usort($catalogoArray, fn ($a, $b) => strcmp((string) ($a['ruta'] ?? ''), (string) ($b['ruta'] ?? '')));
+            sort($canales);
+            $catalogoRutas = collect($catalogoArray);
+        } catch (\Throwable $e) {
+            // Silencioso en caso de no conexión temporal
+        }
+
         // Última fecha registrada en fact_ventas con venta neta
         $maxFechaRaw = DB::connection('supervisor')->table('fact_ventas')
-            ->where('monto_final', '>', 0)
+            ->where('monto_final', '!=', 0)
             ->max('fecha_norm');
 
         $maxFecha = $maxFechaRaw ?: date('Y-m-d');

@@ -78,17 +78,28 @@ class GetAvanceClientesRutaAction
         }
 
         // 2. Ventas registradas de la ruta en el rango
-        $ventasRuta = DB::connection('supervisor')->table('fact_ventas')
-            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+        $ventasRutaQuery = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
             ->where('fecha_norm', '<=', $fechaCorte)
-            ->where('monto_final', '>', 0)
+            ->where('monto_final', '!=', 0)
             ->where(function ($q): void {
                 $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
-            })
+            });
+
+        if ($rutaClean === 'SIN RUTA') {
+            $ventasRutaQuery->where(function ($q): void {
+                $q->whereNull('ruta')
+                  ->orWhere(DB::raw("TRIM(ruta)"), '')
+                  ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
+            });
+        } else {
+            $ventasRutaQuery->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean);
+        }
+
+        $ventasRuta = $ventasRutaQuery
             ->select([
                 'cliente_id',
-                DB::raw("COALESCE(cliente, 'CLIENTE S/N') as cliente_factura"),
+                DB::raw("COALESCE(NULLIF(TRIM(cliente), ''), 'CLIENTE S/N') as cliente_factura"),
                 DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(NULLIF(TRIM(nro_factura), ''), 'S/F') as nro_factura"),
                 DB::raw("TRIM(codigo) as codigo"),
@@ -113,7 +124,7 @@ class GetAvanceClientesRutaAction
         foreach ($ventasRuta as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
             if ($cid === 0) {
-                continue;
+                $cid = -1 * (abs(crc32((string) $v->cliente_factura)) ?: 1);
             }
 
             $prod = (string) $v->producto;
@@ -195,8 +206,8 @@ class GetAvanceClientesRutaAction
 
         foreach ($cartera as $cid => $item) {
             $esCobertura = str_starts_with($kpiClave, 'cob_');
-            $valLogro = $esCobertura ? $item['cantidad'] : round($item['monto'], 2);
-            $tieneLogro = $esCobertura ? ($item['cantidad'] > 0) : ($item['monto'] > 0);
+            $tieneLogro = $esCobertura ? ($item['monto'] > 0 || $item['cantidad'] > 0) : ($item['monto'] > 0);
+            $valLogro = $esCobertura ? ($tieneLogro ? 1 : 0) : round($item['monto'], 2);
 
             $vends = !empty($item['vendedores_factura'])
                 ? implode(', ', array_keys($item['vendedores_factura']))
