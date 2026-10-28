@@ -33,12 +33,12 @@ class IngestaHistoricoCommand extends Command
     protected $description = 'Ingesta masiva de archivo histórico de ventas (FACT_VENTAS) de alto rendimiento para MariaDB';
 
     /**
-     * Tamaño del lote para inserción masiva en base de datos (seguro para límites de MariaDB).
+     * Tamaño del lote para inserción masiva (seguro frente al límite de 65,535 parámetros de MariaDB).
      */
     private const CHUNK_SIZE = 500;
 
     /**
-     * Columnas numéricas con precisión decimal.
+     * Columnas numéricas con precisión decimal exacta.
      *
      * @var array<int, string>
      */
@@ -51,8 +51,7 @@ class IngestaHistoricoCommand extends Command
         'descuento2',
         'descuento_socio',
         'descuento_cliente',
-        'descuento_grupo',
-        'descuento_volumen',
+        'precio',
         'cantidad_cajas',
     ];
 
@@ -105,7 +104,7 @@ class IngestaHistoricoCommand extends Command
     ];
 
     /**
-     * Columnas canónicas por defecto de la tabla fact_ventas.
+     * Columnas canónicas de inserción de fact_ventas (excluyendo la clave autoincremental 'id').
      *
      * @var array<int, string>
      */
@@ -115,12 +114,12 @@ class IngestaHistoricoCommand extends Command
         'distribuidor', 'distribuidor_id', 'distribuidor_username', 'zona', 'tipo_pago',
         'producto_id', 'codigo', 'producto', 'categoria', 'dp_group', 'cantidad',
         'cantidad_cajas', 'precio_unitario', 'precio_paquete', 'monto', 'descuento',
-        'descuento2', 'descuento_socio', 'descuento_cliente', 'monto_final', 'proveedor',
-        'tipo_negocio', 'nro_factura', 'cuf', 'razon_social', 'nit', 'mes', 'supervisor',
-        'venta_id', 'pre_venta_id', 'ruta', 'dia_visita', 'precio_lista', 'canal',
-        'tipo_objeto', 'mercado', 'empresa', 'jerarquia1', 'jerarquia2', 'jerarquia3',
-        'descuento_grupo', 'descuento_volumen', 'escala_descuento', 'escala_producto',
-        'cluster_t', 'cluster_c', 'descripcion_unificada', 'marca', 'revertida', 'origen',
+        'descuento2', 'descuento_socio', 'descuento_cliente', 'monto_final', 'precio',
+        'proveedor', 'tipo_negocio', 'nro_factura', 'cuf', 'razon_social', 'nit', 'mes',
+        'supervisor', 'venta_id', 'pre_venta_id', 'ruta', 'dia_visita', 'precio_lista',
+        'canal', 'tipo_objeto', 'mercado', 'empresa', 'jerarquia1', 'jerarquia2',
+        'jerarquia3', 'escala_descuento', 'escala_producto', 'cluster_t', 'cluster_c',
+        'descripcion_unificada', 'marca', 'revertida', 'origen',
     ];
 
     /**
@@ -145,12 +144,17 @@ class IngestaHistoricoCommand extends Command
         $nombreArchivo = basename($rutaArchivo);
         $fileHash = @hash_file('sha256', $rutaArchivo) ?: md5($nombreArchivo . filemtime($rutaArchivo));
 
-        // Control de Idempotencia: previene duplicar si el archivo ya fue completado
+        // Control de Idempotencia
         if (!$this->option('force')) {
-            $cargaPrevia = $db->table('sys_cargas')
-                ->where('sha256', $fileHash)
-                ->where('estado', 'COMPLETADO')
-                ->first();
+            $query = $db->table('sys_cargas')->where('sha256', $fileHash);
+
+            if ($this->hasColumnInTable('sys_cargas', 'estado')) {
+                $query->where('estado', 'COMPLETADO');
+            } else {
+                $query->where('filas_afectadas', '>', 0);
+            }
+
+            $cargaPrevia = $query->first();
 
             if ($cargaPrevia) {
                 $this->error("El archivo [{$nombreArchivo}] ya fue procesado con éxito (Carga ID: {$cargaPrevia->id}).");
@@ -198,7 +202,7 @@ class IngestaHistoricoCommand extends Command
                     continue;
                 }
 
-                // 1. Validar y procesar cabecera en línea 1
+                // 1. Validar y construir mapa de cabeceras en línea 1
                 if (!$headersProcesados) {
                     if (isset($row[0])) {
                         $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $row[0]);
@@ -211,7 +215,7 @@ class IngestaHistoricoCommand extends Command
 
                 $totalLeidas++;
 
-                // 2. Mapear y normalizar
+                // 2. Mapear y normalizar la fila
                 $mapped = $this->mapearFila($row, $headerMap);
                 $normalizada = $this->normalizarFila($mapped);
 
@@ -222,7 +226,6 @@ class IngestaHistoricoCommand extends Command
                 $fechaNorm = (string) $normalizada['fecha_norm'];
                 $montoFinal = (float) ($normalizada['monto_final'] ?? 0.0);
 
-                // Acumulación de alta precisión con bcadd
                 if (function_exists('bcadd')) {
                     $montoTotalFinal = bcadd($montoTotalFinal, sprintf('%.6f', $montoFinal), 6);
                 } else {
@@ -236,7 +239,6 @@ class IngestaHistoricoCommand extends Command
                     $fechaMax = $fechaNorm;
                 }
 
-                // Filtrar exclusivamente columnas presentes en fact_ventas (excluyendo id)
                 $dbRow = [];
                 foreach ($canonicalCols as $col) {
                     $dbRow[$col] = $normalizada[$col] ?? null;
@@ -295,12 +297,12 @@ class IngestaHistoricoCommand extends Command
             $fechaMax
         );
 
-        // 5. Verificación matemática exacta contra MariaDB
+        // 5. Auditoría de cuadre contra MariaDB
         $montoConsolidadoDb = 0.0;
         if ($fechaMin !== null && $fechaMax !== null) {
             try {
                 $dbSumRow = $db->selectOne("
-                    SELECT SUM(monto_final) as suma_db 
+                    SELECT SUM(monto_final) AS suma_db 
                     FROM fact_ventas 
                     WHERE fecha_norm BETWEEN ? AND ?
                 ", [$fechaMin, $fechaMax]);
@@ -353,7 +355,7 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Valida que la cabecera contenga las columnas mínimas para operar.
+     * Valida que la cabecera contenga las columnas mínimas obligatorias.
      *
      * @param array<int, mixed> $headers
      * @throws RuntimeException
@@ -434,7 +436,7 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Normaliza los tipos de datos de una fila.
+     * Normaliza los tipos de datos de una fila según especificaciones técnicas.
      *
      * @param array<string, mixed> $mapped
      * @return array<string, mixed>|null Retorna null si la fila carece de clave obligatoria válida.
@@ -460,15 +462,15 @@ class IngestaHistoricoCommand extends Command
         $mapped['fecha_norm'] = $fechaNorm;
         $mapped['fecha'] = $fechaNorm;
 
-        // 2. Normalización de cadenas de texto
+        // 2. Normalización de cadenas de texto analíticas
         $mapped['cliente_norm'] = $this->normalizarTextoLimpio($mapped['cliente_norm'] ?? ($mapped['cliente'] ?? ''));
         $mapped['vendedor_norm'] = $this->normalizarTextoLimpio($mapped['vendedor_norm'] ?? ($mapped['vendedor'] ?? ''));
 
-        // 3. Normalización monetaria (precisión a 6 decimales)
+        // 3. Normalización monetaria (precisión a 6 decimales; si no viene en el CSV se inicializa en 0.0)
         foreach (self::DECIMAL_COLUMNS as $dc) {
-            if (array_key_exists($dc, $mapped)) {
-                $mapped[$dc] = $this->parseMonetary($mapped[$dc]);
-            }
+            $mapped[$dc] = array_key_exists($dc, $mapped)
+                ? $this->parseMonetary($mapped[$dc])
+                : 0.0;
         }
 
         // Coherencia monto / monto_final
@@ -480,7 +482,7 @@ class IngestaHistoricoCommand extends Command
             $mapped['monto'] = $montoFinal;
         }
 
-        // 4. Casteo de enteros y atributos operativos
+        // 4. Sanitización de enteros y atributos operativos
         $mapped['cliente_id'] = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int) $mapped['cliente_id'] : 0;
         $mapped['cantidad'] = isset($mapped['cantidad']) && is_numeric($mapped['cantidad']) ? (int) $mapped['cantidad'] : 0;
 
@@ -505,7 +507,7 @@ class IngestaHistoricoCommand extends Command
             $mapped['origen'] = 'VEN';
         }
 
-        // Truncado de seguridad contra límites VARCHAR
+        // Truncado de seguridad contra límites de longitud VARCHAR
         foreach (self::COLUMN_LIMITS as $colName => $maxLen) {
             if (isset($mapped[$colName]) && is_string($mapped[$colName]) && mb_strlen($mapped[$colName], 'UTF-8') > $maxLen) {
                 $mapped[$colName] = mb_substr($mapped[$colName], 0, $maxLen, 'UTF-8');
@@ -838,7 +840,7 @@ class IngestaHistoricoCommand extends Command
     }
 
     /**
-     * Catálogo exhaustivo de variaciones de cabeceras para FACT_VENTAS.
+     * Catálogo exhaustivo de mapeo de cabeceras del CSV a la base de datos.
      *
      * @return array<string, string>
      */
@@ -923,6 +925,7 @@ class IngestaHistoricoCommand extends Command
             'total venta' => 'monto_final',
             'totalventa' => 'monto_final',
             'total' => 'monto_final',
+            'precio' => 'precio',
             'proveedor' => 'proveedor',
             'tiponegocio' => 'tipo_negocio',
             'tipo negocio' => 'tipo_negocio',
@@ -963,10 +966,6 @@ class IngestaHistoricoCommand extends Command
             'jerarquia1' => 'jerarquia1',
             'jerarquia2' => 'jerarquia2',
             'jerarquia3' => 'jerarquia3',
-            'descuentogrupo' => 'descuento_grupo',
-            'descuento grupo' => 'descuento_grupo',
-            'descuentovolumen' => 'descuento_volumen',
-            'descuento volumen' => 'descuento_volumen',
             'escaladescuento' => 'escala_descuento',
             'escala descuento' => 'escala_descuento',
             'escalaproducto' => 'escala_producto',
