@@ -11,6 +11,20 @@ use ZipArchive;
 class ExcelCsvParser
 {
     /**
+     * Cache en memoria de sharedStrings para no re-parsear el archivo ZIP múltiples veces por petición.
+     *
+     * @var array<int, string>|null
+     */
+    protected ?array $cachedSharedStrings = null;
+
+    /**
+     * Limpia la memoria de cadenas compartidas al finalizar la ingesta.
+     */
+    public function clearCache(): void
+    {
+        $this->cachedSharedStrings = null;
+    }
+    /**
      * Extrae las cabeceras (primera fila) de un archivo Excel (.xlsx) o CSV.
      *
      * @return array<int, string>
@@ -161,11 +175,16 @@ class ExcelCsvParser
      */
     protected function loadSharedStrings(string $filePath): array
     {
+        if ($this->cachedSharedStrings !== null) {
+            return $this->cachedSharedStrings;
+        }
+
         $zipPath = str_replace('\\', '/', realpath($filePath) ?: $filePath);
         $ssUri = "zip://{$zipPath}#xl/sharedStrings.xml";
 
         $reader = new XMLReader();
         if (!@$reader->open($ssUri)) {
+            $this->cachedSharedStrings = [];
             return [];
         }
 
@@ -198,6 +217,7 @@ class ExcelCsvParser
         }
 
         $reader->close();
+        $this->cachedSharedStrings = $sharedStrings;
         return $sharedStrings;
     }
 
@@ -269,6 +289,7 @@ class ExcelCsvParser
         $headers = [];
         $currentRowCells = [];
         $isFirstRow = true;
+        $yieldedCount = 0;
 
         while ($reader->read()) {
             if ($reader->nodeType === XMLReader::ELEMENT && $reader->name === 'row') {
@@ -289,6 +310,7 @@ class ExcelCsvParser
                         $headers[$idx] = trim((string)$headerText);
                     }
                     $isFirstRow = false;
+                    $currentRowCells = [];
                 } else {
                     $assocRow = [];
                     $hasData = false;
@@ -299,8 +321,13 @@ class ExcelCsvParser
                         }
                         $assocRow[$headerName] = $cellVal;
                     }
+                    $currentRowCells = [];
 
                     if ($hasData) {
+                        $yieldedCount++;
+                        if ($yieldedCount % 5000 === 0) {
+                            gc_collect_cycles();
+                        }
                         yield $assocRow;
                     }
                 }
