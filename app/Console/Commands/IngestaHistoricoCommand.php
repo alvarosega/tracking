@@ -473,14 +473,6 @@ class IngestaHistoricoCommand extends Command
                 : 0.0;
         }
 
-        // Coherencia monto / monto_final
-        $monto = (float) ($mapped['monto'] ?? 0.0);
-        $montoFinal = (float) ($mapped['monto_final'] ?? 0.0);
-        if ($montoFinal === 0.0 && $monto > 0.0) {
-            $mapped['monto_final'] = $monto;
-        } elseif ($monto === 0.0 && $montoFinal > 0.0) {
-            $mapped['monto'] = $montoFinal;
-        }
 
         // 4. Sanitización de enteros y atributos operativos
         $mapped['cliente_id'] = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int) $mapped['cliente_id'] : 0;
