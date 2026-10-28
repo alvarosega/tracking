@@ -27,8 +27,8 @@ class ProcessVentasIngestaAction
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null): array
     {
-        @ini_set('memory_limit', '512M');
-        @set_time_limit(300);
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(600);
 
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());

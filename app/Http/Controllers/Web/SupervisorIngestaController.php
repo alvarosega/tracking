@@ -251,7 +251,7 @@ class SupervisorIngestaController extends Controller
             'file' => [
                 'required',
                 'file',
-                'max:51200',
+                'max:524288', // Permitir hasta 512 MB para archivos masivos de ventas/preventas históricas
                 function ($attribute, $value, $fail) {
                     if (!$value || !$value->isValid()) {
                         $fail("El archivo no se subió correctamente o está corrupto.");
@@ -265,7 +265,13 @@ class SupervisorIngestaController extends Controller
             ],
         ], $extraRules);
 
-        $request->validate($rules);
+        $messages = [
+            'file.required' => 'Debe seleccionar un archivo para procesar la ingesta.',
+            'file.file' => 'El elemento enviado debe ser un archivo válido.',
+            'file.max' => 'El archivo supera el tamaño máximo permitido de 512 MB.',
+        ];
+
+        $request->validate($rules, $messages);
     }
 
     public function canceladosPendientes(GetCanceladosPendientesAction $action): JsonResponse
