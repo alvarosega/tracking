@@ -18,11 +18,18 @@ class GetAvanceHorariosMatrizAction
      *
      * @param string|null $fechaInicio
      * @param string|null $fechaFin
-     * @param string|null $canal
+     * @param array<string>|string|null $canal
+     * @param array<string>|string|null $rutas
+     * @param string|null $busqueda
      * @return array<string, mixed>
      */
-    public function execute(?string $fechaInicio = null, ?string $fechaFin = null, ?string $canal = null): array
-    {
+    public function execute(
+        ?string $fechaInicio = null,
+        ?string $fechaFin = null,
+        array|string|null $canal = null,
+        array|string|null $rutas = null,
+        ?string $busqueda = null
+    ): array {
         if (!$fechaFin) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
             $fechaFin = $maxFecha ? (string) $maxFecha : date('Y-m-d');
@@ -32,16 +39,23 @@ class GetAvanceHorariosMatrizAction
             $fechaInicio = Carbon::parse($fechaFin)->subDays(6)->format('Y-m-d');
         }
 
-        $canalKey = $canal ?: 'ALL';
-        $cacheKey = "avance_horarios_matriz_" . md5("{$fechaInicio}_{$fechaFin}_{$canalKey}");
+        $canalKey = is_array($canal) ? implode('-', $canal) : ($canal ?: 'ALL');
+        $rutasKey = is_array($rutas) ? implode('-', $rutas) : ($rutas ?: 'ALL');
+        $bKey = $busqueda ? md5($busqueda) : 'NONE';
+        $cacheKey = "avance_horarios_matriz_" . md5("{$fechaInicio}_{$fechaFin}_{$canalKey}_{$rutasKey}_{$bKey}");
 
-        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaInicio, $fechaFin, $canal) {
-            return $this->procesarMatriz($fechaInicio, $fechaFin, $canal);
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaInicio, $fechaFin, $canal, $rutas, $busqueda) {
+            return $this->procesarMatriz($fechaInicio, $fechaFin, $canal, $rutas, $busqueda);
         });
     }
 
-    private function procesarMatriz(string $fechaInicio, string $fechaFin, ?string $canalFiltro): array
-    {
+    private function procesarMatriz(
+        string $fechaInicio,
+        string $fechaFin,
+        array|string|null $canalFiltro,
+        array|string|null $rutasFiltro = null,
+        ?string $busqueda = null
+    ): array {
         // 1. Generar días en rango
         $period = CarbonPeriod::create($fechaInicio, $fechaFin);
         $fechasRango = [];
@@ -55,8 +69,34 @@ class GetAvanceHorariosMatrizAction
             ->where(DB::raw("TRIM(ruta)"), '!=', '')
             ->where(DB::raw("TRIM(UPPER(ruta))"), '!=', 'TDB 99');
 
-        if ($canalFiltro && strtoupper($canalFiltro) !== 'TODOS' && strtoupper($canalFiltro) !== 'TODAS') {
-            $dimQuery->where(DB::raw("TRIM(UPPER(canal))"), strtoupper(trim($canalFiltro)));
+        if ($canalFiltro) {
+            $canalesList = is_array($canalFiltro) ? $canalFiltro : [$canalFiltro];
+            $canalesList = array_values(array_filter(
+                array_map('trim', $canalesList),
+                fn ($c) => $c !== '' && strtoupper($c) !== 'TODOS' && strtoupper($c) !== 'TODAS'
+            ));
+            if (!empty($canalesList)) {
+                $dimQuery->whereIn(DB::raw("TRIM(UPPER(canal))"), array_map('strtoupper', $canalesList));
+            }
+        }
+
+        if ($rutasFiltro) {
+            $rutasList = is_array($rutasFiltro) ? $rutasFiltro : [$rutasFiltro];
+            $rutasList = array_values(array_filter(
+                array_map('trim', $rutasList),
+                fn ($r) => $r !== '' && strtoupper($r) !== 'TODOS' && strtoupper($r) !== 'TODAS'
+            ));
+            if (!empty($rutasList)) {
+                $dimQuery->whereIn(DB::raw("TRIM(UPPER(ruta))"), array_map('strtoupper', $rutasList));
+            }
+        }
+
+        if ($busqueda && trim($busqueda) !== '') {
+            $b = '%' . strtoupper(trim($busqueda)) . '%';
+            $dimQuery->where(function ($q) use ($b) {
+                $q->where(DB::raw("TRIM(UPPER(ruta))"), 'LIKE', $b)
+                  ->orWhere(DB::raw("TRIM(UPPER(vendedor))"), 'LIKE', $b);
+            });
         }
 
         $dimRutasRows = $dimQuery->select([

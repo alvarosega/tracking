@@ -111,6 +111,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::middleware('module.access:avance,horarios')->group(function () {
             Route::get('/horarios', [SupervisorAvanceController::class, 'horarios'])->name('horarios');
             Route::post('/horarios/matriz', [SupervisorAvanceController::class, 'horariosMatriz'])->name('horarios.matriz');
+            Route::post('/horarios/detalle-ruta', [SupervisorAvanceController::class, 'horariosDetalleRuta'])->name('horarios.detalle-ruta');
             Route::post('/horarios/timeline', [SupervisorAvanceController::class, 'horariosTimeline'])->name('horarios.timeline');
             Route::post('/itinerario/secuencia', [SupervisorAvanceController::class, 'itinerarioSecuencia'])->name('itinerario.secuencia');
             Route::post('/itinerario/guardar', [SupervisorAvanceController::class, 'itinerarioGuardar'])->name('itinerario.guardar');

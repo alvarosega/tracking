@@ -15,6 +15,7 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasHistoricoAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasTableroAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosMatrizAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosTimelineAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceItinerarioSecuenciaAction;
@@ -503,8 +504,11 @@ class SupervisorAvanceController extends Controller
         return Inertia::render('Supervisor/Avance/Horarios', [
             'catalogo_rutas' => $initData['catalogo_rutas'],
             'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
             'fecha_corte_default' => $initData['fecha_corte'],
             'fecha_inicio_default' => Carbon::parse($initData['fecha_corte'])->subDays(6)->format('Y-m-d'),
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
         ]);
     }
 
@@ -516,12 +520,16 @@ class SupervisorAvanceController extends Controller
         try {
             $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
             $fechaFin = $request->input('fecha_fin') ? (string) $request->input('fecha_fin') : null;
-            $canal = $request->input('canal') ? (string) $request->input('canal') : null;
+            $canal = $request->input('canales') ?: $request->input('canal');
+            $rutas = $request->input('rutas');
+            $busqueda = $request->input('busqueda');
 
             $data = $action->execute(
                 fechaInicio: $fechaInicio,
                 fechaFin: $fechaFin,
-                canal: $canal
+                canal: $canal,
+                rutas: $rutas,
+                busqueda: $busqueda ? (string) $busqueda : null
             );
 
             return response()->json($data);
@@ -532,6 +540,40 @@ class SupervisorAvanceController extends Controller
 
             return response()->json([
                 'message' => 'Error al consultar matriz de horarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Devuelve el desglose cronológico e histórico completo de una ruta en el rango seleccionado.
+     */
+    public function horariosDetalleRuta(Request $request, GetAvanceHorariosDetalleRutaAction $action): JsonResponse
+    {
+        try {
+            $ruta = (string) $request->input('ruta');
+            $fechaInicio = (string) $request->input('fecha_inicio');
+            $fechaFin = (string) ($request->input('fecha_fin') ?: $request->input('fecha_corte'));
+
+            if (!$ruta || !$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'message' => 'Se requiere ruta, fecha de inicio y fecha de fin'
+                ], 422);
+            }
+
+            $data = $action->execute(
+                ruta: $ruta,
+                fechaInicio: $fechaInicio,
+                fechaFin: $fechaFin
+            );
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en horariosDetalleRuta: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'message' => 'Error al consultar desglose histórico de la ruta: ' . $e->getMessage()
             ], 500);
         }
     }
