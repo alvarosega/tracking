@@ -31,9 +31,21 @@ class GetAvanceInitDataAction
     {
         $catalogoData = $this->catalogoAction->execute();
         $catalogoRutas = $catalogoData['catalogo'];
-        $canales = $catalogoData['canales'];
 
-        // Enriquecer dinámicamente con rutas y canales reales presentes en fact_ventas
+        // Canales oficiales limpios desde dim_rutas (excluyendo números y asegurando 'SC')
+        $canalesRaw = $catalogoData['canales'] ?? [];
+        $canalesLimpios = [];
+        foreach ($canalesRaw as $c) {
+            $cNorm = strtoupper(trim((string) $c));
+            if ($cNorm !== '' && !is_numeric($cNorm)) {
+                $canalesLimpios[$cNorm] = true;
+            }
+        }
+        $canalesLimpios['SC'] = true;
+        $canales = array_keys($canalesLimpios);
+        sort($canales);
+
+        // Enriquecer dinámicamente con rutas de fact_ventas asignándolas a 'SC' (Sin Canal)
         try {
             $rutasExistentes = $catalogoRutas->pluck('ruta')->map(fn ($r) => strtoupper(trim((string) $r)))->flip()->toArray();
 
@@ -42,33 +54,26 @@ class GetAvanceInitDataAction
                 ->where(DB::raw("TRIM(ruta)"), '!=', '')
                 ->select([
                     DB::raw("TRIM(UPPER(ruta)) as ruta"),
-                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(canal)), ''), 'SIN CANAL') as canal"),
                     DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado') as vendedor"),
                 ])
                 ->distinct()
                 ->get();
 
             $catalogoArray = $catalogoRutas->toArray();
-            $canalesSet = array_flip($canales);
 
             foreach ($rutasFactVentas as $rf) {
                 $rUpper = $rf->ruta;
                 if (!isset($rutasExistentes[$rUpper])) {
                     $catalogoArray[] = [
                         'ruta' => $rUpper,
-                        'canal' => $rf->canal,
+                        'canal' => 'SC',
                         'vendedor' => $rf->vendedor,
                     ];
                     $rutasExistentes[$rUpper] = true;
                 }
-                if ($rf->canal !== 'SIN CANAL' && !isset($canalesSet[$rf->canal])) {
-                    $canales[] = $rf->canal;
-                    $canalesSet[$rf->canal] = true;
-                }
             }
 
             usort($catalogoArray, fn ($a, $b) => strcmp((string) ($a['ruta'] ?? ''), (string) ($b['ruta'] ?? '')));
-            sort($canales);
             $catalogoRutas = collect($catalogoArray);
         } catch (\Throwable $e) {
             // Silencioso en caso de no conexión temporal
