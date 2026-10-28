@@ -51,6 +51,19 @@ class ProcessPreventasIngestaAction
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
 
+        $fileHash = @hash_file('sha256', $filePath) ?: md5($filename);
+
+        $conn = DB::connection('supervisor');
+
+        $yaProcesado = $conn->table('sys_cargas')
+            ->where('sha256', $fileHash)
+            ->where('tipo_entidad', 'FACT_PREVENTAS')
+            ->exists();
+
+        if ($yaProcesado) {
+            throw new Exception("El archivo ya fue procesado anteriormente (SHA-256 coincidente). Operación omitida para evitar reprocesamiento innecesario.");
+        }
+
         $headers = $this->parser->extractHeaders($filePath, $filename);
         $this->validator->validateSchema($headers, 'FACT_PREVENTAS');
 
@@ -76,8 +89,6 @@ class ProcessPreventasIngestaAction
                 'detalles_cancelados' => [],
             ];
         }
-
-        $fileHash = @hash_file('sha256', $filePath) ?: md5($filename);
 
         $fechasOperativas = [];
         $volumenTotal = '0.000000';

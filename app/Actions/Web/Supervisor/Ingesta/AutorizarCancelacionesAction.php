@@ -6,6 +6,7 @@ namespace App\Actions\Web\Supervisor\Ingesta;
 
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class AutorizarCancelacionesAction
@@ -27,34 +28,33 @@ class AutorizarCancelacionesAction
 
         $conn->transaction(function () use ($conn, $items, &$purgados) {
             foreach ($items as $item) {
-                $nroPrev = isset($item['nro_preventa']) ? (int)$item['nro_preventa'] : 0;
-                $prodId = isset($item['producto_id']) ? (int)$item['producto_id'] : 0;
-                $fechaNorm = isset($item['fecha_norm']) ? trim((string)$item['fecha_norm']) : '';
+                $nroPrev = isset($item['nro_preventa']) ? (int) $item['nro_preventa'] : 0;
+                $prodId = isset($item['producto_id']) ? (int) $item['producto_id'] : 0;
+                $fechaNorm = trim((string) ($item['fecha_preventa'] ?? $item['fecha_norm'] ?? $item['fecha'] ?? ''));
 
                 if ($nroPrev <= 0 || $prodId <= 0) {
+                    continue;
+                }
+
+                if ($fechaNorm === '') {
+                    Log::warning("Intento de autorizar cancelación de preventa {$nroPrev} / producto {$prodId} sin fecha identificable. Operación omitida para evitar borrado transversal.");
                     continue;
                 }
 
                 // Purgar de fact_preventas definitivamente tras autorización del supervisor
                 $delQuery = $conn->table('fact_preventas')
                     ->where('nro_preventa', $nroPrev)
-                    ->where('producto_id', $prodId);
-
-                if ($fechaNorm !== '') {
-                    $delQuery->where('fecha_norm', $fechaNorm);
-                }
+                    ->where('producto_id', $prodId)
+                    ->where('fecha_norm', $fechaNorm);
                 $delQuery->delete();
 
                 // Actualizar estado en auditoria_preventas_cambios a APROBADO
                 $audQuery = $conn->table('auditoria_preventas_cambios')
                     ->where('nro_preventa', $nroPrev)
                     ->where('producto_id', $prodId)
+                    ->where('fecha_preventa', $fechaNorm)
                     ->where('tipo_evento', 'CANCELADO')
                     ->where('estado_autorizacion', 'PENDIENTE');
-
-                if ($fechaNorm !== '') {
-                    $audQuery->where('fecha_preventa', $fechaNorm);
-                }
                 $audQuery->update(['estado_autorizacion' => 'APROBADO']);
 
                 $purgados++;
@@ -68,4 +68,3 @@ class AutorizarCancelacionesAction
         ];
     }
 }
-

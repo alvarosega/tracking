@@ -649,7 +649,7 @@ class ExcelCsvParser
             return date('Y-m-d', $ts);
         }
 
-        return $str;
+        return null;
     }
 
     /**
