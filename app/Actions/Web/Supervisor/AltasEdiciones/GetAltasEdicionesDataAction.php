@@ -83,6 +83,7 @@ class GetAltasEdicionesDataAction
                 'sb.estado_revision',
                 'sb.revisado_at',
                 'sb.created_at',
+                'sb.updated_at',
             ])
             ->orderBy('sb.created_at', 'desc');
 
@@ -117,7 +118,21 @@ class GetAltasEdicionesDataAction
             ];
         }
 
-        // 3. Obtener clientes originales para cotejo de ediciones
+        // 3. Mapear usuarios creadores desde users
+        $userIds = $registrosRaw->pluck('user_id')->filter()->unique()->toArray();
+        $userMap = [];
+        if (!empty($userIds)) {
+            try {
+                $userMap = DB::table('users')
+                    ->whereIn('id', $userIds)
+                    ->pluck('username', 'id')
+                    ->toArray();
+            } catch (\Throwable $e) {
+                // Silencioso ante contingencia
+            }
+        }
+
+        // 4. Obtener clientes originales para cotejo de ediciones
         $clienteIds = $registrosRaw->whereNotNull('cliente_id')->pluck('cliente_id')->unique()->toArray();
         $clientesOriginales = [];
 
@@ -134,6 +149,9 @@ class GetAltasEdicionesDataAction
                     'celular as celular_orig',
                     'contacto as contacto_orig',
                     'nit as nit_orig',
+                    'nombre_factura as nombre_factura_orig',
+                    DB::raw("COALESCE(territorio, zona_venta) as zona_orig"),
+                    DB::raw("COALESCE(precio, '') as lista_precios_orig"),
                     'latitud as latitud_orig',
                     'longitud as longitud_orig',
                 ])
@@ -141,7 +159,7 @@ class GetAltasEdicionesDataAction
                 ->keyBy('cliente_id');
         }
 
-        // 4. Mapear datos con cálculo de desplazamiento si hubo cambio de coordenadas
+        // 5. Mapear datos con cálculo de desplazamiento si hubo cambio de coordenadas
         $registros = [];
         $kpiAltas = 0;
         $kpiEdiciones = 0;
@@ -181,8 +199,15 @@ class GetAltasEdicionesDataAction
                 $distanciaMetros = round(GeoSpatialService::haversine($lat, $lng, (float) $latOrig, (float) $lngOrig), 1);
             }
 
+            $usuarioNombre = null;
+            if ($r->user_id) {
+                $usuarioNombre = $userMap[$r->user_id] ?? ("Usuario #{$r->user_id}");
+            }
+
             $registros[] = [
                 'id' => $r->id,
+                'user_id' => $r->user_id,
+                'usuario' => $usuarioNombre,
                 'cliente_id' => $r->cliente_id,
                 'tipo_registro' => $r->tipo_registro,
                 'ruta' => $r->ruta,
@@ -191,9 +216,11 @@ class GetAltasEdicionesDataAction
                 'cliente' => $r->cliente,
                 'tipo_negocio' => $r->tipo_negocio,
                 'zona' => $r->zona,
+                'zona_comercial' => $r->zona_comercial ?? $r->zona,
                 'lista_precios' => $r->lista_precios,
                 'contacto' => $r->contacto,
-                'telefono' => $r->telefono ?: $r->celular,
+                'telefono' => $r->telefono,
+                'celular' => $r->celular,
                 'direccion' => $r->direccion,
                 'referencia' => $r->referencia,
                 'nombre_factura' => $r->nombre_factura,
@@ -201,21 +228,29 @@ class GetAltasEdicionesDataAction
                 'latitud' => $tieneGps ? $lat : null,
                 'longitud' => $tieneGps ? $lng : null,
                 'accuracy' => $r->accuracy ? round((float) $r->accuracy, 1) : null,
+                'photo_path' => $r->photo_path,
                 'photo_url' => $r->photo_path ? Storage::url($r->photo_path) : null,
                 'estado_revision' => $r->estado_revision,
                 'revisado_at' => $r->revisado_at ? date('d/m/Y H:i', strtotime($r->revisado_at)) : null,
                 'fecha_registro' => date('d/m/Y H:i', strtotime($r->created_at)),
+                'fecha_actualizacion' => $r->updated_at ? date('d/m/Y H:i', strtotime($r->updated_at)) : null,
+                'created_at_raw' => $r->created_at,
+                'updated_at_raw' => $r->updated_at,
                 'tiene_gps' => $tieneGps,
                 // Datos de la base original (para ediciones)
                 'es_edicion' => !empty($orig),
                 'original' => $orig ? [
                     'cliente' => $orig->cliente_orig,
                     'tipo_negocio' => $orig->tipo_negocio_orig,
+                    'nombre_factura' => $orig->nombre_factura_orig ?? null,
+                    'nit' => $orig->nit_orig,
+                    'contacto' => $orig->contacto_orig,
+                    'telefono' => $orig->telefono_orig,
+                    'celular' => $orig->celular_orig,
                     'direccion' => $orig->direccion_orig,
                     'referencia' => $orig->referencia_orig,
-                    'telefono' => $orig->telefono_orig ?: $orig->celular_orig,
-                    'contacto' => $orig->contacto_orig,
-                    'nit' => $orig->nit_orig,
+                    'zona' => $orig->zona_orig ?? null,
+                    'lista_precios' => $orig->lista_precios_orig ?? null,
                     'latitud' => $tieneGpsOrig ? $latOrig : null,
                     'longitud' => $tieneGpsOrig ? $lngOrig : null,
                 ] : null,

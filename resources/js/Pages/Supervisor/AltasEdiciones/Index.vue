@@ -275,12 +275,12 @@
                 v-for="r in registrosFiltrados"
                 :key="r.id"
                 @click="abrirExpediente(r)"
-                class="p-3 hover:bg-[#FBFBFD] transition-colors cursor-pointer"
+                class="p-3 hover:bg-[#FBFBFD] transition-colors cursor-pointer border-b border-[#E5E5EA]/70"
                 :class="registroActivoId === r.id ? 'bg-[#F2F2F7]' : 'bg-white'"
               >
                 <div class="flex items-start justify-between gap-1.5">
                   <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                       <!-- Badge Tipo de Registro -->
                       <span
                         class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded text-white shrink-0"
@@ -289,10 +289,27 @@
                         {{ r.tipo_registro }}
                       </span>
 
-                      <span class="text-xs font-bold text-[#1D1D1F] line-clamp-1">{{ r.cliente }}</span>
+                      <!-- ID de Solicitud y Código Cliente -->
+                      <span class="text-[10px] font-mono font-bold text-[#86868B]">
+                        #{{ r.id }}
+                        <span v-if="r.cliente_id" class="text-[#0071E3] font-normal">• Cód: {{ r.cliente_id }}</span>
+                        <span v-else class="text-[#248A3D] font-normal">• Nueva</span>
+                      </span>
+
+                      <span class="text-xs font-bold text-[#1D1D1F] line-clamp-1 w-full mt-0.5">{{ r.cliente }}</span>
                     </div>
 
                     <p class="text-[11px] text-[#6E6E73] mt-0.5 line-clamp-1">{{ r.direccion || 'Sin dirección registrada' }}</p>
+
+                    <!-- Vendedor & Negocio Info -->
+                    <div class="flex items-center gap-2 mt-1 text-[10px] text-[#86868B] flex-wrap">
+                      <span v-if="r.tipo_negocio" class="px-1 py-0.2 bg-[#F2F2F7] rounded text-[#1D1D1F] truncate max-w-[120px]">
+                        {{ r.tipo_negocio }}
+                      </span>
+                      <span v-if="r.vendedor" class="truncate max-w-[150px] text-[#6E6E73]">
+                        👤 {{ r.vendedor }}
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Estado de Revisión -->
@@ -306,19 +323,22 @@
                   </div>
                 </div>
 
-                <!-- Barra Inferior de la Tarjeta -->
+                <!-- Barra Inferior de la Tarjeta con Badges de Datos -->
                 <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-[#E5E5EA]/70 text-[10px] font-mono text-[#86868B]">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getCanalColor(r.canal) }"></span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(r.canal) }"></span>
                     <span class="text-[#1D1D1F] font-medium">{{ r.ruta }}</span>
                     <span>•</span>
                     <span>{{ r.fecha_registro }}</span>
                     <span v-if="r.distancia_desplazamiento_m" class="text-[#0071E3] font-bold">
                       Desv: {{ r.distancia_desplazamiento_m }}m
                     </span>
+                    <span v-if="r.nit" class="text-[#248A3D] font-semibold" title="NIT registrado">NIT✓</span>
+                    <span v-if="r.celular || r.telefono" class="text-[#0071E3]" title="Teléfono registrado">📞</span>
+                    <span v-if="r.photo_url" class="text-[#AF52DE]" title="Tiene fotografía">📷</span>
                   </div>
 
-                  <span class="text-[#0071E3] font-sans font-medium text-[11px]">Ver ficha &rarr;</span>
+                  <span class="text-[#0071E3] font-sans font-medium text-[11px] shrink-0">Ver ficha &rarr;</span>
                 </div>
               </div>
             </div>
@@ -355,7 +375,7 @@
                     <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Auditoría de Solicitud
+                    Auditoría de Solicitud #{{ registroSeleccionado.id }}
                   </span>
 
                   <span
@@ -415,6 +435,33 @@
                   </button>
                 </div>
 
+                <!-- Trazabilidad de Auditoría & Tiempos en BD -->
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#E5E5EA] text-[10px] font-mono">
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Registrado Por (user_id)</span>
+                    <span class="font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.usuario || 'ID #' + registroSeleccionado.user_id }}</span>
+                    <span class="text-[#86868B] text-[9px] block">ID: {{ registroSeleccionado.user_id || 'N/A' }}</span>
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Vendedor de Ruta</span>
+                    <span class="font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.vendedor || 'Sin asignar' }}</span>
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Fecha Creación (created_at)</span>
+                    <span class="text-[#1D1D1F]">{{ registroSeleccionado.fecha_registro }}</span>
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Fecha Revisión (revisado_at)</span>
+                    <span :class="registroSeleccionado.revisado_at ? 'text-[#1D1D1F] font-semibold' : 'text-[#86868B] italic'">
+                      {{ registroSeleccionado.revisado_at || 'Pendiente' }}
+                    </span>
+                  </div>
+                  <div class="col-span-2">
+                    <span class="text-[9px] text-[#86868B] uppercase block">Última Modificación en BD (updated_at)</span>
+                    <span class="text-[#6E6E73]">{{ registroSeleccionado.fecha_actualizacion || registroSeleccionado.fecha_registro }}</span>
+                  </div>
+                </div>
+
                 <!-- Feedback / Mensaje en línea -->
                 <div
                   v-if="mensajeEstado"
@@ -430,19 +477,22 @@
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                       <span
                         class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded text-white"
                         :class="getTipoColor(registroSeleccionado.tipo_registro)"
                       >
                         {{ registroSeleccionado.tipo_registro }}
                       </span>
-                      <h3 class="text-xs font-bold text-[#1D1D1F] leading-tight">
+                      <span class="text-[10px] font-mono font-bold text-[#86868B]">
+                        Solicitud #{{ registroSeleccionado.id }}
+                      </span>
+                      <h3 class="text-xs font-bold text-[#1D1D1F] leading-tight w-full mt-0.5">
                         {{ registroSeleccionado.cliente }}
                       </h3>
                     </div>
                     <p v-if="registroSeleccionado.nombre_factura" class="text-[11px] text-[#6E6E73] mt-0.5">
-                      <span class="text-[#86868B]">Razón Social:</span> {{ registroSeleccionado.nombre_factura }}
+                      <span class="text-[#86868B]">Razón Social (nombre_factura):</span> {{ registroSeleccionado.nombre_factura }}
                     </p>
                   </div>
 
@@ -453,21 +503,26 @@
                     >
                       {{ registroSeleccionado.estado_revision }}
                     </span>
-                    <span v-if="registroSeleccionado.revisado_at" class="text-[9px] text-[#86868B] block mt-0.5 font-mono">
-                      {{ registroSeleccionado.revisado_at }}
-                    </span>
                   </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#E5E5EA] text-[11px] font-mono">
                   <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Código Interno</span>
-                    <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.cliente_id || 'Pendiente de asignación' }}</span>
+                    <span class="text-[9px] text-[#86868B] uppercase block">ID Solicitud (id)</span>
+                    <span class="font-bold text-[#1D1D1F]">#{{ registroSeleccionado.id }}</span>
                   </div>
                   <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Ruta / Canal</span>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Código Cliente (cliente_id)</span>
+                    <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.cliente_id || 'Alta Nueva (Sin código)' }}</span>
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Ruta Oficial (route)</span>
                     <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.ruta }}</span>
                     <span class="text-[#86868B] text-[10px]"> ({{ registroSeleccionado.canal }})</span>
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Vendedor Asignado</span>
+                    <span class="font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.vendedor || 'Sin asignar' }}</span>
                   </div>
                   <div>
                     <span class="text-[9px] text-[#86868B] uppercase block">Tiene Doc. Identidad</span>
@@ -476,8 +531,13 @@
                     </span>
                   </div>
                   <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Nro. Documento / NIT</span>
+                    <span class="text-[9px] text-[#86868B] uppercase block">Nro. Documento / NIT (nit)</span>
                     <span class="font-semibold text-[#1D1D1F]">{{ registroSeleccionado.nit || 'No registrado' }}</span>
+                  </div>
+                  <div class="col-span-2">
+                    <span class="text-[9px] text-[#86868B] uppercase block">Registrado En Campo Por (user_id)</span>
+                    <span class="font-medium text-[#1D1D1F]">{{ registroSeleccionado.usuario || 'Usuario #' + registroSeleccionado.user_id }}</span>
+                    <span class="text-[#86868B] text-[10px]"> (ID: {{ registroSeleccionado.user_id || 'N/A' }})</span>
                   </div>
                 </div>
               </div>
@@ -703,7 +763,12 @@
 
               <!-- 5. Fotografía de Fachada -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-2.5">
-                <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider block mb-1.5">Fotografía de Fachada</span>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider block">Fotografía de Fachada (photo_path)</span>
+                  <span v-if="registroSeleccionado.photo_path" class="text-[9px] font-mono text-[#86868B] truncate max-w-[200px]" :title="registroSeleccionado.photo_path">
+                    {{ registroSeleccionado.photo_path }}
+                  </span>
+                </div>
                 <div
                   v-if="registroSeleccionado.photo_url"
                   @click="abrirLightbox(registroSeleccionado.photo_url)"
@@ -718,41 +783,193 @@
                     Ver fotografía ampliada &rarr;
                   </div>
                 </div>
-                <div v-else class="h-24 rounded-[6px] bg-[#F2F2F7] flex items-center justify-center text-xs text-[#86868B]">
-                  Sin evidencia fotográfica registrada
+                <div v-else class="h-20 rounded-[6px] bg-[#F2F2F7] flex items-center justify-center text-xs text-[#86868B]">
+                  Sin evidencia fotográfica registrada (photo_path = null)
                 </div>
               </div>
 
-              <!-- 6. Comparativa de Modificaciones (Diff) si es Edición -->
-              <div v-if="registroSeleccionado.es_edicion" class="bg-white border border-[#E5E5EA] rounded-[8px] p-2.5">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider">Modificaciones Solicitadas</span>
+              <!-- 6. Comparativa Exhaustiva de Modificaciones (Diff) si es Edición -->
+              <div v-if="registroSeleccionado.es_edicion" class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
+                <div class="flex items-center justify-between pb-1 border-b border-[#E5E5EA]">
+                  <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    Modificaciones Solicitadas (Cotejo vs pan_ruteo)
+                  </span>
+                  <span class="text-[9px] font-mono px-1.5 py-0.2 bg-[#EFF6FF] text-[#0071E3] font-bold rounded">
+                    Cliente ID: {{ registroSeleccionado.cliente_id }}
+                  </span>
                 </div>
 
                 <div class="divide-y divide-[#E5E5EA] text-[11px] font-mono">
-                  <div class="py-1.5 grid grid-cols-2 gap-2">
+                  <!-- 1. Nombre Comercial -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.cliente, registroSeleccionado.cliente) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
                     <div>
-                      <span class="text-[9px] text-[#86868B] block">Nombre Anterior:</span>
+                      <span class="text-[9px] text-[#86868B] block">Nombre Anterior (pan_ruteo):</span>
                       <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.cliente || 'Sin datos' }}</span>
                     </div>
                     <div>
-                      <span class="text-[9px] text-[#0071E3] block">Nombre Propuesto:</span>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Nombre Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.cliente, registroSeleccionado.cliente)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
                       <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.cliente }}</span>
                     </div>
                   </div>
 
-                  <div class="py-1.5 grid grid-cols-2 gap-2">
+                  <!-- 2. Razón Social -->
+                  <div v-if="registroSeleccionado.nombre_factura || registroSeleccionado.original?.nombre_factura" class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.nombre_factura, registroSeleccionado.nombre_factura) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Razón Social Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.nombre_factura || 'No registrada' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Razón Social Propuesta:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.nombre_factura, registroSeleccionado.nombre_factura)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.nombre_factura || 'No registrada' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 3. NIT / CI -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.nit, registroSeleccionado.nit) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">NIT Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.nit || 'No registrado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>NIT Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.nit, registroSeleccionado.nit)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.nit || 'No registrado' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 4. Tipo de Negocio -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.tipo_negocio, registroSeleccionado.tipo_negocio) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Tipo Negocio Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.tipo_negocio || 'No asignado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Tipo Negocio Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.tipo_negocio, registroSeleccionado.tipo_negocio)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.tipo_negocio || 'No asignado' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 5. Persona de Contacto -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.contacto, registroSeleccionado.contacto) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Contacto Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.contacto || 'No registrado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Contacto Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.contacto, registroSeleccionado.contacto)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.contacto || 'No registrado' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 6. Teléfono Celular -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.celular, registroSeleccionado.celular) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Celular Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.celular || 'No registrado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Celular Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.celular, registroSeleccionado.celular)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.celular || 'No registrado' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 7. Teléfono Fijo -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.telefono, registroSeleccionado.telefono) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Teléfono Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.telefono || 'No registrado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Teléfono Propuesto:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.telefono, registroSeleccionado.telefono)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.telefono || 'No registrado' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 8. Zona / Territorio -->
+                  <div v-if="registroSeleccionado.zona || registroSeleccionado.original?.zona" class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.zona, registroSeleccionado.zona) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Zona Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.zona || 'No asignada' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Zona Propuesta:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.zona, registroSeleccionado.zona)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.zona || 'No asignada' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 9. Lista de Precios -->
+                  <div v-if="registroSeleccionado.lista_precios || registroSeleccionado.original?.lista_precios" class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.lista_precios, registroSeleccionado.lista_precios) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Lista Precios Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.lista_precios || 'No asignada' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Lista Precios Propuesta:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.lista_precios, registroSeleccionado.lista_precios)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.lista_precios || 'No asignada' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 10. Dirección -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.direccion, registroSeleccionado.direccion) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
                     <div>
                       <span class="text-[9px] text-[#86868B] block">Dirección Anterior:</span>
                       <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.direccion || 'Sin datos' }}</span>
                     </div>
                     <div>
-                      <span class="text-[9px] text-[#0071E3] block">Dirección Propuesta:</span>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Dirección Propuesta:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.direccion, registroSeleccionado.direccion)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
                       <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.direccion }}</span>
                     </div>
                   </div>
 
-                  <div class="py-1.5 grid grid-cols-2 gap-2">
+                  <!-- 11. Referencia -->
+                  <div v-if="registroSeleccionado.referencia || registroSeleccionado.original?.referencia" class="py-1.5 grid grid-cols-2 gap-2" :class="isDiferente(registroSeleccionado.original?.referencia, registroSeleccionado.referencia) ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
+                    <div>
+                      <span class="text-[9px] text-[#86868B] block">Referencia Anterior:</span>
+                      <span class="text-[#6E6E73]">{{ registroSeleccionado.original?.referencia || 'Sin referencia' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>Referencia Propuesta:</span>
+                        <span v-if="isDiferente(registroSeleccionado.original?.referencia, registroSeleccionado.referencia)" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">CAMBIO</span>
+                      </span>
+                      <span class="font-bold text-[#1D1D1F]">{{ registroSeleccionado.referencia || 'Sin referencia' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 12. GPS y Coordenadas -->
+                  <div class="py-1.5 grid grid-cols-2 gap-2" :class="registroSeleccionado.distancia_desplazamiento_m ? 'bg-[#EFF6FF]/60 px-1 rounded' : ''">
                     <div>
                       <span class="text-[9px] text-[#86868B] block">GPS Anterior:</span>
                       <span class="text-[#6E6E73] text-[10px]">
@@ -760,10 +977,208 @@
                       </span>
                     </div>
                     <div>
-                      <span class="text-[9px] text-[#0071E3] block">GPS Propuesto:</span>
+                      <span class="text-[9px] text-[#0071E3] block flex items-center justify-between">
+                        <span>GPS Propuesto:</span>
+                        <span v-if="registroSeleccionado.distancia_desplazamiento_m" class="text-[8px] px-1 bg-[#0071E3] text-white rounded font-bold">
+                          DESV {{ registroSeleccionado.distancia_desplazamiento_m }}m
+                        </span>
+                      </span>
                       <span class="font-bold text-[#1D1D1F] text-[10px]">
                         {{ formatCoord(registroSeleccionado.latitud) }}, {{ formatCoord(registroSeleccionado.longitud) }}
                       </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7. Matriz Técnica: TODAS las Columnas de Base de Datos (supervisor.saneamiento_base) -->
+              <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
+                <div class="flex items-center justify-between cursor-pointer select-none" @click="mostrarTablaColumnas = !mostrarTablaColumnas">
+                  <div class="flex items-center gap-1.5 font-mono">
+                    <svg class="w-3.5 h-3.5 text-[#248A3D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm0 4h16M10 4v16" />
+                    </svg>
+                    <span class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider">
+                      Todas las Columnas en BD (saneamiento_base)
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1 text-[10px] font-mono text-[#0071E3]">
+                    <span class="px-1.5 py-0.2 bg-[#F2F2F7] text-[#1D1D1F] rounded font-bold">24 / 24 Columnas</span>
+                    <span>{{ mostrarTablaColumnas ? '▲ Ocultar' : '▼ Ver todo' }}</span>
+                  </div>
+                </div>
+
+                <div v-if="mostrarTablaColumnas" class="pt-2 border-t border-[#E5E5EA]">
+                  <p class="text-[10px] text-[#86868B] mb-2 font-sans">
+                    Inspección técnica directa de cada campo almacenado en la tabla <code class="bg-[#F2F2F7] px-1 py-0.5 rounded text-[#1D1D1F]">supervisor.saneamiento_base</code>:
+                  </p>
+                  
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-left text-[10px] font-mono border border-[#E5E5EA] rounded divide-y divide-[#E5E5EA]">
+                      <thead class="bg-[#FBFBFD] text-[#86868B]">
+                        <tr>
+                          <th class="p-1.5 border-r border-[#E5E5EA]">#</th>
+                          <th class="p-1.5 border-r border-[#E5E5EA]">Columna DB</th>
+                          <th class="p-1.5 border-r border-[#E5E5EA]">Descripción</th>
+                          <th class="p-1.5">Valor Actual en BD</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-[#E5E5EA]">
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">1</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">id</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">ID autonumérico primario</td>
+                          <td class="p-1.5 font-bold text-[#1D1D1F]">{{ registroSeleccionado.id }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">2</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">user_id</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Usuario creador en app móvil</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.user_id !== null ? registroSeleccionado.user_id : 'null' }} <span v-if="registroSeleccionado.usuario" class="text-[#0071E3]">({{ registroSeleccionado.usuario }})</span></td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">3</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">cliente_id</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Código cliente (null si es alta)</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.cliente_id !== null ? registroSeleccionado.cliente_id : 'null (ALTA NUEVA)' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">4</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">tipo_registro</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">ALTA o EDICIÓN</td>
+                          <td class="p-1.5 font-bold" :class="registroSeleccionado.tipo_registro.includes('ALTA') ? 'text-[#248A3D]' : 'text-[#0071E3]'">{{ registroSeleccionado.tipo_registro }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">5</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">route</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Ruta de ruteo asignada</td>
+                          <td class="p-1.5 text-[#1D1D1F] font-bold">{{ registroSeleccionado.ruta }} <span class="text-[#86868B] font-normal">({{ registroSeleccionado.canal }})</span></td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">6</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">cliente</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Nombre comercial del cliente</td>
+                          <td class="p-1.5 font-bold text-[#1D1D1F]">{{ registroSeleccionado.cliente }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">7</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">tipo_negocio</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Giro / Tipo de negocio</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.tipo_negocio || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">8</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">zona</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Zona / Territorio comercial</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.zona || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">9</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">lista_precios</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Lista de precios asignada</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.lista_precios || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">10</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">contacto</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Persona de contacto</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.contacto || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">11</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">telefono</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Teléfono fijo</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.telefono || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">12</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">celular</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Teléfono celular</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.celular || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">13</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">direccion</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Dirección domiciliaria</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.direccion || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">14</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">referencia</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Referencia del lugar</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.referencia || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">15</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">nombre_factura</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Razón Social Factura</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.nombre_factura || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">16</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">nit</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">NIT o Documento de Identidad</td>
+                          <td class="p-1.5 text-[#1D1D1F] font-bold">{{ registroSeleccionado.nit || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">17</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">latitude</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Latitud GPS capturada</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.latitud !== null ? registroSeleccionado.latitud : 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">18</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">longitude</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Longitud GPS capturada</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.longitud !== null ? registroSeleccionado.longitud : 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">19</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">accuracy</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Precisión sensor GPS en metros</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.accuracy !== null ? registroSeleccionado.accuracy + ' m' : 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">20</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">photo_path</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Ruta en disco de la fotografía</td>
+                          <td class="p-1.5 text-[#1D1D1F] truncate max-w-[180px]" :title="registroSeleccionado.photo_path">{{ registroSeleccionado.photo_path || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">21</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">estado_revision</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Estado de auditoría</td>
+                          <td class="p-1.5 font-bold">{{ registroSeleccionado.estado_revision }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">22</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">revisado_at</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Timestamp de revisión</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.revisado_at || 'null' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">23</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">created_at</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Timestamp de creación en app</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.created_at_raw || registroSeleccionado.fecha_registro }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F9F9FB]">
+                          <td class="p-1.5 text-[#86868B] border-r border-[#E5E5EA]">24</td>
+                          <td class="p-1.5 font-bold text-[#0071E3] border-r border-[#E5E5EA]">updated_at</td>
+                          <td class="p-1.5 text-[#6E6E73] border-r border-[#E5E5EA]">Timestamp de actualización en BD</td>
+                          <td class="p-1.5 text-[#1D1D1F]">{{ registroSeleccionado.updated_at_raw || registroSeleccionado.fecha_actualizacion || 'null' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Campos adicionales derivados -->
+                  <div class="mt-2 pt-2 border-t border-[#E5E5EA] text-[10px] text-[#86868B]">
+                    <div class="font-bold text-[#1D1D1F] mb-1">Atributos Enriquecidos / Cruzados:</div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>Canal: <strong class="text-[#1D1D1F]">{{ registroSeleccionado.canal }}</strong></div>
+                      <div>Vendedor: <strong class="text-[#1D1D1F]">{{ registroSeleccionado.vendedor || 'Sin asignar' }}</strong></div>
+                      <div class="col-span-2">Desvío Haversine: <strong class="text-[#0071E3]">{{ registroSeleccionado.distancia_desplazamiento_m !== null ? registroSeleccionado.distancia_desplazamiento_m + ' metros' : 'N/A' }}</strong></div>
                     </div>
                   </div>
                 </div>
@@ -950,6 +1365,13 @@ const mensajeEstado = ref(null);
 const cargandoCercanos = ref(false);
 const datosCercanos = ref(null);
 const mostrarListaCercanos = ref(true);
+const mostrarTablaColumnas = ref(true);
+
+function isDiferente(valA, valB) {
+  const normA = (valA === null || valA === undefined) ? '' : String(valA).trim().toLowerCase();
+  const normB = (valB === null || valB === undefined) ? '' : String(valB).trim().toLowerCase();
+  return normA !== normB && (normA !== '' || normB !== '');
+}
 
 let map = null;
 let markersLayer = null;
@@ -1002,9 +1424,20 @@ const registrosFiltrados = computed(() => {
   return list.filter(r =>
     (r.cliente && r.cliente.toLowerCase().includes(q)) ||
     (r.cliente_id && String(r.cliente_id).includes(q)) ||
+    (r.id && String(r.id).includes(q)) ||
     (r.ruta && r.ruta.toLowerCase().includes(q)) ||
+    (r.vendedor && r.vendedor.toLowerCase().includes(q)) ||
+    (r.usuario && r.usuario.toLowerCase().includes(q)) ||
+    (r.user_id && String(r.user_id).includes(q)) ||
     (r.direccion && r.direccion.toLowerCase().includes(q)) ||
+    (r.referencia && r.referencia.toLowerCase().includes(q)) ||
+    (r.contacto && r.contacto.toLowerCase().includes(q)) ||
     (r.telefono && String(r.telefono).includes(q)) ||
+    (r.celular && String(r.celular).includes(q)) ||
+    (r.nombre_factura && r.nombre_factura.toLowerCase().includes(q)) ||
+    (r.zona && r.zona.toLowerCase().includes(q)) ||
+    (r.tipo_negocio && r.tipo_negocio.toLowerCase().includes(q)) ||
+    (r.lista_precios && r.lista_precios.toLowerCase().includes(q)) ||
     (r.nit && String(r.nit).includes(q))
   );
 });
@@ -1186,7 +1619,7 @@ function renderizarMapa() {
     popupContent.style.fontSize = '11px';
     popupContent.style.lineHeight = '1.4';
     popupContent.style.color = '#1D1D1F';
-    popupContent.style.minWidth = '210px';
+    popupContent.style.minWidth = '220px';
 
     popupContent.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
@@ -1197,9 +1630,17 @@ function renderizarMapa() {
           ${r.tipo_registro}
         </span>
       </div>
-      <div style="color: #6E6E73; margin-bottom: 4px; font-size: 10px;">
+      <div style="color: #6E6E73; margin-bottom: 2px; font-size: 10px;">
+        Solicitud: <strong>#${r.id}</strong> ${r.cliente_id ? '• Cód: <strong>' + r.cliente_id + '</strong>' : '• Alta Nueva'}
+      </div>
+      <div style="color: #6E6E73; margin-bottom: 2px; font-size: 10px;">
         Ruta: <strong>${r.ruta}</strong> (${r.canal})
       </div>
+      <div style="color: #6E6E73; margin-bottom: 2px; font-size: 10px;">
+        Vendedor: <strong>${r.vendedor || 'Sin asignar'}</strong>
+      </div>
+      ${r.tipo_negocio ? `<div style="color: #86868B; margin-bottom: 2px; font-size: 10px;">Tipo: ${r.tipo_negocio}</div>` : ''}
+      ${r.celular || r.telefono ? `<div style="color: #0071E3; margin-bottom: 4px; font-size: 10px;">Tel: ${r.celular || r.telefono}</div>` : ''}
       ${r.photo_url ? `
         <div style="width: 100%; height: 75px; border-radius: 4px; overflow: hidden; margin-bottom: 6px; background-color: #F2F2F7;">
           <img src="${r.photo_url}" alt="Fachada" style="width: 100%; height: 100%; object-fit: cover;" />
@@ -1210,7 +1651,7 @@ function renderizarMapa() {
         type="button"
         style="width: 100%; height: 26px; background-color: #0071E3; color: white; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
       >
-        <span>Ver detalles de solicitud</span>
+        <span>Ver ficha técnica completa</span>
         <span>&rarr;</span>
       </button>
     `;
