@@ -35,7 +35,7 @@ class IngestaHistoricoCommand extends Command
     /**
      * Tamaño del lote para inserción masiva en base de datos.
      */
-    private const CHUNK_SIZE = 1500;
+    private const CHUNK_SIZE = 500;
 
     /**
      * Columnas numéricas con precisión decimal.
@@ -965,22 +965,19 @@ class IngestaHistoricoCommand extends Command
         }
     }
 
-    /**
-     * Obtiene el listado de columnas reales de fact_ventas indexadas para filtrado rápido.
-     *
-     * @return array<string, int>
-     */
     protected function obtenerColumnasFactVentas(): array
     {
         try {
             $connName = $this->getConnectionName();
             $cols = Schema::connection($connName)->getColumnListing('fact_ventas');
             if (!empty($cols)) {
+                $cols = array_diff($cols, ['id']);
                 return array_flip($cols);
             }
         } catch (Throwable) {}
 
-        return array_flip(self::CANONICAL_FACT_VENTAS_COLUMNS);
+        $canonical = array_diff(self::CANONICAL_FACT_VENTAS_COLUMNS, ['id']);
+        return array_flip($canonical);
     }
 
     /**
