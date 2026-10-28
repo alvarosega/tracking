@@ -40,6 +40,24 @@ class StorePedidoRechazadoAction
         $itemsData = $data['items'] ?? [];
         $tipoSugerido = $data['tipo_rechazo'] ?? null;
 
+        // 2.1 Si no viene nro_preventa pero viene cliente_id, buscar la preventa más reciente de este cliente
+        if (!$nroPreventa && $clienteId) {
+            try {
+                $latestPrev = DB::connection('supervisor')
+                    ->table('fact_preventas')
+                    ->where('cliente_id', $clienteId)
+                    ->orderByDesc('fecha_norm')
+                    ->first();
+
+                if ($latestPrev) {
+                    $nroPreventa = (int) $latestPrev->nro_preventa;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo encontrar preventa por cliente_id: ' . $e->getMessage());
+            }
+        }
+
+        // 2.2 Si tenemos nro_preventa, enriquecer datos y calcular items desde fact_preventas
         if ($nroPreventa) {
             try {
                 $prevRows = DB::connection('supervisor')
@@ -95,13 +113,36 @@ class StorePedidoRechazadoAction
                                     'cantidad_preventa' => $cantPrev,
                                     'cantidad_rechazada' => $cantRech,
                                     'precio_unitario' => round($precioUnit, 2),
-                                    'motivo_especifico' => null,
+                                    'motivo_especifico' => $data['motivo'] ?? null,
                                 ];
                             }
                         }
 
-                        if (!$tipoSugerido) {
-                            $tipoSugerido = ($totalFact > 0 && $totalRech > 0) ? 'PARCIAL' : 'TOTAL';
+                        // Si no hubo diferencias en fact_ventas o fue un rechazo total en calle (ej: TIENDA_CERRADA, AUSENTE),
+                        // registrar todos los ítems de la preventa como rechazados al 100%
+                        if (empty($itemsData)) {
+                            foreach ($prevRows as $pr) {
+                                $cantPrev = (int) ($pr->cantidad ?? 0);
+                                $montoItem = (float) ($pr->monto_final ?? 0.0);
+                                $precioUnit = ($cantPrev > 0 && $montoItem > 0) ? ($montoItem / $cantPrev) : 0.0;
+
+                                $itemsData[] = [
+                                    'preventa_item_id' => $pr->id ?? null,
+                                    'producto_id' => $pr->producto_id ?? null,
+                                    'codigo_producto' => $pr->codigo_producto ?? null,
+                                    'producto_nombre' => $pr->producto ?? null,
+                                    'categoria' => $pr->categoria ?? 'General',
+                                    'cantidad_preventa' => $cantPrev,
+                                    'cantidad_rechazada' => $cantPrev,
+                                    'precio_unitario' => round($precioUnit, 2),
+                                    'motivo_especifico' => $data['motivo'] ?? null,
+                                ];
+                            }
+                            $tipoSugerido = 'TOTAL';
+                        } else {
+                            if (!$tipoSugerido) {
+                                $tipoSugerido = ($totalFact > 0 && $totalRech > 0) ? 'PARCIAL' : 'TOTAL';
+                            }
                         }
                     }
                 }
@@ -110,18 +151,17 @@ class StorePedidoRechazadoAction
             }
         }
 
-        // 2.1 Enriquecer datos desde pan_ruteo si clienteId está presente y faltan campos
-        if ($clienteId && (empty($clienteNombre) || empty($codigoCliente) || empty($ruta))) {
+        // 2.3 Enriquecer datos de cliente desde pan_ruteo si aún faltan campos
+        if ($clienteId && (empty($clienteNombre) || empty($ruta))) {
             try {
                 $cliRow = DB::connection('supervisor')
                     ->table('pan_ruteo')
                     ->where('cliente_id', $clienteId)
-                    ->select('nombre_cliente', 'codigo_cliente', 'ruta')
+                    ->select('cliente', 'ruta')
                     ->first();
 
                 if ($cliRow) {
-                    $clienteNombre = $clienteNombre ?: ($cliRow->nombre_cliente ?? null);
-                    $codigoCliente = $codigoCliente ?: ($cliRow->codigo_cliente ?? null);
+                    $clienteNombre = $clienteNombre ?: ($cliRow->cliente ?? null);
                     $ruta = $ruta ?: ($cliRow->ruta ?? null);
                 }
             } catch (\Throwable $e) {
@@ -131,7 +171,7 @@ class StorePedidoRechazadoAction
 
         // 3. Manejo de foto opcional
         $photoPath = null;
-        if ($photo) {
+        if ($photo && $photo->isValid()) {
             $year = date('Y');
             $month = date('m');
             $photoPath = $photo->store("rechazos/{$year}/{$month}", 'public');
@@ -143,7 +183,7 @@ class StorePedidoRechazadoAction
 
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
 
-        // 4. Precalcular totales de detalle para optimizar en un único INSERT de cabecera
+        // 4. Precalcular totales de detalle
         $totalCantRechazada = 0;
         $montoTotalRechazado = 0.00;
         $sanitizedItems = [];
@@ -232,7 +272,6 @@ class StorePedidoRechazadoAction
                 return $cabecera->load('items');
             });
         } catch (\Throwable $e) {
-            // Limpiar foto si ocurrió error en la BD para evitar basura en el disco
             if ($photoPath && Storage::disk('public')->exists($photoPath)) {
                 Storage::disk('public')->delete($photoPath);
             }

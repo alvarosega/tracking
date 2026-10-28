@@ -20,7 +20,7 @@ class StorePedidoRechazadoRequest extends FormRequest
     /**
      * Prepara y normaliza los datos recibidos antes de validar.
      * Soporta multipart form data de Android (OkHttp/Retrofit), strings "null",
-     * items en JSON o arrays indexados, alias de campos y coordenadas.
+     * ausencia de items, alias de motivos ("AUSENTE" -> "DUENO_AUSENTE"), coordenadas en string.
      */
     protected function prepareForValidation(): void
     {
@@ -54,8 +54,8 @@ class StorePedidoRechazadoRequest extends FormRequest
             ?? $this->input('clientId')
             ?? $this->input('id_cliente');
 
-        if ($clienteId !== null && $clienteId !== '' && $clienteId !== 'null') {
-            $merge['cliente_id'] = is_numeric($clienteId) ? (int) $clienteId : $clienteId;
+        if ($clienteId !== null && $clienteId !== '' && $clienteId !== 'null' && is_numeric($clienteId)) {
+            $merge['cliente_id'] = (int) $clienteId;
         } else {
             $merge['cliente_id'] = null;
         }
@@ -84,7 +84,7 @@ class StorePedidoRechazadoRequest extends FormRequest
             $merge['ruta'] = trim((string) $ruta);
         }
 
-        // 6. Normalizar motivo: soportar motivo, motivo_codigo, motivoCodigo, codigo_motivo, motivo_id, etc.
+        // 6. Normalizar motivo: soportar motivo, motivo_codigo, motivoCodigo, codigo_motivo, motivo_id, "AUSENTE"
         $rawMotivo = $this->input('motivo')
             ?? $this->input('motivo_codigo')
             ?? $this->input('motivoCodigo')
@@ -108,6 +108,10 @@ class StorePedidoRechazadoRequest extends FormRequest
                 9 => 'OTRO',
             ];
             $rawMotivo = $motivoMap[(int) $rawMotivo] ?? 'OTRO';
+        }
+
+        if ($rawMotivo === 'AUSENTE') {
+            $rawMotivo = 'DUENO_AUSENTE';
         }
 
         if (!empty($rawMotivo) && $rawMotivo !== 'null') {
@@ -136,7 +140,7 @@ class StorePedidoRechazadoRequest extends FormRequest
             $merge['comentarios'] = trim((string) $comentarios);
         }
 
-        // 9. Normalizar items: soportar JSON string o array multipart, y alias items_rechazados
+        // 9. Normalizar items si vienen enviados
         $rawItems = $this->input('items')
             ?? $this->input('items_rechazados')
             ?? $this->input('itemsRechazados')
@@ -157,23 +161,12 @@ class StorePedidoRechazadoRequest extends FormRequest
                     continue;
                 }
 
-                // ID producto
                 $prodId = $item['producto_id'] ?? $item['productoId'] ?? $item['id_producto'] ?? null;
-                if ($prodId === 'null' || $prodId === '' || $prodId === null || !is_numeric($prodId)) {
-                    $prodId = null;
-                } else {
-                    $prodId = (int) $prodId > 0 ? (int) $prodId : null;
-                }
+                $prodId = (is_numeric($prodId) && (int) $prodId > 0) ? (int) $prodId : null;
 
-                // ID preventa item
                 $prevItemId = $item['preventa_item_id'] ?? $item['preventaItemId'] ?? $item['id'] ?? null;
-                if ($prevItemId === 'null' || $prevItemId === '' || $prevItemId === null || !is_numeric($prevItemId)) {
-                    $prevItemId = null;
-                } else {
-                    $prevItemId = (int) $prevItemId > 0 ? (int) $prevItemId : null;
-                }
+                $prevItemId = (is_numeric($prevItemId) && (int) $prevItemId > 0) ? (int) $prevItemId : null;
 
-                // Cantidades y precio
                 $cantPrev = $item['cantidad_preventa'] ?? $item['cantidadPreventa'] ?? $item['cantidad_solicitada'] ?? 0;
                 $cantPrev = (is_numeric($cantPrev) && $cantPrev !== 'null') ? max(0, (int) round((float) $cantPrev)) : 0;
 
@@ -184,24 +177,16 @@ class StorePedidoRechazadoRequest extends FormRequest
                 $precioUnit = (is_numeric($precioUnit) && $precioUnit !== 'null') ? max(0.0, round((float) $precioUnit, 2)) : 0.0;
 
                 $codigo = $item['codigo_producto'] ?? $item['codigoProducto'] ?? $item['codigo'] ?? null;
-                if ($codigo === 'null' || $codigo === '') {
-                    $codigo = null;
-                }
+                $codigo = (!empty($codigo) && $codigo !== 'null') ? (string) $codigo : null;
 
                 $nombre = $item['producto_nombre'] ?? $item['productoNombre'] ?? $item['nombre'] ?? $item['producto'] ?? null;
-                if ($nombre === 'null' || $nombre === '') {
-                    $nombre = null;
-                }
+                $nombre = (!empty($nombre) && $nombre !== 'null') ? (string) $nombre : null;
 
                 $categoria = $item['categoria'] ?? 'General';
-                if ($categoria === 'null' || empty($categoria)) {
-                    $categoria = 'General';
-                }
+                $categoria = (!empty($categoria) && $categoria !== 'null') ? (string) $categoria : 'General';
 
                 $motivoEsp = $item['motivo_especifico'] ?? $item['motivoEspecifico'] ?? $item['motivo'] ?? null;
-                if ($motivoEsp === 'null' || $motivoEsp === '') {
-                    $motivoEsp = null;
-                }
+                $motivoEsp = (!empty($motivoEsp) && $motivoEsp !== 'null') ? (string) $motivoEsp : null;
 
                 $sanitizedItems[] = [
                     'preventa_item_id' => $prevItemId,
@@ -222,16 +207,22 @@ class StorePedidoRechazadoRequest extends FormRequest
         $lat = $this->input('latitude') ?? $this->input('lat');
         if ($lat !== null && $lat !== '' && $lat !== 'null' && is_numeric($lat)) {
             $merge['latitude'] = (float) $lat;
+        } else {
+            $merge['latitude'] = null;
         }
 
         $lng = $this->input('longitude') ?? $this->input('lng') ?? $this->input('lon');
         if ($lng !== null && $lng !== '' && $lng !== 'null' && is_numeric($lng)) {
             $merge['longitude'] = (float) $lng;
+        } else {
+            $merge['longitude'] = null;
         }
 
         $accuracy = $this->input('accuracy') ?? $this->input('precision');
         if ($accuracy !== null && $accuracy !== '' && $accuracy !== 'null' && is_numeric($accuracy)) {
             $merge['accuracy'] = (float) $accuracy;
+        } else {
+            $merge['accuracy'] = null;
         }
 
         if ($this->has('is_mock_location') || $this->has('isMock') || $this->has('is_mock')) {
@@ -245,7 +236,7 @@ class StorePedidoRechazadoRequest extends FormRequest
             try {
                 $merge['fecha_preventa'] = \Carbon\Carbon::parse((string) $rawFechaPrev)->format('Y-m-d');
             } catch (\Throwable) {
-                // conservar valor original si falla el parseo
+                // conservar valor original si falla
             }
         }
 
@@ -262,6 +253,17 @@ class StorePedidoRechazadoRequest extends FormRequest
             $merge['fecha_rechazo'] = \Carbon\Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         }
 
+        // 12. Normalizar photo/foto: si viene como string literal "null" o vacío desde Retrofit, removerlo
+        foreach (['photo', 'foto', 'image', 'file'] as $fileKey) {
+            if ($this->has($fileKey)) {
+                $val = $this->input($fileKey);
+                if ($val === 'null' || $val === '' || (is_string($val) && !$this->hasFile($fileKey))) {
+                    $this->request->remove($fileKey);
+                    unset($this[$fileKey]);
+                }
+            }
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }
@@ -275,33 +277,24 @@ class StorePedidoRechazadoRequest extends FormRequest
         return [
             'uuid' => ['required', 'string', 'max:64'],
             'nro_preventa' => ['nullable', 'numeric'],
-            'cliente_id' => ['required_without:nro_preventa', 'nullable'],
+            'cliente_id' => ['nullable'],
             'codigo_cliente' => ['nullable', 'string', 'max:50'],
             'cliente_nombre' => ['nullable', 'string', 'max:255'],
             'fecha_preventa' => ['nullable'],
             'fecha_rechazo' => ['nullable'],
             'ruta' => ['nullable', 'string', 'max:50'],
             'motivo' => ['required', 'string', 'max:150'],
-            'tipo_rechazo' => ['nullable', 'string', 'in:TOTAL,PARCIAL'],
+            'tipo_rechazo' => ['nullable', 'string'],
             'comentarios' => ['nullable', 'string'],
-            'photo' => ['nullable', 'image', 'max:20480'], // Soporta fotos de alta resolución hasta 20MB
-            'foto' => ['nullable', 'image', 'max:20480'],
-            'image' => ['nullable', 'image', 'max:20480'],
-            'file' => ['nullable', 'image', 'max:20480'],
+            'photo' => ['nullable'],
+            'foto' => ['nullable'],
+            'image' => ['nullable'],
+            'file' => ['nullable'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
             'is_mock_location' => ['nullable', 'boolean'],
             'items' => ['nullable', 'array'],
-            'items.*.preventa_item_id' => ['nullable'],
-            'items.*.producto_id' => ['nullable'],
-            'items.*.codigo_producto' => ['nullable', 'string', 'max:50'],
-            'items.*.producto_nombre' => ['nullable', 'string', 'max:255'],
-            'items.*.categoria' => ['nullable', 'string', 'max:100'],
-            'items.*.cantidad_preventa' => ['nullable', 'numeric', 'min:0'],
-            'items.*.cantidad_rechazada' => ['nullable', 'numeric', 'min:0'],
-            'items.*.precio_unitario' => ['nullable', 'numeric', 'min:0'],
-            'items.*.motivo_especifico' => ['nullable', 'string', 'max:150'],
         ];
     }
 
@@ -333,10 +326,7 @@ class StorePedidoRechazadoRequest extends FormRequest
     {
         return [
             'uuid.required' => 'El identificador único (uuid) es obligatorio.',
-            'cliente_id.required_without' => 'Debe indicar al menos el ID del cliente o el número de preventa.',
             'motivo.required' => 'El motivo del rechazo es obligatorio.',
-            'photo.image' => 'El archivo adjunto debe ser una imagen válida.',
-            'photo.max' => 'La fotografía de evidencia no puede superar los 20MB.',
         ];
     }
 }
