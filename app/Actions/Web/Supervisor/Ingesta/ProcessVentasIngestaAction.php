@@ -36,39 +36,12 @@ class ProcessVentasIngestaAction
         $headers = $this->parser->extractHeaders($filePath, $filename);
         $this->validator->validateSchema($headers, 'FACT_VENTAS');
 
-        $rawRows = $this->parser->parseToAssociativeRows($filePath, 0, $filename);
-        $totalLeidas = count($rawRows);
-
-        if ($totalLeidas === 0) {
-            return [
-                'status' => 'success',
-                'filas_leidas' => 0,
-                'filas_afectadas' => 0,
-                'filas_insertadas' => 0,
-                'filas_nuevas' => 0,
-                'nuevos' => 0,
-                'filas_alteradas' => 0,
-                'filas_actualizadas' => 0,
-                'modificados' => 0,
-                'filas_eliminadas' => 0,
-                'eliminadas' => 0,
-                'cancelados' => 0,
-                'filas_identicas' => 0,
-                'sin_cambios' => 0,
-                'filas_ignoradas' => 0,
-                'filas_con_discrepancia' => 0,
-                'monto_total' => 0.0,
-                'volumen_total' => 0.0,
-                'rango_fechas' => '-',
-                'fecha_operativa' => '-',
-            ];
-        }
-
         $fileHash = hash_file('sha256', $filePath) ?: md5($filename);
 
-        // Mapeo, sanitización y deduplicación intra-archivo
+        // Mapeo, sanitización y deduplicación intra-archivo vía streaming sin alocar memoria masiva
         $dedupMap = [];
         $fechasOperativas = [];
+        $totalLeidas = 0;
 
         $decimalCols = [
             'monto', 'monto_final', 'descuento', 'descuento2', 'descuento_socio',
@@ -76,7 +49,8 @@ class ProcessVentasIngestaAction
             'cantidad_cajas', 'precio_unitario', 'precio_paquete'
         ];
 
-        foreach ($rawRows as $r) {
+        foreach ($this->parser->streamRows($filePath, $filename) as $r) {
+            $totalLeidas++;
             $mapped = $this->validator->mapRow($r, 'FACT_VENTAS');
 
             $ventaId = isset($mapped['venta_id']) ? (int)$mapped['venta_id'] : 0;
@@ -152,6 +126,31 @@ class ProcessVentasIngestaAction
             $dedupMap[$k] = $mapped;
         }
 
+        if ($totalLeidas === 0 || empty($dedupMap)) {
+            return [
+                'status' => 'success',
+                'filas_leidas' => $totalLeidas,
+                'filas_afectadas' => 0,
+                'filas_insertadas' => 0,
+                'filas_nuevas' => 0,
+                'nuevos' => 0,
+                'filas_alteradas' => 0,
+                'filas_actualizadas' => 0,
+                'modificados' => 0,
+                'filas_eliminadas' => 0,
+                'eliminadas' => 0,
+                'cancelados' => 0,
+                'filas_identicas' => 0,
+                'sin_cambios' => 0,
+                'filas_ignoradas' => 0,
+                'filas_con_discrepancia' => 0,
+                'monto_total' => 0.0,
+                'volumen_total' => 0.0,
+                'rango_fechas' => '-',
+                'fecha_operativa' => '-',
+            ];
+        }
+
         $fechasValidas = array_keys($fechasOperativas);
         sort($fechasValidas);
 
@@ -168,7 +167,18 @@ class ProcessVentasIngestaAction
         $fechaMin = $fechasValidas[0];
         $fechaMax = end($fechasValidas);
 
+        // Reconectar la BD tras el streaming para evitar que MySQL wait_timeout (20s) cierre la conexión
+        try {
+            DB::connection('supervisor')->reconnect();
+            DB::reconnect();
+        } catch (\Throwable) {}
+
         $conn = DB::connection('supervisor');
+        try {
+            $conn->statement("SET SESSION wait_timeout = 600");
+            $conn->statement("SET SESSION net_read_timeout = 600");
+            $conn->statement("SET SESSION net_write_timeout = 600");
+        } catch (\Throwable) {}
 
         // Asegurar tabla auditoria_ventas_discrepancias sin ejecutar DDL innecesario en cada ingesta
         if (!Schema::connection('supervisor')->hasTable('auditoria_ventas_discrepancias')) {
