@@ -9,17 +9,37 @@ use App\Services\Ingesta\IngestaValidator;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ProcessPreventasIngestaAction
 {
+    /**
+     * Columnas canónicas de inserción de fact_preventas (excluyendo la clave autoincremental 'id').
+     *
+     * @var array<int, string>
+     */
+    private const CANONICAL_PREVENTAS_COLUMNS = [
+        'fecha', 'fecha_norm', 'nro_preventa', 'cliente_id', 'codigo_cliente',
+        'cliente', 'almacen', 'vendedor', 'username_vendedor', 'zona',
+        'producto_id', 'codigo_producto', 'producto', 'categoria', 'cantidad',
+        'monto', 'descuento', 'monto_final', 'proveedor', 'tipo_negocio',
+        'mes', 'ruta', 'dia_visita', 'precio_lista', 'facturar', 'nro_carga',
+    ];
+
+    /**
+     * Tamaño del chunk para inserciones masivas en MariaDB.
+     */
+    private const CHUNK_SIZE = 500;
+
     public function __construct(
         protected ExcelCsvParser $parser,
         protected IngestaValidator $validator
     ) {}
 
     /**
-     * Procesa la ingesta de archivo de Preventas (FACT_PREVENTAS).
+     * Procesa la sincronización diferencial del archivo de Preventas (FACT_PREVENTAS).
      *
      * @return array<string, mixed>
      */
@@ -39,29 +59,37 @@ class ProcessPreventasIngestaAction
 
         if ($totalLeidas === 0) {
             return [
+                'status' => 'success',
                 'filas_leidas' => 0,
                 'nuevos' => 0,
+                'filas_nuevas' => 0,
                 'modificados' => 0,
+                'filas_actualizadas' => 0,
                 'cancelados' => 0,
+                'filas_con_discrepancia' => 0,
                 'sin_cambios' => 0,
+                'filas_ignoradas' => 0,
                 'volumen_total' => 0.0,
                 'fecha_operativa' => '-',
+                'rango_fechas' => '-',
                 'detalles_modificados' => [],
                 'detalles_cancelados' => [],
             ];
         }
 
-        $fileHash = hash_file('sha256', $filePath) ?: md5($filename);
+        $fileHash = @hash_file('sha256', $filePath) ?: md5($filename);
 
-        $dedupMap = [];
         $fechasOperativas = [];
-        $volumenTotal = 0.0;
+        $volumenTotal = '0.000000';
+        $itemsEntrantes = [];
+        $ocurrenciasEntrantes = [];
 
+        // 1. Normalización y mapeo ordinal intra-archivo
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'FACT_PREVENTAS');
 
-            $nroPrev = isset($mapped['nro_preventa']) ? (int)$mapped['nro_preventa'] : 0;
-            $prodId = isset($mapped['producto_id']) ? (int)$mapped['producto_id'] : 0;
+            $nroPrev = isset($mapped['nro_preventa']) && is_numeric($mapped['nro_preventa']) ? (int) $mapped['nro_preventa'] : 0;
+            $prodId = isset($mapped['producto_id']) && is_numeric($mapped['producto_id']) ? (int) $mapped['producto_id'] : 0;
 
             if ($nroPrev <= 0 || $prodId <= 0) {
                 continue;
@@ -69,20 +97,40 @@ class ProcessPreventasIngestaAction
 
             $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw) ?? '';
-            $mapped['fecha_norm'] = $fechaNorm;
-            $mapped['fecha'] = $fechaNorm;
-            if ($fechaNorm !== '') {
-                $fechasOperativas[$fechaNorm] = true;
+
+            if ($fechaNorm === '' || $fechaNorm === '1900-01-01') {
+                continue;
             }
 
-            $monto = isset($mapped['monto_final']) ? (float)$mapped['monto_final'] : (isset($mapped['monto']) ? (float)$mapped['monto'] : 0.0);
-            $mapped['monto_final'] = $monto;
-            $volumenTotal += $monto;
+            $fechasOperativas[$fechaNorm] = true;
+            $mapped['fecha_norm'] = $fechaNorm;
+            $mapped['fecha'] = $fechaNorm;
 
-            $mapped['cantidad'] = isset($mapped['cantidad']) ? (int)$mapped['cantidad'] : 0;
+            // Valores monetarios exactos: Cero es cero, sin coherencias sintéticas
+            $monto = isset($mapped['monto']) ? $this->parseDecimal($mapped['monto']) : 0.0;
+            $descuento = isset($mapped['descuento']) ? $this->parseDecimal($mapped['descuento']) : 0.0;
+            $montoFinal = isset($mapped['monto_final']) ? $this->parseDecimal($mapped['monto_final']) : 0.0;
 
-            $k = "{$nroPrev}_{$prodId}_{$fechaNorm}";
-            $dedupMap[$k] = $mapped;
+            $mapped['monto'] = $monto;
+            $mapped['descuento'] = $descuento;
+            $mapped['monto_final'] = $montoFinal;
+
+            if (function_exists('bcadd')) {
+                $volumenTotal = bcadd($volumenTotal, sprintf('%.6f', $montoFinal), 6);
+            } else {
+                $volumenTotal = sprintf('%.6f', (float) $volumenTotal + $montoFinal);
+            }
+
+            $mapped['cantidad'] = isset($mapped['cantidad']) && is_numeric($mapped['cantidad']) ? (int) $mapped['cantidad'] : 0;
+            $mapped['cliente_id'] = isset($mapped['cliente_id']) && is_numeric($mapped['cliente_id']) ? (int) $mapped['cliente_id'] : 0;
+
+            // Indexación ordinal por ítem (permite bonificaciones y múltiples partidas del mismo producto)
+            $baseKey = "{$nroPrev}_{$prodId}_{$fechaNorm}";
+            $ocurrencia = $ocurrenciasEntrantes[$baseKey] ?? 0;
+            $ocurrenciasEntrantes[$baseKey] = $ocurrencia + 1;
+
+            $k = "{$baseKey}_{$ocurrencia}";
+            $itemsEntrantes[$k] = $mapped;
         }
 
         $fechasValidas = array_keys($fechasOperativas);
@@ -93,72 +141,31 @@ class ProcessPreventasIngestaAction
         }
 
         $conn = DB::connection('supervisor');
+        $colsDbFlip = $this->obtenerColumnasFactPreventas($conn);
 
-        // Asegurar tabla auditoria_preventas_cambios
-        try {
-            $conn->statement("
-                CREATE TABLE IF NOT EXISTS `auditoria_preventas_cambios` (
-                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    `archivo_origen` VARCHAR(255) NOT NULL,
-                    `tipo_evento` VARCHAR(30) NOT NULL,
-                    `fecha_preventa` VARCHAR(50) NULL,
-                    `nro_preventa` BIGINT NOT NULL,
-                    `producto_id` BIGINT NOT NULL,
-                    `cliente_id` BIGINT NULL,
-                    `cliente` VARCHAR(255) NULL,
-                    `vendedor` VARCHAR(255) NULL,
-                    `cantidad_anterior` INT NULL,
-                    `cantidad_nueva` INT NULL,
-                    `diferencia_cantidad` INT NULL,
-                    `monto_anterior` DECIMAL(12, 4) NULL,
-                    `monto_nuevo` DECIMAL(12, 4) NULL,
-                    `diferencia_monto` DECIMAL(12, 4) NULL,
-                    `estado_autorizacion` VARCHAR(20) DEFAULT 'PENDIENTE',
-                    `detectado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_aud_prev_key` (`nro_preventa`, `producto_id`, `fecha_preventa`),
-                    INDEX `idx_aud_prev_estado` (`estado_autorizacion`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-        } catch (\Throwable) {}
-
-        // Obtener columnas de fact_preventas
-        try {
-            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_preventas');
-        } catch (\Throwable) {
-            $colsDb = [];
-        }
-
-        if (empty($colsDb)) {
-            try {
-                $colDbRows = $conn->select("
-                    SELECT COLUMN_NAME 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_preventas'
-                ");
-                $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
-            } catch (\Throwable) {
-                $colsDb = [];
-            }
-        }
-        $colsDbFlip = array_flip($colsDb);
-
-        // Consultar existentes para las fechas del corte
+        // 2. Consulta de registros existentes en la BD para las fechas del corte
         $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
         $filasDb = $conn->select("
             SELECT id, nro_preventa, producto_id, cliente_id, cliente, vendedor, 
-                   cantidad, monto_final, fecha_norm, fecha
+                   cantidad, monto, descuento, monto_final, fecha_norm, fecha
             FROM fact_preventas
             WHERE fecha_norm IN ({$placeholders})
+            ORDER BY id ASC
         ", $fechasValidas);
 
         $existentes = [];
+        $ocurrenciasDb = [];
         foreach ($filasDb as $r) {
-            $fNorm = (string)($r->fecha_norm ?? '');
-            $k = "{$r->nro_preventa}_{$r->producto_id}_{$fNorm}";
+            $fNorm = (string) ($r->fecha_norm ?? '');
+            $baseKey = "{$r->nro_preventa}_{$r->producto_id}_{$fNorm}";
+            $ocurrencia = $ocurrenciasDb[$baseKey] ?? 0;
+            $ocurrenciasDb[$baseKey] = $ocurrencia + 1;
+
+            $k = "{$baseKey}_{$ocurrencia}";
             $existentes[$k] = $r;
         }
 
-        // Consultar cancelaciones que ya se encuentren registradas como PENDIENTES
+        // 3. Consultar cancelaciones previas en estado PENDIENTE para reactivaciones
         $prevCanceladosPendientes = [];
         try {
             $prevCancRows = $conn->table('auditoria_preventas_cambios')
@@ -166,11 +173,12 @@ class ProcessPreventasIngestaAction
                 ->where('estado_autorizacion', 'PENDIENTE')
                 ->whereIn('fecha_preventa', $fechasValidas)
                 ->get();
+
             foreach ($prevCancRows as $pcr) {
                 $kCanc = "{$pcr->nro_preventa}_{$pcr->producto_id}_{$pcr->fecha_preventa}";
                 $prevCanceladosPendientes[$kCanc] = true;
             }
-        } catch (\Throwable) {}
+        } catch (Throwable) {}
 
         $nuevosRecords = [];
         $modificadosUpdates = [];
@@ -181,49 +189,53 @@ class ProcessPreventasIngestaAction
         $reactivadosUpdates = [];
         $sinCambiosCount = 0;
 
-        foreach ($dedupMap as $k => $row) {
+        // 4. Clasificación diferencial
+        foreach ($itemsEntrantes as $k => $row) {
             $clavesEntrantes[$k] = true;
-            $nroPrev = (int)$row['nro_preventa'];
-            $prodId = (int)$row['producto_id'];
-            $fNorm = (string)($row['fecha_norm'] ?? '');
-            $montoNuevo = (float)$row['monto_final'];
-            $cantNueva = (int)$row['cantidad'];
+            $nroPrev = (int) $row['nro_preventa'];
+            $prodId = (int) $row['producto_id'];
+            $fNorm = (string) ($row['fecha_norm'] ?? '');
+            $montoNuevo = (float) $row['monto_final'];
+            $cantNueva = (int) $row['cantidad'];
 
-            // Si el pedido estaba marcado como pendiente de cancelación y reaparece, se reactiva
-            if (isset($prevCanceladosPendientes[$k])) {
-                $reactivadosUpdates[] = [
+            // Detección de Reactivación
+            $baseKey = "{$nroPrev}_{$prodId}_{$fNorm}";
+            if (isset($prevCanceladosPendientes[$baseKey])) {
+                $reactivadosUpdates[$baseKey] = [
                     'nro_preventa' => $nroPrev,
                     'producto_id' => $prodId,
                     'fecha_preventa' => $fNorm,
                 ];
             }
 
+            // Filtrar exclusivamente columnas presentes en fact_preventas
             $dbRow = [];
-            foreach ($row as $colName => $colVal) {
+            foreach (self::CANONICAL_PREVENTAS_COLUMNS as $colName) {
                 if (isset($colsDbFlip[$colName])) {
-                    $dbRow[$colName] = $colVal;
+                    $dbRow[$colName] = $row[$colName] ?? null;
                 }
             }
 
             if (!isset($existentes[$k])) {
+                // Nuevo registro
                 $nuevosRecords[] = $dbRow;
             } else {
+                // Registro existente: comparar alteraciones
                 $prev = $existentes[$k];
-                $montoAnt = (float)($prev->monto_final ?? 0.0);
-                $cantAnt = (int)($prev->cantidad ?? 0);
+                $montoAnt = (float) ($prev->monto_final ?? 0.0);
+                $cantAnt = (int) ($prev->cantidad ?? 0);
 
-                $diffMonto = $montoNuevo - $montoAnt;
+                $diffMonto = round($montoNuevo - $montoAnt, 6);
                 $diffCant = $cantNueva - $cantAnt;
 
-                if (abs($diffMonto) > 0.01 || $diffCant !== 0) {
-                    $cNom = (string)($row['cliente'] ?? $prev->cliente ?? '');
-                    $vNom = (string)($row['vendedor'] ?? $prev->vendedor ?? '');
+                if (abs($diffMonto) > 0.0001 || $diffCant !== 0) {
+                    $cNom = (string) ($row['cliente'] ?? $prev->cliente ?? '');
+                    $vNom = (string) ($row['vendedor'] ?? $prev->vendedor ?? '');
 
+                    // Actualización directa por ID primario (preserva integridad referencial)
                     $modificadosUpdates[] = [
-                        'row' => $dbRow,
-                        'nro_preventa' => $nroPrev,
-                        'producto_id' => $prodId,
-                        'fecha_norm' => $fNorm,
+                        'id' => (int) $prev->id,
+                        'data' => $dbRow,
                     ];
 
                     $auditoriaCambios[] = [
@@ -232,7 +244,7 @@ class ProcessPreventasIngestaAction
                         'fecha_preventa' => $fNorm,
                         'nro_preventa' => $nroPrev,
                         'producto_id' => $prodId,
-                        'cliente_id' => isset($row['cliente_id']) ? (int)$row['cliente_id'] : null,
+                        'cliente_id' => isset($row['cliente_id']) ? (int) $row['cliente_id'] : null,
                         'cliente' => $cNom,
                         'vendedor' => $vNom,
                         'cantidad_anterior' => $cantAnt,
@@ -261,26 +273,27 @@ class ProcessPreventasIngestaAction
             }
         }
 
-        // Cancelaciones detectadas (en BD pero ausentes en este nuevo corte)
+        // 5. Cancelaciones detectadas (en BD pero ausentes en este nuevo corte) -> Cuarentena
         $clavesCanceladas = [];
         foreach ($existentes as $k => $prev) {
             if (!isset($clavesEntrantes[$k])) {
                 $clavesCanceladas[] = $prev;
-                $cantAnt = (int)($prev->cantidad ?? 0);
-                $montoAnt = (float)($prev->monto_final ?? 0.0);
-                $fReg = (string)($prev->fecha_norm ?? '');
-                $cNom = (string)($prev->cliente ?? '');
-                $vNom = (string)($prev->vendedor ?? '');
+                $cantAnt = (int) ($prev->cantidad ?? 0);
+                $montoAnt = (float) ($prev->monto_final ?? 0.0);
+                $fReg = (string) ($prev->fecha_norm ?? '');
+                $cNom = (string) ($prev->cliente ?? '');
+                $vNom = (string) ($prev->vendedor ?? '');
 
-                // Solo registrar en auditoría si no estaba ya pendiente de autorización
-                if (!isset($prevCanceladosPendientes[$k])) {
+                $baseKey = "{$prev->nro_preventa}_{$prev->producto_id}_{$fReg}";
+
+                if (!isset($prevCanceladosPendientes[$baseKey])) {
                     $auditoriaCambios[] = [
                         'archivo_origen' => $filename,
                         'tipo_evento' => 'CANCELADO',
                         'fecha_preventa' => $fReg,
-                        'nro_preventa' => (int)$prev->nro_preventa,
-                        'producto_id' => (int)$prev->producto_id,
-                        'cliente_id' => isset($prev->cliente_id) ? (int)$prev->cliente_id : null,
+                        'nro_preventa' => (int) $prev->nro_preventa,
+                        'producto_id' => (int) $prev->producto_id,
+                        'cliente_id' => isset($prev->cliente_id) ? (int) $prev->cliente_id : null,
                         'cliente' => $cNom,
                         'vendedor' => $vNom,
                         'cantidad_anterior' => $cantAnt,
@@ -294,8 +307,8 @@ class ProcessPreventasIngestaAction
                 }
 
                 $detallesCancelados[] = [
-                    'nro_preventa' => (int)$prev->nro_preventa,
-                    'producto_id' => (int)$prev->producto_id,
+                    'nro_preventa' => (int) $prev->nro_preventa,
+                    'producto_id' => (int) $prev->producto_id,
                     'cliente' => $cNom,
                     'vendedor' => $vNom,
                     'cant_ant' => $cantAnt,
@@ -304,30 +317,30 @@ class ProcessPreventasIngestaAction
             }
         }
 
-        $chunkSize = 300;
-
-        // Operaciones dentro de Transacción Atómica
-        $conn->transaction(function () use ($conn, $nuevosRecords, $modificadosUpdates, $reactivadosUpdates, $auditoriaCambios, $chunkSize) {
-            // 1. Inserción de Nuevos
+        // 6. Persistencia Transaccional Atómica
+        $conn->transaction(function () use (
+            $conn,
+            $nuevosRecords,
+            $modificadosUpdates,
+            $reactivadosUpdates,
+            $auditoriaCambios
+        ) {
+            // A. Inserción de Nuevos en chunks
             if (!empty($nuevosRecords)) {
-                $chunks = array_chunk($nuevosRecords, $chunkSize);
+                $chunks = array_chunk($nuevosRecords, self::CHUNK_SIZE);
                 foreach ($chunks as $chunk) {
                     $conn->table('fact_preventas')->insert($chunk);
                 }
             }
 
-            // 2. Actualización de Modificados
+            // B. Actualización de Modificados directa por ID primario
             foreach ($modificadosUpdates as $item) {
-                $updateData = $item['row'];
-                unset($updateData['nro_preventa'], $updateData['producto_id'], $updateData['fecha_norm']);
                 $conn->table('fact_preventas')
-                    ->where('nro_preventa', $item['nro_preventa'])
-                    ->where('producto_id', $item['producto_id'])
-                    ->where('fecha_norm', $item['fecha_norm'])
-                    ->update($updateData);
+                    ->where('id', $item['id'])
+                    ->update($item['data']);
             }
 
-            // 3. Reactivación de cancelados que volvieron a aparecer en el nuevo corte
+            // C. Reactivación de cancelados que reaparecieron
             foreach ($reactivadosUpdates as $react) {
                 $conn->table('auditoria_preventas_cambios')
                     ->where('nro_preventa', $react['nro_preventa'])
@@ -337,42 +350,34 @@ class ProcessPreventasIngestaAction
                     ->update(['estado_autorizacion' => 'REACTIVADO']);
             }
 
-            // 4. Bitácora de Auditoría (Cancelaciones pendientes y modificaciones)
-            // NOTA: Los pedidos cancelados NO se purgan inmediatamente de fact_preventas;
-            // quedan en CUARENTENA como PENDIENTE para que el supervisor los revise y autorice
-            // formalmente en la vista Cancelados.vue antes de su descarte definitivo.
+            // D. Registro en bitácora de auditoría
             if (!empty($auditoriaCambios)) {
-                $chunksAud = array_chunk($auditoriaCambios, $chunkSize);
+                $chunksAud = array_chunk($auditoriaCambios, self::CHUNK_SIZE);
                 foreach ($chunksAud as $chunk) {
                     $conn->table('auditoria_preventas_cambios')->insert($chunk);
                 }
             }
         });
 
-        // 5. Registro en sys_cargas
+        // 7. Registro en sys_cargas
         $rangoIni = $fechasValidas[0] ?? '-';
         $rangoFin = end($fechasValidas) ?: '-';
         $totalAfectadas = count($nuevosRecords) + count($modificadosUpdates) + count($clavesCanceladas);
 
-        try {
-            $conn->table('sys_cargas')->insert([
-                'archivo_original' => $filename,
-                'archivo_almacenado' => $filePath,
-                'sha256' => $fileHash,
-                'tipo_entidad' => 'FACT_PREVENTAS',
-                'filas_leidas' => $totalLeidas,
-                'filas_afectadas' => $totalAfectadas,
-                'filas_nuevas' => count($nuevosRecords),
-                'filas_actualizadas' => count($modificadosUpdates),
-                'filas_ignoradas' => $sinCambiosCount,
-                'filas_con_discrepancia' => count($clavesCanceladas),
-                'rango_inicio' => $rangoIni,
-                'rango_fin' => $rangoFin,
-                'fecha_ingesta' => now(),
-            ]);
-        } catch (\Throwable $eSys) {
-            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
-        }
+        $this->registrarSysCargas(
+            $conn,
+            $filename,
+            $filePath,
+            $fileHash,
+            $totalLeidas,
+            $totalAfectadas,
+            count($nuevosRecords),
+            count($modificadosUpdates),
+            $sinCambiosCount,
+            count($clavesCanceladas),
+            $rangoIni,
+            $rangoFin
+        );
 
         $rangoStr = implode(', ', $fechasValidas);
 
@@ -387,12 +392,110 @@ class ProcessPreventasIngestaAction
             'filas_con_discrepancia' => count($clavesCanceladas),
             'sin_cambios' => $sinCambiosCount,
             'filas_ignoradas' => $sinCambiosCount,
-            'volumen_total' => round($volumenTotal, 2),
+            'volumen_total' => round((float) $volumenTotal, 2),
             'fecha_operativa' => $rangoStr,
             'rango_fechas' => $rangoStr,
             'detalles_modificados' => $detallesModificados,
             'detalles_cancelados' => $detallesCancelados,
         ];
     }
-}
 
+    /**
+     * Parsea montos decimales con precisión a 6 decimales.
+     */
+    protected function parseDecimal(mixed $value): float
+    {
+        if ($value === null) {
+            return 0.0;
+        }
+
+        $str = trim((string) $value);
+        if ($str === '' || strcasecmp($str, 'null') === 0) {
+            return 0.0;
+        }
+
+        $clean = str_replace(' ', '', $str);
+
+        if (str_contains($clean, ',') && str_contains($clean, '.')) {
+            if (strrpos($clean, '.') > strrpos($clean, ',')) {
+                $clean = str_replace(',', '', $clean);
+            } else {
+                $clean = str_replace('.', '', $clean);
+                $clean = str_replace(',', '.', $clean);
+            }
+        } elseif (str_contains($clean, ',')) {
+            $clean = str_replace(',', '.', $clean);
+        }
+
+        $clean = preg_replace('/[^0-9.-]/', '', $clean);
+
+        if ($clean === null || $clean === '' || $clean === '-' || !is_numeric($clean)) {
+            return 0.0;
+        }
+
+        return round((float) $clean, 6);
+    }
+
+    /**
+     * Obtiene columnas físicas de fact_preventas excluyendo 'id'.
+     *
+     * @return array<string, int>
+     */
+    protected function obtenerColumnasFactPreventas($conn): array
+    {
+        try {
+            $cols = Schema::connection('supervisor')->getColumnListing('fact_preventas');
+            if (!empty($cols)) {
+                $cols = array_values(array_diff($cols, ['id']));
+                return array_flip($cols);
+            }
+        } catch (Throwable) {}
+
+        $canonical = array_values(array_diff(self::CANONICAL_PREVENTAS_COLUMNS, ['id']));
+        return array_flip($canonical);
+    }
+
+    /**
+     * Inserta la bitácora en sys_cargas.
+     */
+    protected function registrarSysCargas(
+        $conn,
+        string $filename,
+        string $filePath,
+        string $fileHash,
+        int $leidas,
+        int $afectadas,
+        int $nuevas,
+        int $actualizadas,
+        int $ignoradas,
+        int $discrepancias,
+        string $inicio,
+        string $fin
+    ): void {
+        try {
+            $data = [
+                'archivo_original' => $filename,
+                'archivo_almacenado' => $filePath,
+                'sha256' => $fileHash,
+                'tipo_entidad' => 'FACT_PREVENTAS',
+                'filas_leidas' => $leidas,
+                'filas_afectadas' => $afectadas,
+                'filas_nuevas' => $nuevas,
+                'filas_actualizadas' => $actualizadas,
+                'filas_ignoradas' => $ignoradas,
+                'filas_con_discrepancia' => $discrepancias,
+                'rango_inicio' => $inicio,
+                'rango_fin' => $fin,
+                'fecha_ingesta' => now(),
+            ];
+
+            if (Schema::connection('supervisor')->hasColumn('sys_cargas', 'estado')) {
+                $data['estado'] = 'COMPLETADO';
+            }
+
+            $conn->table('sys_cargas')->insert($data);
+        } catch (Throwable $e) {
+            Log::warning("No se pudo registrar FACT_PREVENTAS en sys_cargas: " . $e->getMessage());
+        }
+    }
+}
