@@ -17,51 +17,73 @@
           class="fixed inset-0 z-[99990]"
         ></div>
 
-        <!-- Fila 1: [ Mapa | Lista (N) ] a la izquierda y [ Total: N (GPS) ] a la derecha -->
-        <div class="flex items-center justify-between gap-2">
-          <!-- Bloque 1: Selector Vista Mapa / Lista -->
-          <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
+        <!-- Fila 1: [ Visualización | Ajuste RTM ] + [ Mapa | Lista (N) ] -->
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <!-- Modos Principales Móvil -->
+          <div class="inline-flex p-0.5 bg-slate-200/90 rounded-lg border border-slate-300/80 shrink-0">
+            <button
+              type="button"
+              @click="setModoPrincipal('visualizacion')"
+              class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer"
+              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+            >
+              <span>👁️ Vis.</span>
+            </button>
+            <button
+              type="button"
+              @click="setModoPrincipal('ajuste_rtm')"
+              class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer"
+              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-purple-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+            >
+              <span>🛠️ RTM</span>
+            </button>
+          </div>
+
+          <!-- Sub-modos Visualización Móvil -->
+          <div v-if="modoPrincipal === 'visualizacion'" class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
+            <button
+              type="button"
+              @click="setSubModoVisualizacion('original')"
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all cursor-pointer"
+              :class="subModoVisualizacion === 'original' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500'"
+            >
+              Original
+            </button>
+            <button
+              type="button"
+              @click="setSubModoVisualizacion('cambios')"
+              class="px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
+              :class="subModoVisualizacion === 'cambios' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-slate-500'"
+            >
+              <span>Con Cambios</span>
+              <span v-if="kpis.con_cambios > 0" class="px-1 py-0.2 rounded-full text-[8.5px] font-mono bg-white/20 font-bold">
+                {{ kpis.con_cambios }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Selector Vista Mapa / Lista -->
+          <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 ml-auto">
             <button
               type="button"
               @click="vistaMovil = 'mapa'"
-              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
               :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
-              </svg>
               Mapa
             </button>
             <button
               type="button"
               @click="vistaMovil = 'lista'"
-              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
               :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
               Lista ({{ clientes.length }})
             </button>
           </div>
-
-          <!-- Bloque 2: Total y Estado GPS -->
-          <div class="flex items-center gap-1.5 text-xs font-mono">
-            <span v-if="cargando" class="flex items-center gap-1 text-[11px] text-sky-600 animate-pulse font-medium">
-              <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-              Consultando...
-            </span>
-            <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
-              <span class="text-slate-400 font-normal text-[11px]">Total:</span>
-              <span class="tabular-nums">{{ kpis.total }}</span>
-            </div>
-            <div class="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold text-[11px] tabular-nums">
-              {{ kpis.con_gps }} GPS
-            </div>
-          </div>
         </div>
 
-        <!-- Fila 2: Filtros de Canal, Rutas, Botón Consultar y Ajustar Fronteras -->
+        <!-- Fila 2: Filtros de Canal, Rutas, Botón Consultar y KPIs Móvil -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pt-0.5">
           <!-- Filtro Dropdown: Canales -->
           <button
@@ -104,17 +126,6 @@
             <span>{{ cargando ? 'Cargando...' : 'Consultar' }}</span>
           </button>
 
-          <!-- Botón Herramienta Frontera RTM (Móvil) -->
-          <button
-            type="button"
-            @click="mostrarHerramientaFronteras = !mostrarHerramientaFronteras"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="mostrarHerramientaFronteras ? 'bg-purple-600 text-white border-purple-700' : 'bg-slate-100 text-slate-700 border-slate-300'"
-            title="Herramienta para editar y ajustar polígonos fronterizos RTM"
-          >
-            <span>🗺️ RTM</span>
-          </button>
-
           <!-- Toggle: Solo Activos vs Todos -->
           <button
             type="button"
@@ -127,6 +138,17 @@
             <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
             <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
+
+          <!-- KPIs Móvil resumidos -->
+          <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1 text-[11px] font-mono font-bold text-slate-800 shrink-0">
+            <span>{{ kpis.total }} cl.</span>
+            <span>•</span>
+            <span class="text-emerald-700">{{ kpis.con_gps }} GPS</span>
+            <template v-if="kpis.con_cambios > 0">
+              <span>•</span>
+              <span class="text-indigo-700 font-bold">{{ kpis.con_cambios }} chg</span>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -142,6 +164,55 @@
         ></div>
 
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
+          <!-- Modos Principales Desktop: [ 👁️ Visualización | 🛠️ Ajuste RTM ] -->
+          <div class="inline-flex p-0.5 bg-slate-200/90 rounded-lg border border-slate-300/80 shrink-0">
+            <button
+              type="button"
+              @click="setModoPrincipal('visualizacion')"
+              class="px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
+              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              title="Modo Visualización: Consulta limpia y comparativa del padrón"
+            >
+              <span>👁️ Visualización</span>
+            </button>
+            <button
+              type="button"
+              @click="setModoPrincipal('ajuste_rtm')"
+              class="px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
+              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-purple-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              title="Modo Ajuste RTM: Mover fronteras territoriales y reasignar rutas o días"
+            >
+              <span>🛠️ Ajuste RTM</span>
+            </button>
+          </div>
+
+          <!-- Sub-modos Visualización Desktop: [ Base Original | Con Cambios (N) ] -->
+          <div v-if="modoPrincipal === 'visualizacion'" class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
+            <button
+              type="button"
+              @click="setSubModoVisualizacion('original')"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
+              :class="subModoVisualizacion === 'original' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+              title="Ver datos originales inmutables de pan_ruteo"
+            >
+              <span>Base Original</span>
+            </button>
+            <button
+              type="button"
+              @click="setSubModoVisualizacion('cambios')"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="subModoVisualizacion === 'cambios' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+              title="Ver padrón integrando propuestas de saneamiento registradas"
+            >
+              <span>Con Cambios</span>
+              <span v-if="kpis.con_cambios > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 font-bold">
+                {{ kpis.con_cambios }}
+              </span>
+            </button>
+          </div>
+
+          <div class="h-5 w-px bg-slate-200 shrink-0"></div>
+
           <!-- Filtro Dropdown: Canales (Teleport al Body) -->
           <button
             type="button"
@@ -200,22 +271,6 @@
             </svg>
             <span v-else class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             <span>{{ cargando ? 'Consultando...' : 'Consultar' }}</span>
-          </button>
-
-          <!-- Botón de Herramienta: Ajustar Frontera RTM -->
-          <button
-            type="button"
-            @click="mostrarHerramientaFronteras = !mostrarHerramientaFronteras"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="mostrarHerramientaFronteras
-              ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
-              : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'"
-            title="Herramienta para editar y ajustar polígonos fronterizos RTM"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
-            </svg>
-            <span>Ajustar Frontera RTM</span>
           </button>
 
           <!-- Selector de Modo de Coloración -->
@@ -284,6 +339,11 @@
           <div class="flex px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
+          </div>
+
+          <div v-if="kpis.con_cambios > 0" class="flex px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+            <span class="font-semibold tabular-nums">{{ kpis.con_cambios }} con cambios</span>
           </div>
 
           <div v-if="kpis.sin_gps > 0" class="flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md items-center gap-1.5">
@@ -363,84 +423,172 @@
         </div>
       </Teleport>
 
-      <!-- BARRA DE HERRAMIENTAS: EDICIÓN Y AJUSTE DE FRONTERAS RTM -->
+      <!-- BARRA DE HERRAMIENTAS: AJUSTE RTM (FRONTERAS Y REASIGNACIÓN EN LOTE) -->
       <div
-        v-if="mostrarHerramientaFronteras"
-        class="bg-purple-50/95 border-b border-purple-200/90 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs z-20 shrink-0"
+        v-if="modoPrincipal === 'ajuste_rtm'"
+        class="bg-purple-50/95 border-b border-purple-200/90 px-4 py-2 text-xs z-20 shrink-0 space-y-2 shadow-xs"
       >
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-purple-900 font-mono flex items-center gap-1">
-            <span>🗺️ Frontera RTM:</span>
-          </span>
-
-          <select
-            v-model="rutaParaAjustarFrontera"
-            @change="alCambiarRutaParaFrontera"
-            class="h-7 px-2.5 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer shadow-2xs"
-          >
-            <option value="">-- Seleccionar ruta a ajustar --</option>
-            <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
-              {{ formatRuta(r.ruta) }} ({{ r.canal }})
-            </option>
-          </select>
-
-          <!-- Controles de Edición -->
-          <template v-if="rutaParaAjustarFrontera">
-            <button
-              v-if="!editandoVertices"
-              type="button"
-              @click="activarEdicionVertices"
-              class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-              </svg>
-              <span>{{ tieneFronteraRutaActual ? 'Editar Vértices' : 'Dibujar / Generar' }}</span>
-            </button>
-
-            <button
-              v-if="!tieneFronteraRutaActual && !editandoVertices"
-              type="button"
-              @click="generarConvexHullRuta"
-              class="h-7 px-2.5 bg-white hover:bg-slate-100 text-purple-700 border border-purple-300 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
-              title="Calcular polígono envolvente automático a partir de los clientes GPS de esta ruta"
-            >
-              <span>Generar Convex Hull</span>
-            </button>
-
-            <template v-if="editandoVertices">
-              <span class="text-[11px] font-mono text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-300 font-medium">
-                Arrastra los vértices azules para ajustar el perímetro
-              </span>
-
+        <div class="flex items-center justify-between gap-2.5 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Selector de Sub-herramienta RTM -->
+            <div class="inline-flex p-0.5 bg-purple-200/70 rounded-lg border border-purple-300 shrink-0">
               <button
                 type="button"
-                @click="guardarFronteraRtm"
-                :disabled="guardandoFrontera"
-                class="h-7 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                @click="subHerramientaRtm = 'fronteras'"
+                class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
+                :class="subHerramientaRtm === 'fronteras' ? 'bg-white text-purple-900 shadow-2xs' : 'text-purple-700 hover:text-purple-950'"
               >
-                <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
+                <span>🗺️ Mover Fronteras</span>
               </button>
-
               <button
                 type="button"
-                @click="cancelarEdicionVertices"
-                class="h-7 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer"
+                @click="subHerramientaRtm = 'reasignacion'"
+                class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
+                :class="subHerramientaRtm === 'reasignacion' ? 'bg-white text-purple-900 shadow-2xs' : 'text-purple-700 hover:text-purple-950'"
               >
-                Cancelar
+                <span>👥 Reasignar Clientes</span>
+                <span v-if="clientesSeleccionadosIds.length > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-700 text-white font-bold">
+                  {{ clientesSeleccionadosIds.length }}
+                </span>
               </button>
+            </div>
+
+            <!-- Herramienta 1: Mover Fronteras -->
+            <template v-if="subHerramientaRtm === 'fronteras'">
+              <select
+                v-model="rutaParaAjustarFrontera"
+                @change="alCambiarRutaParaFrontera"
+                class="h-7 px-2.5 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer shadow-2xs"
+              >
+                <option value="">-- Seleccionar ruta a ajustar --</option>
+                <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
+                  {{ formatRuta(r.ruta) }} ({{ r.canal }})
+                </option>
+              </select>
+
+              <template v-if="rutaParaAjustarFrontera">
+                <button
+                  v-if="!editandoVertices"
+                  type="button"
+                  @click="activarEdicionVertices"
+                  class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                  <span>{{ tieneFronteraRutaActual ? 'Editar Vértices' : 'Dibujar / Generar' }}</span>
+                </button>
+
+                <button
+                  v-if="!tieneFronteraRutaActual && !editandoVertices"
+                  type="button"
+                  @click="generarConvexHullRuta"
+                  class="h-7 px-2.5 bg-white hover:bg-slate-100 text-purple-700 border border-purple-300 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
+                  title="Calcular polígono envolvente automático a partir de los clientes GPS de esta ruta"
+                >
+                  <span>Generar Convex Hull</span>
+                </button>
+
+                <template v-if="editandoVertices">
+                  <span class="text-[11px] font-mono text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-300 font-medium">
+                    Arrastra los vértices azules para ajustar el perímetro
+                  </span>
+
+                  <button
+                    type="button"
+                    @click="guardarFronteraRtm"
+                    :disabled="guardandoFrontera"
+                    class="h-7 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="cancelarEdicionVertices"
+                    class="h-7 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </template>
+              </template>
             </template>
-          </template>
-        </div>
 
-        <button
-          type="button"
-          @click="mostrarHerramientaFronteras = false; cancelarEdicionVertices();"
-          class="text-purple-600 hover:text-purple-900 font-bold text-xs cursor-pointer ml-auto"
-        >
-          &times; Cerrar
-        </button>
+            <!-- Herramienta 2: Reasignación Masiva de Clientes -->
+            <template v-else-if="subHerramientaRtm === 'reasignacion'">
+              <div v-if="clientesSeleccionadosIds.length === 0" class="text-xs text-purple-800 italic flex items-center gap-1">
+                <span>💡</span>
+                <span>Marca clientes con los checkboxes de la lista lateral para reasignar ruta o día en lote.</span>
+              </div>
+              <form v-else @submit.prevent="ejecutarReasignacionMasiva" class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-purple-900">Nueva Ruta:</span>
+                  <select
+                    v-model="formReasignacionMasiva.ruta_propuesta"
+                    required
+                    class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs"
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
+                      {{ formatRuta(r.ruta) }} ({{ r.canal }})
+                    </option>
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-purple-900">Nuevo Día:</span>
+                  <select
+                    v-model="formReasignacionMasiva.dia_propuesto"
+                    class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs"
+                  >
+                    <option value="">Mantener día actual</option>
+                    <option v-for="d in diasSemana" :key="d.key" :value="d.label">
+                      {{ d.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <input
+                  type="text"
+                  v-model="formReasignacionMasiva.observaciones"
+                  placeholder="Motivo (opcional)..."
+                  class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 w-40 shadow-2xs"
+                />
+
+                <button
+                  type="submit"
+                  :disabled="guardandoReasignacionMasiva || !formReasignacionMasiva.ruta_propuesta"
+                  class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <span v-if="guardandoReasignacionMasiva" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>Guardar Propuesta ({{ clientesSeleccionadosIds.length }})</span>
+                </button>
+
+                <button
+                  type="button"
+                  @click="clientesSeleccionadosIds = []"
+                  class="h-7 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer"
+                >
+                  Limpiar
+                </button>
+              </form>
+            </template>
+          </div>
+
+          <div class="flex items-center gap-2 ml-auto">
+            <span class="text-[10px] font-mono text-purple-700 hidden xl:inline">
+              🛡️ Las propuestas no alteran pan_ruteo
+            </span>
+            <button
+              type="button"
+              @click="setModoPrincipal('visualizacion')"
+              class="text-purple-700 hover:text-purple-900 font-bold text-xs cursor-pointer px-2 py-0.5 rounded hover:bg-purple-100 transition-colors"
+            >
+              ✕ Salir de RTM
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Contenedor Principal: Split Screen (Lista de Clientes + Mapa Leaflet) -->
@@ -490,6 +638,29 @@
               </div>
             </div>
 
+            <!-- Barra de Selección Masiva en Modo Ajuste RTM -->
+            <div
+              v-if="modoPrincipal === 'ajuste_rtm' && clientesFiltradosLista.length > 0"
+              class="px-3 py-1.5 bg-purple-50/90 border-b border-purple-100 flex items-center justify-between text-xs font-mono"
+            >
+              <label class="flex items-center gap-1.5 cursor-pointer text-purple-900 select-none font-semibold">
+                <input
+                  type="checkbox"
+                  :checked="todosClientesFiltradosSeleccionados"
+                  @change="toggleSeleccionarTodosClientes"
+                  class="rounded border-purple-300 text-purple-600 focus:ring-0 cursor-pointer"
+                />
+                <span class="text-[11px]">Sel. todos ({{ clientesFiltradosLista.length }})</span>
+              </label>
+
+              <span
+                v-if="clientesSeleccionadosIds.length > 0"
+                class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-600 text-white"
+              >
+                {{ clientesSeleccionadosIds.length }} seleccionados
+              </span>
+            </div>
+
             <!-- Lista Scrollable de Clientes -->
             <div class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scroll">
               <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
@@ -509,12 +680,25 @@
                 :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-sky-600' : 'border-transparent'"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <span
-                    @click="abrirExpedienteCliente(c)"
-                    class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1 cursor-pointer flex-1"
-                  >
-                    {{ c.nombre }}
-                  </span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <!-- Checkbox de Selección RTM -->
+                    <input
+                      v-if="modoPrincipal === 'ajuste_rtm'"
+                      type="checkbox"
+                      :value="c.cliente_id || c.id"
+                      v-model="clientesSeleccionadosIds"
+                      @click.stop
+                      class="rounded border-slate-300 text-purple-600 focus:ring-0 cursor-pointer shrink-0"
+                    />
+
+                    <span
+                      @click="abrirExpedienteCliente(c)"
+                      class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1 cursor-pointer flex-1"
+                    >
+                      {{ c.nombre }}
+                    </span>
+                  </div>
+
                   <div class="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
@@ -534,6 +718,22 @@
                 </div>
 
                 <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
+
+                <!-- Pastilla distintiva si tiene propuesta en sub-modo cambios -->
+                <div
+                  v-if="subModoVisualizacion === 'cambios' && c.tiene_cambio"
+                  class="mt-1.5 px-2 py-0.5 bg-indigo-50/90 border border-indigo-200 rounded text-[10px] font-mono flex items-center justify-between text-indigo-950"
+                >
+                  <div class="flex items-center gap-1 truncate">
+                    <span class="text-indigo-600 font-bold">⚡ Propuesta:</span>
+                    <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }} ({{ c.dia_original || 'S/D' }})</span>
+                    <span>➔</span>
+                    <span class="font-bold text-indigo-700">{{ formatRuta(c.ruta) }} ({{ c.dia_norm }})</span>
+                  </div>
+                  <span class="text-[9px] uppercase font-bold px-1 rounded bg-indigo-100 text-indigo-800 shrink-0">
+                    {{ c.propuesta_estado || 'PENDIENTE' }}
+                  </span>
+                </div>
 
                 <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-mono">
                   <span class="flex items-center gap-1 font-medium text-slate-700">
@@ -992,17 +1192,16 @@
                     />
                   </div>
 
-                  <!-- Checkbox de Aplicación Inmediata -->
-                  <label class="flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-200/90 rounded-xl cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      v-model="formRtm.aplicar_inmediato"
-                      class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                    />
-                    <div class="text-[11px] text-indigo-950">
-                      <span class="font-bold">Aplicar cambio inmediatamente</span> al padrón comercial (actualiza PanRuteo)
+                  <!-- Nota Informativa de Propuesta Saneamiento -->
+                  <div class="flex items-start gap-2.5 p-2.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-[11px] text-indigo-950 select-none">
+                    <span class="text-base shrink-0">🛡️</span>
+                    <div>
+                      <span class="font-bold">Registro Seguro de Auditoría:</span>
+                      <p class="text-indigo-800 text-[10.5px] mt-0.5 leading-relaxed">
+                        Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. La base inmutable de <code>pan_ruteo</code> no es alterada.
+                      </p>
                     </div>
-                  </label>
+                  </div>
                 </div>
 
                 <!-- Botones de Acción del Formulario -->
@@ -1166,6 +1365,23 @@ function normalizarDiaClave(val) {
     .toUpperCase();
 }
 
+// ── MODOS DEL VISOR Y FRONTERAS ──
+// modoPrincipal: 'visualizacion' | 'ajuste_rtm'
+const modoPrincipal = ref('visualizacion');
+// subModoVisualizacion: 'original' (base inmutable pan_ruteo) | 'cambios' (pan_ruteo + propuestas activas)
+const subModoVisualizacion = ref('original');
+// subHerramientaRtm: 'fronteras' (mover polígonos) | 'reasignacion' (reasignar rutas/días de clientes)
+const subHerramientaRtm = ref('fronteras');
+
+// Selección múltiple para reasignación en lote (Modo Ajuste RTM)
+const clientesSeleccionadosIds = ref([]);
+const formReasignacionMasiva = ref({
+  ruta_propuesta: '',
+  dia_propuesto: '',
+  observaciones: '',
+});
+const guardandoReasignacionMasiva = ref(false);
+
 // Estados de Filtros Reactivos (NO autoejecutan consulta)
 const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : (props.canales?.[0] ? [props.canales[0]] : []));
 const filtroRutas = ref([]);
@@ -1193,7 +1409,7 @@ const cargandoVisitas = ref(false);
 const clientes = ref([]);
 const fronterasRutas = ref([]);
 const fronterasDias = ref([]);
-const kpis = ref({ total: 0, con_gps: 0, sin_gps: 0 });
+const kpis = ref({ total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 });
 const toastMensaje = ref('');
 
 // ── Herramienta de Fronteras RTM ──
@@ -1217,7 +1433,7 @@ const formRtm = ref({
   ruta_propuesta: '',
   dia_propuesto: 'LUNES',
   observaciones: '',
-  aplicar_inmediato: true,
+  aplicar_inmediato: false,
 });
 const guardandoRtm = ref(false);
 
@@ -1264,6 +1480,34 @@ const clientesFiltradosLista = computed(() => {
     (c.ruta && c.ruta.toLowerCase().includes(q))
   );
 });
+
+const todosClientesFiltradosSeleccionados = computed(() => {
+  if (clientesFiltradosLista.value.length === 0) return false;
+  return clientesFiltradosLista.value.every(c => clientesSeleccionadosIds.value.includes(c.cliente_id || c.id));
+});
+
+function toggleSeleccionarTodosClientes() {
+  if (todosClientesFiltradosSeleccionados.value) {
+    const idsDesmarcar = new Set(clientesFiltradosLista.value.map(c => c.cliente_id || c.id));
+    clientesSeleccionadosIds.value = clientesSeleccionadosIds.value.filter(id => !idsDesmarcar.has(id));
+  } else {
+    const nuevosIds = new Set(clientesSeleccionadosIds.value);
+    clientesFiltradosLista.value.forEach(c => nuevosIds.add(c.cliente_id || c.id));
+    clientesSeleccionadosIds.value = Array.from(nuevosIds);
+  }
+}
+
+function setModoPrincipal(modo) {
+  modoPrincipal.value = modo;
+  if (modo === 'visualizacion') {
+    cancelarEdicionVertices();
+  }
+}
+
+function setSubModoVisualizacion(sub) {
+  subModoVisualizacion.value = sub;
+  cargarDatos();
+}
 
 // Balance RTM agrupado por ruta y día
 const balanceRtmPorRuta = computed(() => {
@@ -1405,7 +1649,7 @@ async function cargarDatos() {
     clientes.value = [];
     fronterasRutas.value = [];
     fronterasDias.value = [];
-    kpis.value = { total: 0, con_gps: 0, sin_gps: 0 };
+    kpis.value = { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
     renderizarEnMapa();
     return;
   }
@@ -1426,12 +1670,13 @@ async function cargarDatos() {
       ver_frontera_rutas: verFronteraRutas.value,
       ver_frontera_dias: verFronteraDias.value,
       solo_activos: soloActivos.value,
+      modo_vista: subModoVisualizacion.value,
     });
 
     clientes.value = res.data.clientes || [];
     fronterasRutas.value = res.data.fronteras_rutas || [];
     fronterasDias.value = res.data.fronteras_dias || [];
-    kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0 };
+    kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
     renderizarEnMapa();
@@ -1439,6 +1684,39 @@ async function cargarDatos() {
     console.error('Error al consultar datos de ruteo:', error);
   } finally {
     cargando.value = false;
+  }
+}
+
+async function ejecutarReasignacionMasiva() {
+  if (clientesSeleccionadosIds.value.length === 0 || !formReasignacionMasiva.value.ruta_propuesta) return;
+  guardandoReasignacionMasiva.value = true;
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.ajustar-rtm')
+      : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+    const res = await axios.post(url, {
+      cliente_ids: clientesSeleccionadosIds.value,
+      ruta_propuesta: formReasignacionMasiva.value.ruta_propuesta,
+      dia_propuesto: formReasignacionMasiva.value.dia_propuesto || null,
+      observaciones: formReasignacionMasiva.value.observaciones || 'Reasignación masiva RTM desde Visor y Fronteras',
+    });
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || 'Propuestas RTM registradas exitosamente');
+      clientesSeleccionadosIds.value = [];
+      formReasignacionMasiva.value.ruta_propuesta = '';
+      formReasignacionMasiva.value.dia_propuesto = '';
+      formReasignacionMasiva.value.observaciones = '';
+      await cargarDatos();
+    } else {
+      alert(res.data?.message || 'Error al procesar la reasignación.');
+    }
+  } catch (err) {
+    console.error('Error al reasignar clientes en lote:', err);
+    alert('Error al reasignar: ' + (err.response?.data?.message || err.message));
+  } finally {
+    guardandoReasignacionMasiva.value = false;
   }
 }
 
@@ -1708,24 +1986,9 @@ async function confirmarAjusteRtm() {
     const res = await axios.post(url, formRtm.value);
 
     if (res.data?.success) {
-      mostrarToast(res.data.message || 'RTM actualizado exitosamente');
-
-      // Actualizar cliente en memoria para reflejarlo en el mapa inmediatamente
-      const cliId = formRtm.value.cliente_id;
-      const target = clientes.value.find(c => (c.cliente_id == cliId || c.id == cliId));
-      if (target) {
-        target.ruta = res.data.ruta_nueva;
-        target.dia_norm = res.data.dia_nuevo;
-      }
-
-      if (clienteSeleccionado.value && (clienteSeleccionado.value.cliente_id == cliId || clienteSeleccionado.value.id == cliId)) {
-        clienteSeleccionado.value.ruta = res.data.ruta_nueva;
-        clienteSeleccionado.value.dia_norm = res.data.dia_nuevo;
-      }
-
-      registerRutasCatalogo([res.data.ruta_nueva]);
+      mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
       modalAjusteRtm.value.show = false;
-      renderizarEnMapa();
+      await cargarDatos();
     } else {
       alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
     }
@@ -1876,14 +2139,42 @@ function renderizarEnMapa() {
     if (c.tiene_gps) {
       const markerColor = getMarkerColor(c);
 
+      // Si estamos en sub-modo "Con Cambios" y el cliente tiene propuesta registrada, dibujar un halo distintivo
+      if (subModoVisualizacion.value === 'cambios' && c.tiene_cambio) {
+        const halo = L.circleMarker([c.latitud, c.longitud], {
+          radius: 11,
+          fill: false,
+          color: '#7C3AED', // Púrpura índigo distintivo
+          weight: 2.5,
+          dashArray: '3, 3',
+          opacity: 0.95,
+        });
+        halo.addTo(markersLayer);
+      }
+
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: 6,
+        radius: (subModoVisualizacion.value === 'cambios' && c.tiene_cambio) ? 6.5 : 6,
         fillColor: markerColor,
         color: '#FFFFFF',
         weight: 1.5,
         opacity: 1,
         fillOpacity: 0.95,
       });
+
+      const bannerPropuesta = (subModoVisualizacion.value === 'cambios' && c.tiene_cambio)
+        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 6px; font-size: 10px; font-family: monospace;">
+            <div style="color: #4338CA; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span>⚡ PROPUESTA REGISTRADA</span>
+              <span style="background: #E0E7FF; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+            </div>
+            <div style="color: #312E81; margin-top: 2px;">
+              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> ➔ <b>${formatRuta(c.ruta)}</b>
+            </div>
+            <div style="color: #312E81;">
+              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> ➔ <b>${c.dia_norm}</b>
+            </div>
+          </div>`
+        : '';
 
       marker.bindTooltip(`
         <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
@@ -1896,6 +2187,7 @@ function renderizarEnMapa() {
             <span>•</span>
             <span style="color: #475569;">ID: ${c.cliente_id}</span>
           </div>
+          ${bannerPropuesta}
           <div style="margin-top: 3px; font-size: 9px; font-weight: 700; color: #4F46E5;">👉 Clic para abrir Menú RTM</div>
         </div>
       `, {

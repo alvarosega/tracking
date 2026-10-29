@@ -64,77 +64,96 @@ class SupervisorSaneamientoController extends Controller
             dias: $request->dias(),
             verFronteraRutas: $request->verFronteraRutas(),
             verFronteraDias: $request->verFronteraDias(),
-            soloActivos: $request->soloActivos()
+            soloActivos: $request->soloActivos(),
+            modoVista: $request->modoVista()
         );
 
         return response()->json($resultado);
     }
 
     /**
-     * Ajusta y modifica de manera dinámica el RTM de un cliente (Ruta y/o Día de visita).
+     * Ajusta y propone modificaciones RTM para uno o múltiples clientes (Ruta y/o Día de visita).
+     * NOTA: La tabla pan_ruteo nunca se modifica directamente; se registra en auditoria_saneamiento_propuestas.
      */
     public function ajustarRtm(Request $request, SavePropuestaAction $propuestaAction): JsonResponse
     {
         $request->validate([
-            'cliente_id' => ['required'],
+            'cliente_id' => ['nullable'],
+            'cliente_ids' => ['nullable', 'array'],
             'ruta_propuesta' => ['required', 'string'],
             'dia_propuesto' => ['nullable', 'string'],
-            'aplicar_inmediato' => ['nullable', 'boolean'],
             'observaciones' => ['nullable', 'string'],
         ]);
 
-        $clienteId = (int) $request->input('cliente_id');
-        $rutaPropuesta = strtoupper(trim((string) $request->input('ruta_propuesta')));
-        $diaPropuesto = strtoupper(trim((string) $request->input('dia_propuesto', '')));
-        $aplicarInmediato = $request->boolean('aplicar_inmediato', true);
-        $observaciones = (string) ($request->input('observaciones') ?: 'Ajuste dinámico RTM desde Visor y Fronteras');
+        $ids = [];
+        if ($request->filled('cliente_id')) {
+            $ids[] = (int) $request->input('cliente_id');
+        }
+        if ($request->filled('cliente_ids')) {
+            foreach ((array) $request->input('cliente_ids') as $cid) {
+                if ((int) $cid > 0) {
+                    $ids[] = (int) $cid;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
 
-        $cliente = PanRuteo::query()->where('cliente_id', $clienteId)->first();
-        if (!$cliente) {
+        if (empty($ids)) {
             return response()->json([
                 'success' => false,
-                'message' => "Cliente ID {$clienteId} no encontrado en el padrón.",
+                'message' => 'No se especificaron clientes para realizar el ajuste RTM.',
+            ], 422);
+        }
+
+        $rutaPropuesta = strtoupper(trim((string) $request->input('ruta_propuesta')));
+        $diaPropuesto = strtoupper(trim((string) $request->input('dia_propuesto', '')));
+        $observaciones = (string) ($request->input('observaciones') ?: 'Ajuste dinámico RTM desde Visor y Fronteras');
+
+        $clientes = PanRuteo::query()->whereIn('cliente_id', $ids)->get();
+        if ($clientes->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Los clientes indicados no fueron encontrados en el padrón.',
             ], 404);
         }
 
-        $rutaActual = (string) ($cliente->ruta ?? '');
-        $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
+        $propuestasRegistradas = [];
 
-        // Registrar propuesta para trazabilidad en auditoría
-        $propuestaId = $propuestaAction->execute([
-            'tipo_hallazgo' => 'AJUSTE_RTM',
-            'cliente_id_origen' => $clienteId,
-            'cliente_nombre' => $cliente->cliente,
-            'ruta_actual' => $rutaActual,
-            'dia_actual' => $diaActual,
-            'ruta_propuesta' => $rutaPropuesta,
-            'dia_propuesto' => $diaPropuesto ?: $diaActual,
-            'accion_propuesta' => 'REASIGNAR_RTM',
-            'observaciones' => $observaciones,
-            'estado' => $aplicarInmediato ? 'APLICADO' : 'PENDIENTE',
-        ]);
+        foreach ($clientes as $cliente) {
+            $cid = (int) $cliente->cliente_id;
+            $rutaActual = (string) ($cliente->ruta ?? '');
+            $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
 
-        // Si se aplica de inmediato, actualizar pan_ruteo
-        if ($aplicarInmediato) {
-            $updateData = ['ruta' => $rutaPropuesta];
-            if (!empty($diaPropuesto)) {
-                $updateData['dia_norm'] = $diaPropuesto;
-            }
-            PanRuteo::query()->where('cliente_id', $clienteId)->update($updateData);
+            $propId = $propuestaAction->execute([
+                'tipo_hallazgo' => 'AJUSTE_RTM',
+                'cliente_id_origen' => $cid,
+                'cliente_nombre' => $cliente->cliente,
+                'ruta_actual' => $rutaActual,
+                'dia_actual' => $diaActual,
+                'ruta_propuesta' => $rutaPropuesta,
+                'dia_propuesto' => $diaPropuesto ?: $diaActual,
+                'accion_propuesta' => 'REASIGNAR_RTM',
+                'observaciones' => $observaciones,
+                'estado' => 'PENDIENTE',
+            ]);
+
+            $propuestasRegistradas[] = [
+                'cliente_id' => $cid,
+                'propuesta_id' => $propId,
+                'ruta_anterior' => $rutaActual,
+                'ruta_nueva' => $rutaPropuesta,
+                'dia_anterior' => $diaActual,
+                'dia_nuevo' => $diaPropuesto ?: $diaActual,
+            ];
         }
 
         return response()->json([
             'success' => true,
-            'message' => $aplicarInmediato
-                ? "RTM actualizado: Cliente asignado a Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . "."
-                : "Propuesta de cambio RTM registrada como PENDIENTE.",
-            'propuesta_id' => $propuestaId,
-            'aplicado' => $aplicarInmediato,
-            'cliente_id' => $clienteId,
-            'ruta_anterior' => $rutaActual,
-            'ruta_nueva' => $rutaPropuesta,
-            'dia_anterior' => $diaActual,
-            'dia_nuevo' => $diaPropuesto ?: $diaActual,
+            'message' => count($propuestasRegistradas) === 1
+                ? "Propuesta RTM registrada para el cliente {$ids[0]}: Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . "."
+                : "Se registraron " . count($propuestasRegistradas) . " propuestas RTM para la Ruta {$rutaPropuesta}.",
+            'total_afectados' => count($propuestasRegistradas),
+            'propuestas' => $propuestasRegistradas,
         ]);
     }
 

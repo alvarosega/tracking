@@ -19,6 +19,7 @@ class GetRuteoDataAction
      * @param bool $verFronteraRutas
      * @param bool $verFronteraDias
      * @param bool $soloActivos
+     * @param string $modoVista 'original' | 'cambios'
      * @return array{clientes: array, fronteras_rutas: array, fronteras_dias: array, kpis: array}
      */
     public function execute(
@@ -27,7 +28,8 @@ class GetRuteoDataAction
         array $dias = [],
         bool $verFronteraRutas = false,
         bool $verFronteraDias = false,
-        bool $soloActivos = true
+        bool $soloActivos = true,
+        string $modoVista = 'original'
     ): array {
         if (empty($rutas) && empty($canales)) {
             return [
@@ -40,6 +42,7 @@ class GetRuteoDataAction
                     'sin_gps' => 0,
                     'activos' => 0,
                     'inactivos' => 0,
+                    'con_cambios' => 0,
                 ],
             ];
         }
@@ -52,7 +55,37 @@ class GetRuteoDataAction
                 ->toArray();
         }
 
-        $queryClientes = PanRuteo::query()->whereIn('ruta', $rutas);
+        $rutasUpper = array_map(fn($r) => strtoupper(trim((string) $r)), $rutas);
+
+        // 1. Consultar propuestas activas de auditoria_saneamiento_propuestas
+        $propuestasRows = DB::connection('supervisor')
+            ->table('auditoria_saneamiento_propuestas')
+            ->whereIn('estado', ['PENDIENTE', 'APLICADO'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $propuestasMap = [];
+        $cidsConPropuestaARutas = [];
+        foreach ($propuestasRows as $p) {
+            $cid = (int) $p->cliente_id_origen;
+            if (!isset($propuestasMap[$cid])) {
+                $propuestasMap[$cid] = $p;
+                $rProp = strtoupper(trim((string) $p->ruta_propuesta));
+                if (!empty($rutasUpper) && in_array($rProp, $rutasUpper, true)) {
+                    $cidsConPropuestaARutas[] = $cid;
+                }
+            }
+        }
+
+        // 2. Consulta de clientes en pan_ruteo (Base Original inmutable)
+        if ($modoVista === 'cambios' && !empty($cidsConPropuestaARutas)) {
+            $queryClientes = PanRuteo::query()->where(function ($q) use ($rutas, $cidsConPropuestaARutas) {
+                $q->whereIn('ruta', $rutas)
+                  ->orWhereIn('cliente_id', $cidsConPropuestaARutas);
+            });
+        } else {
+            $queryClientes = PanRuteo::query()->whereIn('ruta', $rutas);
+        }
 
         if ($soloActivos) {
             $queryClientes->where(function ($q) {
@@ -61,11 +94,14 @@ class GetRuteoDataAction
             });
         }
 
+        $diasMerge = [];
         if (!empty($dias)) {
             $diasLower = array_map(fn($d) => strtolower(trim((string) $d)), $dias);
             $diasUpper = array_map(fn($d) => strtoupper(trim((string) $d)), $dias);
             $diasMerge = array_values(array_unique(array_merge($diasLower, $diasUpper)));
-            $queryClientes->whereIn('dia_norm', $diasMerge);
+            if ($modoVista === 'original') {
+                $queryClientes->whereIn('dia_norm', $diasMerge);
+            }
         }
 
         $clientesRaw = $queryClientes->select([
@@ -75,15 +111,50 @@ class GetRuteoDataAction
         ])->get();
 
         $kpis = [
-            'total' => $clientesRaw->count(),
+            'total' => 0,
             'con_gps' => 0,
             'sin_gps' => 0,
             'activos' => 0,
             'inactivos' => 0,
+            'con_cambios' => 0,
         ];
         $clientes = [];
 
         foreach ($clientesRaw as $c) {
+            $cid = (int)$c->cliente_id;
+            $prop = $propuestasMap[$cid] ?? null;
+            $tieneCambio = ($prop !== null);
+
+            $rutaOriginal = strtoupper(trim((string)$c->ruta));
+            $diaOriginal = strtoupper(trim((string)$c->dia_norm));
+
+            $rutaEfectiva = $rutaOriginal;
+            $diaEfectivo = $diaOriginal;
+
+            if ($tieneCambio && $modoVista === 'cambios') {
+                if (!empty($prop->ruta_propuesta)) {
+                    $rutaEfectiva = strtoupper(trim((string)$prop->ruta_propuesta));
+                }
+                if (!empty($prop->dia_propuesto)) {
+                    $diaEfectivo = strtoupper(trim((string)$prop->dia_propuesto));
+                }
+
+                // Si en modo cambios el cliente fue movido fuera de las rutas seleccionadas, omitirlo
+                if (!empty($rutasUpper) && !in_array($rutaEfectiva, $rutasUpper, true)) {
+                    continue;
+                }
+            }
+
+            // Filtrado por días seleccionados
+            if (!empty($diasMerge)) {
+                $diaCheck = ($modoVista === 'cambios') ? $diaEfectivo : $diaOriginal;
+                if (!in_array(strtolower($diaCheck), $diasMerge, true) && !in_array(strtoupper($diaCheck), $diasMerge, true)) {
+                    continue;
+                }
+            }
+
+            $kpis['total']++;
+
             $esActivo = (strtolower((string)$c->estado) === 'activo' || empty($c->estado));
             if ($esActivo) {
                 $kpis['activos']++;
@@ -98,6 +169,10 @@ class GetRuteoDataAction
                 $kpis['sin_gps']++;
             }
 
+            if ($tieneCambio) {
+                $kpis['con_cambios']++;
+            }
+
             $clientes[] = [
                 'id' => $c->id,
                 'cliente_id' => $c->cliente_id,
@@ -108,8 +183,18 @@ class GetRuteoDataAction
                 'celular' => $c->celular,
                 'latitud' => (float)$c->latitud,
                 'longitud' => (float)$c->longitud,
-                'ruta' => $c->ruta,
-                'dia_norm' => strtoupper(trim((string)$c->dia_norm)),
+                'ruta' => $rutaEfectiva,
+                'dia_norm' => $diaEfectivo,
+                'ruta_original' => $rutaOriginal,
+                'dia_original' => $diaOriginal,
+                'ruta_propuesta' => $prop ? (string)$prop->ruta_propuesta : null,
+                'dia_propuesto' => $prop ? (string)$prop->dia_propuesto : null,
+                'tiene_cambio' => $tieneCambio,
+                'propuesta_id' => $prop ? (int)$prop->id : null,
+                'propuesta_tipo' => $prop ? (string)$prop->tipo_hallazgo : null,
+                'propuesta_estado' => $prop ? (string)$prop->estado : null,
+                'propuesta_fecha' => $prop ? (string)$prop->creado_en : null,
+                'observaciones_propuesta' => $prop ? (string)$prop->observaciones : null,
                 'estado' => $c->estado ?? 'Activo',
                 'tiene_gps' => $tieneGps,
             ];

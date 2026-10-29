@@ -31,7 +31,13 @@ class GetRuteoDataRequest extends FormRequest
             'ver_frontera_rutas' => ['nullable', 'boolean'],
             'ver_frontera_dias' => ['nullable', 'boolean'],
             'solo_activos' => ['nullable', 'boolean'],
+            'modo_vista' => ['nullable', 'string', 'in:original,cambios'],
         ];
+    }
+
+    public function modoVista(): string
+    {
+        return strtolower(trim((string) $this->input('modo_vista', 'original')));
     }
 
     public function canales(): array
