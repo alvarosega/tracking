@@ -535,7 +535,7 @@
                   <div class="text-[9px] uppercase tracking-wider text-ink-secondary font-mono font-bold">
                     <span>Clientes por Día:</span>
                   </div>
-                  <div class="grid grid-cols-6 gap-1 text-[9px] font-mono">
+                  <div class="grid grid-cols-7 gap-1 text-[9px] font-mono">
                     <div
                       v-for="d in DIAS_SEMANA"
                       :key="d.val"
@@ -882,7 +882,10 @@ const DIAS_SEMANA = [
   { val: 'JUEVES', label: 'Jueves', corto: 'J', color: '#9333EA' },
   { val: 'VIERNES', label: 'Viernes', corto: 'V', color: '#CA8A04' },
   { val: 'SABADO', label: 'Sábado', corto: 'S', color: '#E11D48' },
+  { val: 'DOMINGO', label: 'Domingo', corto: 'D', color: '#64748B' },
 ]
+
+const DIAS_LUNES_A_SABADO = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 
 function getColorDia(dia) {
   const dUpper = String(dia || '').trim().toUpperCase()
@@ -1022,12 +1025,14 @@ const resumenRutas = computed(() => {
   clientesVisibles.value.forEach(c => {
     const r = c.ruta
     if (rutasMap[r]) {
-      rutasMap[r].total++
+      const d = String(c.dia || 'SIN DÍA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
+      if (DIAS_LUNES_A_SABADO.includes(d)) {
+        rutasMap[r].total++
+      }
       if (c.es_intruso) rutasMap[r].intrusos++
       else if (c.es_huerfano) rutasMap[r].huerfanos++
       else rutasMap[r].validos++
 
-      const d = String(c.dia || 'SIN DÍA').trim().toUpperCase()
       rutasMap[r].conteoDias[d] = (rutasMap[r].conteoDias[d] || 0) + 1
     }
   })

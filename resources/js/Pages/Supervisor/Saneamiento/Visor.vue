@@ -183,7 +183,7 @@
               {{ d.corto }}
             </button>
             <button type="button" @click="toggleTodosDias" class="px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-900 font-mono border-l border-slate-200 ml-0.5 cursor-pointer">
-              {{ filtroDias.length === 6 ? 'Reset' : 'Todos' }}
+              {{ filtroDias.length === diasSemana.length ? 'Reset' : 'Todos' }}
             </button>
           </div>
 
@@ -577,7 +577,7 @@
                   <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
                     Carga por Día:
                   </div>
-                  <div class="grid grid-cols-6 gap-1 text-[10px] font-mono">
+                  <div class="grid grid-cols-7 gap-1 text-[10px] font-mono">
                     <div
                       v-for="d in diasSemana"
                       :key="d.key"
@@ -1152,7 +1152,19 @@ const diasSemana = [
   { key: 'JUEVES', corto: 'JUE', label: 'JUEVES', color: getDiaColor('JUEVES') },
   { key: 'VIERNES', corto: 'VIE', label: 'VIERNES', color: getDiaColor('VIERNES') },
   { key: 'SABADO', corto: 'SÁB', label: 'SÁBADO', color: getDiaColor('SABADO') },
+  { key: 'DOMINGO', corto: 'DOM', label: 'DOMINGO', color: getDiaColor('DOMINGO') },
 ];
+
+const DIAS_LUNES_A_SABADO = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+
+function normalizarDiaClave(val) {
+  if (!val) return '';
+  return String(val)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+}
 
 // Estados de Filtros Reactivos (NO autoejecutan consulta)
 const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : (props.canales?.[0] ? [props.canales[0]] : []));
@@ -1272,11 +1284,16 @@ const balanceRtmPorRuta = computed(() => {
     }
 
     const item = mapRutas.get(rKey);
-    item.total++;
-    if (c.tiene_gps) item.con_gps++;
 
-    const dia = c.dia_norm || 'SIN DIA';
-    item.dias[dia] = (item.dias[dia] || 0) + 1;
+    const diaClave = normalizarDiaClave(c.dia_norm);
+    const diaKey = diaClave || 'SIN DIA';
+    item.dias[diaKey] = (item.dias[diaKey] || 0) + 1;
+
+    // En el total por ruta, solo se debe contar los clientes de lunes a sábado
+    if (DIAS_LUNES_A_SABADO.includes(diaClave)) {
+      item.total++;
+      if (c.tiene_gps) item.con_gps++;
+    }
   });
 
   return Array.from(mapRutas.values()).sort((a, b) => b.total - a.total);
@@ -1373,7 +1390,7 @@ function toggleDia(diaKey) {
 }
 
 function toggleTodosDias() {
-  if (filtroDias.value.length === 6) {
+  if (filtroDias.value.length === diasSemana.length) {
     filtroDias.value = [];
   } else {
     filtroDias.value = diasSemana.map(d => d.key);

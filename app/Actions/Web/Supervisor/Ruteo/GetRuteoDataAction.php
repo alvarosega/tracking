@@ -62,7 +62,10 @@ class GetRuteoDataAction
         }
 
         if (!empty($dias)) {
-            $queryClientes->whereIn('dia_norm', $dias);
+            $diasLower = array_map(fn($d) => strtolower(trim((string) $d)), $dias);
+            $diasUpper = array_map(fn($d) => strtoupper(trim((string) $d)), $dias);
+            $diasMerge = array_values(array_unique(array_merge($diasLower, $diasUpper)));
+            $queryClientes->whereIn('dia_norm', $diasMerge);
         }
 
         $clientesRaw = $queryClientes->select([
@@ -140,7 +143,10 @@ class GetRuteoDataAction
                 ->whereIn('ruta', $rutas);
 
             if (!empty($dias)) {
-                $queryFronterasDias->whereIn('dia', $dias);
+                $diasLower = array_map(fn($d) => strtolower(trim((string) $d)), $dias);
+                $diasUpper = array_map(fn($d) => strtoupper(trim((string) $d)), $dias);
+                $diasMerge = array_values(array_unique(array_merge($diasLower, $diasUpper)));
+                $queryFronterasDias->whereIn('dia', $diasMerge);
             }
 
             $poligonosDias = $queryFronterasDias

@@ -384,7 +384,10 @@ const DIAS_SEMANA = [
   { val: 'JUEVES', label: 'Jueves', corto: 'J', color: '#9333EA' },
   { val: 'VIERNES', label: 'Viernes', corto: 'V', color: '#CA8A04' },
   { val: 'SABADO', label: 'Sábado', corto: 'S', color: '#E11D48' },
+  { val: 'DOMINGO', label: 'Domingo', corto: 'D', color: '#64748B' },
 ]
+
+const DIAS_LUNES_A_SABADO = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 
 function getColorDia(dia) {
   const dUpper = String(dia || '').trim().toUpperCase()
@@ -420,12 +423,17 @@ const rutasDisponibles = computed(() => {
   return rutas.filter(r => r.canal === canalSeleccionado.value)
 })
 
-const totalClientesRuta = computed(() => clientesRuta.value.length)
+const totalClientesRuta = computed(() => {
+  return clientesRuta.value.filter(c => {
+    const d = String(c.dia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
+    return DIAS_LUNES_A_SABADO.includes(d)
+  }).length
+})
 
 const conteoPorDia = computed(() => {
   const conteo = {}
   clientesRuta.value.forEach(c => {
-    const d = c.dia
+    const d = String(c.dia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
     conteo[d] = (conteo[d] || 0) + 1
   })
   return conteo
