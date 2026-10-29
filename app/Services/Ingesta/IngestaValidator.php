@@ -31,42 +31,125 @@ class IngestaValidator
      */
     public const COLUMN_MAPPINGS = [
         'PAN_RUTEO' => [
+            // Identificador de cliente y nodo
             'nodo id' => 'nodo_id',
+            'nodoid' => 'nodo_id',
+            'id nodo' => 'nodo_id',
+            'idnodo' => 'nodo_id',
             'nodo' => 'nodo',
             'cliente id' => 'cliente_id',
+            'clienteid' => 'cliente_id',
+            'id cliente' => 'cliente_id',
+            'idcliente' => 'cliente_id',
+            'codigocliente' => 'cliente_id',
+            'codigo cliente' => 'cliente_id',
+            'cod cliente' => 'cliente_id',
+            'codcliente' => 'cliente_id',
+            'id' => 'cliente_id',
+
+            // Nombres y clientes
             'cliente' => 'cliente',
+            'nombre cliente' => 'cliente',
+            'nombrecliente' => 'cliente',
+            'razon social' => 'razon_social',
+            'razonsocial' => 'razon_social',
+            'apellido paterno' => 'apellido_paterno',
+            'apellidopaterno' => 'apellido_paterno',
+            'apellido materno' => 'apellido_materno',
+            'apellidomaterno' => 'apellido_materno',
+            'nombres' => 'nombres',
+            'nombre' => 'nombres',
+
+            // Vendedor y supervisor
             'vendedor' => 'vendedor',
+            'nombre vendedor' => 'vendedor',
+            'nombrevendedor' => 'vendedor',
+            'vendedornombre' => 'vendedor',
+            'cod vendedor' => 'cod_vendedor',
+            'codvendedor' => 'cod_vendedor',
+            'vendedor id' => 'cod_vendedor',
+            'vendedorid' => 'cod_vendedor',
+            'id vendedor' => 'cod_vendedor',
+            'idvendedor' => 'cod_vendedor',
+
+            // Atributos comerciales y de negocio
             'tipo negocio' => 'tipo_negocio',
+            'tiponegocio' => 'tipo_negocio',
             'territorio' => 'territorio',
+            'provincia' => 'territorio',
             'mercado' => 'mercado',
-            'fecha servidor' => 'fecha_servidor',
-            'fecha dispositivo' => 'fecha_dispositivo',
+            'zona venta' => 'zona_venta',
+            'zonaventa' => 'zona_venta',
+            'zona' => 'zona_venta',
+            'precio' => 'precio',
+            'precio lista' => 'precio',
+            'preciolista' => 'precio',
+            'cluster' => 'cluster_t',
+            'clustert' => 'cluster_t',
+            'cluster t' => 'cluster_t',
+            'clusterc' => 'cluster_c',
+            'cluster c' => 'cluster_c',
+
+            // Ruta, día y secuencia
+            'ruta' => 'ruta',
+            'id ruta' => 'ruta',
+            'idruta' => 'ruta',
+            'cod ruta' => 'ruta',
+            'codruta' => 'ruta',
+            'dia' => 'dia',
+            'dia visita' => 'dia',
+            'diavisita' => 'dia',
+            'dia de visita' => 'dia',
+            'diadevisita' => 'dia',
+            'secuencia venta' => 'secuencia_venta',
+            'secuenciaventa' => 'secuencia_venta',
+            'secuencia distribuidor' => 'secuencia_distribuidor',
+            'secuenciadistribuidor' => 'secuencia_distribuidor',
+
+            // Datos de contacto y fiscales
             'contacto' => 'contacto',
             'ci' => 'ci',
+            'documento identidad' => 'ci',
+            'documentoidentidad' => 'ci',
+            'documento' => 'ci',
+            'expedido' => 'contacto',
             'telefono' => 'telefono',
             'celular' => 'celular',
             'direccion' => 'direccion',
             'nro' => 'nro',
+            'numero' => 'nro',
             'referencia' => 'referencia',
             'nombre factura' => 'nombre_factura',
+            'nombrefactura' => 'nombre_factura',
             'nit' => 'nit',
             'tipo pago' => 'tipo_pago',
+            'tipopago' => 'tipo_pago',
+            'dias credito' => 'dias_credito',
+            'diascredito' => 'dias_credito',
+            'dias pago' => 'dias_credito',
+            'diaspago' => 'dias_credito',
+            'limite' => 'limite',
+            'limite credito' => 'limite',
+            'limitecredito' => 'limite',
+            'tope credito' => 'limite',
+            'topecredito' => 'limite',
+
+            // Ubicación y estado
             'latitud' => 'latitud',
             'longitud' => 'longitud',
             'intensidad' => 'intensidad',
             'estado' => 'estado',
-            'zona venta' => 'zona_venta',
-            'cod vendedor' => 'cod_vendedor',
-            'dias credito' => 'dias_credito',
-            'limite' => 'limite',
-            'ruta' => 'ruta',
-            'dia' => 'dia',
-            'precio' => 'precio',
-            'clustert' => 'cluster_t',
-            'clusterc' => 'cluster_c',
+            'activo' => 'activo',
+            'fecha servidor' => 'fecha_servidor',
+            'fechaservidor' => 'fecha_servidor',
+            'fecha dispositivo' => 'fecha_dispositivo',
+            'fechadispositivo' => 'fecha_dispositivo',
             'dia norm' => 'dia_norm',
+            'dianorm' => 'dia_norm',
             'cliente norm' => 'cliente_norm',
+            'clientenorm' => 'cliente_norm',
             'vendedor norm' => 'vendedor_norm',
+            'vendedornorm' => 'vendedor_norm',
         ],
         'FACT_PREVENTAS' => [
             'fecha' => 'fecha',
@@ -325,6 +408,46 @@ class IngestaValidator
             if (!$tieneVentaId || !$tieneContexto) {
                 $sample = implode(', ', array_slice($headers, 0, 8));
                 throw new Exception("El archivo no coincide con el esquema requerido para FACT_VENTAS. Se requiere columna de Venta ('ventaId' o 'nro venta') y atributos de venta (productoId, ruta, fecha, monto, etc.). Cabeceras detectadas: [{$sample}]");
+            }
+            return;
+        }
+
+        if ($expectedEntity === 'PAN_RUTEO') {
+            // 1. Identificador de Cliente
+            $tieneClienteId = isset($headersCompressed['clienteid']) || isset($headersSet['cliente id'])
+                || isset($headersCompressed['idcliente']) || isset($headersSet['id cliente'])
+                || isset($headersCompressed['codigocliente']) || isset($headersSet['codigo cliente'])
+                || isset($headersCompressed['codcliente']) || isset($headersSet['cod cliente'])
+                || isset($headersCompressed['id']) || isset($headersSet['id']);
+
+            // 2. Nombre de Cliente o apellidos
+            $tieneClienteNombre = isset($headersCompressed['cliente']) || isset($headersSet['cliente'])
+                || isset($headersCompressed['nombrecliente']) || isset($headersSet['nombre cliente'])
+                || isset($headersCompressed['razonsocial']) || isset($headersSet['razon social'])
+                || isset($headersCompressed['nombrefactura']) || isset($headersSet['nombre factura'])
+                || isset($headersCompressed['apellidopaterno']) || isset($headersSet['apellido paterno'])
+                || isset($headersCompressed['nombres']) || isset($headersSet['nombres']);
+
+            // 3. Ruta
+            $tieneRuta = isset($headersCompressed['ruta']) || isset($headersSet['ruta'])
+                || isset($headersCompressed['idruta']) || isset($headersSet['id ruta'])
+                || isset($headersCompressed['codruta']) || isset($headersSet['cod ruta'])
+                || isset($headersCompressed['nombreruta']) || isset($headersSet['nombre ruta']);
+
+            // 4. Día
+            $tieneDia = isset($headersCompressed['dia']) || isset($headersSet['dia'])
+                || isset($headersCompressed['diavisita']) || isset($headersSet['dia visita'])
+                || isset($headersCompressed['diadevisita']) || isset($headersSet['dia de visita']);
+
+            $faltantesRuteo = [];
+            if (!$tieneClienteId) $faltantesRuteo[] = 'Identificador de Cliente (cliente_id, id_cliente o codigo)';
+            if (!$tieneClienteNombre) $faltantesRuteo[] = 'Nombre de Cliente (cliente, nombres o apellido_paterno)';
+            if (!$tieneRuta) $faltantesRuteo[] = 'Ruta';
+            if (!$tieneDia) $faltantesRuteo[] = 'Día de Visita';
+
+            if (!empty($faltantesRuteo)) {
+                $sample = implode(', ', array_slice($headers, 0, 8));
+                throw new Exception("El archivo no coincide con el esquema requerido para PAN_RUTEO. Columnas obligatorias no detectadas: [" . implode(', ', $faltantesRuteo) . "]. Cabeceras detectadas: [{$sample}]");
             }
             return;
         }

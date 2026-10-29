@@ -62,6 +62,18 @@ class ProcessRuteoIngestaAction
             }
         }
 
+        $conn = DB::connection('supervisor');
+
+        // Precargar catálogo de vendedores por ruta desde dim_rutas
+        $vendedoresPorRuta = [];
+        try {
+            $vendedoresPorRuta = $conn->table('dim_rutas')
+                ->whereNotNull('ruta')
+                ->where('ruta', '!=', '')
+                ->pluck('vendedor', 'ruta')
+                ->toArray();
+        } catch (\Throwable) {}
+
         $clientesEnArchivo = [];
         $registrosSnapshot = [];
         $registrosVivos = [];
@@ -75,10 +87,64 @@ class ProcessRuteoIngestaAction
                 continue;
             }
 
+            // 1. Unificar Nombre de Cliente si viene descompuesto (ApellidoPaterno, ApellidoMaterno, Nombres)
+            if (empty($mapped['cliente'])) {
+                $partes = array_filter([
+                    trim((string)($mapped['apellido_paterno'] ?? '')),
+                    trim((string)($mapped['apellido_materno'] ?? '')),
+                    trim((string)($mapped['nombres'] ?? '')),
+                ], fn($p) => $p !== '' && $p !== '.');
+                $mapped['cliente'] = !empty($partes)
+                    ? implode(' ', $partes)
+                    : trim((string)($mapped['razon_social'] ?? $mapped['nombre_factura'] ?? ''));
+            }
+
+            // 2. Normalizar Estado (Activo / Inactivo)
+            if (isset($mapped['activo']) && !isset($mapped['estado'])) {
+                $act = strtoupper(trim((string)$mapped['activo']));
+                $mapped['estado'] = in_array($act, ['SI', 'S', '1', 'TRUE', 'ACTIVO'], true) ? 'Activo' : 'Inactivo';
+            } elseif (isset($mapped['estado'])) {
+                $st = trim((string)$mapped['estado']);
+                $mapped['estado'] = in_array(strtoupper($st), ['NO', '0', 'INACTIVO', 'BAJA', 'ANULADO'], true) ? 'Inactivo' : 'Activo';
+            } else {
+                $mapped['estado'] = 'Activo';
+            }
+
+            // 3. Normalizar Día y Día Norm
             $diaRaw = (string)($mapped['dia_norm'] ?? $mapped['dia'] ?? '');
             $diaNorm = IngestaValidator::sanitizeDia($diaRaw);
             $mapped['dia_norm'] = $diaNorm;
+            $mapped['dia'] = ucfirst($diaNorm ?: $diaRaw);
             $mapped['cliente_id'] = $cid;
+
+            // 4. Normalizar cliente_norm
+            $mapped['cliente_norm'] = mb_strtolower(trim((string)($mapped['cliente'] ?? '')), 'UTF-8');
+
+            // 5. Enriquecer Vendedor si viene vacío
+            $rutaRaw = trim((string)($mapped['ruta'] ?? ''));
+            if (empty($mapped['vendedor']) && $rutaRaw !== '') {
+                if (isset($vendedoresPorRuta[$rutaRaw])) {
+                    $mapped['vendedor'] = $vendedoresPorRuta[$rutaRaw];
+                }
+            }
+            $mapped['vendedor_norm'] = mb_strtolower(trim((string)($mapped['vendedor'] ?? '')), 'UTF-8');
+
+            // 6. Coordenadas numéricas
+            if (isset($mapped['latitud']) && is_numeric($mapped['latitud'])) {
+                $mapped['latitud'] = (float)$mapped['latitud'];
+            } else {
+                $mapped['latitud'] = null;
+            }
+            if (isset($mapped['longitud']) && is_numeric($mapped['longitud'])) {
+                $mapped['longitud'] = (float)$mapped['longitud'];
+            } else {
+                $mapped['longitud'] = null;
+            }
+
+            // 7. Fecha servidor por defecto
+            if (empty($mapped['fecha_servidor'])) {
+                $mapped['fecha_servidor'] = $fechaCustom ? substr($fechaCustom, 0, 10) : now()->toDateString();
+            }
 
             // Deduplicación intra-archivo: evitar filas repetidas idénticas para (cliente_id, dia_norm, ruta)
             $rutaNorm = strtoupper(trim((string)($mapped['ruta'] ?? '')));
@@ -113,8 +179,6 @@ class ProcessRuteoIngestaAction
             $registrosSnapshot[] = $snapRow;
             $registrosVivos[] = $vivoRow;
         }
-
-        $conn = DB::connection('supervisor');
 
         // Asegurar tablas pan_ruteo_snapshots y auditoria_ruteo_cambios
         $this->asegurarTablas($conn);
@@ -151,13 +215,21 @@ class ProcessRuteoIngestaAction
         $setArch = array_flip($cidsArchivo);
         $setBd = array_flip($cidsBd);
 
+        $totalBdAnterior = count($clientesEnBd);
+        $totalClientesArchivo = count($clientesEnArchivo);
+
+        // Carga Completa (Reemplazo Maestro) vs Carga Parcial (Sincronización/Upsert Seguro)
+        // Se considera Carga Completa si la BD previa está vacía/pequeña (<100) o si el archivo
+        // contiene al menos el 50% de los clientes existentes o más de 3000 registros.
+        $esCargaCompleta = ($totalBdAnterior < 100) || ($totalClientesArchivo >= 3000) || ($totalClientesArchivo >= ($totalBdAnterior * 0.5));
+
         $registrosAuditoria = [];
         $altasCnt = 0;
         $modificadosCnt = 0;
         $eliminadosCnt = 0;
         $sinCambiosCnt = 0;
 
-        // 1. Altas Totales (Nuevos)
+        // 1. Altas Totales (Nuevos en el archivo)
         foreach ($cidsArchivo as $cid) {
             if (!isset($setBd[$cid])) {
                 $altasCnt++;
@@ -175,21 +247,23 @@ class ProcessRuteoIngestaAction
             }
         }
 
-        // 2. Bajas Totales (Eliminados)
-        foreach ($cidsBd as $cid) {
-            if (!isset($setArch[$cid])) {
-                $eliminadosCnt++;
-                $primerBd = $clientesEnBd[$cid][0];
-                $registrosAuditoria[] = [
-                    'archivo_origen' => $filename,
-                    'cliente_id' => $cid,
-                    'cliente' => $primerBd['cliente'] ?? '',
-                    'tipo_evento' => 'ELIMINADO',
-                    'campo_afectado' => 'cliente_id',
-                    'valor_anterior' => (string)($primerBd['ruta'] ?? 'SIN RUTA'),
-                    'valor_nuevo' => 'Desaparecido de Ruteo',
-                    'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
-                ];
+        // 2. Bajas Totales (Solo se auditan y eliminan si es Reemplazo Maestro Completo)
+        if ($esCargaCompleta) {
+            foreach ($cidsBd as $cid) {
+                if (!isset($setArch[$cid])) {
+                    $eliminadosCnt++;
+                    $primerBd = $clientesEnBd[$cid][0];
+                    $registrosAuditoria[] = [
+                        'archivo_origen' => $filename,
+                        'cliente_id' => $cid,
+                        'cliente' => $primerBd['cliente'] ?? '',
+                        'tipo_evento' => 'ELIMINADO',
+                        'campo_afectado' => 'cliente_id',
+                        'valor_anterior' => (string)($primerBd['ruta'] ?? 'SIN RUTA'),
+                        'valor_nuevo' => 'Desaparecido de Ruteo',
+                        'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
+                    ];
+                }
             }
         }
 
@@ -296,7 +370,7 @@ class ProcessRuteoIngestaAction
             }
         }
 
-        $chunkSize = 300;
+        $chunkSize = 500;
 
         // 1. Guardar Snapshot Inmutable
         if (!empty($registrosSnapshot)) {
@@ -319,30 +393,50 @@ class ProcessRuteoIngestaAction
             }
         }
 
-        // 3. Reemplazo Atómico Transaccional de pan_ruteo
-        // Se ejecuta dentro de una transacción para garantizar que si ocurre algún fallo
-        // durante la inserción en chunks, el padrón anterior se restaura íntegro.
+        // 3. Actualización de pan_ruteo
         if (!empty($colsVivoDb)) {
             $registrosVivos = array_map(function ($row) use ($colsVivoDb) {
                 return array_intersect_key($row, $colsVivoDb);
             }, $registrosVivos);
         }
 
-        $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
-            $conn->table('pan_ruteo')->delete();
+        if ($esCargaCompleta) {
+            // Reemplazo Atómico Transaccional Completo
+            $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
+                $conn->table('pan_ruteo')->delete();
 
-            if (!empty($registrosVivos)) {
-                $chunksVivos = array_chunk($registrosVivos, $chunkSize);
-                foreach ($chunksVivos as $chunk) {
-                    $conn->table('pan_ruteo')->insert($chunk);
+                if (!empty($registrosVivos)) {
+                    $chunksVivos = array_chunk($registrosVivos, $chunkSize);
+                    foreach ($chunksVivos as $chunk) {
+                        $conn->table('pan_ruteo')->insert($chunk);
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            // Sincronización / Upsert Parcial Seguro:
+            // Borra solo las visitas de los clientes presentes en el archivo y reinserta sus nuevas visitas,
+            // preservando intactos todos los demás clientes de pan_ruteo.
+            $conn->transaction(function () use ($conn, $cidsArchivo, $registrosVivos, $chunkSize) {
+                if (!empty($cidsArchivo)) {
+                    $chunksCids = array_chunk($cidsArchivo, 500);
+                    foreach ($chunksCids as $chunkCid) {
+                        $conn->table('pan_ruteo')->whereIn('cliente_id', $chunkCid)->delete();
+                    }
+                }
 
-        // 4. Registrar en sys_cargas
+                if (!empty($registrosVivos)) {
+                    $chunksVivos = array_chunk($registrosVivos, $chunkSize);
+                    foreach ($chunksVivos as $chunk) {
+                        $conn->table('pan_ruteo')->insert($chunk);
+                    }
+                }
+            });
+        }
+
+        // 4. Registrar Bitácora en sys_cargas
         $totalVivos = count($registrosVivos);
         try {
-            $conn->table('sys_cargas')->insert([
+            $cargaData = [
                 'archivo_original' => $filename,
                 'archivo_almacenado' => $filePath,
                 'sha256' => $snapshotId,
@@ -355,17 +449,27 @@ class ProcessRuteoIngestaAction
                 'filas_con_discrepancia' => $eliminadosCnt,
                 'rango_inicio' => '-',
                 'rango_fin' => '-',
-                'fecha_ingesta' => $fechaCustom ?: now(),
-            ]);
+                'fecha_ingesta' => $fechaCustom ?: now()->toDateTimeString(),
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::connection('supervisor')->hasColumn('sys_cargas', 'estado')) {
+                $cargaData['estado'] = 'COMPLETADO';
+            }
+
+            $conn->table('sys_cargas')->insert($cargaData);
         } catch (\Throwable $eSys) {
             \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
         }
+
+        $this->parser->clearCache();
 
         return [
             'status' => 'success',
             'archivo' => $filename,
             'snapshot_id' => $snapshotId,
             'fecha_registrada' => $fechaCustom ?: 'Hoy (Automático)',
+            'es_carga_completa' => $esCargaCompleta,
+            'modo' => $esCargaCompleta ? 'REEMPLAZO_MAESTRO' : 'ACTUALIZACION_PARCIAL',
             'total_registros_auditoria' => count($registrosAuditoria),
             'filas_leidas' => $totalLeidas,
             'filas_afectadas' => $totalVivos,

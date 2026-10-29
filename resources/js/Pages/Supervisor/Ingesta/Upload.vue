@@ -89,7 +89,10 @@
           class="p-3.5 rounded-[14px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold flex items-center justify-between shadow-sm"
         >
           <div>
-            <span class="font-bold text-[12px]">¡Ingesta procesada exitosamente!</span>
+            <span class="font-bold text-[12px]">Ingesta procesada exitosamente</span>
+            <span v-if="resultado.modo" class="ml-1.5 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold" :class="resultado.es_carga_completa ? 'bg-emerald-100 text-emerald-900' : 'bg-blue-100 text-blue-900'">
+              {{ resultado.es_carga_completa ? 'Reemplazo Maestro' : 'Sincronización Parcial' }}
+            </span>
             <span v-if="resultado.fecha_operativa || resultado.rango_fechas || resultado.fecha_registrada" class="ml-1 text-[10px] opacity-90">
               · {{ resultado.fecha_operativa || resultado.rango_fechas ? 'Rango operativo: ' + (resultado.fecha_operativa || resultado.rango_fechas) : 'Registrado: ' + resultado.fecha_registrada }}
             </span>
