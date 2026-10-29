@@ -193,7 +193,7 @@ class ProcessVentasIngestaAction
 
             // Normalizar revertida
             $rev = isset($mapped['revertida']) ? trim((string) $mapped['revertida']) : '';
-            $mapped['revertida'] = in_array(strtolower($rev), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes'], true) ? 'Si' : 'No';
+            $mapped['revertida'] = in_array(strtolower($rev), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes', 'verdadero'], true) ? 'Si' : 'No';
 
             // Normalizar hora (convierte número fraccionario de Excel o string a HH:MM:SS)
             $mapped['hora'] = $this->parseHora($mapped['hora'] ?? null);
@@ -213,6 +213,16 @@ class ProcessVentasIngestaAction
                 if (isset($mapped[$colName]) && is_string($mapped[$colName]) && mb_strlen($mapped[$colName], 'UTF-8') > $maxLen) {
                     $mapped[$colName] = mb_substr($mapped[$colName], 0, $maxLen, 'UTF-8');
                 }
+            }
+
+            // Armonizar monto y monto_final
+            $montoVal = (float) $mapped['monto'];
+            $montoFinalVal = (float) $mapped['monto_final'];
+            $descuentoVal = (float) ($mapped['descuento'] ?? 0.0);
+            if ($montoFinalVal <= 0.0 && $montoVal > 0.0) {
+                $mapped['monto_final'] = max(0.0, round($montoVal - $descuentoVal, 6));
+            } elseif ($montoVal <= 0.0 && $montoFinalVal > 0.0) {
+                $mapped['monto'] = $montoFinalVal;
             }
 
             // Armonizar precio y precio_unitario
@@ -318,19 +328,25 @@ class ProcessVentasIngestaAction
         }
         unset($filasDb);
 
-        // 4. Clasificar filas leídas (Multiset reconciliation)
+        // 4. Clasificar filas leídas (Reconciliación y prevención estricta de duplicados)
         $filasAInsertar = [];
         $filasIgnoradas = 0;
         $montoNuevas = 0.0;
+        $vistosEnArchivo = [];
 
         foreach ($filasArchivo as $item) {
             $h = $item['hash'];
             if (($dbFrecuencias[$h] ?? 0) > 0) {
                 // Duplicado exacto ya persistido en BD: decrementar contador de multiconjunto
                 $dbFrecuencias[$h]--;
+                $vistosEnArchivo[$h] = true;
+                $filasIgnoradas++;
+            } elseif (isset($vistosEnArchivo[$h])) {
+                // Duplicado idéntico repetido dentro del mismo archivo
                 $filasIgnoradas++;
             } else {
                 // Venta nueva legítima
+                $vistosEnArchivo[$h] = true;
                 $filasAInsertar[] = $item['row'];
                 $montoNuevas += (float) $item['monto_final'];
             }
@@ -415,7 +431,7 @@ class ProcessVentasIngestaAction
                 'filas_con_discrepancia' => $totalAlertas,
                 'rango_inicio' => $fechaMinStr,
                 'rango_fin' => $fechaMaxStr,
-                'fecha_ingesta' => now(),
+                'fecha_ingesta' => now()->toDateTimeString(),
             ];
 
             if (Schema::connection('supervisor')->hasColumn('sys_cargas', 'estado')) {
