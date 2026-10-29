@@ -851,7 +851,7 @@ const subMetricaPenetracion = ref('skus');
 const subMetricaConsistencia = ref('6m');
 
 const mapaCapas = ref({
-  calor: false,
+  calor: true,
   puntos: true,
 });
 
@@ -869,10 +869,11 @@ const CONFIG_HEATMAPS = {
           prefijoBoton: 'Volumen (U.)',
           opciones: [
             { key: 'vol_u_alto', label: 'Alto (> 100 u.)', color: '#FF0000', test: c => (c.unidades || 0) > 100 },
-            { key: 'vol_u_medio', label: 'Medio (30 a 100 u.)', color: '#FFD700', test: c => (c.unidades || 0) >= 30 && (c.unidades || 0) <= 100 },
-            { key: 'vol_u_bajo', label: 'Bajo (< 30 u.)', color: '#0066FF', test: c => (c.unidades || 0) < 30 },
+            { key: 'vol_u_medio', label: 'Medio (30 a 100 u.)', color: '#FF9900', test: c => (c.unidades || 0) >= 30 && (c.unidades || 0) <= 100 },
+            { key: 'vol_u_bajo', label: 'Bajo (1 a 29 u.)', color: '#0066FF', test: c => (c.unidades || 0) > 0 && (c.unidades || 0) < 30 },
+            { key: 'vol_u_cero', label: 'Sin Venta (0 u.)', color: '#94A3B8', test: c => (c.unidades || 0) <= 0 },
           ],
-          getIntensity: c => Math.min(Math.max((c.unidades || 0) / 150, 0.25), 1.0),
+          getIntensity: c => (c.unidades || 0) <= 0 ? 0 : Math.min(Math.max((c.unidades || 0) / 150, 0.25), 1.0),
         };
       }
       if (sub === 'cajas') {
@@ -881,10 +882,11 @@ const CONFIG_HEATMAPS = {
           prefijoBoton: 'Volumen (Cj.)',
           opciones: [
             { key: 'vol_c_alto', label: 'Alto (> 5 cj.)', color: '#FF0000', test: c => (c.cajas || 0) > 5 },
-            { key: 'vol_c_medio', label: 'Medio (1.5 a 5 cj.)', color: '#FFD700', test: c => (c.cajas || 0) >= 1.5 && (c.cajas || 0) <= 5 },
-            { key: 'vol_c_bajo', label: 'Bajo (< 1.5 cj.)', color: '#0066FF', test: c => (c.cajas || 0) < 1.5 },
+            { key: 'vol_c_medio', label: 'Medio (1.5 a 5 cj.)', color: '#FF9900', test: c => (c.cajas || 0) >= 1.5 && (c.cajas || 0) <= 5 },
+            { key: 'vol_c_bajo', label: 'Bajo (> 0 a < 1.5 cj.)', color: '#0066FF', test: c => (c.cajas || 0) > 0 && (c.cajas || 0) < 1.5 },
+            { key: 'vol_c_cero', label: 'Sin Venta (0 cj.)', color: '#94A3B8', test: c => (c.cajas || 0) <= 0 },
           ],
-          getIntensity: c => Math.min(Math.max((c.cajas || 0) / 8, 0.25), 1.0),
+          getIntensity: c => (c.cajas || 0) <= 0 ? 0 : Math.min(Math.max((c.cajas || 0) / 8, 0.25), 1.0),
         };
       }
       return {
@@ -892,10 +894,11 @@ const CONFIG_HEATMAPS = {
         prefijoBoton: 'Volumen (Bs)',
         opciones: [
           { key: 'vol_alto', label: 'Alto (> 1.000 Bs)', color: '#FF0000', test: c => (c.venta_mtd || 0) > 1000 },
-          { key: 'vol_medio', label: 'Medio (500 a 1.000 Bs)', color: '#FFD700', test: c => (c.venta_mtd || 0) >= 500 && (c.venta_mtd || 0) <= 1000 },
-          { key: 'vol_bajo', label: 'Bajo (< 500 Bs)', color: '#0066FF', test: c => (c.venta_mtd || 0) < 500 },
+          { key: 'vol_medio', label: 'Medio (500 a 1.000 Bs)', color: '#FF9900', test: c => (c.venta_mtd || 0) >= 500 && (c.venta_mtd || 0) <= 1000 },
+          { key: 'vol_bajo', label: 'Bajo (1 a 499 Bs)', color: '#0066FF', test: c => (c.venta_mtd || 0) > 0 && (c.venta_mtd || 0) < 500 },
+          { key: 'vol_cero', label: 'Sin Venta (0 Bs)', color: '#94A3B8', test: c => (c.venta_mtd || 0) <= 0 },
         ],
-        getIntensity: c => Math.min(Math.max((c.venta_mtd || 0) / 1500, 0.25), 1.0),
+        getIntensity: c => (c.venta_mtd || 0) <= 0 ? 0 : Math.min(Math.max((c.venta_mtd || 0) / 1500, 0.25), 1.0),
       };
     },
   },
@@ -907,11 +910,11 @@ const CONFIG_HEATMAPS = {
       opciones: [
         { key: 'frec_4', label: 'Alta (≥ 4 facturas)', color: '#FF0000', test: c => (c.facturas_efectivas || 0) >= 4 },
         { key: 'frec_3', label: 'Media-Alta (3 facturas)', color: '#FF6600', test: c => (c.facturas_efectivas || 0) === 3 },
-        { key: 'frec_2', label: 'Media (2 facturas)', color: '#FFD700', test: c => (c.facturas_efectivas || 0) === 2 },
+        { key: 'frec_2', label: 'Media (2 facturas)', color: '#FFCC00', test: c => (c.facturas_efectivas || 0) === 2 },
         { key: 'frec_1', label: 'Ocasional (1 factura)', color: '#0099FF', test: c => (c.facturas_efectivas || 0) === 1 },
-        { key: 'frec_0', label: 'Sin facturas (0)', color: '#0011AA', test: c => (c.facturas_efectivas || 0) <= 0 },
+        { key: 'frec_0', label: 'Sin facturas (0)', color: '#94A3B8', test: c => (c.facturas_efectivas || 0) <= 0 },
       ],
-      getIntensity: c => Math.min(Math.max((c.facturas_efectivas || 0) / 4, 0.25), 1.0),
+      getIntensity: c => (c.facturas_efectivas || 0) <= 0 ? 0 : Math.min(Math.max((c.facturas_efectivas || 0) / 4, 0.25), 1.0),
     }),
   },
   penetracion: {
@@ -923,11 +926,11 @@ const CONFIG_HEATMAPS = {
           prefijoBoton: 'Marcas',
           opciones: [
             { key: 'marca_alta', label: 'Alta (≥ 5 marcas)', color: '#FF0000', test: c => (c.marcas_distintas || 0) >= 5 },
-            { key: 'marca_media', label: 'Media (2 a 4 marcas)', color: '#FFD700', test: c => (c.marcas_distintas || 0) >= 2 && (c.marcas_distintas || 0) <= 4 },
+            { key: 'marca_media', label: 'Media (2 a 4 marcas)', color: '#FF9900', test: c => (c.marcas_distintas || 0) >= 2 && (c.marcas_distintas || 0) <= 4 },
             { key: 'marca_baja', label: 'Baja (1 marca)', color: '#0099FF', test: c => (c.marcas_distintas || 0) === 1 },
-            { key: 'marca_cero', label: 'Sin marcas (0)', color: '#0011AA', test: c => (c.marcas_distintas || 0) <= 0 },
+            { key: 'marca_cero', label: 'Sin marcas (0)', color: '#94A3B8', test: c => (c.marcas_distintas || 0) <= 0 },
           ],
-          getIntensity: c => Math.min(Math.max((c.marcas_distintas || 0) / 6, 0.25), 1.0),
+          getIntensity: c => (c.marcas_distintas || 0) <= 0 ? 0 : Math.min(Math.max((c.marcas_distintas || 0) / 6, 0.25), 1.0),
         };
       }
       return {
@@ -935,11 +938,11 @@ const CONFIG_HEATMAPS = {
         prefijoBoton: 'SKUs',
         opciones: [
           { key: 'sku_alto', label: 'Alto (> 8 SKUs)', color: '#FF0000', test: c => (c.skus_distintos || 0) > 8 },
-          { key: 'sku_medio', label: 'Medio (4 a 8 SKUs)', color: '#FFD700', test: c => (c.skus_distintos || 0) >= 4 && (c.skus_distintos || 0) <= 8 },
+          { key: 'sku_medio', label: 'Medio (4 a 8 SKUs)', color: '#FF9900', test: c => (c.skus_distintos || 0) >= 4 && (c.skus_distintos || 0) <= 8 },
           { key: 'sku_bajo', label: 'Bajo (1 a 3 SKUs)', color: '#0099FF', test: c => (c.skus_distintos || 0) >= 1 && (c.skus_distintos || 0) <= 3 },
-          { key: 'sku_cero', label: 'Sin SKUs (0)', color: '#0011AA', test: c => (c.skus_distintos || 0) <= 0 },
+          { key: 'sku_cero', label: 'Sin SKUs (0)', color: '#94A3B8', test: c => (c.skus_distintos || 0) <= 0 },
         ],
-        getIntensity: c => Math.min(Math.max((c.skus_distintos || 0) / 12, 0.25), 1.0),
+        getIntensity: c => (c.skus_distintos || 0) <= 0 ? 0 : Math.min(Math.max((c.skus_distintos || 0) / 12, 0.25), 1.0),
       };
     },
   },
@@ -950,11 +953,11 @@ const CONFIG_HEATMAPS = {
       prefijoBoton: 'Drop Size',
       opciones: [
         { key: 'drop_alto', label: 'Alto (> 500 Bs/fac)', color: '#FF0000', test: c => (c.drop_size || 0) > 500 },
-        { key: 'drop_medio', label: 'Medio (200 a 500 Bs/fac)', color: '#FFD700', test: c => (c.drop_size || 0) >= 200 && (c.drop_size || 0) <= 500 },
+        { key: 'drop_medio', label: 'Medio (200 a 500 Bs/fac)', color: '#FF9900', test: c => (c.drop_size || 0) >= 200 && (c.drop_size || 0) <= 500 },
         { key: 'drop_bajo', label: 'Bajo (< 200 Bs/fac)', color: '#0066FF', test: c => (c.drop_size || 0) > 0 && (c.drop_size || 0) < 200 },
-        { key: 'drop_cero', label: 'Sin Venta (0 Bs)', color: '#0011AA', test: c => (c.drop_size || 0) <= 0 },
+        { key: 'drop_cero', label: 'Sin Venta (0 Bs)', color: '#94A3B8', test: c => (c.drop_size || 0) <= 0 },
       ],
-      getIntensity: c => Math.min(Math.max((c.drop_size || 0) / 600, 0.25), 1.0),
+      getIntensity: c => (c.drop_size || 0) <= 0 ? 0 : Math.min(Math.max((c.drop_size || 0) / 600, 0.25), 1.0),
     }),
   },
   consistencia: {
@@ -966,11 +969,11 @@ const CONFIG_HEATMAPS = {
           prefijoBoton: 'Consistencia 12M',
           opciones: [
             { key: 'cons_12m_alta', label: 'Alta Fidelidad (10 a 12 meses)', color: '#FF0000', test: c => (c.meses_activos_12m || 0) >= 10 },
-            { key: 'cons_12m_media', label: 'Media Fidelidad (6 a 9 meses)', color: '#FFD700', test: c => (c.meses_activos_12m || 0) >= 6 && (c.meses_activos_12m || 0) <= 9 },
+            { key: 'cons_12m_media', label: 'Media Fidelidad (6 a 9 meses)', color: '#FF9900', test: c => (c.meses_activos_12m || 0) >= 6 && (c.meses_activos_12m || 0) <= 9 },
             { key: 'cons_12m_baja', label: 'Baja / Esporádico (1 a 5 meses)', color: '#0099FF', test: c => (c.meses_activos_12m || 0) >= 1 && (c.meses_activos_12m || 0) <= 5 },
-            { key: 'cons_12m_cero', label: 'Sin Actividad (0 meses)', color: '#0011AA', test: c => (c.meses_activos_12m || 0) <= 0 },
+            { key: 'cons_12m_cero', label: 'Sin Actividad (0 meses)', color: '#94A3B8', test: c => (c.meses_activos_12m || 0) <= 0 },
           ],
-          getIntensity: c => Math.min(Math.max((c.meses_activos_12m || 0) / 12, 0.25), 1.0),
+          getIntensity: c => (c.meses_activos_12m || 0) <= 0 ? 0 : Math.min(Math.max((c.meses_activos_12m || 0) / 12, 0.25), 1.0),
         };
       }
       return {
@@ -978,11 +981,11 @@ const CONFIG_HEATMAPS = {
         prefijoBoton: 'Consistencia 6M',
         opciones: [
           { key: 'cons_6m_alta', label: 'Núcleo Fiel (5 a 6 meses)', color: '#FF0000', test: c => (c.meses_activos_6m || 0) >= 5 },
-          { key: 'cons_6m_media', label: 'Intermitente (3 a 4 meses)', color: '#FFD700', test: c => (c.meses_activos_6m || 0) >= 3 && (c.meses_activos_6m || 0) <= 4 },
+          { key: 'cons_6m_media', label: 'Intermitente (3 a 4 meses)', color: '#FF9900', test: c => (c.meses_activos_6m || 0) >= 3 && (c.meses_activos_6m || 0) <= 4 },
           { key: 'cons_6m_baja', label: 'Esporádico (1 a 2 meses)', color: '#0099FF', test: c => (c.meses_activos_6m || 0) >= 1 && (c.meses_activos_6m || 0) <= 2 },
-          { key: 'cons_6m_cero', label: 'Sin Actividad (0 meses)', color: '#0011AA', test: c => (c.meses_activos_6m || 0) <= 0 },
+          { key: 'cons_6m_cero', label: 'Sin Actividad (0 meses)', color: '#94A3B8', test: c => (c.meses_activos_6m || 0) <= 0 },
         ],
-        getIntensity: c => Math.min(Math.max((c.meses_activos_6m || 0) / 6, 0.25), 1.0),
+        getIntensity: c => (c.meses_activos_6m || 0) <= 0 ? 0 : Math.min(Math.max((c.meses_activos_6m || 0) / 6, 0.25), 1.0),
       };
     },
   },
@@ -998,6 +1001,15 @@ const configCriterioActual = computed(() => {
   if (criterioColorMapa.value === 'consistencia') sub = subMetricaConsistencia.value;
   return criterio.obtenerConfig(sub);
 });
+
+watch(configCriterioActual, (newCfg) => {
+  if (!newCfg?.opciones) return;
+  newCfg.opciones.forEach(op => {
+    if (capasRangosActivas.value[op.key] === undefined) {
+      capasRangosActivas.value[op.key] = true;
+    }
+  });
+}, { immediate: true });
 
 const resumenTextoBotonCapas = computed(() => {
   const cfg = configCriterioActual.value;
@@ -1037,7 +1049,7 @@ function resolverGrupoYColorCliente(c) {
     }
   }
   const lastOp = cfg.opciones[cfg.opciones.length - 1];
-  return { key: lastOp.key, color: lastOp.color, label: lastOp.label, intensity: 0.25 };
+  return { key: lastOp.key, color: lastOp.color, label: lastOp.label, intensity: 0 };
 }
 
 // Instancias de Mapa Leaflet
@@ -1196,16 +1208,9 @@ function inicializarMapa() {
   }).addTo(mapaInstancia);
 
   mapaInstancia.on('zoomend', () => {
-    const z = mapaInstancia.getZoom();
     const canvasHeat = document.querySelectorAll('.leaflet-heatmap-layer');
     canvasHeat.forEach(c => {
-      if (z >= 16) {
-        c.style.opacity = '0.25';
-      } else if (z === 15) {
-        c.style.opacity = '0.55';
-      } else {
-        c.style.opacity = '0.85';
-      }
+      c.style.opacity = '0.85';
     });
   });
 
@@ -1286,6 +1291,9 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
   const ptsCalor = [];
   const markers = [];
 
+  const calorActivo = Boolean(mapaCapas.value.calor);
+  const puntosActivos = Boolean(mapaCapas.value.puntos);
+
   for (const c of clientes) {
     const lat = parseFloat(c.latitud);
     const lon = parseFloat(c.longitud);
@@ -1297,41 +1305,49 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
 
     if (!permiso) continue;
 
-    if (mapaCapas.value.calor) {
-      ptsCalor.push([lat, lon, info.intensity || 0.5]);
+    if (calorActivo && info.intensity > 0) {
+      ptsCalor.push([lat, lon, info.intensity]);
     }
 
-    if (mapaCapas.value.puntos) {
+    if (puntosActivos) {
       const marker = L.circleMarker([lat, lon], {
-        radius: 4.5,
+        radius: calorActivo ? 3.0 : 4.5,
         fillColor: info.color,
-        fillOpacity: 0.9,
+        fillOpacity: calorActivo ? 0.65 : 0.85,
         color: '#FFFFFF',
-        weight: 1.5,
+        weight: calorActivo ? 0.8 : 1.5,
       });
       marker.bindPopup(() => generarPopupHtml(c));
       markers.push(marker);
     }
   }
 
-  if (mapaCapas.value.calor && ptsCalor.length > 0 && typeof L.heatLayer === 'function') {
+  if (calorActivo && ptsCalor.length > 0 && typeof L.heatLayer === 'function') {
     capaTermica = L.heatLayer(ptsCalor, {
-      radius: 20,
-      blur: 15,
-      maxZoom: 15,
+      radius: 28,
+      blur: 18,
+      maxZoom: 13,
       max: 1.0,
-      minOpacity: 0.35,
+      minOpacity: 0.40,
       gradient: {
-        0.2: '#0066FF',
-        0.45: '#00CCFF',
-        0.65: '#FFD700',
+        0.15: '#0044FF',
+        0.35: '#00CCFF',
+        0.55: '#00FF66',
+        0.70: '#FFCC00',
         0.85: '#FF6600',
-        1.0: '#FF0000',
+        1.0: '#EE0000',
       },
     }).addTo(mapaInstancia);
+
+    nextTick(() => {
+      const canvasHeat = document.querySelectorAll('.leaflet-heatmap-layer');
+      canvasHeat.forEach(c => {
+        c.style.opacity = '0.85';
+      });
+    });
   }
 
-  if (mapaCapas.value.puntos && markers.length > 0) {
+  if (puntosActivos && markers.length > 0) {
     capaPuntos = L.layerGroup(markers);
     mapaInstancia.addLayer(capaPuntos);
   }
