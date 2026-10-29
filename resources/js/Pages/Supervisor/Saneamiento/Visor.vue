@@ -56,8 +56,8 @@
               :class="subModoVisualizacion === 'cambios' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-500'"
             >
               <span>Con Cambios</span>
-              <span v-if="kpis.con_cambios > 0" class="px-1 py-0.2 rounded-full text-[8.5px] font-mono bg-white/20 font-bold">
-                {{ kpis.con_cambios }}
+              <span v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="px-1 py-0.2 rounded-full text-[8.5px] font-mono bg-white/20 font-bold">
+                {{ kpis.total_propuestas || kpis.con_cambios }}
               </span>
             </button>
           </div>
@@ -205,8 +205,8 @@
               title="Ver padrón integrando propuestas de saneamiento registradas"
             >
               <span>Con Cambios</span>
-              <span v-if="kpis.con_cambios > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 font-bold">
-                {{ kpis.con_cambios }}
+              <span v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 font-bold">
+                {{ kpis.total_propuestas || kpis.con_cambios }}
               </span>
             </button>
           </div>
@@ -341,9 +341,11 @@
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
           </div>
 
-          <div v-if="kpis.con_cambios > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
+          <div v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-            <span class="font-bold tabular-nums">{{ kpis.con_cambios }} cambios</span>
+            <span class="font-bold tabular-nums">
+              {{ modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original' ? `${kpis.total_propuestas || kpis.con_cambios} propuestas registradas` : `${kpis.con_cambios} cambios aplicados` }}
+            </span>
           </div>
 
           <div v-if="kpis.sin_gps > 0" class="flex px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded-md items-center gap-1.5">
@@ -939,8 +941,17 @@
             <span class="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
               Cambios y Propuestas RTM
             </span>
-            <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-              {{ clientesConCambio.length }} modificaciones
+            <span
+              v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original'"
+              class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300"
+            >
+              Base Original Activa ({{ kpis.total_propuestas || kpis.con_cambios }} propuestas registradas)
+            </span>
+            <span
+              v-else
+              class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700"
+            >
+              {{ clientesConCambio.length }} modificaciones en vista
             </span>
           </div>
 
@@ -977,7 +988,32 @@
 
         <!-- Contenido de la Tabla (Desplegable) -->
         <div v-show="tablaCambiosVisible" class="max-h-52 overflow-y-auto custom-scroll">
-          <div v-if="clientesConCambio.length === 0" class="py-6 px-4 text-center text-xs text-slate-400 font-sans">
+          <!-- Mensaje cuando estamos en Base Original -->
+          <div
+            v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original'"
+            class="py-4 px-4 text-center text-xs text-slate-500 font-sans flex flex-col items-center justify-center gap-1.5"
+          >
+            <div>
+              Estás visualizando la <strong>Base Original</strong> inmutable de pan_ruteo.
+              <span v-if="(kpis.total_propuestas || kpis.con_cambios) > 0">
+                Se registran <strong>{{ kpis.total_propuestas || kpis.con_cambios }}</strong> propuesta(s) para esta selección.
+              </span>
+            </div>
+            <button
+              v-if="(kpis.total_propuestas || kpis.con_cambios) > 0"
+              type="button"
+              @click="setSubModoVisualizacion('cambios')"
+              class="mt-1 px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Ver y Gestionar Propuestas en Modo "Con Cambios"
+            </button>
+          </div>
+
+          <!-- Mensaje cuando no hay cambios en modo cambios -->
+          <div
+            v-else-if="clientesConCambio.length === 0"
+            class="py-6 px-4 text-center text-xs text-slate-400 font-sans"
+          >
             No se registran cambios o propuestas de ruteo en la selección actual. Al ajustar rutas o días en el mapa, los cambios se listarán aquí.
           </div>
 
@@ -1459,7 +1495,7 @@ const cargandoVisitas = ref(false);
 const clientes = ref([]);
 const fronterasRutas = ref([]);
 const fronterasDias = ref([]);
-const kpis = ref({ total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 });
+const kpis = ref({ total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 });
 const toastMensaje = ref('');
 
 // ── Herramienta de Fronteras RTM ──
@@ -1563,7 +1599,7 @@ function setModoPrincipal(modo) {
   if (map) {
     map.closePopup();
   }
-  renderizarEnMapa(true);
+  cargarDatos(true);
 }
 
 function setSubModoVisualizacion(sub) {
@@ -1576,10 +1612,36 @@ const balanceRtmPorRuta = computed(() => {
   if (clientes.value.length === 0) return [];
   const mapRutas = new Map();
 
+  // Asegurar que todas las rutas filtradas aparezcan en el balance
+  if (filtroRutas.value.length > 0) {
+    filtroRutas.value.forEach(r => {
+      const rKey = r.toUpperCase();
+      const rutaInfo = props.catalogo_rutas.find(cr => cr.ruta.toUpperCase() === rKey);
+      mapRutas.set(rKey, {
+        ruta: rKey,
+        canal: rutaInfo ? rutaInfo.canal : 'General',
+        total: 0,
+        con_gps: 0,
+        dias: {},
+      });
+    });
+  }
+
+  const esOrig = (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original');
+
   clientes.value.forEach(c => {
-    const rKey = c.ruta || 'SIN RUTA';
+    // En Base Original usamos ruta_original y dia_original
+    // En Con Cambios usamos ruta y dia_norm efectivos
+    const rKey = (esOrig ? (c.ruta_original || c.ruta) : (c.ruta || c.ruta_original)) || 'SIN RUTA';
+    const diaClave = normalizarDiaClave(esOrig ? (c.dia_original || c.dia_norm) : c.dia_norm);
+
+    // Si se tienen rutas filtradas específicas, omitir del balance rutas que no están en el filtro
+    if (filtroRutas.value.length > 0 && !filtroRutas.value.some(fr => fr.toUpperCase() === rKey.toUpperCase())) {
+      return;
+    }
+
     if (!mapRutas.has(rKey)) {
-      const rutaInfo = props.catalogo_rutas.find(r => r.ruta === rKey);
+      const rutaInfo = props.catalogo_rutas.find(r => r.ruta.toUpperCase() === rKey.toUpperCase());
       mapRutas.set(rKey, {
         ruta: rKey,
         canal: rutaInfo ? rutaInfo.canal : 'General',
@@ -1590,8 +1652,6 @@ const balanceRtmPorRuta = computed(() => {
     }
 
     const item = mapRutas.get(rKey);
-
-    const diaClave = normalizarDiaClave(c.dia_norm);
     const diaKey = diaClave || 'SIN DIA';
     item.dias[diaKey] = (item.dias[diaKey] || 0) + 1;
 
@@ -1645,7 +1705,10 @@ const tablaCambiosVisible = ref(true);
 const busquedaTablaCambios = ref('');
 
 const clientesConCambio = computed(() => {
-  return clientes.value.filter(c => Boolean(c.tiene_cambio));
+  if (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original') {
+    return [];
+  }
+  return clientes.value.filter(c => Boolean(c.tiene_cambio) || Boolean(c.tiene_propuesta));
 });
 
 const clientesConCambioFiltrados = computed(() => {
@@ -1773,7 +1836,7 @@ async function cargarDatos(mantenerVista = false) {
     clientes.value = [];
     fronterasRutas.value = [];
     fronterasDias.value = [];
-    kpis.value = { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
+    kpis.value = { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
     renderizarEnMapa(mantenerVista);
     return;
   }
@@ -1803,7 +1866,7 @@ async function cargarDatos(mantenerVista = false) {
     clientes.value = res.data.clientes || [];
     fronterasRutas.value = res.data.fronteras_rutas || [];
     fronterasDias.value = res.data.fronteras_dias || [];
-    kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
+    kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
     renderizarEnMapa(mantenerVista);
@@ -2422,7 +2485,8 @@ function renderizarEnMapa(mantenerVista = false) {
   // Marcadores de Clientes
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
-      const tieneCambio = Boolean(c.tiene_cambio);
+      const esModoOriginal = (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original');
+      const tieneCambio = !esModoOriginal && Boolean(c.tiene_cambio);
 
       // El color de los cambios debe ser igual al color de la ruta
       const markerColor = getMarkerColor(c);
