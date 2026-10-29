@@ -21,12 +21,12 @@ class ProcessVisitasIngestaAction
     private const CHUNK_SIZE = 500;
 
     /**
-     * Columnas canónicas de fallback para fact_visitas.
+     * Columnas canónicas de fallback para fact_visitas (sin autoincremental id).
      *
      * @var array<int, string>
      */
     private const CANONICAL_VISITAS_COLUMNS = [
-        'id', 'tipo', 'motivo', 'cliente', 'cliente_norm', 'empleado',
+        'visita_id', 'tipo', 'motivo', 'cliente', 'cliente_norm', 'empleado',
         'empleado_norm', 'fecha', 'fecha_norm', 'monto', 'check_in',
         'check_out', 'tiempo_pdv', 'zona', 'tipo_pago', 'tipo_negocio', 'cluster',
     ];
@@ -99,7 +99,7 @@ class ProcessVisitasIngestaAction
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'FACT_VISITAS');
 
-            $vid = isset($mapped['id']) && is_numeric($mapped['id']) ? (int) $mapped['id'] : 0;
+            $vid = isset($mapped['visita_id']) && is_numeric($mapped['visita_id']) ? (int) $mapped['visita_id'] : 0;
             if ($vid <= 0) {
                 continue;
             }
@@ -114,7 +114,8 @@ class ProcessVisitasIngestaAction
             }
 
             $fechasOperativas[$fechaNorm] = true;
-            $mapped['id'] = $vid;
+            $mapped['visita_id'] = $vid;
+            unset($mapped['id']);
             $mapped['fecha_norm'] = $fechaNorm;
             $mapped['fecha'] = $fechaFull;
 
@@ -130,7 +131,8 @@ class ProcessVisitasIngestaAction
             // Parseo de montos a DECIMAL(16,6) con default 0.000000
             $mapped['monto'] = $this->parseDecimal($mapped['monto'] ?? 0.0);
 
-            $dedupMap[$vid] = $mapped;
+            $k = "{$vid}_{$fechaNorm}";
+            $dedupMap[$k] = $mapped;
         }
 
         $fechasValidas = array_keys($fechasOperativas);
@@ -167,22 +169,21 @@ class ProcessVisitasIngestaAction
         $colsDb = $this->obtenerColumnasFactVisitas($conn);
         $colsDbFlip = array_flip($colsDb);
 
-        // 3. Recuperar existentes en la BD basándonos en los IDs entrantes
-        $idsEntrantes = array_keys($dedupMap);
-        $existentes = [];
+        // 3. Recuperar existentes en la BD para las fechas del archivo
+        $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
+        $filas = $conn->select("
+            SELECT id, visita_id, tipo, motivo, cliente, cliente_norm, empleado, empleado_norm, fecha, fecha_norm, monto, 
+                   check_in, check_out, tiempo_pdv, zona, tipo_pago, tipo_negocio, cluster
+            FROM fact_visitas
+            WHERE fecha_norm IN ({$placeholders})
+        ", $fechasValidas);
 
-        $chunkIds = array_chunk($idsEntrantes, 2000);
-        foreach ($chunkIds as $subIds) {
-            $placeholders = implode(',', array_fill(0, count($subIds), '?'));
-            $filas = $conn->select("
-                SELECT id, tipo, motivo, cliente, cliente_norm, empleado, empleado_norm, fecha, fecha_norm, monto, 
-                       check_in, check_out, tiempo_pdv, zona, tipo_pago, tipo_negocio, cluster
-                FROM fact_visitas
-                WHERE id IN ({$placeholders})
-            ", $subIds);
-            foreach ($filas as $r) {
-                $existentes[(int) $r->id] = $r;
-            }
+        $existentes = [];
+        foreach ($filas as $r) {
+            $fNorm = substr((string) ($r->fecha_norm ?? ''), 0, 10);
+            $vId = (int) ($r->visita_id ?? 0);
+            $k = "{$vId}_{$fNorm}";
+            $existentes[$k] = $r;
         }
 
         $nuevosRecords = [];
@@ -192,7 +193,8 @@ class ProcessVisitasIngestaAction
         $sinCambiosCount = 0;
 
         // 4. Auditoría de Discrepancias Limpia y Clasificación
-        foreach ($dedupMap as $vid => $row) {
+        foreach ($dedupMap as $k => $row) {
+            $vid = (int) $row['visita_id'];
             $montoNuevo = (float) $row['monto'];
 
             $dbRow = [];
@@ -201,11 +203,12 @@ class ProcessVisitasIngestaAction
                     $dbRow[$colName] = $colVal;
                 }
             }
+            unset($dbRow['id']);
 
-            if (!isset($existentes[$vid])) {
+            if (!isset($existentes[$k])) {
                 $nuevosRecords[] = $dbRow;
             } else {
-                $prev = $existentes[$vid];
+                $prev = $existentes[$k];
                 $alterado = false;
                 $discrepanciasFila = [];
                 $montoAnt = (float) ($prev->monto ?? 0.0);
@@ -290,7 +293,8 @@ class ProcessVisitasIngestaAction
                 if ($alterado) {
                     $modificadosUpdates[] = [
                         'row' => $dbRow,
-                        'id' => $vid,
+                        'id' => (int) $prev->id,
+                        'visita_id' => $vid,
                     ];
 
                     $fReg = (string) ($row['fecha_norm'] ?? $row['fecha'] ?? '');
@@ -488,7 +492,7 @@ class ProcessVisitasIngestaAction
         try {
             $cols = Schema::connection('supervisor')->getColumnListing('fact_visitas');
             if (!empty($cols)) {
-                return array_values($cols);
+                return array_values(array_filter($cols, fn($c) => strtolower((string) $c) !== 'id'));
             }
         } catch (Throwable) {}
 
@@ -500,7 +504,7 @@ class ProcessVisitasIngestaAction
             ");
             $cols = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
             if (!empty($cols)) {
-                return array_values($cols);
+                return array_values(array_filter($cols, fn($c) => strtolower((string) $c) !== 'id'));
             }
         } catch (Throwable) {}
 

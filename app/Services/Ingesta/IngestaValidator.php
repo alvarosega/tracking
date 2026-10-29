@@ -114,7 +114,9 @@ class IngestaValidator
             'nrocarga' => 'nro_carga',
         ],
         'FACT_VISITAS' => [
-            'id' => 'id',
+            'id' => 'visita_id',
+            'visita id' => 'visita_id',
+            'visitaid' => 'visita_id',
             'tipo' => 'tipo',
             'motivo' => 'motivo',
             'cliente' => 'cliente',
