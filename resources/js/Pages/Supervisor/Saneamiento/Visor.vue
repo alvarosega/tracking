@@ -17,25 +17,25 @@
           class="fixed inset-0 z-[99990]"
         ></div>
 
-        <!-- Fila 1: [ Visualización | Ajuste RTM ] + [ Mapa | Lista (N) ] -->
+        <!-- Fila 1: [ Visualización | Ajuste RTM ] + [ Mapa | Panel ] -->
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <!-- Modos Principales Móvil -->
-          <div class="inline-flex p-0.5 bg-slate-200/90 rounded-lg border border-slate-300/80 shrink-0">
+          <div class="inline-flex p-0.5 bg-slate-200 rounded-lg border border-slate-300 shrink-0">
             <button
               type="button"
               @click="setModoPrincipal('visualizacion')"
-              class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer"
-              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center cursor-pointer"
+              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
             >
-              <span>👁️ Vis.</span>
+              <span>Visualización</span>
             </button>
             <button
               type="button"
               @click="setModoPrincipal('ajuste_rtm')"
-              class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer"
-              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-purple-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center cursor-pointer"
+              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
             >
-              <span>🛠️ RTM</span>
+              <span>Ajuste RTM</span>
             </button>
           </div>
 
@@ -53,7 +53,7 @@
               type="button"
               @click="setSubModoVisualizacion('cambios')"
               class="px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
-              :class="subModoVisualizacion === 'cambios' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-slate-500'"
+              :class="subModoVisualizacion === 'cambios' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-500'"
             >
               <span>Con Cambios</span>
               <span v-if="kpis.con_cambios > 0" class="px-1 py-0.2 rounded-full text-[8.5px] font-mono bg-white/20 font-bold">
@@ -62,7 +62,7 @@
             </button>
           </div>
 
-          <!-- Selector Vista Mapa / Lista -->
+          <!-- Selector Vista Mapa / Panel -->
           <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 ml-auto">
             <button
               type="button"
@@ -78,7 +78,7 @@
               class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer"
               :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
-              Lista ({{ clientes.length }})
+              {{ modoPrincipal === 'ajuste_rtm' ? 'Balance' : `Lista (${clientes.length})` }}
             </button>
           </div>
         </div>
@@ -116,7 +116,7 @@
             type="button"
             @click="cargarDatos"
             :disabled="cargando"
-            class="h-8 px-3.5 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
+            class="h-8 px-3.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
             title="Consultar puntos y fronteras de rutas seleccionadas"
           >
             <svg v-if="!cargando" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -132,21 +132,21 @@
             @click="soloActivos = !soloActivos"
             class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0"
             :class="soloActivos
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              ? 'bg-slate-200 text-slate-900 border-slate-400 font-semibold'
               : 'bg-slate-100 text-slate-700 border-slate-300'"
           >
-            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-slate-700' : 'bg-slate-400'"></span>
             <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
 
           <!-- KPIs Móvil resumidos -->
-          <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1 text-[11px] font-mono font-bold text-slate-800 shrink-0">
-            <span>{{ kpis.total }} cl.</span>
-            <span>•</span>
-            <span class="text-emerald-700">{{ kpis.con_gps }} GPS</span>
+          <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1.5 text-[11px] font-mono text-slate-800 shrink-0">
+            <span class="font-semibold">{{ kpis.total }} total</span>
+            <span class="text-slate-400">•</span>
+            <span class="font-semibold text-slate-700">{{ kpis.con_gps }} GPS</span>
             <template v-if="kpis.con_cambios > 0">
-              <span>•</span>
-              <span class="text-indigo-700 font-bold">{{ kpis.con_cambios }} chg</span>
+              <span class="text-slate-400">•</span>
+              <span class="font-bold text-slate-900">{{ kpis.con_cambios }} cambios</span>
             </template>
           </div>
         </div>
@@ -164,25 +164,25 @@
         ></div>
 
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
-          <!-- Modos Principales Desktop: [ 👁️ Visualización | 🛠️ Ajuste RTM ] -->
-          <div class="inline-flex p-0.5 bg-slate-200/90 rounded-lg border border-slate-300/80 shrink-0">
+          <!-- Modos Principales Desktop: [ Visualización | Ajuste RTM ] -->
+          <div class="inline-flex p-0.5 bg-slate-200 rounded-lg border border-slate-300 shrink-0">
             <button
               type="button"
               @click="setModoPrincipal('visualizacion')"
-              class="px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
-              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center cursor-pointer"
+              :class="modoPrincipal === 'visualizacion' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
               title="Modo Visualización: Consulta limpia y comparativa del padrón"
             >
-              <span>👁️ Visualización</span>
+              <span>Visualización</span>
             </button>
             <button
               type="button"
               @click="setModoPrincipal('ajuste_rtm')"
-              class="px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
-              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-purple-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              class="px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center cursor-pointer"
+              :class="modoPrincipal === 'ajuste_rtm' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
               title="Modo Ajuste RTM: Mover fronteras territoriales y reasignar rutas o días"
             >
-              <span>🛠️ Ajuste RTM</span>
+              <span>Ajuste RTM</span>
             </button>
           </div>
 
@@ -201,7 +201,7 @@
               type="button"
               @click="setSubModoVisualizacion('cambios')"
               class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
-              :class="subModoVisualizacion === 'cambios' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+              :class="subModoVisualizacion === 'cambios' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
               title="Ver padrón integrando propuestas de saneamiento registradas"
             >
               <span>Con Cambios</span>
@@ -263,7 +263,7 @@
             type="button"
             @click="cargarDatos"
             :disabled="cargando"
-            class="h-8 px-4 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
+            class="h-8 px-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none shrink-0"
             title="Consultar puntos y fronteras de rutas seleccionadas"
           >
             <svg v-if="!cargando" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -308,11 +308,11 @@
             @click="soloActivos = !soloActivos"
             class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
             :class="soloActivos
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'"
+              ? 'bg-slate-200 text-slate-900 border-slate-300 hover:bg-slate-300'
+              : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'"
             :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes (activos e inactivos). Clic para filtrar solo activos.'"
           >
-            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-slate-700' : 'bg-slate-400'"></span>
             <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
 
@@ -336,19 +336,18 @@
             <span class="font-bold text-slate-900 tabular-nums">{{ kpis.total }}</span>
           </div>
 
-          <div class="flex px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <div class="flex px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
           </div>
 
-          <div v-if="kpis.con_cambios > 0" class="flex px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-            <span class="font-semibold tabular-nums">{{ kpis.con_cambios }} con cambios</span>
+          <div v-if="kpis.con_cambios > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+            <span class="font-bold tabular-nums">{{ kpis.con_cambios }} cambios</span>
           </div>
 
-          <div v-if="kpis.sin_gps > 0" class="flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <span class="font-semibold tabular-nums">{{ kpis.sin_gps }} sin GPS</span>
+          <div v-if="kpis.sin_gps > 0" class="flex px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded-md items-center gap-1.5">
+            <span class="font-medium tabular-nums">{{ kpis.sin_gps }} sin GPS</span>
           </div>
         </div>
       </div>
@@ -423,334 +422,113 @@
         </div>
       </Teleport>
 
-      <!-- BARRA DE HERRAMIENTAS: AJUSTE RTM (FRONTERAS Y REASIGNACIÓN EN LOTE) -->
+      <!-- BARRA DE HERRAMIENTAS: AJUSTE RTM (FRONTERAS TERRITORIALES) -->
       <div
         v-if="modoPrincipal === 'ajuste_rtm'"
-        class="bg-purple-50/95 border-b border-purple-200/90 px-4 py-2 text-xs z-20 shrink-0 space-y-2 shadow-xs"
+        class="bg-slate-100 border-b border-slate-300 px-4 py-2 text-xs z-20 shrink-0 text-slate-800"
       >
         <div class="flex items-center justify-between gap-2.5 flex-wrap">
-          <div class="flex items-center gap-2 flex-wrap">
-            <!-- Selector de Sub-herramienta RTM -->
-            <div class="inline-flex p-0.5 bg-purple-200/70 rounded-lg border border-purple-300 shrink-0">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700 font-mono">
+              Frontera RTM:
+            </span>
+
+            <select
+              v-model="rutaParaAjustarFrontera"
+              @change="alCambiarRutaParaFrontera"
+              class="h-7 px-2.5 bg-white border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-500 cursor-pointer"
+            >
+              <option value="">-- Seleccionar ruta a ajustar --</option>
+              <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
+                {{ formatRuta(r.ruta) }} ({{ r.canal }})
+              </option>
+            </select>
+
+            <template v-if="rutaParaAjustarFrontera">
               <button
+                v-if="!editandoVertices"
                 type="button"
-                @click="subHerramientaRtm = 'fronteras'"
-                class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
-                :class="subHerramientaRtm === 'fronteras' ? 'bg-white text-purple-900 shadow-2xs' : 'text-purple-700 hover:text-purple-950'"
+                @click="activarEdicionVertices"
+                class="h-7 px-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span>🗺️ Mover Fronteras</span>
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+                <span>{{ tieneFronteraRutaActual ? 'Editar Vértices' : 'Dibujar / Generar' }}</span>
               </button>
+
               <button
+                v-if="!tieneFronteraRutaActual && !editandoVertices"
                 type="button"
-                @click="subHerramientaRtm = 'reasignacion'"
-                class="px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
-                :class="subHerramientaRtm === 'reasignacion' ? 'bg-white text-purple-900 shadow-2xs' : 'text-purple-700 hover:text-purple-950'"
+                @click="generarConvexHullRuta"
+                class="h-7 px-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-md text-xs transition-colors cursor-pointer"
+                title="Calcular polígono envolvente automático a partir de los clientes GPS de esta ruta"
               >
-                <span>👥 Reasignar Clientes</span>
-                <span v-if="clientesSeleccionadosIds.length > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-700 text-white font-bold">
-                  {{ clientesSeleccionadosIds.length }}
+                <span>Generar Convex Hull</span>
+              </button>
+
+              <template v-if="editandoVertices">
+                <span class="text-[11px] font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-300">
+                  Arrastra los vértices para ajustar el perímetro
                 </span>
-              </button>
-            </div>
 
-            <!-- Herramienta 1: Mover Fronteras -->
-            <template v-if="subHerramientaRtm === 'fronteras'">
-              <select
-                v-model="rutaParaAjustarFrontera"
-                @change="alCambiarRutaParaFrontera"
-                class="h-7 px-2.5 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer shadow-2xs"
-              >
-                <option value="">-- Seleccionar ruta a ajustar --</option>
-                <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
-                  {{ formatRuta(r.ruta) }} ({{ r.canal }})
-                </option>
-              </select>
-
-              <template v-if="rutaParaAjustarFrontera">
                 <button
-                  v-if="!editandoVertices"
                   type="button"
-                  @click="activarEdicionVertices"
-                  class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                  @click="guardarFronteraRtm"
+                  :disabled="guardandoFrontera"
+                  class="h-7 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                  <span>{{ tieneFronteraRutaActual ? 'Editar Vértices' : 'Dibujar / Generar' }}</span>
+                  <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
                 </button>
 
                 <button
-                  v-if="!tieneFronteraRutaActual && !editandoVertices"
                   type="button"
-                  @click="generarConvexHullRuta"
-                  class="h-7 px-2.5 bg-white hover:bg-slate-100 text-purple-700 border border-purple-300 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
-                  title="Calcular polígono envolvente automático a partir de los clientes GPS de esta ruta"
+                  @click="cancelarEdicionVertices"
+                  class="h-7 px-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-md text-xs transition-colors cursor-pointer"
                 >
-                  <span>Generar Convex Hull</span>
+                  Cancelar
                 </button>
-
-                <template v-if="editandoVertices">
-                  <span class="text-[11px] font-mono text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-300 font-medium">
-                    Arrastra los vértices azules para ajustar el perímetro
-                  </span>
-
-                  <button
-                    type="button"
-                    @click="guardarFronteraRtm"
-                    :disabled="guardandoFrontera"
-                    class="h-7 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                  >
-                    <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    @click="cancelarEdicionVertices"
-                    class="h-7 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                </template>
               </template>
-            </template>
-
-            <!-- Herramienta 2: Reasignación Masiva de Clientes -->
-            <template v-else-if="subHerramientaRtm === 'reasignacion'">
-              <div v-if="clientesSeleccionadosIds.length === 0" class="text-xs text-purple-800 italic flex items-center gap-1">
-                <span>💡</span>
-                <span>Marca clientes con los checkboxes de la lista lateral para reasignar ruta o día en lote.</span>
-              </div>
-              <form v-else @submit.prevent="ejecutarReasignacionMasiva" class="flex items-center gap-2 flex-wrap">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-purple-900">Nueva Ruta:</span>
-                  <select
-                    v-model="formReasignacionMasiva.ruta_propuesta"
-                    required
-                    class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs"
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
-                      {{ formatRuta(r.ruta) }} ({{ r.canal }})
-                    </option>
-                  </select>
-                </div>
-
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-purple-900">Nuevo Día:</span>
-                  <select
-                    v-model="formReasignacionMasiva.dia_propuesto"
-                    class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs"
-                  >
-                    <option value="">Mantener día actual</option>
-                    <option v-for="d in diasSemana" :key="d.key" :value="d.label">
-                      {{ d.label }}
-                    </option>
-                  </select>
-                </div>
-
-                <input
-                  type="text"
-                  v-model="formReasignacionMasiva.observaciones"
-                  placeholder="Motivo (opcional)..."
-                  class="h-7 px-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 w-40 shadow-2xs"
-                />
-
-                <button
-                  type="submit"
-                  :disabled="guardandoReasignacionMasiva || !formReasignacionMasiva.ruta_propuesta"
-                  class="h-7 px-3 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                >
-                  <span v-if="guardandoReasignacionMasiva" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>Guardar Propuesta ({{ clientesSeleccionadosIds.length }})</span>
-                </button>
-
-                <button
-                  type="button"
-                  @click="clientesSeleccionadosIds = []"
-                  class="h-7 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer"
-                >
-                  Limpiar
-                </button>
-              </form>
             </template>
           </div>
 
-          <div class="flex items-center gap-2 ml-auto">
-            <span class="text-[10px] font-mono text-purple-700 hidden xl:inline">
-              🛡️ Las propuestas no alteran pan_ruteo
+          <div class="flex items-center gap-3 ml-auto">
+            <span class="text-[11px] font-mono text-slate-500 hidden xl:inline">
+              Haz clic en cualquier cliente del mapa para reasignar su ruta o día
             </span>
             <button
               type="button"
               @click="setModoPrincipal('visualizacion')"
-              class="text-purple-700 hover:text-purple-900 font-bold text-xs cursor-pointer px-2 py-0.5 rounded hover:bg-purple-100 transition-colors"
+              class="text-slate-700 hover:text-slate-900 font-semibold text-xs cursor-pointer px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 transition-colors"
             >
-              ✕ Salir de RTM
+              Cerrar Ajuste RTM
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Contenedor Principal: Split Screen (Lista de Clientes + Mapa Leaflet) -->
+      <!-- Contenedor Principal: Split Screen (Panel Lateral + Mapa Leaflet) -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
         
-        <!-- Panel Lateral: Lista de Clientes / Expediente / Balance RTM -->
+        <!-- Panel Lateral: Balance RTM (en Ajuste RTM) o Clientes/Balance (en Visualización) -->
         <aside
           class="w-full md:w-[370px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
           :class="vistaMovil === 'lista' ? 'flex' : 'hidden md:flex'"
         >
-          <!-- Selector de Pestaña del Panel Lateral (Lista vs Balance RTM) -->
-          <div v-if="!clienteSeleccionado" class="p-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between gap-1.5 shrink-0">
-            <div class="flex items-center bg-slate-200/80 p-0.5 rounded-lg flex-1">
-              <button
-                type="button"
-                @click="tabLateral = 'lista'"
-                class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
-                :class="tabLateral === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
-              >
-                Clientes ({{ clientesFiltradosLista.length }})
-              </button>
-              <button
-                type="button"
-                @click="tabLateral = 'balance'"
-                class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
-                :class="tabLateral === 'balance' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
-              >
-                Balance RTM
-              </button>
-            </div>
-          </div>
-
-          <!-- Vista 1A: Listado de Clientes Filtrables -->
-          <template v-if="!clienteSeleccionado && tabLateral === 'lista'">
-            <!-- Buscador de Clientes -->
-            <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center space-x-2">
-              <div class="relative flex-1">
-                <input
-                  v-model="busquedaCliente"
-                  type="text"
-                  placeholder="Filtrar por nombre, ruta o ID..."
-                  class="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all shadow-2xs"
-                />
-                <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
+          <!-- CASO 1: EN MODO AJUSTE RTM, SOLO SE VE EL BALANCE RTM (SIN CLIENTES) -->
+          <template v-if="modoPrincipal === 'ajuste_rtm'">
+            <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <div>
+                <h3 class="text-xs font-bold text-slate-800 tracking-wider uppercase font-mono">Balance RTM</h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">Distribución de clientes por ruta y jornada</p>
               </div>
-            </div>
-
-            <!-- Barra de Selección Masiva en Modo Ajuste RTM -->
-            <div
-              v-if="modoPrincipal === 'ajuste_rtm' && clientesFiltradosLista.length > 0"
-              class="px-3 py-1.5 bg-purple-50/90 border-b border-purple-100 flex items-center justify-between text-xs font-mono"
-            >
-              <label class="flex items-center gap-1.5 cursor-pointer text-purple-900 select-none font-semibold">
-                <input
-                  type="checkbox"
-                  :checked="todosClientesFiltradosSeleccionados"
-                  @change="toggleSeleccionarTodosClientes"
-                  class="rounded border-purple-300 text-purple-600 focus:ring-0 cursor-pointer"
-                />
-                <span class="text-[11px]">Sel. todos ({{ clientesFiltradosLista.length }})</span>
-              </label>
-
-              <span
-                v-if="clientesSeleccionadosIds.length > 0"
-                class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-600 text-white"
-              >
-                {{ clientesSeleccionadosIds.length }} seleccionados
+              <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
+                {{ balanceRtmPorRuta.length }} rutas
               </span>
             </div>
 
-            <!-- Lista Scrollable de Clientes -->
-            <div class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scroll">
-              <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
-                <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
-                  </svg>
-                </div>
-                <p class="font-medium text-slate-600">Sin datos consultados</p>
-                <p class="text-[11px] text-slate-400">Selecciona canal(es) o ruta(s) y presiona el botón <strong>"Consultar"</strong> para proyectar la red de clientes.</p>
-              </div>
-
-              <div
-                v-for="c in clientesFiltradosLista"
-                :key="c.id"
-                class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group relative border-l-2"
-                :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-sky-600' : 'border-transparent'"
-              >
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <!-- Checkbox de Selección RTM -->
-                    <input
-                      v-if="modoPrincipal === 'ajuste_rtm'"
-                      type="checkbox"
-                      :value="c.cliente_id || c.id"
-                      v-model="clientesSeleccionadosIds"
-                      @click.stop
-                      class="rounded border-slate-300 text-purple-600 focus:ring-0 cursor-pointer shrink-0"
-                    />
-
-                    <span
-                      @click="abrirExpedienteCliente(c)"
-                      class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1 cursor-pointer flex-1"
-                    >
-                      {{ c.nombre }}
-                    </span>
-                  </div>
-
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      @click.stop="abrirModalAjusteRtm(c)"
-                      class="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-2xs"
-                      title="Ajustar y modificar dinámicamente el RTM de este cliente"
-                    >
-                      ✏️ RTM
-                    </button>
-                    <span
-                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
-                      :class="c.tiene_gps ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
-                    >
-                      {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
-                    </span>
-                  </div>
-                </div>
-
-                <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
-
-                <!-- Pastilla distintiva si tiene propuesta en sub-modo cambios -->
-                <div
-                  v-if="subModoVisualizacion === 'cambios' && c.tiene_cambio"
-                  class="mt-1.5 px-2 py-0.5 bg-indigo-50/90 border border-indigo-200 rounded text-[10px] font-mono flex items-center justify-between text-indigo-950"
-                >
-                  <div class="flex items-center gap-1 truncate">
-                    <span class="text-indigo-600 font-bold">⚡ Propuesta:</span>
-                    <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }} ({{ c.dia_original || 'S/D' }})</span>
-                    <span>➔</span>
-                    <span class="font-bold text-indigo-700">{{ formatRuta(c.ruta) }} ({{ c.dia_norm }})</span>
-                  </div>
-                  <span class="text-[9px] uppercase font-bold px-1 rounded bg-indigo-100 text-indigo-800 shrink-0">
-                    {{ c.propuesta_estado || 'PENDIENTE' }}
-                  </span>
-                </div>
-
-                <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-mono">
-                  <span class="flex items-center gap-1 font-medium text-slate-700">
-                    <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
-                    {{ formatRuta(c.ruta) }}
-                  </span>
-                  <span>•</span>
-                  <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">{{ c.dia_norm || 'Sin Día' }}</span>
-                  <span>•</span>
-                  <span>ID: {{ c.cliente_id }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Vista 1B: Balance RTM de Rutas Consultadas -->
-          <template v-else-if="!clienteSeleccionado && tabLateral === 'balance'">
+            <!-- Cuerpo de Balance RTM -->
             <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
               <div v-if="balanceRtmPorRuta.length === 0" class="p-8 text-center text-xs text-slate-400">
                 Consulta rutas para visualizar el balance de cartera y carga de días RTM.
@@ -759,7 +537,7 @@
               <div
                 v-for="b in balanceRtmPorRuta"
                 :key="b.ruta"
-                class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 shadow-2xs text-xs"
+                class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5">
@@ -773,7 +551,7 @@
                 </div>
 
                 <!-- Distribución por Jornadas de Visita -->
-                <div class="pt-1.5 border-t border-slate-200/80">
+                <div class="pt-1.5 border-t border-slate-200">
                   <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
                     Carga por Día:
                   </div>
@@ -793,8 +571,165 @@
             </div>
           </template>
 
-          <!-- Vista 2: Expediente y Visitas con Fotografías del Cliente -->
+          <!-- CASO 2: EN MODO VISUALIZACIÓN, SELECTOR DE PESTAÑAS (CLIENTES O BALANCE) -->
           <template v-else>
+            <template v-if="!clienteSeleccionado">
+              <!-- Selector de Pestaña del Panel Lateral (Lista vs Balance RTM) -->
+              <div class="p-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-1.5 shrink-0">
+                <div class="flex items-center bg-slate-200 p-0.5 rounded-lg flex-1">
+                  <button
+                    type="button"
+                    @click="tabLateral = 'lista'"
+                    class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
+                    :class="tabLateral === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+                  >
+                    Clientes ({{ clientesFiltradosLista.length }})
+                  </button>
+                  <button
+                    type="button"
+                    @click="tabLateral = 'balance'"
+                    class="flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer text-center"
+                    :class="tabLateral === 'balance' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+                  >
+                    Balance RTM
+                  </button>
+                </div>
+              </div>
+
+              <!-- Vista 1A: Listado de Clientes Filtrables -->
+              <template v-if="tabLateral === 'lista'">
+                <!-- Buscador de Clientes -->
+                <div class="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center space-x-2">
+                  <div class="relative flex-1">
+                    <input
+                      v-model="busquedaCliente"
+                      type="text"
+                      placeholder="Filtrar por nombre, ruta o ID..."
+                      class="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all shadow-2xs"
+                    />
+                    <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Lista Scrollable de Clientes -->
+                <div class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scroll">
+                  <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
+                    <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+                      </svg>
+                    </div>
+                    <p class="font-medium text-slate-600">Sin datos consultados</p>
+                    <p class="text-[11px] text-slate-400">Selecciona canal(es) o ruta(s) y presiona el botón <strong>"Consultar"</strong> para proyectar la red de clientes.</p>
+                  </div>
+
+                  <div
+                    v-for="c in clientesFiltradosLista"
+                    :key="c.id"
+                    class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none group relative border-l-2"
+                    :class="clienteActivoId === c.id ? 'bg-slate-100 border-slate-700' : 'border-transparent'"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <span
+                          @click="abrirExpedienteCliente(c)"
+                          class="text-xs font-semibold text-slate-900 group-hover:text-slate-700 transition-colors line-clamp-1 cursor-pointer flex-1"
+                        >
+                          {{ c.nombre }}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center gap-1 shrink-0">
+                        <span
+                          class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
+                          :class="c.tiene_gps ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-50 text-slate-500 border-slate-200'"
+                        >
+                          {{ c.tiene_gps ? 'GPS' : 'SIN GPS' }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
+
+                    <!-- Pastilla distintiva si tiene propuesta en sub-modo cambios -->
+                    <div
+                      v-if="subModoVisualizacion === 'cambios' && c.tiene_cambio"
+                      class="mt-1.5 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono flex items-center justify-between text-slate-800"
+                    >
+                      <div class="flex items-center gap-1 truncate">
+                        <span class="font-bold text-slate-900">Propuesta:</span>
+                        <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }} ({{ c.dia_original || 'S/D' }})</span>
+                        <span>-></span>
+                        <span class="font-bold text-slate-900">{{ formatRuta(c.ruta) }} ({{ c.dia_norm }})</span>
+                      </div>
+                      <span class="text-[9px] uppercase font-bold px-1 rounded bg-slate-200 text-slate-700 shrink-0">
+                        {{ c.propuesta_estado || 'PENDIENTE' }}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-mono">
+                      <span class="flex items-center gap-1 font-medium text-slate-700">
+                        <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
+                        {{ formatRuta(c.ruta) }}
+                      </span>
+                      <span>•</span>
+                      <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">{{ c.dia_norm || 'Sin Día' }}</span>
+                      <span>•</span>
+                      <span>ID: {{ c.cliente_id }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Vista 1B: Balance RTM de Rutas Consultadas -->
+              <template v-else-if="tabLateral === 'balance'">
+                <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
+                  <div v-if="balanceRtmPorRuta.length === 0" class="p-8 text-center text-xs text-slate-400">
+                    Consulta rutas para visualizar el balance de cartera y carga de días RTM.
+                  </div>
+
+                  <div
+                    v-for="b in balanceRtmPorRuta"
+                    :key="b.ruta"
+                    class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: getRutaColor(b.ruta) }"></span>
+                        <span class="font-mono font-bold text-slate-900 text-xs">{{ formatRuta(b.ruta) }}</span>
+                        <span class="text-slate-400 text-[10px] font-mono">({{ b.canal }})</span>
+                      </div>
+                      <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
+                        {{ b.total }} clientes
+                      </span>
+                    </div>
+
+                    <!-- Distribución por Jornadas de Visita -->
+                    <div class="pt-1.5 border-t border-slate-200">
+                      <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
+                        Carga por Día:
+                      </div>
+                      <div class="grid grid-cols-7 gap-1 text-[10px] font-mono">
+                        <div
+                          v-for="d in diasSemana"
+                          :key="d.key"
+                          class="text-center py-1 rounded border"
+                          :class="(b.dias[d.key] || 0) > 0 ? 'bg-white border-slate-200 font-bold text-slate-900' : 'bg-slate-100/60 border-slate-200/40 text-slate-400'"
+                        >
+                          <div class="text-[8px] opacity-75 font-normal">{{ d.corto }}</div>
+                          <div class="text-[11px]">{{ b.dias[d.key] || 0 }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </template>
+
+            <!-- Vista 2: Expediente y Visitas con Fotografías del Cliente -->
+            <template v-else>
             <!-- Header de Retorno -->
             <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
               <button
@@ -838,7 +773,7 @@
                 <button
                   type="button"
                   @click="abrirModalAjusteRtm(clienteSeleccionado)"
-                  class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
@@ -931,6 +866,7 @@
               </div>
             </div>
           </template>
+          </template>
         </aside>
 
         <!-- Panel del Mapa Leaflet -->
@@ -958,9 +894,8 @@
           <!-- Toast Flotante de Notificaciones -->
           <div
             v-if="toastMensaje"
-            class="absolute top-3 right-3 z-[99995] px-3.5 py-2 bg-emerald-900 text-white border border-emerald-700 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce"
+            class="absolute top-3 right-3 z-[99995] px-3.5 py-2 bg-slate-900 text-white border border-slate-700 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2"
           >
-            <span>✅</span>
             <span>{{ toastMensaje }}</span>
           </div>
 
@@ -1042,24 +977,24 @@
                     v-if="modalAjusteRtm.cliente?.latitud && modalAjusteRtm.cliente?.longitud"
                     :href="'https://www.google.com/maps?q=' + modalAjusteRtm.cliente?.latitud + ',' + modalAjusteRtm.cliente?.longitud"
                     target="_blank"
-                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300/80 flex items-center gap-1 transition-colors"
+                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-1 transition-colors"
                   >
-                    📍 Maps ↗
+                    Maps
                   </a>
                   <a
                     v-if="getCleanTel(modalAjusteRtm.cliente)"
                     :href="'https://wa.me/591' + getCleanTel(modalAjusteRtm.cliente)"
                     target="_blank"
-                    class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center gap-1 transition-colors"
+                    class="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-white rounded flex items-center gap-1 transition-colors"
                   >
-                    💬 WhatsApp
+                    WhatsApp
                   </a>
                   <a
                     v-if="getCleanTel(modalAjusteRtm.cliente)"
                     :href="'tel:' + getCleanTel(modalAjusteRtm.cliente)"
-                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300/80 flex items-center gap-1 transition-colors"
+                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-1 transition-colors"
                   >
-                    📞 {{ modalAjusteRtm.cliente?.celular || modalAjusteRtm.cliente?.contacto }}
+                    Tel: {{ modalAjusteRtm.cliente?.celular || modalAjusteRtm.cliente?.contacto }}
                   </a>
                 </div>
               </div>
@@ -1067,24 +1002,21 @@
               <button
                 type="button"
                 @click="modalAjusteRtm.show = false"
-                class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none p-1 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                class="text-slate-400 hover:text-slate-600 font-bold text-lg leading-none p-1 rounded-md hover:bg-slate-100 cursor-pointer transition-colors"
                 title="Cerrar modal"
               >
-                &times;
+                Cerrar
               </button>
             </div>
 
-            <!-- Selector de Pestañas del Modal (Ajustar RTM activo por defecto) -->
-            <div class="flex items-center border-b border-slate-200 bg-slate-100/70 px-4 pt-1 gap-2 text-xs shrink-0 select-none">
+            <!-- Selector de Pestañas del Modal -->
+            <div class="flex items-center border-b border-slate-200 bg-slate-100 px-4 pt-1 gap-2 text-xs shrink-0 select-none">
               <button
                 type="button"
                 @click="modalAjusteRtm.tabActivo = 'rtm'"
                 class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
-                :class="modalAjusteRtm.tabActivo === 'rtm' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+                :class="modalAjusteRtm.tabActivo === 'rtm' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'"
               >
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                </svg>
                 <span>Ajustar RTM (Ruta / Día)</span>
               </button>
 
@@ -1092,12 +1024,9 @@
                 type="button"
                 @click="modalAjusteRtm.tabActivo = 'visitas'"
                 class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
-                :class="modalAjusteRtm.tabActivo === 'visitas' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'"
+                :class="modalAjusteRtm.tabActivo === 'visitas' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'"
               >
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                </svg>
-                <span>Fotos & Visitas</span>
+                <span>Fotos y Visitas</span>
                 <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 font-semibold">
                   {{ visitasCliente.length }}
                 </span>
@@ -1111,7 +1040,7 @@
                 <!-- Comparativa RTM Actual vs Nueva Propuesta -->
                 <div class="grid grid-cols-2 gap-3">
                   <!-- Tarjeta Actual -->
-                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1">
+                  <div class="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
                     <div class="text-[10px] text-slate-500 uppercase font-bold font-mono tracking-wider">
                       Asignación Actual
                     </div>
@@ -1128,18 +1057,18 @@
                   </div>
 
                   <!-- Tarjeta Propuesta -->
-                  <div class="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-1">
-                    <div class="text-[10px] text-indigo-700 uppercase font-bold font-mono tracking-wider">
+                  <div class="p-3 rounded-lg bg-slate-100 border border-slate-300 space-y-1">
+                    <div class="text-[10px] text-slate-700 uppercase font-bold font-mono tracking-wider">
                       Nueva Asignación RTM
                     </div>
                     <div class="flex items-center gap-1.5 mt-1">
                       <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(formRtm.ruta_propuesta) }"></span>
-                      <span class="font-bold font-mono text-xs text-indigo-950">{{ formatRuta(formRtm.ruta_propuesta) }}</span>
+                      <span class="font-bold font-mono text-xs text-slate-900">{{ formatRuta(formRtm.ruta_propuesta) }}</span>
                     </div>
-                    <div class="text-[11px] text-indigo-900 font-mono">
+                    <div class="text-[11px] text-slate-800 font-mono">
                       Día: <b :style="{ color: getDiaColor(formRtm.dia_propuesto) }">{{ formRtm.dia_propuesto }}</b>
                     </div>
-                    <div class="text-[10px] text-indigo-600/80 truncate">
+                    <div class="text-[10px] text-slate-500 truncate">
                       Vendedor: {{ getVendedorRuta(formRtm.ruta_propuesta) }}
                     </div>
                   </div>
@@ -1155,7 +1084,7 @@
                     <select
                       v-model="formRtm.ruta_propuesta"
                       required
-                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-slate-500 cursor-pointer"
                     >
                       <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
                         {{ formatRuta(r.ruta) }} ({{ r.canal }}) — {{ r.vendedor || 'Sin vendedor' }}
@@ -1171,7 +1100,7 @@
                     <select
                       v-model="formRtm.dia_propuesto"
                       required
-                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-slate-500 cursor-pointer"
                     >
                       <option v-for="d in diasSemana" :key="d.key" :value="d.label">
                         {{ d.label }}
@@ -1188,19 +1117,16 @@
                       type="text"
                       v-model="formRtm.observaciones"
                       placeholder="Ej: Rebalanceo territorial, ajuste de frontera..."
-                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                      class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-slate-500"
                     />
                   </div>
 
                   <!-- Nota Informativa de Propuesta Saneamiento -->
-                  <div class="flex items-start gap-2.5 p-2.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-[11px] text-indigo-950 select-none">
-                    <span class="text-base shrink-0">🛡️</span>
-                    <div>
-                      <span class="font-bold">Registro Seguro de Auditoría:</span>
-                      <p class="text-indigo-800 text-[10.5px] mt-0.5 leading-relaxed">
-                        Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. La base inmutable de <code>pan_ruteo</code> no es alterada.
-                      </p>
-                    </div>
+                  <div class="p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-[11px] text-slate-800 select-none">
+                    <span class="font-bold">Registro de Auditoría:</span>
+                    <p class="text-slate-600 text-[10.5px] mt-0.5 leading-relaxed">
+                      Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. La base inmutable de <code>pan_ruteo</code> no es alterada.
+                    </p>
                   </div>
                 </div>
 
@@ -1209,7 +1135,7 @@
                   <button
                     type="button"
                     @click="modalAjusteRtm.show = false"
-                    class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer transition-colors"
+                    class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold cursor-pointer transition-colors"
                   >
                     Cancelar
                   </button>
@@ -1217,7 +1143,7 @@
                   <button
                     type="submit"
                     :disabled="guardandoRtm"
-                    class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                    class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     <span v-if="guardandoRtm" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                     <span>{{ guardandoRtm ? 'Guardando Ajuste...' : 'Confirmar Ajuste RTM' }}</span>
@@ -1228,7 +1154,7 @@
               <!-- TAB 2: HISTORIAL DE VISITAS & FOTOS DE PREVENTA -->
               <div v-else class="space-y-3">
                 <div v-if="cargandoVisitas" class="py-10 text-center text-xs text-slate-400 animate-pulse flex flex-col items-center justify-center gap-2">
-                  <span class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                  <span class="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin"></span>
                   <span>Cargando fotos y visitas registradas en terreno...</span>
                 </div>
 
@@ -1250,7 +1176,7 @@
                       </div>
                       <span
                         class="px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-bold"
-                        :class="vis.status === 'VISITED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'"
+                        :class="vis.status === 'VISITED' ? 'bg-slate-200 text-slate-800 border border-slate-300' : 'bg-slate-100 text-slate-700'"
                       >
                         {{ vis.status || 'VISITADO' }}
                       </span>
@@ -1273,10 +1199,10 @@
                         class="w-full h-44 object-cover group-hover/photo:scale-105 transition-transform duration-200"
                       />
                       <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold backdrop-blur-[1px]">
-                        <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="w-4 h-4 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
                         </svg>
-                        <span>Ver & Girar Foto 🔍</span>
+                        <span>Ver foto</span>
                       </div>
                     </div>
                   </div>
@@ -1499,9 +1425,17 @@ function toggleSeleccionarTodosClientes() {
 
 function setModoPrincipal(modo) {
   modoPrincipal.value = modo;
-  if (modo === 'visualizacion') {
+  if (modo === 'ajuste_rtm') {
+    tabLateral.value = 'balance';
+    clienteSeleccionado.value = null;
+  } else {
     cancelarEdicionVertices();
+    tabLateral.value = 'lista';
   }
+  if (map) {
+    map.closePopup();
+  }
+  renderizarEnMapa();
 }
 
 function setSubModoVisualizacion(sub) {
@@ -1835,7 +1769,7 @@ function crearCapaEdicionPoligono() {
   const rutaColor = getRutaColor(rutaParaAjustarFrontera.value);
 
   poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion, {
-    color: '#9333EA',
+    color: '#0F172A',
     weight: 2.5,
     dashArray: '4, 4',
     fillColor: rutaColor,
@@ -1848,7 +1782,7 @@ function crearCapaEdicionPoligono() {
   coordsPoligonoEnEdicion.forEach((pt, idx) => {
     const marker = L.circleMarker(pt, {
       radius: 6.5,
-      color: '#9333EA',
+      color: '#0F172A',
       fillColor: '#FFFFFF',
       fillOpacity: 1,
       weight: 2.5,
@@ -2020,6 +1954,131 @@ function limpiarTel(t) {
 
 // ── MAPA Y RENDERIZADO LEAFLET ──
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function generarPopupHtmlRtm(c) {
+  const rutasOptions = props.catalogo_rutas.map(r => {
+    const sel = r.ruta === c.ruta ? 'selected' : '';
+    return `<option value="${escapeHtml(r.ruta)}" ${sel}>${escapeHtml(formatRuta(r.ruta))} (${escapeHtml(r.canal)})</option>`;
+  }).join('');
+
+  const diasOptions = diasSemana.map(d => {
+    const sel = (c.dia_norm && d.label.toUpperCase() === c.dia_norm.toUpperCase()) ? 'selected' : '';
+    return `<option value="${d.label}" ${sel}>${d.label}</option>`;
+  }).join('');
+
+  return `
+    <div style="min-width: 230px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
+      <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
+        <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25;">${escapeHtml(c.nombre)}</div>
+        <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
+        <div style="font-family: monospace; font-size: 10px; color: #475569; margin-top: 3px;">
+          ID: ${c.cliente_id} • Actual: <b>${escapeHtml(formatRuta(c.ruta))}</b> (${c.dia_norm || 'S/D'})
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div>
+          <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nueva Ruta:</label>
+          <select id="rtm-popup-ruta-${c.id}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
+            ${rutasOptions}
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nuevo Día de Visita:</label>
+          <select id="rtm-popup-dia-${c.id}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
+            ${diasOptions}
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Observación:</label>
+          <input id="rtm-popup-obs-${c.id}" type="text" placeholder="Rebalanceo RTM..." style="width: 100%; height: 24px; padding: 0 6px; font-size: 10.5px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; box-sizing: border-box; outline: none;" />
+        </div>
+
+        <button
+          id="rtm-btn-save-${c.id}"
+          type="button"
+          onclick="window.__guardarPropuestaRtmDesdePopup('${c.cliente_id || c.id}', '${c.id}')"
+          style="margin-top: 4px; width: 100%; height: 26px; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.15s ease;"
+          onmouseover="this.style.backgroundColor='#1e293b'"
+          onmouseout="this.style.backgroundColor='#0f172a'"
+        >
+          Guardar Propuesta
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function guardarPropuestaRtmDesdePopup(clienteId, domId) {
+  const selectRuta = document.getElementById(`rtm-popup-ruta-${domId}`);
+  const selectDia = document.getElementById(`rtm-popup-dia-${domId}`);
+  const inputObs = document.getElementById(`rtm-popup-obs-${domId}`);
+  const btn = document.getElementById(`rtm-btn-save-${domId}`);
+
+  if (!selectRuta || !selectRuta.value) {
+    alert('Por favor selecciona una ruta.');
+    return;
+  }
+
+  const rutaPropuesta = selectRuta.value;
+  const diaPropuesto = selectDia ? selectDia.value : 'LUNES';
+  const obs = inputObs?.value?.trim() || 'Ajuste RTM territorial desde mapa Leaflet';
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = 'Guardando...';
+    btn.style.opacity = '0.7';
+  }
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.ajustar-rtm')
+      : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+    const res = await axios.post(url, {
+      cliente_id: clienteId,
+      ruta_propuesta: rutaPropuesta,
+      dia_propuesto: diaPropuesto,
+      observaciones: obs,
+      aplicar_inmediato: true,
+    });
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente.');
+      if (map) {
+        map.closePopup();
+      }
+      await cargarDatos();
+    } else {
+      alert(res.data?.message || 'No se pudo guardar la propuesta.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Guardar Propuesta';
+        btn.style.opacity = '1';
+      }
+    }
+  } catch (err) {
+    console.error('Error al guardar propuesta RTM:', err);
+    alert('Error al guardar propuesta RTM: ' + (err.response?.data?.message || err.message));
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = 'Guardar Propuesta';
+      btn.style.opacity = '1';
+    }
+  }
+}
+
 function cambiarCapaMapa(nombreCapa) {
   if (!map || !mapsConfig.tileLayers[nombreCapa]) return;
   capaActual.value = nombreCapa;
@@ -2139,15 +2198,15 @@ function renderizarEnMapa() {
     if (c.tiene_gps) {
       const markerColor = getMarkerColor(c);
 
-      // Si estamos en sub-modo "Con Cambios" y el cliente tiene propuesta registrada, dibujar un halo distintivo
+      // Si estamos en sub-modo "Con Cambios" y el cliente tiene propuesta registrada, dibujar un halo distintivo sobrio
       if (subModoVisualizacion.value === 'cambios' && c.tiene_cambio) {
         const halo = L.circleMarker([c.latitud, c.longitud], {
-          radius: 11,
+          radius: 10.5,
           fill: false,
-          color: '#7C3AED', // Púrpura índigo distintivo
-          weight: 2.5,
+          color: '#475569', // Slate-600 sobrio
+          weight: 2,
           dashArray: '3, 3',
-          opacity: 0.95,
+          opacity: 0.9,
         });
         halo.addTo(markersLayer);
       }
@@ -2162,43 +2221,72 @@ function renderizarEnMapa() {
       });
 
       const bannerPropuesta = (subModoVisualizacion.value === 'cambios' && c.tiene_cambio)
-        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 6px; font-size: 10px; font-family: monospace;">
-            <div style="color: #4338CA; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-              <span>⚡ PROPUESTA REGISTRADA</span>
-              <span style="background: #E0E7FF; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 10px; font-family: monospace;">
+            <div style="color: #0F172A; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span>PROPUESTA REGISTRADA</span>
+              <span style="background: #E2E8F0; color: #1E293B; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
             </div>
-            <div style="color: #312E81; margin-top: 2px;">
-              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> ➔ <b>${formatRuta(c.ruta)}</b>
+            <div style="color: #334155; margin-top: 2px;">
+              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> -> <b>${formatRuta(c.ruta)}</b>
             </div>
-            <div style="color: #312E81;">
-              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> ➔ <b>${c.dia_norm}</b>
+            <div style="color: #334155;">
+              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> -> <b>${c.dia_norm}</b>
             </div>
           </div>`
         : '';
 
-      marker.bindTooltip(`
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
-          <div style="font-weight: 700; color: #0F172A;">${c.nombre}</div>
-          <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${c.direccion || 'Sin dirección registrada'}</div>
-          <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
-            <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
-            <span>•</span>
-            <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
-            <span>•</span>
-            <span style="color: #475569;">ID: ${c.cliente_id}</span>
-          </div>
-          ${bannerPropuesta}
-          <div style="margin-top: 3px; font-size: 9px; font-weight: 700; color: #4F46E5;">👉 Clic para abrir Menú RTM</div>
-        </div>
-      `, {
-        direction: 'top',
-        offset: [0, -6],
-        opacity: 0.98,
-      });
+      if (modoPrincipal.value === 'ajuste_rtm') {
+        // En modo Ajuste RTM: se enlaza el popup interactivo compacto en el punto. ¡CERO MODALES, CERO FOTOS!
+        marker.bindPopup(generarPopupHtmlRtm(c), {
+          maxWidth: 280,
+          closeButton: true,
+          className: 'rtm-clean-popup',
+        });
 
-      marker.on('click', () => {
-        abrirModalPuntoCliente(c);
-      });
+        marker.bindTooltip(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
+            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
+            <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
+            <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
+              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span>•</span>
+              <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
+              <span>•</span>
+              <span style="color: #475569;">ID: ${c.cliente_id}</span>
+            </div>
+            <div style="margin-top: 3px; font-size: 9.5px; font-weight: 600; color: #0F172A;">Clic para configurar Ajuste RTM</div>
+          </div>
+        `, {
+          direction: 'top',
+          offset: [0, -6],
+          opacity: 0.98,
+        });
+      } else {
+        // En modo Visualización:
+        marker.bindTooltip(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
+            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
+            <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
+            <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
+              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span>•</span>
+              <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
+              <span>•</span>
+              <span style="color: #475569;">ID: ${c.cliente_id}</span>
+            </div>
+            ${bannerPropuesta}
+            <div style="margin-top: 3px; font-size: 9.5px; font-weight: 600; color: #475569;">Clic para ver ficha</div>
+          </div>
+        `, {
+          direction: 'top',
+          offset: [0, -6],
+          opacity: 0.98,
+        });
+
+        marker.on('click', () => {
+          abrirModalPuntoCliente(c);
+        });
+      }
 
       marker.addTo(markersLayer);
       markersMap.set(c.id, marker);
@@ -2229,6 +2317,10 @@ if (typeof window !== 'undefined') {
     const c = clientes.value.find(item => item.id === id);
     if (c) abrirModalPuntoCliente(c);
   };
+
+  window.__guardarPropuestaRtmDesdePopup = (clienteId, domId) => {
+    guardarPropuestaRtmDesdePopup(clienteId, domId);
+  };
 }
 
 onMounted(() => {
@@ -2245,6 +2337,7 @@ onUnmounted(() => {
   if (typeof window !== 'undefined') {
     delete window.__abrirExpedienteCliente;
     delete window.__abrirModalAjusteRtm;
+    delete window.__guardarPropuestaRtmDesdePopup;
   }
   if (map) {
     map.remove();
