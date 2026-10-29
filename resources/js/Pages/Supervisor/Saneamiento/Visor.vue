@@ -495,6 +495,36 @@
             </template>
           </div>
 
+          <!-- Guía Visual de Modelado RTM: Relleno = Ruta | Borde = Día | Segmentado = Modificado -->
+          <div class="flex items-center gap-2 text-[11px] font-mono flex-wrap py-0.5">
+            <span class="text-slate-400 font-bold uppercase text-[10px]">Modelado:</span>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded shadow-2xs">
+              <span class="w-3 h-3 rounded-full bg-slate-800 shrink-0"></span>
+              <span class="text-slate-700 font-medium">Relleno: Ruta</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded shadow-2xs">
+              <span class="w-3 h-3 rounded-full border-2 border-sky-600 bg-white shrink-0"></span>
+              <span class="text-slate-700 font-medium">Borde: Día</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded shadow-2xs">
+              <span class="w-3 h-3 rounded-full border-2 border-dashed border-slate-900 bg-white shrink-0"></span>
+              <span class="text-slate-900 font-bold">Segmentado: Modificado</span>
+            </div>
+
+            <!-- Chips de Días -->
+            <div class="flex items-center gap-1 pl-1">
+              <span
+                v-for="d in diasSemanaConfig"
+                :key="d.key"
+                class="px-1.5 py-0.2 rounded text-[9.5px] font-bold border font-mono"
+                :style="{ backgroundColor: d.bg, color: d.text, borderColor: d.color }"
+                :title="`${d.label}: borde ${d.color}`"
+              >
+                {{ d.corto }}
+              </span>
+            </div>
+          </div>
+
           <div class="flex items-center gap-3 ml-auto">
             <span class="text-[11px] font-mono text-slate-500 hidden xl:inline">
               Haz clic en cualquier cliente del mapa para reasignar su ruta o día
@@ -1024,7 +1054,7 @@
                 <th class="py-1.5 px-3 font-bold">Cliente</th>
                 <th class="py-1.5 px-3 font-bold">Ruta Anterior -> Nueva</th>
                 <th class="py-1.5 px-3 font-bold">Día Anterior -> Nuevo</th>
-                <th class="py-1.5 px-3 font-bold">Estado</th>
+                <th class="py-1.5 px-3 font-bold">Tipo Ajuste</th>
                 <th class="py-1.5 px-3 font-bold">Observación</th>
                 <th class="py-1.5 px-3 font-bold text-right">Acciones</th>
               </tr>
@@ -1043,23 +1073,63 @@
                   <div class="text-[10px] text-slate-400 truncate max-w-xs">{{ c.direccion || 'Sin dirección' }}</div>
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
-                  <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original || c.ruta) }}</span>
-                  <span class="text-slate-400 mx-1.5">-></span>
-                  <span class="font-bold text-slate-900" :style="{ color: getRutaColor(c.ruta) }">
-                    {{ formatRuta(c.ruta) }}
-                  </span>
+                  <template v-if="c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase()">
+                    <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }}</span>
+                    <span class="text-slate-400 mx-1.5">-></span>
+                    <span class="font-bold" :style="{ color: getRutaColor(c.ruta) }">
+                      {{ formatRuta(c.ruta) }}
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="font-semibold" :style="{ color: getRutaColor(c.ruta) }">
+                      {{ formatRuta(c.ruta) }}
+                    </span>
+                    <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                  </template>
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
-                  <span class="line-through text-slate-400">{{ c.dia_original || 'S/D' }}</span>
-                  <span class="text-slate-400 mx-1.5">-></span>
-                  <span class="font-bold text-slate-900" :style="{ color: getDiaColor(c.dia_norm) }">
-                    {{ c.dia_norm }}
-                  </span>
+                  <template v-if="c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm)">
+                    <span class="line-through text-slate-400">{{ c.dia_original }}</span>
+                    <span class="text-slate-400 mx-1.5">-></span>
+                    <span class="font-bold" :style="{ color: getDiaColor(c.dia_norm) }">
+                      {{ c.dia_norm }}
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">
+                      {{ c.dia_norm }}
+                    </span>
+                    <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                  </template>
                 </td>
-                <td class="py-2 px-3 whitespace-nowrap">
-                  <span class="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                    {{ c.propuesta_estado || 'PENDIENTE' }}
-                  </span>
+                <td class="py-2 px-3 whitespace-nowrap font-mono">
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="text-[9.5px] uppercase font-bold px-1.5 py-0.5 rounded border"
+                      :class="{
+                        'bg-purple-50 text-purple-800 border-purple-200': c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase() && c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm),
+                        'bg-blue-50 text-blue-800 border-blue-200': c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase() && (!c.dia_original || normalizarDiaClave(c.dia_original) === normalizarDiaClave(c.dia_norm)),
+                        'bg-amber-50 text-amber-800 border-amber-200': (!c.ruta_original || c.ruta_original.toUpperCase() === c.ruta.toUpperCase()) && c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm),
+                        'bg-slate-100 text-slate-700 border-slate-200': (!c.ruta_original || c.ruta_original.toUpperCase() === c.ruta.toUpperCase()) && (!c.dia_original || normalizarDiaClave(c.dia_original) === normalizarDiaClave(c.dia_norm))
+                      }"
+                    >
+                      <template v-if="c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase() && c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm)">
+                        Ruta y Día
+                      </template>
+                      <template v-else-if="c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase()">
+                        Cambio Ruta
+                      </template>
+                      <template v-else-if="c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm)">
+                        Cambio Día
+                      </template>
+                      <template v-else>
+                        Propuesta
+                      </template>
+                    </span>
+                    <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      {{ c.propuesta_estado || 'PENDIENTE' }}
+                    </span>
+                  </div>
                 </td>
                 <td class="py-2 px-3 text-[11px] text-slate-600 truncate max-w-xs">
                   {{ c.observaciones_propuesta || 'Ajuste dinámico RTM' }}
@@ -1393,7 +1463,9 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
-import { getCanalColor, getRutaColor, formatRuta, getDiaColor, registerRutasCatalogo } from '@/Config/colors';
+import { getCanalColor, getRutaColor, formatRuta, getDiaColor, registerRutasCatalogo, DIAS_SEMANA_CONFIG } from '@/Config/colors';
+
+const diasSemanaConfig = DIAS_SEMANA_CONFIG;
 import L from 'leaflet';
 
 const props = defineProps({
@@ -1749,11 +1821,14 @@ async function descartarPropuesta(c) {
 
     const res = await axios.post(url, {
       propuesta_id: c.propuesta_id,
-      estado: 'RECHAZADO',
+      estado: 'DESCARTADO',
     });
 
     if (res.data?.status === 'ok') {
       mostrarToast('Propuesta descartada exitosamente.');
+      if (map) {
+        map.closePopup();
+      }
       await cargarDatos(true);
     } else {
       alert('No se pudo descartar la propuesta.');
@@ -1762,6 +1837,13 @@ async function descartarPropuesta(c) {
     console.error('Error al descartar propuesta:', err);
     alert('Error al descartar: ' + (err.response?.data?.message || err.message));
   }
+}
+
+// Exponer descarte para invocar desde popups de Leaflet si es necesario
+if (typeof window !== 'undefined') {
+  window.__descartarPropuestaCliente = (propuestaId, nombre) => {
+    descartarPropuesta({ propuesta_id: propuestaId, nombre: nombre || 'este cliente' });
+  };
 }
 
 const tieneFronteraRutaActual = computed(() => {
@@ -2261,14 +2343,32 @@ function generarPopupHtmlRtm(c) {
     return `<option value="${d.label}" ${sel}>${d.label}</option>`;
   }).join('');
 
+  const rutaOrig = c.ruta_original || c.ruta;
+  const diaOrig = c.dia_original || c.dia_norm;
+  const tieneCambio = Boolean(c.tiene_cambio);
+
   return `
-    <div style="min-width: 230px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
+    <div style="min-width: 240px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
         <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25;">${escapeHtml(c.nombre)}</div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
         <div style="font-family: monospace; font-size: 10px; color: #475569; margin-top: 3px;">
-          ID: ${c.cliente_id} • Actual: <b>${escapeHtml(formatRuta(c.ruta))}</b> (${c.dia_norm || 'S/D'})
+          ID: ${c.cliente_id} • Actual: <b>${escapeHtml(formatRuta(rutaOrig))}</b> (${escapeHtml(diaOrig || 'S/D')})
         </div>
+        ${tieneCambio ? `
+          <div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1.5px dashed #334155; border-radius: 4px; font-size: 9.5px; font-family: monospace;">
+            <div style="font-weight: 700; color: #0F172A; display: flex; justify-content: space-between;">
+              <span>PROPUESTA REGISTRADA:</span>
+              <span style="background: #E2E8F0; padding: 0 4px; border-radius: 2px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+            </div>
+            <div style="margin-top: 2px;">
+              Ruta: <span style="text-decoration: line-through; color: #94A3B8;">${escapeHtml(formatRuta(rutaOrig))}</span> -> <b style="color: ${getRutaColor(c.ruta)};">${escapeHtml(formatRuta(c.ruta))}</b>
+            </div>
+            <div>
+              Día: <span style="text-decoration: line-through; color: #94A3B8;">${escapeHtml(diaOrig || 'S/D')}</span> -> <b style="color: ${getDiaColor(c.dia_norm)};">${escapeHtml(c.dia_norm || 'S/D')}</b>
+            </div>
+          </div>
+        ` : ''}
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -2301,6 +2401,18 @@ function generarPopupHtmlRtm(c) {
         >
           Guardar Propuesta
         </button>
+
+        ${c.propuesta_id ? `
+          <button
+            type="button"
+            onclick="window.__descartarPropuestaCliente(${c.propuesta_id}, '${escapeHtml(c.nombre).replace(/'/g, "\\'")}')"
+            style="margin-top: 2px; width: 100%; height: 24px; background-color: #ffffff; color: #dc2626; font-weight: 600; font-size: 10.5px; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer;"
+            onmouseover="this.style.backgroundColor='#fef2f2'"
+            onmouseout="this.style.backgroundColor='#ffffff'"
+          >
+            Descartar propuesta actual
+          </button>
+        ` : ''}
       </div>
     </div>
   `;
@@ -2485,34 +2597,88 @@ function renderizarEnMapa(mantenerVista = false) {
   // Marcadores de Clientes
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
+      const esModoAjusteRtm = (modoPrincipal.value === 'ajuste_rtm');
       const esModoOriginal = (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original');
       const tieneCambio = !esModoOriginal && Boolean(c.tiene_cambio);
 
-      // El color de los cambios debe ser igual al color de la ruta
-      const markerColor = getMarkerColor(c);
+      const rutaOrig = c.ruta_original || c.ruta;
+      const diaOrig = c.dia_original || c.dia_norm;
+      const rutaEfectiva = c.ruta;
+      const diaEfectivo = c.dia_norm;
 
-      // Si tiene cambio, se agrega borde segmentado (#0F172A, dashArray: '3, 3'), nada más.
+      const cambioRuta = Boolean(tieneCambio && c.ruta_propuesta && c.ruta_propuesta.toUpperCase() !== rutaOrig.toUpperCase());
+      const cambioDia = Boolean(tieneCambio && c.dia_propuesto && normalizarDiaClave(c.dia_propuesto) !== normalizarDiaClave(diaOrig));
+
+      let etiquetaCambio = 'PROPUESTA REGISTRADA';
+      if (cambioRuta && cambioDia) etiquetaCambio = 'CAMBIO DE RUTA Y DÍA';
+      else if (cambioRuta) etiquetaCambio = 'CAMBIO DE RUTA';
+      else if (cambioDia) etiquetaCambio = 'CAMBIO DE DÍA';
+
+      let markerColor, markerBorder, markerWeight, markerDashArray, markerRadius;
+
+      if (esModoAjusteRtm) {
+        // EN MODO AJUSTAR RTM:
+        // Relleno: Color definido para la RUTA (efectiva)
+        // Borde: Color definido para el DÍA de visita (efectivo)
+        // Si tiene cambio: Borde segmentado (dashArray: '3, 3') con peso 3.5
+        markerColor = getRutaColor(rutaEfectiva);
+        markerBorder = getDiaColor(diaEfectivo);
+        markerWeight = tieneCambio ? 3.5 : 2;
+        markerDashArray = tieneCambio ? '3, 3' : null;
+        markerRadius = tieneCambio ? 7 : 6;
+      } else {
+        // EN MODO VISUALIZACIÓN:
+        markerColor = getMarkerColor(c);
+        if (tieneCambio) {
+          markerBorder = '#0F172A';
+          markerWeight = 2.5;
+          markerDashArray = '3, 3';
+          markerRadius = 6.5;
+        } else {
+          markerBorder = '#FFFFFF';
+          markerWeight = 1.5;
+          markerDashArray = null;
+          markerRadius = 6;
+        }
+      }
+
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: 6,
+        radius: markerRadius,
         fillColor: markerColor,
-        color: tieneCambio ? '#0F172A' : '#FFFFFF',
-        weight: tieneCambio ? 2.5 : 1.5,
-        dashArray: tieneCambio ? '3, 3' : null,
+        color: markerBorder,
+        weight: markerWeight,
+        dashArray: markerDashArray,
         opacity: 1,
-        fillOpacity: 0.95,
+        fillOpacity: 0.92,
       });
 
       const bannerPropuesta = tieneCambio
-        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1px dashed #475569; border-radius: 6px; font-size: 10px; font-family: monospace;">
-            <div style="color: #0F172A; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-              <span>PROPUESTA REGISTRADA</span>
-              <span style="background: #E2E8F0; color: #1E293B; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+        ? `<div style="margin-top: 5px; padding: 5px 8px; background-color: #F8FAFC; border: 1.5px dashed #334155; border-radius: 6px; font-size: 10px; font-family: monospace;">
+            <div style="color: #0F172A; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px; border-bottom: 1px solid #E2E8F0; padding-bottom: 3px; margin-bottom: 3px;">
+              <span>${etiquetaCambio}</span>
+              <span style="background: #E2E8F0; color: #0F172A; padding: 0 5px; border-radius: 3px; font-size: 8.5px; font-weight: 700;">${c.propuesta_estado || 'PENDIENTE'}</span>
             </div>
-            <div style="color: #334155; margin-top: 2px;">
-              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> -> <b>${formatRuta(c.ruta_propuesta || c.ruta)}</b>
+            <div style="margin-top: 2px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="color: #64748B;">Ruta:</span>
+              <span>
+                ${cambioRuta
+                  ? `<span style="text-decoration: line-through; color: #94A3B8;">${formatRuta(rutaOrig)}</span>
+                     <span style="color: #64748B; margin: 0 3px;">-></span>
+                     <b style="color: ${getRutaColor(rutaEfectiva)};">${formatRuta(rutaEfectiva)}</b>`
+                  : `<b style="color: ${getRutaColor(rutaEfectiva)};">${formatRuta(rutaEfectiva)}</b> <span style="font-size: 9px; color: #94A3B8;">(sin cambio)</span>`
+                }
+              </span>
             </div>
-            <div style="color: #334155;">
-              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> -> <b>${c.dia_propuesto || c.dia_norm}</b>
+            <div style="margin-top: 2px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="color: #64748B;">Día:</span>
+              <span>
+                ${cambioDia
+                  ? `<span style="text-decoration: line-through; color: #94A3B8;">${diaOrig || 'S/D'}</span>
+                     <span style="color: #64748B; margin: 0 3px;">-></span>
+                     <b style="color: ${getDiaColor(diaEfectivo)};">${diaEfectivo || 'S/D'}</b>`
+                  : `<b style="color: ${getDiaColor(diaEfectivo)};">${diaEfectivo || 'S/D'}</b> <span style="font-size: 9px; color: #94A3B8;">(sin cambio)</span>`
+                }
+              </span>
             </div>
           </div>`
         : '';

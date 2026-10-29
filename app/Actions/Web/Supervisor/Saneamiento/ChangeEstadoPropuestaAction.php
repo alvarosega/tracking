@@ -19,6 +19,10 @@ class ChangeEstadoPropuestaAction
     public function execute(int|array $propuestaIds, string $nuevoEstado): int
     {
         $estado = strtoupper(trim($nuevoEstado));
+        if ($estado === 'RECHAZADO') {
+            $estado = 'DESCARTADO';
+        }
+
         if (!in_array($estado, ['APLICADO', 'DESCARTADO', 'PENDIENTE'], true)) {
             throw new InvalidArgumentException("Estado inválido: {$nuevoEstado}");
         }

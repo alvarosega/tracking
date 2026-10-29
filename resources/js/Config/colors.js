@@ -1,6 +1,6 @@
 /**
  * Gestor centralizado y estandarizado de colores para Canales, Rutas y Días.
- * Proporciona coherencia visual absoluta en todo el sistema.
+ * Proporciona coherencia visual y máxima diferenciación perceptual en todo el sistema.
  */
 
 // Paleta fija y distintiva para Canales Comerciales
@@ -94,76 +94,79 @@ export const CANAL_COLORS = {
   }
 };
 
-// Días de la Semana con asignación cromática fija
+// Días de la Semana con asignación cromática fija y bien definida
 export const DIAS_SEMANA_CONFIG = [
-  { key: 'LUNES', corto: 'Lun', label: 'Lunes', color: '#0284C7', bg: '#E0F2FE', text: '#0369A1' },
-  { key: 'MARTES', corto: 'Mar', label: 'Martes', color: '#059669', bg: '#D1FAE5', text: '#047857' },
-  { key: 'MIERCOLES', corto: 'Mié', label: 'Miércoles', color: '#D97706', bg: '#FEF3C7', text: '#B45309' },
-  { key: 'JUEVES', corto: 'Jue', label: 'Jueves', color: '#7C3AED', bg: '#EDE9FE', text: '#6D28D9' },
-  { key: 'VIERNES', corto: 'Vie', label: 'Viernes', color: '#DB2777', bg: '#FCE7F3', text: '#BE185D' },
-  { key: 'SABADO', corto: 'Sáb', label: 'Sábado', color: '#4F46E5', bg: '#E0E7FF', text: '#4338CA' },
-  { key: 'DOMINGO', corto: 'Dom', label: 'Domingo', color: '#64748B', bg: '#F1F5F9', text: '#475569' },
+  { key: 'LUNES', corto: 'Lun', label: 'Lunes', color: '#0284C7', bg: '#E0F2FE', text: '#0369A1' },        // Azul Cielo nítido
+  { key: 'MARTES', corto: 'Mar', label: 'Martes', color: '#16A34A', bg: '#DCFCE7', text: '#15803D' },       // Verde Esmeralda vivo
+  { key: 'MIERCOLES', corto: 'Mié', label: 'Miércoles', color: '#EA580C', bg: '#FFEDD5', text: '#C2410C' }, // Naranja cálido
+  { key: 'JUEVES', corto: 'Jue', label: 'Jueves', color: '#8B5CF6', bg: '#EDE9FE', text: '#6D28D9' },       // Violeta / Púrpura
+  { key: 'VIERNES', corto: 'Vie', label: 'Viernes', color: '#E11D48', bg: '#FFE4E6', text: '#BE123C' },     // Rosa Carmesí intenso
+  { key: 'SABADO', corto: 'Sáb', label: 'Sábado', color: '#CA8A04', bg: '#FEF9C3', text: '#854D0E' },       // Amarillo Dorado / Mostaza
+  { key: 'DOMINGO', corto: 'Dom', label: 'Domingo', color: '#64748B', bg: '#F1F5F9', text: '#334155' },     // Gris Pizarra neutro
 ];
 
-// Paleta Armonizada de Alto Contraste para Rutas (50 colores de máxima diferenciación perceptual)
+// Paleta de Máximo Contraste Perceptual para Rutas
+// Diseñada alternando estrictamente familias de color no colisionantes:
+// Rojo -> Azul -> Verde -> Naranja -> Púrpura -> Dorado -> Cian -> Magenta -> Oliva -> Marino...
 export const RUTA_PALETTE = [
-  '#E11D48', // 0: Rose Crimson
-  '#2563EB', // 1: Royal Blue
-  '#059669', // 2: Emerald Green
-  '#D97706', // 3: Amber Orange
-  '#7C3AED', // 4: Deep Violet
-  '#06B6D4', // 5: Electric Cyan
-  '#DB2777', // 6: Deep Pink
-  '#65A30D', // 7: Lime Green
-  '#EA580C', // 8: Vivid Orange
-  '#4F46E5', // 9: Indigo
-  '#0D9488', // 10: Teal
-  '#CA8A04', // 11: Yellow Ochre
-  '#9333EA', // 12: Bright Purple
-  '#0284C7', // 13: Light Blue
-  '#16A34A', // 14: Grass Green
-  '#DC2626', // 15: Crimson Red
-  '#8B5CF6', // 16: Lavender
-  '#0891B2', // 17: Ocean Cyan
-  '#D946EF', // 18: Magenta / Fuchsia
-  '#84CC16', // 19: Chartreuse
-  '#F97316', // 20: Coral
-  '#4338CA', // 21: Midnight Indigo
-  '#14B8A6', // 22: Mint
-  '#EAB308', // 23: Pure Yellow
-  '#A855F7', // 24: Orchid
-  '#3B82F6', // 25: Cobalt
-  '#15803D', // 26: Forest Green
-  '#BE123C', // 27: Ruby
-  '#0E7490', // 28: Deep Cyan
-  '#C026D3', // 29: Berry Purple
-  '#4D7C0F', // 30: Olive Green
-  '#C2410C', // 31: Rust / Sienna
-  '#312E81', // 32: Deep Navy
-  '#047857', // 33: Dark Pine
-  '#A16207', // 34: Bronze Gold
-  '#701A75', // 35: Plum
-  '#1E40AF', // 36: Dark Cobalt
-  '#065F46', // 37: Jungle Green
-  '#991B1B', // 38: Burgundy
-  '#0F172A', // 39: Slate Charcoal
-  '#EC4899', // 40: Hot Pink
-  '#0369A1', // 41: Steel Blue
-  '#10B981', // 42: Sea Green
-  '#F59E0B', // 43: Warm Amber
-  '#6366F1', // 44: Cornflower
-  '#0F766E', // 45: Deep Teal
-  '#F43F5E', // 46: Coral Red
-  '#854D0E', // 47: Caramel Brown
-  '#6D28D9', // 48: Dark Violet
-  '#064E3B', // 49: Dark Evergreen
+  '#E11D48', // 0: Rojo Carmesí
+  '#2563EB', // 1: Azul Real
+  '#16A34A', // 2: Verde Pasto
+  '#EA580C', // 3: Naranja Vibrante
+  '#9333EA', // 4: Púrpura Brillante
+  '#CA8A04', // 5: Dorado Ámbar
+  '#06B6D4', // 6: Cian Eléctrico
+  '#D946EF', // 7: Fucsia / Magenta
+  '#4D7C0F', // 8: Verde Oliva Oscuro
+  '#1E3A8A', // 9: Azul Marino Profundo
+  '#F43F5E', // 10: Rojo Coral
+  '#78350F', // 11: Café Chocolate
+  '#8B5CF6', // 12: Lavanda Violeta
+  '#0D9488', // 13: Verde Azulado / Teal
+  '#EAB308', // 14: Amarillo Puro
+  '#0F172A', // 15: Carbón Pizarra
+  '#84CC16', // 16: Verde Lima
+  '#9D174D', // 17: Rosa Frambuesa Oscuro
+  '#0284C7', // 18: Azul Celeste
+  '#C2410C', // 19: Terracota / Óxido
+  '#6D28D9', // 20: Violeta Real
+  '#059669', // 21: Esmeralda Oscuro
+  '#DB2777', // 22: Rosa Fuerte
+  '#A16207', // 23: Bronce Mostaza
+  '#4F46E5', // 24: Índigo Brillante
+  '#047857', // 25: Verde Bosque
+  '#BE123C', // 26: Rubí Intenso
+  '#D97706', // 27: Ámbar Cálido
+  '#7C3AED', // 28: Púrpura Profundo
+  '#0891B2', // 29: Cian Océano
+  '#B91C1C', // 30: Rojo Borgoña
+  '#15803D', // 31: Verde Selva
+  '#C026D3', // 32: Magenta Ciruela
+  '#F97316', // 33: Mandarina
+  '#312E81', // 34: Azul Noche
+  '#65A30D', // 35: Verde Musgo
+  '#A21CAF', // 36: Orquídea
+  '#0F766E', // 37: Teal Oscuro
+  '#DC2626', // 38: Rojo Escarlata
+  '#854D0E', // 39: Caramelo Tostado
+  '#4338CA', // 40: Índigo Oscuro
+  '#14B8A6', // 41: Menta Marina
+  '#EC4899', // 42: Rosa Neón
+  '#B45309', // 43: Cobre
+  '#701A75', // 44: Berenjena
+  '#166534', // 45: Verde Pino
+  '#991B1B', // 46: Granate
+  '#0369A1', // 47: Azul Acero
+  '#6B21A8', // 48: Púrpura Imperial
+  '#334155', // 49: Grafito
 ];
 
 const rutaColorCache = new Map();
+let nextColorIndex = 0;
 
 /**
- * Registra un catálogo de rutas ordenadas asignando colores únicos y no colisionantes
- * mediante dispersión coprima (salto de 19 posiciones).
+ * Registra un catálogo de rutas ordenadas asignando colores únicos y completamente diferentes
+ * garantizando que rutas adyacentes o seleccionadas tengan contraste visual máximo.
  */
 export function registerRutasCatalogo(catalogo) {
   if (!catalogo) return;
@@ -175,7 +178,7 @@ export function registerRutasCatalogo(catalogo) {
   uniqueRutas.forEach((ruta, i) => {
     const clean = String(ruta).toUpperCase().trim();
     if (!rutaColorCache.has(clean)) {
-      const index = (i * 19) % RUTA_PALETTE.length;
+      const index = i % RUTA_PALETTE.length;
       rutaColorCache.set(clean, RUTA_PALETTE[index]);
     }
   });
@@ -209,7 +212,7 @@ function fmix32(h) {
 }
 
 /**
- * Retorna el color asignado a una ruta con máxima dispersión cromática.
+ * Retorna el color asignado a una ruta con máxima diferenciación cromática.
  */
 export function getRutaColor(ruta) {
   if (!ruta || String(ruta).trim() === '' || String(ruta).toLowerCase() === 'null') {
@@ -217,7 +220,7 @@ export function getRutaColor(ruta) {
   }
   const cleanRuta = String(ruta).toUpperCase().trim();
   if (!rutaColorCache.has(cleanRuta)) {
-    // Hash Murmur3 con mixer fmix32 para evitar colisiones en nombres contiguos (ej. 6A y 6B)
+    // Si la ruta no fue registrada en lote, asignarle el siguiente color disponible o por hash disperso
     let h = 0x811c9dc5;
     for (let i = 0; i < cleanRuta.length; i++) {
       h = Math.imul(h ^ cleanRuta.charCodeAt(i), 0x5bd1e995);
@@ -248,4 +251,3 @@ export function getDiaColor(dia) {
   const found = DIAS_SEMANA_CONFIG.find(d => d.key === cleanDia);
   return found ? found.color : '#94A3B8';
 }
-
