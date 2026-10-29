@@ -1086,7 +1086,7 @@
                       required
                       class="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-slate-500 cursor-pointer"
                     >
-                      <option v-for="r in catalogo_rutas" :key="r.ruta" :value="r.ruta">
+                      <option v-for="r in rutasFiltradasParaAjuste" :key="r.ruta" :value="r.ruta">
                         {{ formatRuta(r.ruta) }} ({{ r.canal }}) — {{ r.vendedor || 'Sin vendedor' }}
                       </option>
                     </select>
@@ -1397,6 +1397,10 @@ const labelRutas = computed(() => {
   return `${filtroRutas.value.length} sel.`;
 });
 
+const rutasFiltradasParaAjuste = computed(() => {
+  return getRutasParaSelectorPropuesta();
+});
+
 const clientesFiltradosLista = computed(() => {
   if (!busquedaCliente.value.trim()) return clientes.value;
   const q = busquedaCliente.value.toLowerCase();
@@ -1435,12 +1439,12 @@ function setModoPrincipal(modo) {
   if (map) {
     map.closePopup();
   }
-  renderizarEnMapa();
+  renderizarEnMapa(true);
 }
 
 function setSubModoVisualizacion(sub) {
   subModoVisualizacion.value = sub;
-  cargarDatos();
+  cargarDatos(true);
 }
 
 // Balance RTM agrupado por ruta y día
@@ -1481,9 +1485,14 @@ const balanceRtmPorRuta = computed(() => {
 const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0) return [];
   const mapCounts = new Map();
+  let conteoConCambio = 0;
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
+    if (c.tiene_cambio) {
+      conteoConCambio++;
+    }
+
     let key, nombre, color;
 
     if (modoColor.value === 'ruta') {
@@ -1508,7 +1517,18 @@ const elementosLeyenda = computed(() => {
     mapCounts.get(key).conteo++;
   });
 
-  return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+  const items = Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+
+  if (conteoConCambio > 0) {
+    items.unshift({
+      id: '__cambios__',
+      nombre: 'Con Cambio RTM',
+      color: '#F59E0B',
+      conteo: conteoConCambio,
+    });
+  }
+
+  return items;
 });
 
 const tieneFronteraRutaActual = computed(() => {
@@ -1518,7 +1538,7 @@ const tieneFronteraRutaActual = computed(() => {
 
 function setModoColor(modo) {
   modoColor.value = modo;
-  renderizarEnMapa();
+  renderizarEnMapa(true);
 }
 
 function toggleMenu(nombre, e) {
@@ -1576,7 +1596,7 @@ function toggleTodosDias() {
 }
 
 // CONSULTA PRINCIPAL A BACKEND (Ejecutada por Botón Consultar)
-async function cargarDatos() {
+async function cargarDatos(mantenerVista = false) {
   menuAbierto.value = null;
 
   if (filtroRutas.value.length === 0 && filtroCanales.value.length === 0) {
@@ -1584,19 +1604,22 @@ async function cargarDatos() {
     fronterasRutas.value = [];
     fronterasDias.value = [];
     kpis.value = { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
-    renderizarEnMapa();
+    renderizarEnMapa(mantenerVista);
     return;
   }
 
-  // Ajustar automáticamente el modo de color óptimo
-  if (filtroRutas.value.length === 1) {
-    modoColor.value = 'dia';
-  } else if (filtroRutas.value.length > 1) {
-    modoColor.value = 'ruta';
+  // Ajustar automáticamente el modo de color óptimo solo si no es recarga por cambio
+  if (!mantenerVista) {
+    if (filtroRutas.value.length === 1) {
+      modoColor.value = 'dia';
+    } else if (filtroRutas.value.length > 1) {
+      modoColor.value = 'ruta';
+    }
   }
 
   cargando.value = true;
   try {
+    const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
     const res = await axios.post(route('supervisor.saneamiento.visor.data'), {
       canales: filtroCanales.value,
       rutas: filtroRutas.value,
@@ -1604,7 +1627,7 @@ async function cargarDatos() {
       ver_frontera_rutas: verFronteraRutas.value,
       ver_frontera_dias: verFronteraDias.value,
       solo_activos: soloActivos.value,
-      modo_vista: subModoVisualizacion.value,
+      modo_vista: modoVistaConsulta,
     });
 
     clientes.value = res.data.clientes || [];
@@ -1613,7 +1636,7 @@ async function cargarDatos() {
     kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0 };
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
-    renderizarEnMapa();
+    renderizarEnMapa(mantenerVista);
   } catch (error) {
     console.error('Error al consultar datos de ruteo:', error);
   } finally {
@@ -1642,7 +1665,7 @@ async function ejecutarReasignacionMasiva() {
       formReasignacionMasiva.value.ruta_propuesta = '';
       formReasignacionMasiva.value.dia_propuesto = '';
       formReasignacionMasiva.value.observaciones = '';
-      await cargarDatos();
+      await cargarDatos(true);
     } else {
       alert(res.data?.message || 'Error al procesar la reasignación.');
     }
@@ -1686,7 +1709,7 @@ function limpiarMarkersVertices() {
 function cancelarEdicionVertices() {
   editandoVertices.value = false;
   limpiarMarkersVertices();
-  renderizarEnMapa();
+  renderizarEnMapa(true);
 }
 
 function activarEdicionVertices() {
@@ -1830,7 +1853,7 @@ async function guardarFronteraRtm() {
     if (res.data?.status === 'ok' || res.data?.frontera_id) {
       mostrarToast(`Frontera RTM de ${formatRuta(rutaParaAjustarFrontera.value)} guardada exitosamente.`);
       cancelarEdicionVertices();
-      await cargarDatos();
+      await cargarDatos(true);
     } else {
       alert('Respuesta inesperada al guardar la frontera.');
     }
@@ -1922,7 +1945,7 @@ async function confirmarAjusteRtm() {
     if (res.data?.success) {
       mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
       modalAjusteRtm.value.show = false;
-      await cargarDatos();
+      await cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
     }
@@ -1964,11 +1987,41 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function getRutasParaSelectorPropuesta() {
+  let lista = props.catalogo_rutas;
+
+  // 1. Filtrar primero por canales seleccionados
+  if (filtroCanales.value.length > 0) {
+    lista = lista.filter(r => filtroCanales.value.includes(r.canal));
+  }
+
+  // 2. Si hay rutas específicas seleccionadas en el filtro de rutas, limitar estrictamente a ellas
+  if (filtroRutas.value.length > 0) {
+    lista = lista.filter(r => filtroRutas.value.includes(r.ruta));
+  }
+
+  return lista;
+}
+
 function generarPopupHtmlRtm(c) {
-  const rutasOptions = props.catalogo_rutas.map(r => {
-    const sel = r.ruta === c.ruta ? 'selected' : '';
-    return `<option value="${escapeHtml(r.ruta)}" ${sel}>${escapeHtml(formatRuta(r.ruta))} (${escapeHtml(r.canal)})</option>`;
+  const rutasCandidatas = getRutasParaSelectorPropuesta();
+  const rutaActualNorm = (c.ruta || '').trim().toUpperCase();
+  const rutaActualEnFiltro = rutasCandidatas.some(r => (r.ruta || '').trim().toUpperCase() === rutaActualNorm);
+
+  let rutasOptions = '';
+  if (!rutaActualEnFiltro) {
+    rutasOptions += '<option value="" disabled selected>-- Selecciona nueva ruta filtrada --</option>';
+  }
+
+  rutasOptions += rutasCandidatas.map(r => {
+    const esActual = (r.ruta || '').trim().toUpperCase() === rutaActualNorm;
+    const sel = esActual ? 'selected' : '';
+    return `<option value="${escapeHtml(r.ruta)}" ${sel}>${escapeHtml(formatRuta(r.ruta))} (${escapeHtml(r.canal || '')})</option>`;
   }).join('');
+
+  if (rutasCandidatas.length === 0) {
+    rutasOptions = '<option value="" disabled selected>No hay rutas filtradas disponibles</option>';
+  }
 
   const diasOptions = diasSemana.map(d => {
     const sel = (c.dia_norm && d.label.toUpperCase() === c.dia_norm.toUpperCase()) ? 'selected' : '';
@@ -1987,7 +2040,7 @@ function generarPopupHtmlRtm(c) {
 
       <div style="display: flex; flex-direction: column; gap: 5px;">
         <div>
-          <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nueva Ruta:</label>
+          <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nueva Ruta (Filtrada):</label>
           <select id="rtm-popup-ruta-${c.id}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
             ${rutasOptions}
           </select>
@@ -2059,7 +2112,7 @@ async function guardarPropuestaRtmDesdePopup(clienteId, domId) {
       if (map) {
         map.closePopup();
       }
-      await cargarDatos();
+      await cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo guardar la propuesta.');
       if (btn) {
@@ -2145,8 +2198,11 @@ function getMarkerColor(c) {
   return getRutaColor(c.ruta);
 }
 
-function renderizarEnMapa() {
+function renderizarEnMapa(mantenerVista = false) {
   if (!map) return;
+
+  const centroActual = mantenerVista ? map.getCenter() : null;
+  const zoomActual = mantenerVista ? map.getZoom() : null;
 
   markersLayer.clearLayers();
   fronterasRutasLayer.clearLayers();
@@ -2196,14 +2252,20 @@ function renderizarEnMapa() {
   // Marcadores de Clientes
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
-      const markerColor = getMarkerColor(c);
+      const tieneCambio = Boolean(c.tiene_cambio);
 
-      // Si estamos en sub-modo "Con Cambios" y el cliente tiene propuesta registrada, dibujar un halo distintivo sobrio
-      if (subModoVisualizacion.value === 'cambios' && c.tiene_cambio) {
+      // Si el cliente tiene cambio registrado, se muestra de OTRO COLOR (Ámbar dorado vibrante)
+      const markerColor = tieneCambio ? '#F59E0B' : getMarkerColor(c);
+      const markerBorder = tieneCambio ? '#92400E' : '#FFFFFF';
+      const markerRadius = tieneCambio ? 7.5 : 6;
+      const markerWeight = tieneCambio ? 2 : 1.5;
+
+      // Si tiene cambio, dibujar halo exterior concéntrico en color de cambio
+      if (tieneCambio) {
         const halo = L.circleMarker([c.latitud, c.longitud], {
-          radius: 10.5,
+          radius: 12,
           fill: false,
-          color: '#475569', // Slate-600 sobrio
+          color: '#D97706', // Ámbar exterior
           weight: 2,
           dashArray: '3, 3',
           opacity: 0.9,
@@ -2212,25 +2274,25 @@ function renderizarEnMapa() {
       }
 
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: (subModoVisualizacion.value === 'cambios' && c.tiene_cambio) ? 6.5 : 6,
+        radius: markerRadius,
         fillColor: markerColor,
-        color: '#FFFFFF',
-        weight: 1.5,
+        color: markerBorder,
+        weight: markerWeight,
         opacity: 1,
         fillOpacity: 0.95,
       });
 
-      const bannerPropuesta = (subModoVisualizacion.value === 'cambios' && c.tiene_cambio)
-        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 10px; font-family: monospace;">
-            <div style="color: #0F172A; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+      const bannerPropuesta = tieneCambio
+        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; font-size: 10px; font-family: monospace;">
+            <div style="color: #92400E; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
               <span>PROPUESTA REGISTRADA</span>
-              <span style="background: #E2E8F0; color: #1E293B; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+              <span style="background: #FDE68A; color: #78350F; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
             </div>
-            <div style="color: #334155; margin-top: 2px;">
-              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> -> <b>${formatRuta(c.ruta)}</b>
+            <div style="color: #78350F; margin-top: 2px;">
+              Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> -> <b>${formatRuta(c.ruta_propuesta || c.ruta)}</b>
             </div>
-            <div style="color: #334155;">
-              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> -> <b>${c.dia_norm}</b>
+            <div style="color: #78350F;">
+              Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> -> <b>${c.dia_propuesto || c.dia_norm}</b>
             </div>
           </div>`
         : '';
@@ -2248,12 +2310,13 @@ function renderizarEnMapa() {
             <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
-              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span style="font-weight: bold; color: ${tieneCambio ? '#D97706' : getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
               <span>•</span>
               <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
               <span>•</span>
               <span style="color: #475569;">ID: ${c.cliente_id}</span>
             </div>
+            ${bannerPropuesta}
             <div style="margin-top: 3px; font-size: 9.5px; font-weight: 600; color: #0F172A;">Clic para configurar Ajuste RTM</div>
           </div>
         `, {
@@ -2268,7 +2331,7 @@ function renderizarEnMapa() {
             <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
-              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span style="font-weight: bold; color: ${tieneCambio ? '#D97706' : getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
               <span>•</span>
               <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
               <span>•</span>
@@ -2294,7 +2357,8 @@ function renderizarEnMapa() {
     }
   });
 
-  if (boundsList.length > 0 && !editandoVertices.value) {
+  // Solo centrar el mapa si mantenerVista es false
+  if (!mantenerVista && boundsList.length > 0 && !editandoVertices.value) {
     try {
       const groupBounds = L.featureGroup([fronterasRutasLayer, fronterasDiasLayer, markersLayer]).getBounds();
       if (groupBounds.isValid()) {
@@ -2303,6 +2367,8 @@ function renderizarEnMapa() {
     } catch {
       // Fallback
     }
+  } else if (mantenerVista && centroActual && zoomActual) {
+    map.setView(centroActual, zoomActual, { animate: false });
   }
 }
 
