@@ -22,6 +22,7 @@ class IngestaHistoricoCommand extends Command
      */
     protected $signature = 'ingesta:historico 
                             {archivo : Ruta relativa dentro de storage/app/}
+                            {--truncate : Vaciar fact_ventas y sys_cargas antes de procesar el histórico}
                             {--connection= : Conexión de base de datos a utilizar (por defecto supervisor)}
                             {--force : Forzar la reingesta incluso si el hash sha256 del archivo ya fue completado}';
 
@@ -143,6 +144,13 @@ class IngestaHistoricoCommand extends Command
 
         $nombreArchivo = basename($rutaArchivo);
         $fileHash = @hash_file('sha256', $rutaArchivo) ?: md5($nombreArchivo . filemtime($rutaArchivo));
+
+        // Truncado de tabla si se solicita la opción --truncate
+        if ($this->option('truncate')) {
+            $db->statement('TRUNCATE TABLE fact_ventas');
+            $db->table('sys_cargas')->where('tipo_entidad', 'FACT_VENTAS')->delete();
+            $this->warn('Tabla fact_ventas y bitácora sys_cargas vaciadas exitosamente antes de procesar el archivo.');
+        }
 
         // Control de Idempotencia
         if (!$this->option('force')) {
@@ -471,6 +479,18 @@ class IngestaHistoricoCommand extends Command
             $mapped[$dc] = array_key_exists($dc, $mapped)
                 ? $this->parseMonetary($mapped[$dc])
                 : 0.0;
+        }
+
+        // Armonizar precio y precio_unitario
+        $pUnit = (float) ($mapped['precio_unitario'] ?? 0.0);
+        $pVal = (float) ($mapped['precio'] ?? 0.0);
+        if ($pUnit <= 0.0 && $pVal > 0.0) {
+            $mapped['precio_unitario'] = $pVal;
+        } elseif ($pVal <= 0.0 && $pUnit > 0.0) {
+            $mapped['precio'] = $pUnit;
+        } elseif ($pUnit <= 0.0 && $pVal <= 0.0 && (int) ($mapped['cantidad'] ?? 0) > 0 && (float) ($mapped['monto_final'] ?? 0.0) > 0.0) {
+            $mapped['precio_unitario'] = round((float) $mapped['monto_final'] / (int) $mapped['cantidad'], 6);
+            $mapped['precio'] = $mapped['precio_unitario'];
         }
 
 

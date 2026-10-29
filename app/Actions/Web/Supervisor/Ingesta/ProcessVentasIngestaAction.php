@@ -215,12 +215,23 @@ class ProcessVentasIngestaAction
                 }
             }
 
+            // Armonizar precio y precio_unitario
+            $pUnit = (float) $mapped['precio_unitario'];
+            $pVal = (float) $mapped['precio'];
+            if ($pUnit <= 0.0 && $pVal > 0.0) {
+                $mapped['precio_unitario'] = $pVal;
+            } elseif ($pVal <= 0.0 && $pUnit > 0.0) {
+                $mapped['precio'] = $pUnit;
+            } elseif ($pUnit <= 0.0 && $pVal <= 0.0 && (int) $mapped['cantidad'] > 0 && (float) $mapped['monto_final'] > 0.0) {
+                $mapped['precio_unitario'] = round((float) $mapped['monto_final'] / (int) $mapped['cantidad'], 6);
+                $mapped['precio'] = $mapped['precio_unitario'];
+            }
+
             // Generar huella digital invariable para reconciliación
             $cantidadInt = (int) $mapped['cantidad'];
             $montoFinalFloat = (float) $mapped['monto_final'];
-            $precioUnitarioFloat = (float) $mapped['precio_unitario'];
 
-            $hash = $this->generarHashFila($fechaNorm, $ventaId, $productoId, $cantidadInt, $montoFinalFloat, $precioUnitarioFloat);
+            $hash = $this->generarHashFila($fechaNorm, $ventaId, $productoId, $cantidadInt, $montoFinalFloat);
 
             // Filtrar exclusivamente columnas presentes en fact_ventas
             $dbRow = [];
@@ -276,18 +287,18 @@ class ProcessVentasIngestaAction
         if (count($fechasValidas) <= 200) {
             $placeholders = implode(',', array_fill(0, count($fechasValidas), '?'));
             $filasDb = $conn->select("
-                SELECT id, fecha_norm, venta_id, producto_id, cantidad, monto_final, precio_unitario
+                SELECT id, fecha_norm, venta_id, producto_id, cantidad, monto_final, precio_unitario, precio
                 FROM fact_ventas
                 WHERE fecha_norm IN ({$placeholders})
             ", $fechasValidas);
         } else {
             $rawDb = $conn->select("
-                SELECT id, fecha_norm, venta_id, producto_id, cantidad, monto_final, precio_unitario
+                SELECT id, fecha_norm, venta_id, producto_id, cantidad, monto_final, precio_unitario, precio
                 FROM fact_ventas
                 WHERE fecha_norm >= ? AND fecha_norm <= ?
             ", [$fechaMin, $fechaMax]);
             $fechasFlip = array_flip($fechasValidas);
-            $filasDb = array_filter($rawDb, fn($r) => isset($fechasFlip[(string) $r->fecha_norm]));
+            $filasDb = array_filter($rawDb, fn($r) => isset($fechasFlip[substr((string) $r->fecha_norm, 0, 10)]));
         }
 
         // 3. Construir mapa de frecuencias de multiconjunto en memoria
@@ -299,10 +310,9 @@ class ProcessVentasIngestaAction
             $vId = (int) $r->venta_id;
             $pId = (int) $r->producto_id;
             $cant = (int) $r->cantidad;
-            $mFinal = round((float) $r->monto_final, 6);
-            $pUnit = round((float) $r->precio_unitario, 6);
+            $mFinal = (float) $r->monto_final;
 
-            $h = $this->generarHashFila($fNorm, $vId, $pId, $cant, $mFinal, $pUnit);
+            $h = $this->generarHashFila($fNorm, $vId, $pId, $cant, $mFinal);
             $dbFrecuencias[$h] = ($dbFrecuencias[$h] ?? 0) + 1;
             $dbRecordsPorHash[$h][] = $r;
         }
@@ -332,13 +342,17 @@ class ProcessVentasIngestaAction
             if ($remainingCount > 0 && isset($dbRecordsPorHash[$h])) {
                 $unmatched = array_slice($dbRecordsPorHash[$h], 0, $remainingCount);
                 foreach ($unmatched as $r) {
+                    $pUnit = (float) ($r->precio_unitario ?? 0);
+                    if ($pUnit <= 0.0 && !empty($r->precio)) {
+                        $pUnit = (float) $r->precio;
+                    }
                     $alertas[] = [
                         'venta_id' => (int) $r->venta_id,
                         'producto_id' => (int) $r->producto_id,
                         'fecha' => substr((string) $r->fecha_norm, 0, 10),
                         'cantidad' => (int) $r->cantidad,
                         'monto_final' => round((float) $r->monto_final, 6),
-                        'precio_unitario' => round((float) $r->precio_unitario, 6),
+                        'precio_unitario' => round($pUnit, 6),
                         'motivo' => 'Registro presente en base de datos pero ausente en el archivo cargado',
                     ];
                 }
@@ -445,12 +459,10 @@ class ProcessVentasIngestaAction
     /**
      * Genera la huella digital invariable de una fila para reconciliación por multiconjuntos.
      */
-    protected function generarHashFila(string $fechaNorm, int $ventaId, int $productoId, int $cantidad, float $montoFinal, float $precioUnitario): string
+    protected function generarHashFila(string $fechaNorm, int $ventaId, int $productoId, int $cantidad, float $montoFinal): string
     {
-        $montoStr = round($montoFinal, 6);
-        $precioStr = round($precioUnitario, 6);
-
-        return md5("{$fechaNorm}|{$ventaId}|{$productoId}|{$cantidad}|{$montoStr}|{$precioStr}");
+        $montoStr = sprintf('%.4f', $montoFinal);
+        return md5("{$fechaNorm}|{$ventaId}|{$productoId}|{$cantidad}|{$montoStr}");
     }
 
     /**
