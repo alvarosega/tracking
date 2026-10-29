@@ -1749,16 +1749,7 @@ function exportarMatrizCsv() {
 
 // ── Ciclo de Vida ───────────────────────────────────────────────────────────
 onMounted(async () => {
-  store.configurarCanales(props.canales)
-  if (props.catalogo_rutas && props.catalogo_rutas.length > 0) {
-    store.catalogoRutas = props.catalogo_rutas
-  }
-  if (!store.fechaCorte && props.fecha_corte_default) {
-    store.fechaCorte = props.fecha_corte_default
-  }
-  if (!store.fechaInicio) {
-    store.fechaInicio = props.fecha_inicio_default || props.fecha_corte_default
-  }
+  store.inicializarDesdeStorage(props)
   await consultarMatriz()
 })
 

@@ -11,6 +11,7 @@
         <input
           v-model="store.fechaInicio"
           type="date"
+          @change="emit('cambio')"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-bold text-[#1D1D1F] focus:outline-none cursor-pointer font-mono"
         />
@@ -22,6 +23,7 @@
         <input
           v-model="store.fechaCorte"
           type="date"
+          @change="emit('cambio')"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-bold text-[#1D1D1F] focus:outline-none cursor-pointer font-mono"
         />
@@ -156,6 +158,7 @@
           v-model="store.busqueda"
           type="text"
           placeholder="Buscar ruta o vendedor..."
+          @input="emit('cambio')"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-medium text-[#1D1D1F] placeholder-[#86868B] focus:outline-none w-32 sm:w-44"
         />
@@ -222,7 +225,7 @@ const etiquetaCanalesSeleccionados = computed(() => {
   const sel = store.canalesSeleccionados || []
   if (sel.includes('__NINGUNO__')) return 'Ninguno'
   const total = canalesDisponiblesLimpios.value.length
-  if (sel.length === 0 || sel.length >= total) return 'TODOS'
+  if (sel.length === 0 || (total > 0 && sel.length >= total)) return 'TODOS'
   if (sel.length === 1) return sel[0]
   return `${sel.length} de ${total}`
 })
@@ -255,30 +258,22 @@ function toggleCanal(canal) {
   } else {
     store.canalesSeleccionados = actuales
   }
+
+  emit('cambio')
 }
 
 function seleccionarTodosCanales() {
   store.canalesSeleccionados = []
+  emit('cambio')
 }
 
 function deseleccionarTodosCanales() {
   store.canalesSeleccionados = ['__NINGUNO__']
+  emit('cambio')
 }
 
 const rutasFiltradasPorCanal = computed(() => {
-  const cat = store.catalogoRutas || []
-  const selCanales = store.canalesSeleccionados || []
-
-  if (selCanales.includes('__NINGUNO__')) {
-    return []
-  }
-
-  if (selCanales.length === 0) {
-    return cat
-  }
-
-  const setC = new Set(selCanales.map(c => String(c).trim().toUpperCase()))
-  return cat.filter(r => r.canal && setC.has(String(r.canal).trim().toUpperCase()))
+  return store.rutasPermitidasPorCanal || []
 })
 
 const rutasOpcionesFiltradas = computed(() => {
@@ -292,7 +287,7 @@ const etiquetaRutasSeleccionadas = computed(() => {
   const sel = store.rutasSeleccionadas || []
   if (sel.includes('__NINGUNA__')) return 'Ninguna'
   const total = rutasFiltradasPorCanal.value.length
-  if (sel.length === 0 || sel.length >= total) return 'TODAS'
+  if (sel.length === 0 || (total > 0 && sel.length >= total)) return 'TODAS'
   if (sel.length === 1) return sel[0]
   return `${sel.length} de ${total}`
 })
@@ -307,13 +302,11 @@ function esRutaMarcada(ruta) {
 
 function toggleRuta(ruta) {
   const todas = rutasFiltradasPorCanal.value.map(r => r.ruta)
-  const sel = store.rutasSeleccionadas || []
+  const sel = (store.rutasSeleccionadas || []).filter(r => r !== '__NINGUNA__')
   const rNorm = String(ruta).trim().toUpperCase()
   let actuales = []
 
-  if (sel.includes('__NINGUNA__')) {
-    actuales = [ruta]
-  } else if (sel.length === 0) {
+  if (!store.rutasSeleccionadas || store.rutasSeleccionadas.length === 0 || store.rutasSeleccionadas.length >= todas.length) {
     actuales = todas.filter(r => String(r).trim().toUpperCase() !== rNorm)
   } else if (sel.map(r => String(r).trim().toUpperCase()).includes(rNorm)) {
     actuales = sel.filter(r => String(r).trim().toUpperCase() !== rNorm)
@@ -328,14 +321,18 @@ function toggleRuta(ruta) {
   } else {
     store.rutasSeleccionadas = actuales
   }
+
+  emit('cambio')
 }
 
 function seleccionarTodas() {
   store.rutasSeleccionadas = []
+  emit('cambio')
 }
 
 function deseleccionarTodas() {
   store.rutasSeleccionadas = ['__NINGUNA__']
+  emit('cambio')
 }
 
 const textoDiasHabiles = computed(() => {
@@ -372,4 +369,3 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
-
