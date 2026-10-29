@@ -929,6 +929,130 @@
 
       </div>
 
+      <!-- ======================================================== -->
+      <!-- TABLA INFERIOR: REGISTRO DE CAMBIOS Y PROPUESTAS RTM     -->
+      <!-- ======================================================== -->
+      <div class="bg-white border-t border-slate-300 shrink-0 z-20 flex flex-col transition-all">
+        <!-- Cabecera de la Barra de Cambios -->
+        <div class="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
+              Cambios y Propuestas RTM
+            </span>
+            <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+              {{ clientesConCambio.length }} modificaciones
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Buscador interno de cambios si hay más de 3 -->
+            <input
+              v-if="clientesConCambio.length > 3 && tablaCambiosVisible"
+              v-model="busquedaTablaCambios"
+              type="text"
+              placeholder="Filtrar cambios..."
+              class="h-6 px-2 text-[11px] bg-white border border-slate-300 rounded font-mono placeholder:text-slate-400 focus:outline-none"
+            />
+
+            <!-- Toggle colapsar / expandir -->
+            <button
+              type="button"
+              @click="tablaCambiosVisible = !tablaCambiosVisible"
+              class="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded hover:bg-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <span>{{ tablaCambiosVisible ? 'Ocultar' : 'Mostrar' }}</span>
+              <svg
+                class="w-3.5 h-3.5 transition-transform"
+                :class="tablaCambiosVisible ? 'rotate-180' : ''"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Contenido de la Tabla (Desplegable) -->
+        <div v-show="tablaCambiosVisible" class="max-h-52 overflow-y-auto custom-scroll">
+          <div v-if="clientesConCambio.length === 0" class="py-6 px-4 text-center text-xs text-slate-400 font-sans">
+            No se registran cambios o propuestas de ruteo en la selección actual. Al ajustar rutas o días en el mapa, los cambios se listarán aquí.
+          </div>
+
+          <table v-else class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-50 text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 z-10 select-none">
+              <tr>
+                <th class="py-1.5 px-3 font-bold">ID</th>
+                <th class="py-1.5 px-3 font-bold">Cliente</th>
+                <th class="py-1.5 px-3 font-bold">Ruta Anterior -> Nueva</th>
+                <th class="py-1.5 px-3 font-bold">Día Anterior -> Nuevo</th>
+                <th class="py-1.5 px-3 font-bold">Estado</th>
+                <th class="py-1.5 px-3 font-bold">Observación</th>
+                <th class="py-1.5 px-3 font-bold text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-sans">
+              <tr
+                v-for="c in clientesConCambioFiltrados"
+                :key="c.id"
+                class="hover:bg-slate-50/80 transition-colors"
+              >
+                <td class="py-2 px-3 font-mono text-slate-500 text-[11px] whitespace-nowrap">
+                  {{ c.cliente_id }}
+                </td>
+                <td class="py-2 px-3 whitespace-nowrap">
+                  <div class="font-semibold text-slate-900 text-xs">{{ c.nombre }}</div>
+                  <div class="text-[10px] text-slate-400 truncate max-w-xs">{{ c.direccion || 'Sin dirección' }}</div>
+                </td>
+                <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
+                  <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original || c.ruta) }}</span>
+                  <span class="text-slate-400 mx-1.5">-></span>
+                  <span class="font-bold text-slate-900" :style="{ color: getRutaColor(c.ruta) }">
+                    {{ formatRuta(c.ruta) }}
+                  </span>
+                </td>
+                <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
+                  <span class="line-through text-slate-400">{{ c.dia_original || 'S/D' }}</span>
+                  <span class="text-slate-400 mx-1.5">-></span>
+                  <span class="font-bold text-slate-900" :style="{ color: getDiaColor(c.dia_norm) }">
+                    {{ c.dia_norm }}
+                  </span>
+                </td>
+                <td class="py-2 px-3 whitespace-nowrap">
+                  <span class="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                    {{ c.propuesta_estado || 'PENDIENTE' }}
+                  </span>
+                </td>
+                <td class="py-2 px-3 text-[11px] text-slate-600 truncate max-w-xs">
+                  {{ c.observaciones_propuesta || 'Ajuste dinámico RTM' }}
+                </td>
+                <td class="py-2 px-3 text-right whitespace-nowrap space-x-2">
+                  <button
+                    type="button"
+                    @click="enfocarClienteEnMapa(c)"
+                    class="px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+                    title="Localizar y ver en mapa"
+                  >
+                    Ver en mapa
+                  </button>
+                  <button
+                    v-if="c.propuesta_id"
+                    type="button"
+                    @click="descartarPropuesta(c)"
+                    class="px-2 py-1 text-[11px] font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                    title="Descartar propuesta y revertir"
+                  >
+                    Descartar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ========================================== -->
       <!-- MODAL PARA AJUSTAR RTM DE UN CLIENTE       -->
       <!-- ========================================== -->
@@ -1485,13 +1609,9 @@ const balanceRtmPorRuta = computed(() => {
 const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0) return [];
   const mapCounts = new Map();
-  let conteoConCambio = 0;
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
-    if (c.tiene_cambio) {
-      conteoConCambio++;
-    }
 
     let key, nombre, color;
 
@@ -1517,19 +1637,69 @@ const elementosLeyenda = computed(() => {
     mapCounts.get(key).conteo++;
   });
 
-  const items = Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
-
-  if (conteoConCambio > 0) {
-    items.unshift({
-      id: '__cambios__',
-      nombre: 'Con Cambio RTM',
-      color: '#F59E0B',
-      conteo: conteoConCambio,
-    });
-  }
-
-  return items;
+  return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
 });
+
+// ── TABLA INFERIOR DE REGISTRO DE CAMBIOS ──
+const tablaCambiosVisible = ref(true);
+const busquedaTablaCambios = ref('');
+
+const clientesConCambio = computed(() => {
+  return clientes.value.filter(c => Boolean(c.tiene_cambio));
+});
+
+const clientesConCambioFiltrados = computed(() => {
+  if (!busquedaTablaCambios.value.trim()) return clientesConCambio.value;
+  const q = busquedaTablaCambios.value.toLowerCase();
+  return clientesConCambio.value.filter(c =>
+    (c.nombre && c.nombre.toLowerCase().includes(q)) ||
+    (c.cliente_id && String(c.cliente_id).includes(q)) ||
+    (c.ruta && c.ruta.toLowerCase().includes(q)) ||
+    (c.ruta_original && c.ruta_original.toLowerCase().includes(q))
+  );
+});
+
+function enfocarClienteEnMapa(c) {
+  if (!c || !map) return;
+  vistaMovil.value = 'mapa';
+  if (c.latitud && c.longitud) {
+    map.setView([c.latitud, c.longitud], Math.max(map.getZoom(), 16), { animate: true });
+    const marker = markersMap.get(c.id);
+    if (marker) {
+      if (modoPrincipal.value === 'ajuste_rtm') {
+        marker.openPopup();
+      } else {
+        abrirModalPuntoCliente(c);
+      }
+    }
+  }
+}
+
+async function descartarPropuesta(c) {
+  if (!c.propuesta_id) return;
+  if (!confirm(`¿Deseas descartar el cambio propuesto para ${c.nombre}?`)) return;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.propuestas.actualizar-estado')
+      : '/supervisor/saneamiento/propuestas/actualizar-estado';
+
+    const res = await axios.post(url, {
+      propuesta_id: c.propuesta_id,
+      estado: 'RECHAZADO',
+    });
+
+    if (res.data?.status === 'ok') {
+      mostrarToast('Propuesta descartada exitosamente.');
+      await cargarDatos(true);
+    } else {
+      alert('No se pudo descartar la propuesta.');
+    }
+  } catch (err) {
+    console.error('Error al descartar propuesta:', err);
+    alert('Error al descartar: ' + (err.response?.data?.message || err.message));
+  }
+}
 
 const tieneFronteraRutaActual = computed(() => {
   if (!rutaParaAjustarFrontera.value) return false;
@@ -2254,44 +2424,30 @@ function renderizarEnMapa(mantenerVista = false) {
     if (c.tiene_gps) {
       const tieneCambio = Boolean(c.tiene_cambio);
 
-      // Si el cliente tiene cambio registrado, se muestra de OTRO COLOR (Ámbar dorado vibrante)
-      const markerColor = tieneCambio ? '#F59E0B' : getMarkerColor(c);
-      const markerBorder = tieneCambio ? '#92400E' : '#FFFFFF';
-      const markerRadius = tieneCambio ? 7.5 : 6;
-      const markerWeight = tieneCambio ? 2 : 1.5;
+      // El color de los cambios debe ser igual al color de la ruta
+      const markerColor = getMarkerColor(c);
 
-      // Si tiene cambio, dibujar halo exterior concéntrico en color de cambio
-      if (tieneCambio) {
-        const halo = L.circleMarker([c.latitud, c.longitud], {
-          radius: 12,
-          fill: false,
-          color: '#D97706', // Ámbar exterior
-          weight: 2,
-          dashArray: '3, 3',
-          opacity: 0.9,
-        });
-        halo.addTo(markersLayer);
-      }
-
+      // Si tiene cambio, se agrega borde segmentado (#0F172A, dashArray: '3, 3'), nada más.
       const marker = L.circleMarker([c.latitud, c.longitud], {
-        radius: markerRadius,
+        radius: 6,
         fillColor: markerColor,
-        color: markerBorder,
-        weight: markerWeight,
+        color: tieneCambio ? '#0F172A' : '#FFFFFF',
+        weight: tieneCambio ? 2.5 : 1.5,
+        dashArray: tieneCambio ? '3, 3' : null,
         opacity: 1,
         fillOpacity: 0.95,
       });
 
       const bannerPropuesta = tieneCambio
-        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; font-size: 10px; font-family: monospace;">
-            <div style="color: #92400E; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+        ? `<div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1px dashed #475569; border-radius: 6px; font-size: 10px; font-family: monospace;">
+            <div style="color: #0F172A; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
               <span>PROPUESTA REGISTRADA</span>
-              <span style="background: #FDE68A; color: #78350F; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
+              <span style="background: #E2E8F0; color: #1E293B; padding: 0 4px; border-radius: 3px; font-size: 8.5px;">${c.propuesta_estado || 'PENDIENTE'}</span>
             </div>
-            <div style="color: #78350F; margin-top: 2px;">
+            <div style="color: #334155; margin-top: 2px;">
               Ruta: <span style="text-decoration: line-through; opacity: 0.6;">${formatRuta(c.ruta_original || c.ruta)}</span> -> <b>${formatRuta(c.ruta_propuesta || c.ruta)}</b>
             </div>
-            <div style="color: #78350F;">
+            <div style="color: #334155;">
               Día: <span style="text-decoration: line-through; opacity: 0.6;">${c.dia_original || 'S/D'}</span> -> <b>${c.dia_propuesto || c.dia_norm}</b>
             </div>
           </div>`
@@ -2310,7 +2466,7 @@ function renderizarEnMapa(mantenerVista = false) {
             <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
-              <span style="font-weight: bold; color: ${tieneCambio ? '#D97706' : getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
               <span>•</span>
               <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
               <span>•</span>
@@ -2331,7 +2487,7 @@ function renderizarEnMapa(mantenerVista = false) {
             <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
-              <span style="font-weight: bold; color: ${tieneCambio ? '#D97706' : getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
+              <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
               <span>•</span>
               <span style="font-weight: bold; color: ${getDiaColor(c.dia_norm)};">${c.dia_norm || 'S/D'}</span>
               <span>•</span>
