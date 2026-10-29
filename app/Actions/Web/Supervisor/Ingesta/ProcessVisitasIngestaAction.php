@@ -9,19 +9,40 @@ use App\Services\Ingesta\IngestaValidator;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ProcessVisitasIngestaAction
 {
+    /**
+     * Tamaño de bloque para inserciones masivas en MariaDB.
+     */
+    private const CHUNK_SIZE = 500;
+
+    /**
+     * Columnas canónicas de fallback para fact_visitas.
+     *
+     * @var array<int, string>
+     */
+    private const CANONICAL_VISITAS_COLUMNS = [
+        'id', 'tipo', 'motivo', 'cliente', 'cliente_norm', 'empleado',
+        'empleado_norm', 'fecha', 'fecha_norm', 'monto', 'check_in',
+        'check_out', 'tiempo_pdv', 'zona', 'tipo_pago', 'tipo_negocio', 'cluster',
+    ];
+
     public function __construct(
         protected ExcelCsvParser $parser,
         protected IngestaValidator $validator
     ) {}
 
     /**
-     * Procesa la ingesta de archivo de Visitas (FACT_VISITAS).
+     * Procesa la ingesta de archivo de Visitas Operativas (FACT_VISITAS).
      *
+     * @param UploadedFile|string $file
+     * @param string|null $originalFilename
      * @return array<string, mixed>
+     * @throws Exception
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null): array
     {
@@ -31,6 +52,20 @@ class ProcessVisitasIngestaAction
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
 
+        // 1. Idempotencia temprana por hash SHA-256
+        $fileHash = @hash_file('sha256', $filePath) ?: md5($filename);
+
+        $conn = DB::connection('supervisor');
+
+        $yaProcesado = $conn->table('sys_cargas')
+            ->where('sha256', $fileHash)
+            ->where('tipo_entidad', 'FACT_VISITAS')
+            ->exists();
+
+        if ($yaProcesado) {
+            throw new Exception("El archivo de visitas ya fue procesado anteriormente (SHA-256 coincidente). Operación omitida.");
+        }
+
         $headers = $this->parser->extractHeaders($filePath, $filename);
         $this->validator->validateSchema($headers, 'FACT_VISITAS');
 
@@ -39,40 +74,62 @@ class ProcessVisitasIngestaAction
 
         if ($totalLeidas === 0) {
             return [
+                'status' => 'success',
                 'filas_leidas' => 0,
                 'nuevos' => 0,
+                'filas_nuevas' => 0,
                 'modificados' => 0,
+                'filas_actualizadas' => 0,
                 'eliminados' => 0,
+                'cancelados' => 0,
                 'sin_cambios' => 0,
+                'filas_ignoradas' => 0,
+                'filas_con_discrepancia' => 0,
                 'rango_fechas' => '-',
+                'fecha_operativa' => '-',
                 'detalles_alterados' => [],
                 'detalles_eliminados' => [],
             ];
         }
 
-        $fileHash = hash_file('sha256', $filePath) ?: md5($filename);
-
         $dedupMap = [];
         $fechasOperativas = [];
 
+        // 2. Pipeline de Normalización por Fila
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'FACT_VISITAS');
 
-            $vid = isset($mapped['id']) ? (int)$mapped['id'] : 0;
+            $vid = isset($mapped['id']) && is_numeric($mapped['id']) ? (int) $mapped['id'] : 0;
             if ($vid <= 0) {
                 continue;
             }
 
-            $fechaRaw = $mapped['fecha_norm'] ?? ($mapped['fecha'] ?? null);
+            // Parseo robusto de fechas
+            $fechaRaw = $mapped['fecha'] ?? ($mapped['fecha_norm'] ?? null);
             $fechaNorm = ExcelCsvParser::normalizeDate($fechaRaw) ?? '';
-            $fechaFull = ExcelCsvParser::normalizeDateTime($mapped['fecha'] ?? $fechaRaw) ?? $fechaNorm;
-            $mapped['fecha_norm'] = $fechaNorm;
-            $mapped['fecha'] = $fechaFull;
-            if ($fechaNorm !== '') {
-                $fechasOperativas[$fechaNorm] = true;
+            $fechaFull = ExcelCsvParser::normalizeDateTime($fechaRaw) ?? ($fechaNorm !== '' ? "{$fechaNorm} 00:00:00" : null);
+
+            if ($fechaNorm === '') {
+                continue;
             }
 
-            $mapped['monto'] = isset($mapped['monto']) ? (float)$mapped['monto'] : 0.0;
+            $fechasOperativas[$fechaNorm] = true;
+            $mapped['id'] = $vid;
+            $mapped['fecha_norm'] = $fechaNorm;
+            $mapped['fecha'] = $fechaFull;
+
+            // Parseo de tiempos (evitar insertar números seriales decimales 0.68... crudos)
+            $mapped['check_in'] = ExcelCsvParser::normalizeTime($mapped['check_in'] ?? null);
+            $mapped['check_out'] = ExcelCsvParser::normalizeTime($mapped['check_out'] ?? null);
+            $mapped['tiempo_pdv'] = ExcelCsvParser::normalizeTime($mapped['tiempo_pdv'] ?? null);
+
+            // Generación de columnas normalizadas
+            $mapped['cliente_norm'] = $this->sanitizeNormString($mapped['cliente'] ?? null);
+            $mapped['empleado_norm'] = $this->sanitizeNormString($mapped['empleado'] ?? null);
+
+            // Parseo de montos a DECIMAL(16,6) con default 0.000000
+            $mapped['monto'] = $this->parseDecimal($mapped['monto'] ?? 0.0);
+
             $dedupMap[$vid] = $mapped;
         }
 
@@ -83,9 +140,7 @@ class ProcessVisitasIngestaAction
             throw new Exception("El archivo no contiene fechas operativas válidas para Visitas.");
         }
 
-        $conn = DB::connection('supervisor');
-
-        // Asegurar tabla auditoria_visitas_discrepancias
+        // Asegurar tabla de auditoría para discrepancias
         try {
             $conn->statement("
                 CREATE TABLE IF NOT EXISTS `auditoria_visitas_discrepancias` (
@@ -106,30 +161,13 @@ class ProcessVisitasIngestaAction
                     INDEX `idx_avd_evento` (`tipo_evento`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
-        } catch (\Throwable) {}
+        } catch (Throwable) {}
 
-        // Obtener columnas de fact_visitas
-        try {
-            $colsDb = \Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('fact_visitas');
-        } catch (\Throwable) {
-            $colsDb = [];
-        }
-
-        if (empty($colsDb)) {
-            try {
-                $colDbRows = $conn->select("
-                    SELECT COLUMN_NAME 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_visitas'
-                ");
-                $colsDb = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
-            } catch (\Throwable) {
-                $colsDb = [];
-            }
-        }
+        // Obtener columnas existentes en fact_visitas
+        $colsDb = $this->obtenerColumnasFactVisitas($conn);
         $colsDbFlip = array_flip($colsDb);
 
-        // 1. Recuperar existentes basándonos en los IDs entrantes
+        // 3. Recuperar existentes en la BD basándonos en los IDs entrantes
         $idsEntrantes = array_keys($dedupMap);
         $existentes = [];
 
@@ -137,13 +175,13 @@ class ProcessVisitasIngestaAction
         foreach ($chunkIds as $subIds) {
             $placeholders = implode(',', array_fill(0, count($subIds), '?'));
             $filas = $conn->select("
-                SELECT id, tipo, motivo, cliente, empleado, fecha, fecha_norm, monto, 
+                SELECT id, tipo, motivo, cliente, cliente_norm, empleado, empleado_norm, fecha, fecha_norm, monto, 
                        check_in, check_out, tiempo_pdv, zona, tipo_pago, tipo_negocio, cluster
                 FROM fact_visitas
                 WHERE id IN ({$placeholders})
             ", $subIds);
             foreach ($filas as $r) {
-                $existentes[(int)$r->id] = $r;
+                $existentes[(int) $r->id] = $r;
             }
         }
 
@@ -151,11 +189,11 @@ class ProcessVisitasIngestaAction
         $modificadosUpdates = [];
         $auditoriaDiscrepancias = [];
         $detallesAlterados = [];
-        $detallesEliminados = [];
         $sinCambiosCount = 0;
 
+        // 4. Auditoría de Discrepancias Limpia y Clasificación
         foreach ($dedupMap as $vid => $row) {
-            $montoNuevo = (float)$row['monto'];
+            $montoNuevo = (float) $row['monto'];
 
             $dbRow = [];
             foreach ($row as $colName => $colVal) {
@@ -170,10 +208,10 @@ class ProcessVisitasIngestaAction
                 $prev = $existentes[$vid];
                 $alterado = false;
                 $discrepanciasFila = [];
-                $montoAnt = (float)($prev->monto ?? 0.0);
+                $montoAnt = (float) ($prev->monto ?? 0.0);
 
-                // 1. Monto
-                if (abs($montoNuevo - $montoAnt) > 0.01) {
+                // A. Monto (solo alteración si abs > 0.0001)
+                if (abs($montoNuevo - $montoAnt) > 0.0001) {
                     $alterado = true;
                     $discrepanciasFila[] = [
                         'tipo' => 'MONTO',
@@ -184,10 +222,10 @@ class ProcessVisitasIngestaAction
                     ];
                 }
 
-                // 2. Tipo
-                $tipoAnt = trim((string)($prev->tipo ?? ''));
-                $tipoNuevo = trim((string)($row['tipo'] ?? ''));
-                if ($tipoAnt !== '' && $tipoNuevo !== '' && strtolower($tipoAnt) !== strtolower($tipoNuevo)) {
+                // B. Tipo de visita
+                $tipoAnt = trim((string) ($prev->tipo ?? ''));
+                $tipoNuevo = trim((string) ($row['tipo'] ?? ''));
+                if ($tipoAnt !== '' && $tipoNuevo !== '' && strcasecmp($tipoAnt, $tipoNuevo) !== 0) {
                     $alterado = true;
                     $discrepanciasFila[] = [
                         'tipo' => 'TIPO_VISITA',
@@ -198,13 +236,14 @@ class ProcessVisitasIngestaAction
                     ];
                 }
 
-                // 3. Tiempos PDV
-                $cinAnt = trim((string)($prev->check_in ?? ''));
-                $cinNuevo = trim((string)($row['check_in'] ?? ''));
-                $coutAnt = trim((string)($prev->check_out ?? ''));
-                $coutNuevo = trim((string)($row['check_out'] ?? ''));
-                $tpdvAnt = trim((string)($prev->tiempo_pdv ?? ''));
-                $tpdvNuevo = trim((string)($row['tiempo_pdv'] ?? ''));
+                // C. Tiempos PDV (comparar únicamente valores previamente normalizados)
+                $cinAnt = ExcelCsvParser::normalizeTime($prev->check_in ?? null) ?? '';
+                $cinNuevo = (string) ($row['check_in'] ?? '');
+                $coutAnt = ExcelCsvParser::normalizeTime($prev->check_out ?? null) ?? '';
+                $coutNuevo = (string) ($row['check_out'] ?? '');
+                $tpdvAnt = ExcelCsvParser::normalizeTime($prev->tiempo_pdv ?? null) ?? '';
+                $tpdvNuevo = (string) ($row['tiempo_pdv'] ?? '');
+
                 if ($cinAnt !== $cinNuevo || $coutAnt !== $coutNuevo || $tpdvAnt !== $tpdvNuevo) {
                     $alterado = true;
                     $discrepanciasFila[] = [
@@ -216,10 +255,10 @@ class ProcessVisitasIngestaAction
                     ];
                 }
 
-                // 4. Motivo
-                $motivoAnt = trim((string)($prev->motivo ?? ''));
-                $motivoNuevo = trim((string)($row['motivo'] ?? ''));
-                if ($motivoAnt !== $motivoNuevo) {
+                // D. Motivo
+                $motivoAnt = trim((string) ($prev->motivo ?? ''));
+                $motivoNuevo = trim((string) ($row['motivo'] ?? ''));
+                if ($motivoAnt !== '' && $motivoNuevo !== '' && strcasecmp($motivoAnt, $motivoNuevo) !== 0) {
                     $alterado = true;
                     $discrepanciasFila[] = [
                         'tipo' => 'MOTIVO',
@@ -230,18 +269,19 @@ class ProcessVisitasIngestaAction
                     ];
                 }
 
-                // 5. Asignación
-                $empAnt = trim((string)($prev->empleado ?? ''));
-                $empNuevo = trim((string)($row['empleado'] ?? ''));
-                $cliAnt = trim((string)($prev->cliente ?? ''));
-                $cliNuevo = trim((string)($row['cliente'] ?? ''));
-                if (($empAnt !== '' && $empNuevo !== '' && strtolower($empAnt) !== strtolower($empNuevo)) ||
-                    ($cliAnt !== '' && $cliNuevo !== '' && strtolower($cliAnt) !== strtolower($cliNuevo))) {
+                // E. Asignación (comparar valores normalizados para evitar falsos positivos)
+                $empAntNorm = $this->sanitizeNormString($prev->empleado_norm ?? $prev->empleado ?? null) ?? '';
+                $empNuevoNorm = (string) ($row['empleado_norm'] ?? '');
+                $cliAntNorm = $this->sanitizeNormString($prev->cliente_norm ?? $prev->cliente ?? null) ?? '';
+                $cliNuevoNorm = (string) ($row['cliente_norm'] ?? '');
+
+                if (($empAntNorm !== '' && $empNuevoNorm !== '' && $empAntNorm !== $empNuevoNorm) ||
+                    ($cliAntNorm !== '' && $cliNuevoNorm !== '' && $cliAntNorm !== $cliNuevoNorm)) {
                     $alterado = true;
                     $discrepanciasFila[] = [
                         'tipo' => 'ASIGNACION',
-                        'ant' => "Emp: {$empAnt} | Cli: {$cliAnt}",
-                        'nuev' => "Emp: {$empNuevo} | Cli: {$cliNuevo}",
+                        'ant' => "Emp: {$empAntNorm} | Cli: {$cliAntNorm}",
+                        'nuev' => "Emp: {$empNuevoNorm} | Cli: {$cliNuevoNorm}",
                         'm_ant' => $montoAnt,
                         'm_nuev' => $montoNuevo,
                     ];
@@ -253,9 +293,9 @@ class ProcessVisitasIngestaAction
                         'id' => $vid,
                     ];
 
-                    $fReg = (string)($row['fecha_norm'] ?? $row['fecha'] ?? '');
-                    $cNom = (string)($row['cliente'] ?? '');
-                    $eNom = (string)($row['empleado'] ?? '');
+                    $fReg = (string) ($row['fecha_norm'] ?? $row['fecha'] ?? '');
+                    $cNom = (string) ($row['cliente'] ?? '');
+                    $eNom = (string) ($row['empleado'] ?? '');
 
                     foreach ($discrepanciasFila as $df) {
                         $auditoriaDiscrepancias[] = [
@@ -287,46 +327,39 @@ class ProcessVisitasIngestaAction
             }
         }
 
-        // 3. Visitas Operativas es Carga Acumulativa por Dispositivo/Vendedor:
-        // Las visitas previas que no vengan en este archivo NO se borran físicamente para proteger
-        // los marcajes históricos y visitas de otros empleados/rutas del mismo día.
-        $idsEliminados = [];
-
-        $chunkSize = 300;
-
-        // 4. Operaciones en Transacción Atómica
-        $conn->transaction(function () use ($conn, $nuevosRecords, $modificadosUpdates, $auditoriaDiscrepancias, $chunkSize) {
-            // A. Inserción de Nuevos
+        // 5. Operaciones en Transacción Atómica (sin DELETE en fact_visitas)
+        $conn->transaction(function () use ($conn, $nuevosRecords, $modificadosUpdates, $auditoriaDiscrepancias) {
+            // A. Inserción de Nuevos en bloques de 500
             if (!empty($nuevosRecords)) {
-                $chunks = array_chunk($nuevosRecords, $chunkSize);
+                $chunks = array_chunk($nuevosRecords, self::CHUNK_SIZE);
                 foreach ($chunks as $chunk) {
                     $conn->table('fact_visitas')->insert($chunk);
                 }
             }
 
-            // B. Actualización de Modificados
+            // B. Actualización directa por id = $vid
             foreach ($modificadosUpdates as $item) {
                 $updateData = $item['row'];
                 unset($updateData['id']);
                 $conn->table('fact_visitas')->where('id', $item['id'])->update($updateData);
             }
 
-            // C. Auditoría de Discrepancias
+            // C. Auditoría de Discrepancias en bloques de 500
             if (!empty($auditoriaDiscrepancias)) {
-                $chunksAud = array_chunk($auditoriaDiscrepancias, $chunkSize);
+                $chunksAud = array_chunk($auditoriaDiscrepancias, self::CHUNK_SIZE);
                 foreach ($chunksAud as $chunk) {
                     $conn->table('auditoria_visitas_discrepancias')->insert($chunk);
                 }
             }
         });
 
-        // 8. Bitácora sys_cargas
+        // 6. Registro de Bitácora en sys_cargas
         $rangoIni = $fechasValidas[0] ?? '-';
         $rangoFin = end($fechasValidas) ?: '-';
-        $totalAfectadas = count($nuevosRecords) + count($modificadosUpdates) + count($idsEliminados);
+        $totalAfectadas = count($nuevosRecords) + count($modificadosUpdates);
 
         try {
-            $conn->table('sys_cargas')->insert([
+            $cargaData = [
                 'archivo_original' => $filename,
                 'archivo_almacenado' => $filePath,
                 'sha256' => $fileHash,
@@ -340,9 +373,15 @@ class ProcessVisitasIngestaAction
                 'rango_inicio' => $rangoIni,
                 'rango_fin' => $rangoFin,
                 'fecha_ingesta' => now(),
-            ]);
-        } catch (\Throwable $eSys) {
-            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+            ];
+
+            if (Schema::connection('supervisor')->hasColumn('sys_cargas', 'estado')) {
+                $cargaData['estado'] = 'COMPLETADO';
+            }
+
+            $conn->table('sys_cargas')->insert($cargaData);
+        } catch (Throwable $eSys) {
+            Log::warning("No se pudo registrar FACT_VISITAS en sys_cargas: " . $eSys->getMessage());
         }
 
         $rangoStr = "{$rangoIni} al {$rangoFin}";
@@ -354,16 +393,117 @@ class ProcessVisitasIngestaAction
             'filas_nuevas' => count($nuevosRecords),
             'modificados' => count($modificadosUpdates),
             'filas_actualizadas' => count($modificadosUpdates),
-            'eliminados' => count($idsEliminados),
-            'cancelados' => count($idsEliminados),
+            'eliminados' => 0,
+            'cancelados' => 0,
             'filas_con_discrepancia' => count($auditoriaDiscrepancias),
             'sin_cambios' => $sinCambiosCount,
             'filas_ignoradas' => $sinCambiosCount,
             'rango_fechas' => $rangoStr,
             'fecha_operativa' => $rangoStr,
             'detalles_alterados' => $detallesAlterados,
-            'detalles_eliminados' => $detallesEliminados,
+            'detalles_eliminados' => [],
         ];
     }
-}
 
+    /**
+     * Sanitiza y normaliza cadenas de texto para análisis:
+     * Mayúsculas, sin acentos (translit), sin caracteres especiales y espacios limpios.
+     */
+    private function sanitizeNormString(?string $str): ?string
+    {
+        if ($str === null) {
+            return null;
+        }
+
+        $trimmed = trim($str);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (!mb_check_encoding($trimmed, 'UTF-8')) {
+            $trimmed = mb_convert_encoding($trimmed, 'UTF-8', 'ISO-8859-1');
+        }
+
+        $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $trimmed);
+        if ($translit === false) {
+            $translit = @iconv('UTF-8', 'ASCII//TRANSLIT', $trimmed);
+            if ($translit === false) {
+                $translit = $trimmed;
+            }
+        }
+
+        $upper = strtoupper((string) $translit);
+        $limpio = preg_replace('/[^A-Z0-9\s]/', '', $upper);
+        $limpio = preg_replace('/\s+/', ' ', (string) $limpio);
+
+        $result = trim((string) $limpio);
+
+        return $result !== '' ? $result : null;
+    }
+
+    /**
+     * Parsea montos a precisión decimal de 6 dígitos con default 0.000000.
+     */
+    protected function parseDecimal(mixed $value): float
+    {
+        if ($value === null) {
+            return 0.0;
+        }
+
+        $str = trim((string) $value);
+        if ($str === '' || strcasecmp($str, 'null') === 0) {
+            return 0.0;
+        }
+
+        $clean = str_replace(' ', '', $str);
+
+        if (str_contains($clean, ',') && str_contains($clean, '.')) {
+            if (strrpos($clean, '.') > strrpos($clean, ',')) {
+                $clean = str_replace(',', '', $clean);
+            } else {
+                $clean = str_replace('.', '', $clean);
+                $clean = str_replace(',', '.', $clean);
+            }
+        } elseif (str_contains($clean, ',')) {
+            $clean = str_replace(',', '.', $clean);
+        }
+
+        $clean = preg_replace('/[^0-9.-]/', '', $clean);
+
+        if ($clean === null || $clean === '' || $clean === '-' || !is_numeric($clean)) {
+            return 0.0;
+        }
+
+        return round((float) $clean, 6);
+    }
+
+    /**
+     * Obtiene el listado de columnas reales de fact_visitas.
+     *
+     * @param mixed $conn
+     * @return array<int, string>
+     */
+    protected function obtenerColumnasFactVisitas($conn): array
+    {
+        try {
+            $cols = Schema::connection('supervisor')->getColumnListing('fact_visitas');
+            if (!empty($cols)) {
+                return array_values($cols);
+            }
+        } catch (Throwable) {}
+
+        try {
+            $colDbRows = $conn->select("
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'fact_visitas'
+            ");
+            $cols = array_map(fn($c) => $c->COLUMN_NAME ?? $c->column_name, $colDbRows);
+            if (!empty($cols)) {
+                return array_values($cols);
+            }
+        } catch (Throwable) {}
+
+        return self::CANONICAL_VISITAS_COLUMNS;
+    }
+}

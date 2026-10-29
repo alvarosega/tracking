@@ -666,14 +666,24 @@ class ExcelCsvParser
             return null;
         }
 
+        // Si es número serial de Excel con fecha y hora flotante (ej: 46322.6826388889)
+        if (is_numeric($str) && (float)$str > 30000 && (float)$str < 60000) {
+            $val = (float)$str;
+            $days = (int)floor($val);
+            $fraction = $val - $days;
+            $totalSeconds = (int)round($fraction * 86400);
+            $unixTime = ($days - 25569) * 86400 + $totalSeconds;
+            return gmdate('Y-m-d H:i:s', $unixTime);
+        }
+
         // Si viene con formato DD/MM/YYYY HH:MM:SS o DD-MM-YYYY HH:MM:SS
         if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
             $sec = isset($m[6]) ? (int)$m[6] : 0;
             return sprintf('%04d-%02d-%02d %02d:%02d:%02d', (int)$m[3], (int)$m[2], (int)$m[1], (int)$m[4], (int)$m[5], $sec);
         }
 
-        // Si viene con formato YYYY-MM-DD HH:MM:SS
-        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
+        // Si viene con formato YYYY-MM-DD HH:MM:SS o YYYY/MM/DD HH:MM:SS
+        if (preg_match('/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/', $str, $m)) {
             $sec = isset($m[6]) ? (int)$m[6] : 0;
             return sprintf('%04d-%02d-%02d %02d:%02d:%02d', (int)$m[1], (int)$m[2], (int)$m[3], (int)$m[4], (int)$m[5], $sec);
         }
