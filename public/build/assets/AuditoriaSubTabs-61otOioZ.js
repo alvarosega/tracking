@@ -1,0 +1,1 @@
+import{S as e,c as t}from"./runtime-core.esm-bundler-CsLFOlZd.js";import{t as n}from"./AuditoriaSaneamientoSubTabs-4vsjUf4p.js";var r={__name:`AuditoriaSubTabs`,props:{activeTab:{type:String,required:!0}},setup(r){return(i,a)=>(e(),t(n,{"active-tab":r.activeTab},null,8,[`active-tab`]))}};export{r as default};
