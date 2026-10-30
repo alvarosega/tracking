@@ -36,9 +36,10 @@ class GetAvanceEntregasTableroAction
 
     private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro, ?string $fechaInicio = null): array
     {
-        $fechaD1 = $fechaInicio ?: $this->calcularFechaOperativaPrevia($fechaCorte);
+        $fechaPreventa = $fechaInicio ?: $this->calcularFechaOperativaPrevia($fechaCorte);
+        $fechaMaxFact = Carbon::parse($fechaPreventa)->addDays(6)->format('Y-m-d');
 
-        $params = [$fechaCorte, $fechaD1];
+        $params = [$fechaPreventa, $fechaMaxFact, $fechaPreventa];
         $extraSql = '';
 
         if ($canalFiltro && strtoupper($canalFiltro) !== 'TODOS' && strtoupper($canalFiltro) !== 'TODAS') {
@@ -90,7 +91,7 @@ class GetAvanceEntregasTableroAction
                     MAX(nro_factura) AS nro_factura,
                     MAX(venta_id) AS venta_id
                 FROM fact_ventas
-                WHERE fecha_norm = ?
+                WHERE fecha_norm >= ? AND fecha_norm <= ?
                   AND monto_final > 0
                   AND cantidad > 0
                   AND (revertida IS NULL OR LOWER(TRIM(revertida)) != 'si')
@@ -269,7 +270,8 @@ class GetAvanceEntregasTableroAction
 
         return [
             'fecha_corte' => $fechaCorte,
-            'fecha_d1_referencia' => $fechaD1,
+            'fecha_d1_referencia' => $fechaPreventa,
+            'fecha_max_facturacion' => $fechaMaxFact,
             'totales_generales' => [
                 'total_pedidos' => $totPedidos,
                 'pedidos_entregados' => $totEntregados,

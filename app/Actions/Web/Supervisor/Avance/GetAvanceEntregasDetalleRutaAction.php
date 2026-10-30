@@ -37,6 +37,8 @@ class GetAvanceEntregasDetalleRutaAction
 
     private function procesarDetalleRuta(string $ruta, string $fechaInicio, string $fechaCorte): array
     {
+        $fechaMaxFact = Carbon::parse($fechaCorte)->addDays(6)->format('Y-m-d');
+
         $query = "
             SELECT 
                 TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))) AS ruta,
@@ -99,7 +101,7 @@ class GetAvanceEntregasDetalleRutaAction
         ";
 
         $filas = DB::connection('supervisor')->select($query, [
-            $fechaInicio, $fechaCorte,
+            $fechaInicio, $fechaMaxFact,
             $fechaInicio, $fechaCorte,
             trim($ruta),
         ]);

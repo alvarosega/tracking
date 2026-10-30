@@ -1486,6 +1486,18 @@ watch(filtroRutaGlobal, async (nuevaRuta) => {
   }
 });
 
+watch([vistaActiva, submodo], async ([nuevaVista, nuevoSubmodo]) => {
+  if (nuevaVista === 'matriz' && nuevoSubmodo === 'historico' && filtroRutaGlobal.value === 'TODAS') {
+    const primeraRuta = rutasDisponibles.value[0];
+    if (primeraRuta) {
+      filtroRutaGlobal.value = primeraRuta;
+      if (!detallePedidosHistorico[primeraRuta]) {
+        await cargarDetalleRutaHistorico(primeraRuta);
+      }
+    }
+  }
+});
+
 // Modales y Formateadores
 function abrirModalEvidencia(p) {
   pedidoEvidenciaModal.value = p;

@@ -38,6 +38,8 @@ class GetAvanceEntregasHistoricoAction
 
     private function procesarHistorico(string $fechaInicio, string $fechaCorte): array
     {
+        $fechaMaxFact = Carbon::parse($fechaCorte)->addDays(6)->format('Y-m-d');
+
         $query = "
             SELECT 
                 TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))) AS ruta,
@@ -71,7 +73,7 @@ class GetAvanceEntregasHistoricoAction
         ";
 
         $filas = DB::connection('supervisor')->select($query, [
-            $fechaInicio, $fechaCorte,
+            $fechaInicio, $fechaMaxFact,
             $fechaInicio, $fechaCorte,
         ]);
 
