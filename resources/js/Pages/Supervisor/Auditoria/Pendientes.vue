@@ -715,3 +715,4 @@ onMounted(() => {
   consultar();
 });
 </script>
+
