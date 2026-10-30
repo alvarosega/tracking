@@ -15,8 +15,19 @@ class GetAvanceEntregasDetalleRutaAction
     /**
      * Obtiene el detalle completo de preventas y facturación de una ruta en un rango de fechas.
      */
-    public function execute(string $ruta, string $fechaInicio, string $fechaCorte): array
+    public function execute(string $ruta, ?string $fechaInicio = null, ?string $fechaCorte = null): array
     {
+        if (empty($fechaCorte)) {
+            $maxFecha = DB::connection('supervisor')->table('fact_ventas')
+                ->where('monto_final', '>', 0)
+                ->max('fecha_norm');
+            $fechaCorte = $maxFecha ? (string) $maxFecha : date('Y-m-d');
+        }
+
+        if (empty($fechaInicio)) {
+            $fechaInicio = Carbon::parse($fechaCorte)->startOfMonth()->format('Y-m-d');
+        }
+
         $cacheKey = "avance_entregas_hist_ruta_" . md5("{$ruta}_{$fechaInicio}_{$fechaCorte}");
 
         return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($ruta, $fechaInicio, $fechaCorte) {
