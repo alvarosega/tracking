@@ -170,73 +170,49 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         })->name('comparativos');
 
         Route::get('/auditoria', function () {
-            return redirect()->route('supervisor.auditoria.preventas');
+            return redirect()->route('supervisor.auditoria.pendientes');
         })->name('auditoria');
     });
 
-    // Módulo Auditoría de Ruteo & Preventas
+    // Módulo Auditoría de Ruteo (Centralizado: Pendientes e Histórico)
     Route::prefix('auditoria')->name('auditoria.')->middleware('module.access:auditoria')->group(function () {
-        Route::get('/', function (\Illuminate\Http\Request $request) {
-            $user = $request->user();
-            $submodules = ['preventas', 'inactivados', 'cambios-ruta', 'modificacion-datos', 'cambios-dia', 'altas', 'historico'];
-            foreach ($submodules as $sub) {
-                if ($user->hasModuleAccess('auditoria', $sub)) {
-                    return redirect()->route("supervisor.auditoria.{$sub}");
-                }
-            }
-            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Auditoría.');
+        Route::get('/', function () {
+            return redirect()->route('supervisor.auditoria.pendientes');
         })->name('index');
 
         // Catálogo maestro y fotos
         Route::get('/catalogo', [SupervisorAuditoriaController::class, 'catalogo'])->name('catalogo');
         Route::get('/fotos-cliente/{clienteId}', [SupervisorAuditoriaController::class, 'fotosCliente'])->name('fotos-cliente');
 
-        // 1. Preventas Intra-día
-        Route::middleware('module.access:auditoria,preventas')->group(function () {
-            Route::get('/preventas', [SupervisorAuditoriaController::class, 'preventas'])->name('preventas');
-            Route::match(['get', 'post'], '/preventas/consultar', [SupervisorAuditoriaController::class, 'preventasConsultar'])->name('preventas.consultar');
-        });
+        // 1. Cambios Pendientes (Bandeja centralizada de auditoría)
+        Route::get('/pendientes', [SupervisorAuditoriaController::class, 'pendientes'])->name('pendientes');
+        Route::match(['get', 'post'], '/pendientes/consultar', [SupervisorAuditoriaController::class, 'pendientesConsultar'])->name('pendientes.consultar');
+        Route::post('/pendientes/resolver', [SupervisorAuditoriaController::class, 'pendientesResolver'])->name('pendientes.resolver');
 
-        // 2. Clientes Inactivados
-        Route::middleware('module.access:auditoria,inactivados')->group(function () {
-            Route::get('/inactivados', [SupervisorAuditoriaController::class, 'inactivados'])->name('inactivados');
-            Route::match(['get', 'post'], '/inactivados/consultar', [SupervisorAuditoriaController::class, 'inactivadosConsultar'])->name('inactivados.consultar');
-            Route::post('/inactivados/resolver', [SupervisorAuditoriaController::class, 'inactivadosResolver'])->name('inactivados.resolver');
-        });
+        // 2. Histórico de Resoluciones
+        Route::get('/historico', [SupervisorAuditoriaController::class, 'historico'])->name('historico');
+        Route::match(['get', 'post'], '/historico/consultar', [SupervisorAuditoriaController::class, 'historicoConsultar'])->name('historico.consultar');
 
-        // 3. Cambios de Ruta
-        Route::middleware('module.access:auditoria,cambios-ruta')->group(function () {
-            Route::get('/cambios-ruta', [SupervisorAuditoriaController::class, 'cambiosRuta'])->name('cambios-ruta');
-            Route::match(['get', 'post'], '/cambios-ruta/consultar', [SupervisorAuditoriaController::class, 'cambiosRutaConsultar'])->name('cambios-ruta.consultar');
-            Route::post('/cambios-ruta/resolver', [SupervisorAuditoriaController::class, 'cambiosRutaResolver'])->name('cambios-ruta.resolver');
-        });
+        // Rutas de compatibilidad con submódulos previos (redirigen a pendientes con categoría)
+        Route::get('/inactivados', [SupervisorAuditoriaController::class, 'inactivados'])->name('inactivados');
+        Route::match(['get', 'post'], '/inactivados/consultar', [SupervisorAuditoriaController::class, 'inactivadosConsultar'])->name('inactivados.consultar');
+        Route::post('/inactivados/resolver', [SupervisorAuditoriaController::class, 'inactivadosResolver'])->name('inactivados.resolver');
 
-        // 4. Modificación de Datos
-        Route::middleware('module.access:auditoria,modificacion-datos')->group(function () {
-            Route::get('/modificacion-datos', [SupervisorAuditoriaController::class, 'modificacionDatos'])->name('modificacion-datos');
-            Route::match(['get', 'post'], '/modificacion-datos/consultar', [SupervisorAuditoriaController::class, 'modificacionDatosConsultar'])->name('modificacion-datos.consultar');
-            Route::post('/modificacion-datos/resolver', [SupervisorAuditoriaController::class, 'modificacionDatosResolver'])->name('modificacion-datos.resolver');
-        });
+        Route::get('/cambios-ruta', [SupervisorAuditoriaController::class, 'cambiosRuta'])->name('cambios-ruta');
+        Route::match(['get', 'post'], '/cambios-ruta/consultar', [SupervisorAuditoriaController::class, 'cambiosRutaConsultar'])->name('cambios-ruta.consultar');
+        Route::post('/cambios-ruta/resolver', [SupervisorAuditoriaController::class, 'cambiosRutaResolver'])->name('cambios-ruta.resolver');
 
-        // 5. Cambios de Día
-        Route::middleware('module.access:auditoria,cambios-dia')->group(function () {
-            Route::get('/cambios-dia', [SupervisorAuditoriaController::class, 'cambiosDia'])->name('cambios-dia');
-            Route::match(['get', 'post'], '/cambios-dia/consultar', [SupervisorAuditoriaController::class, 'cambiosDiaConsultar'])->name('cambios-dia.consultar');
-            Route::post('/cambios-dia/resolver', [SupervisorAuditoriaController::class, 'cambiosDiaResolver'])->name('cambios-dia.resolver');
-        });
+        Route::get('/modificacion-datos', [SupervisorAuditoriaController::class, 'modificacionDatos'])->name('modificacion-datos');
+        Route::match(['get', 'post'], '/modificacion-datos/consultar', [SupervisorAuditoriaController::class, 'modificacionDatosConsultar'])->name('modificacion-datos.consultar');
+        Route::post('/modificacion-datos/resolver', [SupervisorAuditoriaController::class, 'modificacionDatosResolver'])->name('modificacion-datos.resolver');
 
-        // 6. Altas y Reactivaciones
-        Route::middleware('module.access:auditoria,altas')->group(function () {
-            Route::get('/altas', [SupervisorAuditoriaController::class, 'altas'])->name('altas');
-            Route::match(['get', 'post'], '/altas/consultar', [SupervisorAuditoriaController::class, 'altasConsultar'])->name('altas.consultar');
-            Route::post('/altas/resolver', [SupervisorAuditoriaController::class, 'altasResolver'])->name('altas.resolver');
-        });
+        Route::get('/cambios-dia', [SupervisorAuditoriaController::class, 'cambiosDia'])->name('cambios-dia');
+        Route::match(['get', 'post'], '/cambios-dia/consultar', [SupervisorAuditoriaController::class, 'cambiosDiaConsultar'])->name('cambios-dia.consultar');
+        Route::post('/cambios-dia/resolver', [SupervisorAuditoriaController::class, 'cambiosDiaResolver'])->name('cambios-dia.resolver');
 
-        // 7. Histórico de Resoluciones
-        Route::middleware('module.access:auditoria,historico')->group(function () {
-            Route::get('/historico', [SupervisorAuditoriaController::class, 'historico'])->name('historico');
-            Route::match(['get', 'post'], '/historico/consultar', [SupervisorAuditoriaController::class, 'historicoConsultar'])->name('historico.consultar');
-        });
+        Route::get('/altas', [SupervisorAuditoriaController::class, 'altas'])->name('altas');
+        Route::match(['get', 'post'], '/altas/consultar', [SupervisorAuditoriaController::class, 'altasConsultar'])->name('altas.consultar');
+        Route::post('/altas/resolver', [SupervisorAuditoriaController::class, 'altasResolver'])->name('altas.resolver');
     });
 
     // Módulo Tracking en Vivo y Patrones Históricos

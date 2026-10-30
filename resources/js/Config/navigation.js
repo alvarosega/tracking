@@ -22,7 +22,7 @@ export const navigationConfig = {
       id: 'auditoria',
       name: 'Auditoría & Saneamiento',
       shortName: 'Auditoría & Saneamiento',
-      route: 'supervisor.auditoria.preventas',
+      route: 'supervisor.auditoria.pendientes',
       permissionModules: ['auditoria', 'saneamiento'],
       componentPrefix: ['Supervisor/Auditoria', 'Supervisor/Saneamiento'],
       icon: 'ShieldCheckIcon',
@@ -32,57 +32,12 @@ export const navigationConfig = {
       submodules: [
         // 1. Auditoría de Ruteo
         {
-          id: 'preventas',
+          id: 'pendientes',
           module: 'auditoria',
-          name: 'Preventas Intra-día',
-          route: 'supervisor.auditoria.preventas',
-          component: 'Supervisor/Auditoria/Preventas',
-          icon: 'DocumentTextIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'inactivados',
-          module: 'auditoria',
-          name: 'Bajas e Inactivados',
-          route: 'supervisor.auditoria.inactivados',
-          component: 'Supervisor/Auditoria/Inactivados',
-          icon: 'UserMinusIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'cambios-ruta',
-          module: 'auditoria',
-          name: 'Cambios de Ruta',
-          route: 'supervisor.auditoria.cambios-ruta',
-          component: 'Supervisor/Auditoria/CambiosRuta',
-          icon: 'ArrowsRightLeftIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'modificacion-datos',
-          module: 'auditoria',
-          name: 'Modificación Datos',
-          route: 'supervisor.auditoria.modificacion-datos',
-          component: 'Supervisor/Auditoria/ModificacionDatos',
-          icon: 'PencilSquareIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'cambios-dia',
-          module: 'auditoria',
-          name: 'Cambios de Día',
-          route: 'supervisor.auditoria.cambios-dia',
-          component: 'Supervisor/Auditoria/CambiosDia',
-          icon: 'CalendarIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'altas',
-          module: 'auditoria',
-          name: 'Altas y Reactivaciones',
-          route: 'supervisor.auditoria.altas',
-          component: 'Supervisor/Auditoria/Altas',
-          icon: 'UserPlusIcon',
+          name: 'Cambios Pendientes',
+          route: 'supervisor.auditoria.pendientes',
+          component: 'Supervisor/Auditoria/Pendientes',
+          icon: 'ShieldCheckIcon',
           group: 'Auditoría de Ruteo'
         },
         {
@@ -524,12 +479,7 @@ export const preventasSubTabs = [
 ];
 
 export const auditoriaSubTabs = [
-  { id: 'preventas', module: 'auditoria', name: 'Preventas Intra-día', route: 'supervisor.auditoria.preventas' },
-  { id: 'inactivados', module: 'auditoria', name: 'Bajas e Inactivados', route: 'supervisor.auditoria.inactivados' },
-  { id: 'cambios-ruta', module: 'auditoria', name: 'Cambios de Ruta', route: 'supervisor.auditoria.cambios-ruta' },
-  { id: 'modificacion-datos', module: 'auditoria', name: 'Modificación Datos', route: 'supervisor.auditoria.modificacion-datos' },
-  { id: 'cambios-dia', module: 'auditoria', name: 'Cambios de Día', route: 'supervisor.auditoria.cambios-dia' },
-  { id: 'altas', module: 'auditoria', name: 'Altas y Reactivaciones', route: 'supervisor.auditoria.altas' },
+  { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
   { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' }
 ];
 

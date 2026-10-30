@@ -30,8 +30,13 @@ class ResolverAuditoriaRuteoAction
         }
 
         $nuevoEstado = strtoupper(trim((string) ($payload['estado'] ?? 'APROBADO')));
-        if (!in_array($nuevoEstado, ['APROBADO', 'RECHAZADO'], true)) {
-            throw new InvalidArgumentException("Estado inválido '{$nuevoEstado}'. Estados permitidos: APROBADO, RECHAZADO.");
+        if ($nuevoEstado === 'DESCARTE') {
+            $nuevoEstado = 'DESCARTADO';
+        }
+
+        $permitidos = ['APROBADO', 'RECHAZADO', 'DESCARTADO'];
+        if (!in_array($nuevoEstado, $permitidos, true)) {
+            throw new InvalidArgumentException("Estado inválido '{$nuevoEstado}'. Estados permitidos: " . implode(', ', $permitidos) . '.');
         }
 
         $observaciones = trim((string) ($payload['observaciones'] ?? ''));

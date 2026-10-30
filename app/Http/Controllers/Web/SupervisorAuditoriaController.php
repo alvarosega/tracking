@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaAltasAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaCambiosDiaAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaCambiosRutaAction;
 use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaCatalogoAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaHistoricoAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaInactivadosAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaModificacionDatosAction;
-use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaPreventasAction;
+use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaRuteoAction;
 use App\Actions\Web\Supervisor\Auditoria\ResolverAuditoriaRuteoAction;
 use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,51 +47,34 @@ class SupervisorAuditoriaController extends Controller
         }
     }
 
-    // ── 1. PREVENTAS ────────────────────────────────────────────────────────
+    // ── 1. AUDITORÍA DE CAMBIOS PENDIENTES (CENTRALIZADA) ───────────────────
 
-    public function preventas(GetAuditoriaCatalogoAction $catalogoAction): Response
+    public function pendientes(Request $request, GetAuditoriaCatalogoAction $catalogoAction): Response
     {
         $catalogo = $catalogoAction->execute();
 
-        return Inertia::render('Supervisor/Auditoria/Preventas', [
+        return Inertia::render('Supervisor/Auditoria/Pendientes', [
             'canales' => $catalogo['canales'],
             'rutas' => $catalogo['rutas'],
             'archivos_base' => $catalogo['archivos_base'],
+            'initial_categoria' => $request->query('categoria', 'TODOS'),
         ]);
     }
 
-    public function preventasConsultar(Request $request, GetAuditoriaPreventasAction $action): JsonResponse
+    public function pendientesConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
     {
         try {
-            return response()->json($action->execute($request->all()));
+            $params = $request->all();
+            if (empty($params['estado_auditoria'])) {
+                $params['estado_auditoria'] = 'PENDIENTE';
+            }
+            return response()->json($action->execute($params));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
-    // ── 2. INACTIVADOS ──────────────────────────────────────────────────────
-
-    public function inactivados(GetAuditoriaCatalogoAction $catalogoAction): Response
-    {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/Inactivados', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-        ]);
-    }
-
-    public function inactivadosConsultar(Request $request, GetAuditoriaInactivadosAction $action): JsonResponse
-    {
-        try {
-            return response()->json($action->execute($request->all()));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function inactivadosResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    public function pendientesResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
     {
         try {
             $payload = $request->all();
@@ -109,149 +87,9 @@ class SupervisorAuditoriaController extends Controller
         }
     }
 
-    // ── 3. CAMBIOS DE RUTA ──────────────────────────────────────────────────
+    // ── 2. HISTÓRICO DE AUDITORÍA Y RESOLUCIONES ────────────────────────────
 
-    public function cambiosRuta(GetAuditoriaCatalogoAction $catalogoAction): Response
-    {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/CambiosRuta', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-        ]);
-    }
-
-    public function cambiosRutaConsultar(Request $request, GetAuditoriaCambiosRutaAction $action): JsonResponse
-    {
-        try {
-            return response()->json($action->execute($request->all()));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function cambiosRutaResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
-    {
-        try {
-            $payload = $request->all();
-            if (empty($payload['auditado_por']) && $request->user()) {
-                $payload['auditado_por'] = $request->user()->username ?? $request->user()->name ?? 'SUPERVISOR';
-            }
-            return response()->json($action->execute($payload));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
-        }
-    }
-
-    // ── 4. MODIFICACIÓN DE DATOS ────────────────────────────────────────────
-
-    public function modificacionDatos(GetAuditoriaCatalogoAction $catalogoAction): Response
-    {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/ModificacionDatos', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-        ]);
-    }
-
-    public function modificacionDatosConsultar(Request $request, GetAuditoriaModificacionDatosAction $action): JsonResponse
-    {
-        try {
-            return response()->json($action->execute($request->all()));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function modificacionDatosResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
-    {
-        try {
-            $payload = $request->all();
-            if (empty($payload['auditado_por']) && $request->user()) {
-                $payload['auditado_por'] = $request->user()->username ?? $request->user()->name ?? 'SUPERVISOR';
-            }
-            return response()->json($action->execute($payload));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
-        }
-    }
-
-    // ── 5. CAMBIOS DE DÍA ───────────────────────────────────────────────────
-
-    public function cambiosDia(GetAuditoriaCatalogoAction $catalogoAction): Response
-    {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/CambiosDia', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-        ]);
-    }
-
-    public function cambiosDiaConsultar(Request $request, GetAuditoriaCambiosDiaAction $action): JsonResponse
-    {
-        try {
-            return response()->json($action->execute($request->all()));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function cambiosDiaResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
-    {
-        try {
-            $payload = $request->all();
-            if (empty($payload['auditado_por']) && $request->user()) {
-                $payload['auditado_por'] = $request->user()->username ?? $request->user()->name ?? 'SUPERVISOR';
-            }
-            return response()->json($action->execute($payload));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
-        }
-    }
-
-    // ── 6. ALTAS Y REACTIVACIONES ───────────────────────────────────────────
-
-    public function altas(GetAuditoriaCatalogoAction $catalogoAction): Response
-    {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/Altas', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-        ]);
-    }
-
-    public function altasConsultar(Request $request, GetAuditoriaAltasAction $action): JsonResponse
-    {
-        try {
-            return response()->json($action->execute($request->all()));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function altasResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
-    {
-        try {
-            $payload = $request->all();
-            if (empty($payload['auditado_por']) && $request->user()) {
-                $payload['auditado_por'] = $request->user()->username ?? $request->user()->name ?? 'SUPERVISOR';
-            }
-            return response()->json($action->execute($payload));
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
-        }
-    }
-
-    // ── 7. HISTÓRICO RESOLUCIONES ───────────────────────────────────────────
-
-    public function historico(GetAuditoriaCatalogoAction $catalogoAction): Response
+    public function historico(Request $request, GetAuditoriaCatalogoAction $catalogoAction): Response
     {
         $catalogo = $catalogoAction->execute();
 
@@ -259,16 +97,102 @@ class SupervisorAuditoriaController extends Controller
             'canales' => $catalogo['canales'],
             'rutas' => $catalogo['rutas'],
             'archivos_base' => $catalogo['archivos_base'],
+            'initial_categoria' => $request->query('categoria', 'TODOS'),
         ]);
     }
 
-    public function historicoConsultar(Request $request, GetAuditoriaHistoricoAction $action): JsonResponse
+    public function historicoConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
     {
         try {
-            return response()->json($action->execute($request->all()));
+            $params = $request->all();
+            if (empty($params['estado_auditoria'])) {
+                $params['estado_auditoria'] = 'RESUELTOS';
+            }
+            return response()->json($action->execute($params));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-}
 
+    // ── RETROCOMPATIBILIDAD CON RUTAS ANTERIORES ────────────────────────────
+
+    public function inactivados(): RedirectResponse
+    {
+        return redirect()->route('supervisor.auditoria.pendientes', ['categoria' => 'BAJAS_INACTIVADOS']);
+    }
+
+    public function inactivadosConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
+    {
+        $params = array_merge($request->all(), ['categoria' => 'BAJAS_INACTIVADOS']);
+        return response()->json($action->execute($params));
+    }
+
+    public function inactivadosResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    {
+        return $this->pendientesResolver($request, $action);
+    }
+
+    public function cambiosRuta(): RedirectResponse
+    {
+        return redirect()->route('supervisor.auditoria.pendientes', ['categoria' => 'CAMBIOS_RUTA']);
+    }
+
+    public function cambiosRutaConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
+    {
+        $params = array_merge($request->all(), ['categoria' => 'CAMBIOS_RUTA']);
+        return response()->json($action->execute($params));
+    }
+
+    public function cambiosRutaResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    {
+        return $this->pendientesResolver($request, $action);
+    }
+
+    public function modificacionDatos(): RedirectResponse
+    {
+        return redirect()->route('supervisor.auditoria.pendientes', ['categoria' => 'MODIFICACION_DATOS']);
+    }
+
+    public function modificacionDatosConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
+    {
+        $params = array_merge($request->all(), ['categoria' => 'MODIFICACION_DATOS']);
+        return response()->json($action->execute($params));
+    }
+
+    public function modificacionDatosResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    {
+        return $this->pendientesResolver($request, $action);
+    }
+
+    public function cambiosDia(): RedirectResponse
+    {
+        return redirect()->route('supervisor.auditoria.pendientes', ['categoria' => 'CAMBIOS_DIA']);
+    }
+
+    public function cambiosDiaConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
+    {
+        $params = array_merge($request->all(), ['categoria' => 'CAMBIOS_DIA']);
+        return response()->json($action->execute($params));
+    }
+
+    public function cambiosDiaResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    {
+        return $this->pendientesResolver($request, $action);
+    }
+
+    public function altas(): RedirectResponse
+    {
+        return redirect()->route('supervisor.auditoria.pendientes', ['categoria' => 'ALTAS_REACTIVACIONES']);
+    }
+
+    public function altasConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
+    {
+        $params = array_merge($request->all(), ['categoria' => 'ALTAS_REACTIVACIONES']);
+        return response()->json($action->execute($params));
+    }
+
+    public function altasResolver(Request $request, ResolverAuditoriaRuteoAction $action): JsonResponse
+    {
+        return $this->pendientesResolver($request, $action);
+    }
+}
