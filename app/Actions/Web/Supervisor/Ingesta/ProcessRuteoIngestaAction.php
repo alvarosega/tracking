@@ -9,17 +9,37 @@ use App\Services\Ingesta\IngestaValidator;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ProcessRuteoIngestaAction
 {
-    public const COLUMNAS_AUDITORIA = [
-        'nodo_id', 'nodo', 'cliente', 'vendedor', 'tipo_negocio', 'territorio',
-        'mercado', 'fecha_servidor', 'fecha_dispositivo', 'contacto', 'ci',
-        'telefono', 'celular', 'direccion', 'nro', 'referencia', 'nombre_factura',
-        'nit', 'tipo_pago', 'latitud', 'longitud', 'intensidad', 'estado',
-        'zona_venta', 'cod_vendedor', 'dias_credito', 'limite', 'ruta', 'dia',
-        'precio', 'cluster_t', 'cluster_c', 'cliente_norm', 'vendedor_norm', 'dia_norm',
+    /**
+     * Columnas canónicas de pan_ruteo (excluyendo id autoincremental).
+     *
+     * @var array<int, string>
+     */
+    public const CANONICAL_COLUMNS = [
+        'nodo_id', 'nodo', 'cliente_id', 'cliente', 'vendedor', 'tipo_negocio',
+        'territorio', 'mercado', 'fecha_servidor', 'fecha_dispositivo', 'contacto',
+        'ci', 'telefono', 'celular', 'direccion', 'nro', 'referencia',
+        'nombre_factura', 'nit', 'tipo_pago', 'latitud', 'longitud', 'intensidad',
+        'estado', 'zona_venta', 'cod_vendedor', 'dias_credito', 'limite', 'ruta',
+        'dia', 'precio', 'cluster_t', 'cluster_c', 'cliente_norm', 'vendedor_norm',
+        'dia_norm',
+    ];
+
+    /**
+     * Columnas para auditoría general de modificaciones (excluyendo cluster, vendedor, estado, coordenadas y derivadas).
+     *
+     * @var array<int, string>
+     */
+    public const GENERAL_DIFF_COLUMNS = [
+        'cliente', 'contacto', 'ci', 'telefono', 'celular', 'direccion', 'nro',
+        'referencia', 'nombre_factura', 'nit', 'tipo_pago', 'dias_credito',
+        'limite', 'precio', 'intensidad', 'territorio', 'mercado', 'zona_venta',
+        'nodo_id', 'nodo',
     ];
 
     public function __construct(
@@ -28,14 +48,14 @@ class ProcessRuteoIngestaAction
     ) {}
 
     /**
-     * Procesa el reemplazo maestro de Ruteo (PAN_RUTEO) con snapshot inmutable y auditoría de eventos.
+     * Procesa el reemplazo maestro o actualización del Plan de Ruteo con snapshot inmutable y auditoría granular.
      *
      * @return array<string, mixed>
      */
     public function execute(UploadedFile|string $file, ?string $originalFilename = null, ?string $fechaArchivo = null): array
     {
-        @ini_set('memory_limit', '512M');
-        @set_time_limit(300);
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(0);
 
         $filePath = is_string($file) ? $file : $file->getRealPath();
         $filename = $originalFilename ?? (is_string($file) ? basename($file) : $file->getClientOriginalName());
@@ -50,21 +70,12 @@ class ProcessRuteoIngestaAction
             throw new Exception("El archivo de ruteo está vacío.");
         }
 
-        $snapshotId = 'snap_' . substr(bin2hex(random_bytes(8)), 0, 12);
-
-        $fechaCustom = null;
-        if (!empty($fechaArchivo)) {
-            $fTrim = trim($fechaArchivo);
-            if (strlen($fTrim) === 10 && $fTrim[4] === '-' && $fTrim[7] === '-') {
-                $fechaCustom = "{$fTrim} 12:00:00";
-            } else {
-                $fechaCustom = $fTrim;
-            }
-        }
+        $fechaOperativa = $this->determinarFechaOperativa($filePath, $filename, $fechaArchivo);
+        $snapshotId = 'snap_' . date('Ymd_His', strtotime($fechaOperativa));
 
         $conn = DB::connection('supervisor');
 
-        // Precargar catálogo de vendedores por ruta desde dim_rutas
+        // Precargar catálogo de vendedores por ruta desde dim_rutas para enriquecimiento
         $vendedoresPorRuta = [];
         try {
             $vendedoresPorRuta = $conn->table('dim_rutas')
@@ -72,7 +83,7 @@ class ProcessRuteoIngestaAction
                 ->where('ruta', '!=', '')
                 ->pluck('vendedor', 'ruta')
                 ->toArray();
-        } catch (\Throwable) {}
+        } catch (Throwable) {}
 
         $clientesEnArchivo = [];
         $registrosSnapshot = [];
@@ -82,136 +93,134 @@ class ProcessRuteoIngestaAction
         foreach ($rawRows as $r) {
             $mapped = $this->validator->mapRow($r, 'PAN_RUTEO');
 
-            $cid = isset($mapped['cliente_id']) ? (int)$mapped['cliente_id'] : 0;
+            $cid = isset($mapped['cliente_id']) ? (int) $mapped['cliente_id'] : 0;
             if ($cid <= 0) {
                 continue;
             }
 
-            // 1. Unificar Nombre de Cliente si viene descompuesto (ApellidoPaterno, ApellidoMaterno, Nombres)
-            if (empty($mapped['cliente'])) {
+            // 1. Ensamble de Nombre de Cliente si viene desglosado
+            $clienteNombre = trim((string) ($mapped['cliente'] ?? ''));
+            if ($clienteNombre === '') {
                 $partes = array_filter([
-                    trim((string)($mapped['apellido_paterno'] ?? '')),
-                    trim((string)($mapped['apellido_materno'] ?? '')),
-                    trim((string)($mapped['nombres'] ?? '')),
+                    trim((string) ($mapped['apellido_paterno'] ?? '')),
+                    trim((string) ($mapped['apellido_materno'] ?? '')),
+                    trim((string) ($mapped['nombres'] ?? '')),
                 ], fn($p) => $p !== '' && $p !== '.');
-                $mapped['cliente'] = !empty($partes)
+
+                $clienteNombre = !empty($partes)
                     ? implode(' ', $partes)
-                    : trim((string)($mapped['razon_social'] ?? $mapped['nombre_factura'] ?? ''));
+                    : trim((string) ($mapped['razon_social'] ?? $mapped['nombre_factura'] ?? ''));
             }
 
-            // 2. Normalizar Estado (Activo / Inactivo)
+            // 2. Normalización de Estado (Activo / Inactivo)
             if (isset($mapped['activo']) && !isset($mapped['estado'])) {
-                $act = strtoupper(trim((string)$mapped['activo']));
-                $mapped['estado'] = in_array($act, ['SI', 'S', '1', 'TRUE', 'ACTIVO'], true) ? 'Activo' : 'Inactivo';
+                $actStr = strtoupper(trim((string) $mapped['activo']));
+                $estadoNorm = in_array($actStr, ['SI', 'S', '1', 'TRUE', 'ACTIVO'], true) ? 'Activo' : 'Inactivo';
             } elseif (isset($mapped['estado'])) {
-                $st = trim((string)$mapped['estado']);
-                $mapped['estado'] = in_array(strtoupper($st), ['NO', '0', 'INACTIVO', 'BAJA', 'ANULADO'], true) ? 'Inactivo' : 'Activo';
+                $stStr = strtoupper(trim((string) $mapped['estado']));
+                $estadoNorm = in_array($stStr, ['NO', '0', 'INACTIVO', 'BAJA', 'ANULADO'], true) ? 'Inactivo' : 'Activo';
             } else {
-                $mapped['estado'] = 'Activo';
+                $estadoNorm = 'Activo';
             }
 
-            // 3. Normalizar Día y Día Norm
-            $diaRaw = (string)($mapped['dia_norm'] ?? $mapped['dia'] ?? '');
+            // 3. Normalización de Día y Día Norm
+            $diaRaw = (string) ($mapped['dia_norm'] ?? $mapped['dia'] ?? '');
             $diaNorm = IngestaValidator::sanitizeDia($diaRaw);
-            $mapped['dia_norm'] = $diaNorm;
-            $mapped['dia'] = ucfirst($diaNorm ?: $diaRaw);
-            $mapped['cliente_id'] = $cid;
+            $diaCanonical = ucfirst($diaNorm ?: $diaRaw);
 
-            // 4. Normalizar cliente_norm
-            $mapped['cliente_norm'] = mb_strtolower(trim((string)($mapped['cliente'] ?? '')), 'UTF-8');
+            // 4. Derivados técnicos: cliente_norm y vendedor_norm
+            $clienteNorm = $this->cleanUpperAlphaNum($clienteNombre);
 
-            // 5. Enriquecer Vendedor si viene vacío
-            $rutaRaw = trim((string)($mapped['ruta'] ?? ''));
-            if (empty($mapped['vendedor']) && $rutaRaw !== '') {
-                if (isset($vendedoresPorRuta[$rutaRaw])) {
-                    $mapped['vendedor'] = $vendedoresPorRuta[$rutaRaw];
-                }
+            $rutaRaw = trim((string) ($mapped['ruta'] ?? ''));
+            $vendedorRaw = trim((string) ($mapped['vendedor'] ?? ''));
+            if ($vendedorRaw === '' && $rutaRaw !== '' && isset($vendedoresPorRuta[$rutaRaw])) {
+                $vendedorRaw = (string) $vendedoresPorRuta[$rutaRaw];
             }
-            $mapped['vendedor_norm'] = mb_strtolower(trim((string)($mapped['vendedor'] ?? '')), 'UTF-8');
+            $vendedorNorm = $this->cleanUpperAlphaNum($vendedorRaw);
 
-            // 6. Coordenadas numéricas
-            if (isset($mapped['latitud']) && is_numeric($mapped['latitud'])) {
-                $mapped['latitud'] = (float)$mapped['latitud'];
-            } else {
-                $mapped['latitud'] = null;
-            }
-            if (isset($mapped['longitud']) && is_numeric($mapped['longitud'])) {
-                $mapped['longitud'] = (float)$mapped['longitud'];
-            } else {
-                $mapped['longitud'] = null;
-            }
+            // 5. Coordenadas numéricas float o null
+            $lat = isset($mapped['latitud']) && is_numeric($mapped['latitud']) ? (float) $mapped['latitud'] : null;
+            $lon = isset($mapped['longitud']) && is_numeric($mapped['longitud']) ? (float) $mapped['longitud'] : null;
 
-            // 7. Fecha servidor por defecto
-            if (empty($mapped['fecha_servidor'])) {
-                $mapped['fecha_servidor'] = $fechaCustom ? substr($fechaCustom, 0, 10) : now()->toDateString();
-            }
+            // 6. Montos y límites
+            $limite = isset($mapped['limite']) && is_numeric($mapped['limite']) ? (float) $mapped['limite'] : 0.0;
+            $diasCredito = isset($mapped['dias_credito']) && is_numeric($mapped['dias_credito']) ? (int) $mapped['dias_credito'] : 0;
 
-            // Deduplicación intra-archivo: evitar filas repetidas idénticas para (cliente_id, dia_norm, ruta)
-            $rutaNorm = strtoupper(trim((string)($mapped['ruta'] ?? '')));
-            $claveVisita = "{$cid}_{$diaNorm}_{$rutaNorm}";
+            // 7. Deduplicación intra-archivo por (cliente_id, dia_norm, ruta)
+            $claveVisita = "{$cid}_{$diaNorm}_" . strtoupper($rutaRaw);
             if (isset($visitasUnicasArchivo[$claveVisita])) {
                 continue;
             }
             $visitasUnicasArchivo[$claveVisita] = true;
 
+            $filaNorm = [
+                'nodo_id' => isset($mapped['nodo_id']) && is_numeric($mapped['nodo_id']) ? (int) $mapped['nodo_id'] : 0,
+                'nodo' => $mapped['nodo'] ?? null,
+                'cliente_id' => $cid,
+                'cliente' => $clienteNombre,
+                'vendedor' => $vendedorRaw,
+                'tipo_negocio' => $mapped['tipo_negocio'] ?? null,
+                'territorio' => $mapped['territorio'] ?? null,
+                'mercado' => $mapped['mercado'] ?? null,
+                'fecha_servidor' => !empty($mapped['fecha_servidor']) ? (string) $mapped['fecha_servidor'] : substr($fechaOperativa, 0, 10),
+                'fecha_dispositivo' => $mapped['fecha_dispositivo'] ?? null,
+                'contacto' => $mapped['contacto'] ?? null,
+                'ci' => $mapped['ci'] ?? null,
+                'telefono' => $mapped['telefono'] ?? null,
+                'celular' => $mapped['celular'] ?? null,
+                'direccion' => $mapped['direccion'] ?? null,
+                'nro' => $mapped['nro'] ?? null,
+                'referencia' => $mapped['referencia'] ?? null,
+                'nombre_factura' => $mapped['nombre_factura'] ?? null,
+                'nit' => $mapped['nit'] ?? null,
+                'tipo_pago' => $mapped['tipo_pago'] ?? null,
+                'latitud' => $lat,
+                'longitud' => $lon,
+                'intensidad' => $mapped['intensidad'] ?? null,
+                'estado' => $estadoNorm,
+                'zona_venta' => $mapped['zona_venta'] ?? null,
+                'cod_vendedor' => $mapped['cod_vendedor'] ?? null,
+                'dias_credito' => (string) $diasCredito,
+                'limite' => $limite,
+                'ruta' => $rutaRaw,
+                'dia' => $diaCanonical,
+                'precio' => $mapped['precio'] ?? null,
+                'cluster_t' => $mapped['cluster_t'] ?? null,
+                'cluster_c' => $mapped['cluster_c'] ?? null,
+                'cliente_norm' => $clienteNorm,
+                'vendedor_norm' => $vendedorNorm,
+                'dia_norm' => $diaNorm,
+            ];
+
             if (!isset($clientesEnArchivo[$cid])) {
                 $clientesEnArchivo[$cid] = [];
             }
-            $clientesEnArchivo[$cid][] = $mapped;
+            $clientesEnArchivo[$cid][] = $filaNorm;
 
-            $snapRow = [
+            $snapRow = array_merge($filaNorm, [
                 'snapshot_id' => $snapshotId,
                 'archivo_origen' => $filename,
-                'cliente_id' => $cid,
-            ];
-            if ($fechaCustom) {
-                $snapRow['fecha_carga'] = $fechaCustom;
-            }
-
-            $vivoRow = ['cliente_id' => $cid];
-
-            foreach (self::COLUMNAS_AUDITORIA as $col) {
-                $val = $mapped[$col] ?? null;
-                $snapRow[$col] = $val;
-                $vivoRow[$col] = $val;
-            }
+                'fecha_carga' => $fechaOperativa,
+            ]);
 
             $registrosSnapshot[] = $snapRow;
-            $registrosVivos[] = $vivoRow;
-        }
-
-        // Asegurar tablas pan_ruteo_snapshots y auditoria_ruteo_cambios
-        $this->asegurarTablas($conn);
-
-        // Columnas existentes en pan_ruteo y pan_ruteo_snapshots
-        try {
-            $colsSnapDb = array_flip(\Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo_snapshots'));
-            $colsVivoDb = array_flip(\Illuminate\Support\Facades\Schema::connection('supervisor')->getColumnListing('pan_ruteo'));
-        } catch (\Throwable) {
-            $colsSnapDb = [];
-            $colsVivoDb = [];
+            $registrosVivos[] = $filaNorm;
         }
 
         // Consultar clientes existentes en pan_ruteo
-        $filasBd = $conn->select("
-            SELECT cliente_id, dia_norm, dia, ruta, estado, cliente, vendedor, cod_vendedor,
-                   nodo_id, nodo, tipo_negocio, territorio, mercado, latitud, longitud
-            FROM pan_ruteo
-        ");
-
+        $filasBd = $conn->table('pan_ruteo')->get();
         $clientesEnBd = [];
         foreach ($filasBd as $r) {
-            $cid = (int)$r->cliente_id;
+            $cid = (int) $r->cliente_id;
             if ($cid <= 0) continue;
             if (!isset($clientesEnBd[$cid])) {
                 $clientesEnBd[$cid] = [];
             }
-            $clientesEnBd[$cid][] = (array)$r;
+            $clientesEnBd[$cid][] = (array) $r;
         }
 
         $cidsArchivo = array_keys($clientesEnArchivo);
         $cidsBd = array_keys($clientesEnBd);
-
         $setArch = array_flip($cidsArchivo);
         $setBd = array_flip($cidsBd);
 
@@ -229,143 +238,99 @@ class ProcessRuteoIngestaAction
         $eliminadosCnt = 0;
         $sinCambiosCnt = 0;
 
-        // 1. Altas Totales (Nuevos en el archivo)
-        foreach ($cidsArchivo as $cid) {
-            if (!isset($setBd[$cid])) {
+        $esBaselineEfectivo = ($totalBdAnterior === 0);
+
+        if ($esBaselineEfectivo) {
+            // Modo Baseline
+            foreach ($registrosVivos as $rv) {
                 $altasCnt++;
-                $primer = $clientesEnArchivo[$cid][0];
                 $registrosAuditoria[] = [
                     'archivo_origen' => $filename,
-                    'cliente_id' => $cid,
-                    'cliente' => $primer['cliente'] ?? '',
+                    'cliente_id' => (int) $rv['cliente_id'],
+                    'cliente' => (string) ($rv['cliente'] ?? ''),
                     'tipo_evento' => 'NUEVO',
-                    'campo_afectado' => 'cliente_id',
+                    'campo_afectado' => 'cliente_alta_total',
                     'valor_anterior' => null,
-                    'valor_nuevo' => (string)($primer['ruta'] ?? 'SIN RUTA'),
-                    'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
+                    'valor_nuevo' => "Ruta: {$rv['ruta']} | Dia: {$rv['dia']}",
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Snapshot inicial baseline.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
                 ];
             }
-        }
-
-        // 2. Bajas Totales (Solo se auditan y eliminan si es Reemplazo Maestro Completo)
-        if ($esCargaCompleta) {
-            foreach ($cidsBd as $cid) {
-                if (!isset($setArch[$cid])) {
-                    $eliminadosCnt++;
-                    $primerBd = $clientesEnBd[$cid][0];
-                    $registrosAuditoria[] = [
-                        'archivo_origen' => $filename,
-                        'cliente_id' => $cid,
-                        'cliente' => $primerBd['cliente'] ?? '',
-                        'tipo_evento' => 'ELIMINADO',
-                        'campo_afectado' => 'cliente_id',
-                        'valor_anterior' => (string)($primerBd['ruta'] ?? 'SIN RUTA'),
-                        'valor_nuevo' => 'Desaparecido de Ruteo',
-                        'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
-                    ];
+        } else {
+            // Modo Diferencial
+            // B1. Clientes Desaparecidos (en previos pero no en entrantes)
+            if ($esCargaCompleta) {
+                foreach ($cidsBd as $cid) {
+                    if (!isset($setArch[$cid])) {
+                        $eliminadosCnt++;
+                        foreach ($clientesEnBd[$cid] as $prev) {
+                            $registrosAuditoria[] = [
+                                'archivo_origen' => $filename,
+                                'cliente_id' => $cid,
+                                'cliente' => (string) ($prev['cliente'] ?? ''),
+                                'tipo_evento' => 'ELIMINADO',
+                                'campo_afectado' => 'cliente_baja_total',
+                                'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
+                                'valor_nuevo' => 'Desaparecido de Ruteo',
+                                'fecha_auditoria' => $fechaOperativa,
+                                'estado_auditoria' => 'PENDIENTE',
+                                'observaciones' => 'Baja total de cliente. Eliminado de la cartera comercial.',
+                                'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                            ];
+                        }
+                    }
                 }
             }
-        }
 
-        // 3. Modificaciones en clientes existentes en ambos
-        foreach ($cidsArchivo as $cid) {
-            if (isset($setBd[$cid])) {
-                $regsArch = $clientesEnArchivo[$cid];
-                $regsBd = $clientesEnBd[$cid];
-
-                $clienteNom = $regsArch[0]['cliente'] ?? ($regsBd[0]['cliente'] ?? '');
-                $huboCambio = false;
-
-                // Auditoría de Días
-                $diasArch = [];
-                foreach ($regsArch as $ra) {
-                    $d = IngestaValidator::sanitizeDia($ra['dia_norm'] ?? $ra['dia'] ?? '');
-                    if ($d !== '' && $d !== 'sin dia') $diasArch[$d] = true;
+            // B2. Clientes Nuevos (en entrantes pero no en previos)
+            foreach ($cidsArchivo as $cid) {
+                if (!isset($setBd[$cid])) {
+                    $altasCnt++;
+                    foreach ($clientesEnArchivo[$cid] as $nuevo) {
+                        $registrosAuditoria[] = [
+                            'archivo_origen' => $filename,
+                            'cliente_id' => $cid,
+                            'cliente' => (string) ($nuevo['cliente'] ?? ''),
+                            'tipo_evento' => 'NUEVO',
+                            'campo_afectado' => 'cliente_alta_total',
+                            'valor_anterior' => null,
+                            'valor_nuevo' => "Ruta: {$nuevo['ruta']} | Dia: {$nuevo['dia']}",
+                            'fecha_auditoria' => $fechaOperativa,
+                            'estado_auditoria' => 'PENDIENTE',
+                            'observaciones' => 'Alta total de cliente. Incorporado a la cartera comercial.',
+                            'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                        ];
+                    }
                 }
-                $diasBd = [];
-                foreach ($regsBd as $rb) {
-                    $d = IngestaValidator::sanitizeDia($rb['dia_norm'] ?? $rb['dia'] ?? '');
-                    if ($d !== '' && $d !== 'sin dia') $diasBd[$d] = true;
-                }
+            }
 
-                $keysArch = array_keys($diasArch);
-                $keysBd = array_keys($diasBd);
-                sort($keysArch);
-                sort($keysBd);
+            // B3. Clientes Existentes (Reconciliación Jerárquica de Visitas)
+            foreach ($cidsArchivo as $cid) {
+                if (isset($setBd[$cid])) {
+                    $listaP = $clientesEnBd[$cid];
+                    $listaE = $clientesEnArchivo[$cid];
 
-                if ($keysArch !== $keysBd) {
-                    $huboCambio = true;
-                    $registrosAuditoria[] = [
-                        'archivo_origen' => $filename,
-                        'cliente_id' => $cid,
-                        'cliente' => $clienteNom,
-                        'tipo_evento' => 'MODIFICADO_DIA',
-                        'campo_afectado' => 'dia',
-                        'valor_anterior' => implode(', ', $keysBd) ?: 'Sin Día',
-                        'valor_nuevo' => implode(', ', $keysArch) ?: 'Sin Día',
-                        'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
-                    ];
-                }
+                    $huboCambioEnCliente = false;
+                    $eventosCliente = $this->conciliarVisitasCliente(
+                        $cid,
+                        $listaP,
+                        $listaE,
+                        $filename,
+                        $fechaOperativa,
+                        $huboCambioEnCliente
+                    );
 
-                // Auditoría de Rutas
-                $rutasArch = [];
-                foreach ($regsArch as $ra) {
-                    $rt = strtoupper(trim((string)($ra['ruta'] ?? '')));
-                    if ($rt !== '' && $rt !== 'SIN RUTA') $rutasArch[$rt] = true;
-                }
-                $rutasBd = [];
-                foreach ($regsBd as $rb) {
-                    $rt = strtoupper(trim((string)($rb['ruta'] ?? '')));
-                    if ($rt !== '' && $rt !== 'SIN RUTA') $rutasBd[$rt] = true;
-                }
-
-                $kRutasArch = array_keys($rutasArch);
-                $kRutasBd = array_keys($rutasBd);
-                sort($kRutasArch);
-                sort($kRutasBd);
-
-                if ($kRutasArch !== $kRutasBd) {
-                    $huboCambio = true;
-                    $registrosAuditoria[] = [
-                        'archivo_origen' => $filename,
-                        'cliente_id' => $cid,
-                        'cliente' => $clienteNom,
-                        'tipo_evento' => 'MODIFICADO_RUTA',
-                        'campo_afectado' => 'ruta',
-                        'valor_anterior' => implode(', ', $kRutasBd) ?: 'Sin Ruta',
-                        'valor_nuevo' => implode(', ', $kRutasArch) ?: 'Sin Ruta',
-                        'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
-                    ];
-                }
-
-                // Auditoría de Estado
-                $stAnt = trim((string)($regsBd[0]['estado'] ?? ''));
-                $stNuev = trim((string)($regsArch[0]['estado'] ?? ''));
-                if (strtolower($stAnt) !== strtolower($stNuev) && $stAnt !== '' && $stNuev !== '') {
-                    $huboCambio = true;
-                    $tipoEv = 'MODIFICADO_ESTADO';
-                    if (in_array(strtolower($stNuev), ['inactivo', 'baja', 'anulado'], true)) {
-                        $tipoEv = 'INACTIVADO';
-                    } elseif (in_array(strtolower($stNuev), ['activo', 'habilitado', 'normal'], true)) {
-                        $tipoEv = 'REACTIVADO';
+                    foreach ($eventosCliente as $ev) {
+                        $registrosAuditoria[] = $ev;
                     }
 
-                    $registrosAuditoria[] = [
-                        'archivo_origen' => $filename,
-                        'cliente_id' => $cid,
-                        'cliente' => $clienteNom,
-                        'tipo_evento' => $tipoEv,
-                        'campo_afectado' => 'estado',
-                        'valor_anterior' => $stAnt,
-                        'valor_nuevo' => $stNuev,
-                        'fecha_auditoria' => $fechaCustom ?: now()->toDateTimeString(),
-                    ];
-                }
-
-                if ($huboCambio) {
-                    $modificadosCnt++;
-                } else {
-                    $sinCambiosCnt++;
+                    if ($huboCambioEnCliente) {
+                        $modificadosCnt++;
+                    } else {
+                        $sinCambiosCnt++;
+                    }
                 }
             }
         }
@@ -374,11 +339,6 @@ class ProcessRuteoIngestaAction
 
         // 1. Guardar Snapshot Inmutable
         if (!empty($registrosSnapshot)) {
-            if (!empty($colsSnapDb)) {
-                $registrosSnapshot = array_map(function ($row) use ($colsSnapDb) {
-                    return array_intersect_key($row, $colsSnapDb);
-                }, $registrosSnapshot);
-            }
             $chunksSnap = array_chunk($registrosSnapshot, $chunkSize);
             foreach ($chunksSnap as $chunk) {
                 $conn->table('pan_ruteo_snapshots')->insert($chunk);
@@ -394,12 +354,6 @@ class ProcessRuteoIngestaAction
         }
 
         // 3. Actualización de pan_ruteo
-        if (!empty($colsVivoDb)) {
-            $registrosVivos = array_map(function ($row) use ($colsVivoDb) {
-                return array_intersect_key($row, $colsVivoDb);
-            }, $registrosVivos);
-        }
-
         if ($esCargaCompleta) {
             // Reemplazo Atómico Transaccional Completo
             $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
@@ -435,11 +389,12 @@ class ProcessRuteoIngestaAction
 
         // 4. Registrar Bitácora en sys_cargas
         $totalVivos = count($registrosVivos);
+        $sha256 = hash_file('sha256', $filePath) ?: $snapshotId;
         try {
             $cargaData = [
                 'archivo_original' => $filename,
                 'archivo_almacenado' => $filePath,
-                'sha256' => $snapshotId,
+                'sha256' => $sha256,
                 'tipo_entidad' => 'PAN_RUTEO',
                 'filas_leidas' => $totalLeidas,
                 'filas_afectadas' => $totalVivos,
@@ -449,16 +404,16 @@ class ProcessRuteoIngestaAction
                 'filas_con_discrepancia' => $eliminadosCnt,
                 'rango_inicio' => '-',
                 'rango_fin' => '-',
-                'fecha_ingesta' => $fechaCustom ?: now()->toDateTimeString(),
+                'fecha_ingesta' => $fechaOperativa,
+                'estado' => 'COMPLETADO',
             ];
 
-            if (\Illuminate\Support\Facades\Schema::connection('supervisor')->hasColumn('sys_cargas', 'estado')) {
-                $cargaData['estado'] = 'COMPLETADO';
-            }
-
-            $conn->table('sys_cargas')->insert($cargaData);
-        } catch (\Throwable $eSys) {
-            \Illuminate\Support\Facades\Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
+            $conn->table('sys_cargas')->updateOrInsert(
+                ['sha256' => $sha256, 'tipo_entidad' => 'PAN_RUTEO'],
+                $cargaData
+            );
+        } catch (Throwable $eSys) {
+            Log::warning("No se pudo registrar en sys_cargas: " . $eSys->getMessage());
         }
 
         $this->parser->clearCache();
@@ -467,7 +422,7 @@ class ProcessRuteoIngestaAction
             'status' => 'success',
             'archivo' => $filename,
             'snapshot_id' => $snapshotId,
-            'fecha_registrada' => $fechaCustom ?: 'Hoy (Automático)',
+            'fecha_registrada' => $fechaOperativa,
             'es_carga_completa' => $esCargaCompleta,
             'modo' => $esCargaCompleta ? 'REEMPLAZO_MAESTRO' : 'ACTUALIZACION_PARCIAL',
             'total_registros_auditoria' => count($registrosAuditoria),
@@ -485,7 +440,7 @@ class ProcessRuteoIngestaAction
             'metricas' => [
                 'total_filas_archivo' => $totalLeidas,
                 'clientes_unicos_archivo' => count($clientesEnArchivo),
-                'total_bd_anterior' => count($filasBd),
+                'total_bd_anterior' => $totalBdAnterior,
                 'total_nuevos' => $altasCnt,
                 'total_modificados' => $modificadosCnt,
                 'total_eliminados' => $eliminadosCnt,
@@ -494,72 +449,373 @@ class ProcessRuteoIngestaAction
         ];
     }
 
-    protected function asegurarTablas($conn): void
-    {
-        try {
-            $conn->statement("
-                CREATE TABLE IF NOT EXISTS `pan_ruteo_snapshots` (
-                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    `snapshot_id` VARCHAR(50) NOT NULL,
-                    `archivo_origen` VARCHAR(255) NULL,
-                    `fecha_carga` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                    `cliente_id` BIGINT NOT NULL,
-                    `nodo_id` VARCHAR(50) NULL,
-                    `nodo` VARCHAR(150) NULL,
-                    `cliente` VARCHAR(255) NULL,
-                    `vendedor` VARCHAR(255) NULL,
-                    `tipo_negocio` VARCHAR(100) NULL,
-                    `territorio` VARCHAR(100) NULL,
-                    `mercado` VARCHAR(100) NULL,
-                    `fecha_servidor` VARCHAR(50) NULL,
-                    `fecha_dispositivo` VARCHAR(50) NULL,
-                    `contacto` VARCHAR(150) NULL,
-                    `ci` VARCHAR(50) NULL,
-                    `telefono` VARCHAR(50) NULL,
-                    `celular` VARCHAR(50) NULL,
-                    `direccion` TEXT NULL,
-                    `nro` VARCHAR(50) NULL,
-                    `referencia` TEXT NULL,
-                    `nombre_factura` VARCHAR(255) NULL,
-                    `nit` VARCHAR(50) NULL,
-                    `tipo_pago` VARCHAR(50) NULL,
-                    `latitud` DECIMAL(12, 8) NULL,
-                    `longitud` DECIMAL(12, 8) NULL,
-                    `intensidad` VARCHAR(50) NULL,
-                    `estado` VARCHAR(50) NULL,
-                    `zona_venta` VARCHAR(100) NULL,
-                    `cod_vendedor` VARCHAR(50) NULL,
-                    `dias_credito` VARCHAR(50) NULL,
-                    `limite` DECIMAL(12, 2) NULL,
-                    `ruta` VARCHAR(50) NULL,
-                    `dia` VARCHAR(50) NULL,
-                    `precio` DECIMAL(12, 2) NULL,
-                    `cluster_t` VARCHAR(50) NULL,
-                    `cluster_c` VARCHAR(50) NULL,
-                    `cliente_norm` VARCHAR(255) NULL,
-                    `vendedor_norm` VARCHAR(255) NULL,
-                    `dia_norm` VARCHAR(50) NULL,
-                    INDEX `idx_prs_snapshot` (`snapshot_id`),
-                    INDEX `idx_prs_cli` (`cliente_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
+    /**
+     * Algoritmo de Reconciliación Jerárquica de Visitas para Clientes Existentes.
+     *
+     * @param array<int, array<string, mixed>> $P Visitas previas
+     * @param array<int, array<string, mixed>> $E Visitas entrantes
+     * @return array<int, array<string, mixed>> Eventos de auditoría
+     */
+    private function conciliarVisitasCliente(
+        int $cid,
+        array $P,
+        array $E,
+        string $filename,
+        string $fechaOperativa,
+        bool &$huboCambio
+    ): array {
+        $eventos = [];
+        $N = count($P);
+        $M = count($E);
 
-            $conn->statement("
-                CREATE TABLE IF NOT EXISTS `auditoria_ruteo_cambios` (
-                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    `archivo_origen` VARCHAR(255) NOT NULL,
-                    `cliente_id` BIGINT NOT NULL,
-                    `cliente` VARCHAR(255) NULL,
-                    `tipo_evento` VARCHAR(50) NOT NULL,
-                    `campo_afectado` VARCHAR(50) NOT NULL,
-                    `valor_anterior` TEXT NULL,
-                    `valor_nuevo` TEXT NULL,
-                    `fecha_auditoria` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_arc_cli` (`cliente_id`),
-                    INDEX `idx_arc_tipo` (`tipo_evento`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-        } catch (\Throwable) {}
+        $dispP = array_keys($P);
+        $dispE = array_keys($E);
+        $pares = [];
+
+        // Paso 1: Match Exacto (ruta === ruta && dia_norm === dia_norm)
+        foreach ($dispP as $kP => $i) {
+            $rP = strtoupper(trim((string) ($P[$i]['ruta'] ?? '')));
+            $dP = $P[$i]['dia_norm'] ?? '';
+            foreach ($dispE as $kE => $j) {
+                $rE = strtoupper(trim((string) ($E[$j]['ruta'] ?? '')));
+                $dE = $E[$j]['dia_norm'] ?? '';
+                if ($rP === $rE && $dP === $dE) {
+                    $pares[] = ['p' => $P[$i], 'e' => $E[$j]];
+                    unset($dispP[$kP], $dispE[$kE]);
+                    break;
+                }
+            }
+        }
+
+        // Paso 2: Match por Ruta (con las restantes, si coincide ruta)
+        foreach ($dispP as $kP => $i) {
+            $rP = strtoupper(trim((string) ($P[$i]['ruta'] ?? '')));
+            foreach ($dispE as $kE => $j) {
+                $rE = strtoupper(trim((string) ($E[$j]['ruta'] ?? '')));
+                if ($rP === $rE) {
+                    $pares[] = ['p' => $P[$i], 'e' => $E[$j]];
+                    $huboCambio = true;
+                    $eventos[] = [
+                        'archivo_origen' => $filename,
+                        'cliente_id' => $cid,
+                        'cliente' => (string) ($E[$j]['cliente'] ?? $P[$i]['cliente'] ?? ''),
+                        'tipo_evento' => 'MODIFICADO_DIA',
+                        'campo_afectado' => 'dia',
+                        'valor_anterior' => (string) ($P[$i]['dia'] ?? ''),
+                        'valor_nuevo' => (string) ($E[$j]['dia'] ?? ''),
+                        'fecha_auditoria' => $fechaOperativa,
+                        'estado_auditoria' => 'PENDIENTE',
+                        'observaciones' => 'Modificación de día en la misma ruta.',
+                        'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                    ];
+                    unset($dispP[$kP], $dispE[$kE]);
+                    break;
+                }
+            }
+        }
+
+        // Paso 3: Match por Día (con las restantes, si coincide dia_norm)
+        foreach ($dispP as $kP => $i) {
+            $dP = $P[$i]['dia_norm'] ?? '';
+            foreach ($dispE as $kE => $j) {
+                $dE = $E[$j]['dia_norm'] ?? '';
+                if ($dP === $dE && $dP !== '') {
+                    $pares[] = ['p' => $P[$i], 'e' => $E[$j]];
+                    $huboCambio = true;
+                    $eventos[] = [
+                        'archivo_origen' => $filename,
+                        'cliente_id' => $cid,
+                        'cliente' => (string) ($E[$j]['cliente'] ?? $P[$i]['cliente'] ?? ''),
+                        'tipo_evento' => 'MODIFICADO_RUTA',
+                        'campo_afectado' => 'ruta',
+                        'valor_anterior' => (string) ($P[$i]['ruta'] ?? ''),
+                        'valor_nuevo' => (string) ($E[$j]['ruta'] ?? ''),
+                        'fecha_auditoria' => $fechaOperativa,
+                        'estado_auditoria' => 'PENDIENTE',
+                        'observaciones' => 'Modificación de ruta en el mismo día.',
+                        'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                    ];
+                    unset($dispP[$kP], $dispE[$kE]);
+                    break;
+                }
+            }
+        }
+
+        // Paso 4: Match Residual 1:1 con pares sobrantes
+        $dispP = array_values($dispP);
+        $dispE = array_values($dispE);
+        while (!empty($dispP) && !empty($dispE)) {
+            $i = array_shift($dispP);
+            $j = array_shift($dispE);
+
+            $pares[] = ['p' => $P[$i], 'e' => $E[$j]];
+
+            $diaAnt = (string) ($P[$i]['dia'] ?? '');
+            $diaNue = (string) ($E[$j]['dia'] ?? '');
+            if ($P[$i]['dia_norm'] !== $E[$j]['dia_norm']) {
+                $huboCambio = true;
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => (string) ($E[$j]['cliente'] ?? $P[$i]['cliente'] ?? ''),
+                    'tipo_evento' => 'MODIFICADO_DIA',
+                    'campo_afectado' => 'dia',
+                    'valor_anterior' => $diaAnt,
+                    'valor_nuevo' => $diaNue,
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Modificación residual de día.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+
+            $rutaAnt = (string) ($P[$i]['ruta'] ?? '');
+            $rutaNue = (string) ($E[$j]['ruta'] ?? '');
+            if (strtoupper(trim($rutaAnt)) !== strtoupper(trim($rutaNue))) {
+                $huboCambio = true;
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => (string) ($E[$j]['cliente'] ?? $P[$i]['cliente'] ?? ''),
+                    'tipo_evento' => 'MODIFICADO_RUTA',
+                    'campo_afectado' => 'ruta',
+                    'valor_anterior' => $rutaAnt,
+                    'valor_nuevo' => $rutaNue,
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Modificación residual de ruta.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+        }
+
+        // Paso 5: Variación de Frecuencia Logística
+        // Sobran filas nuevas (M > N): adición de frecuencia
+        foreach ($dispE as $j) {
+            $huboCambio = true;
+            $eventos[] = [
+                'archivo_origen' => $filename,
+                'cliente_id' => $cid,
+                'cliente' => (string) ($E[$j]['cliente'] ?? ''),
+                'tipo_evento' => 'NUEVO',
+                'campo_afectado' => 'frecuencia_visita',
+                'valor_anterior' => null,
+                'valor_nuevo' => "Ruta: {$E[$j]['ruta']} | Dia: {$E[$j]['dia']}",
+                'fecha_auditoria' => $fechaOperativa,
+                'estado_auditoria' => 'PENDIENTE',
+                'observaciones' => "Adición de frecuencia logística (Paso a Multivisita: {$N} -> {$M}).",
+                'auditado_por' => 'SISTEMA_INGESTA_WEB',
+            ];
+        }
+
+        // Sobran filas previas (N > M): reducción de frecuencia
+        foreach ($dispP as $i) {
+            $huboCambio = true;
+            $eventos[] = [
+                'archivo_origen' => $filename,
+                'cliente_id' => $cid,
+                'cliente' => (string) ($P[$i]['cliente'] ?? ''),
+                'tipo_evento' => 'ELIMINADO',
+                'campo_afectado' => 'frecuencia_visita',
+                'valor_anterior' => "Ruta: {$P[$i]['ruta']} | Dia: {$P[$i]['dia']}",
+                'valor_nuevo' => null,
+                'fecha_auditoria' => $fechaOperativa,
+                'estado_auditoria' => 'PENDIENTE',
+                'observaciones' => "Reducción de frecuencia logística (Paso a Monovisita: {$N} -> {$M}). El cliente permanece en cartera.",
+                'auditado_por' => 'SISTEMA_INGESTA_WEB',
+            ];
+        }
+
+        // Auditoría Fina de Columnas para cada par emparejado (Pasos 1, 2, 3 y 4)
+        foreach ($pares as $par) {
+            $pRow = $par['p'];
+            $eRow = $par['e'];
+            $cliNombre = (string) ($eRow['cliente'] ?? $pRow['cliente'] ?? '');
+
+            // Regla CAMBIO_DE_CLUSTER: Ignorar cluster_c. Evaluar tipo_negocio y cluster_t
+            $antTN = trim((string) ($pRow['tipo_negocio'] ?? ''));
+            $newTN = trim((string) ($eRow['tipo_negocio'] ?? ''));
+            $antCT = trim((string) ($pRow['cluster_t'] ?? ''));
+            $newCT = trim((string) ($eRow['cluster_t'] ?? ''));
+
+            if ($antTN !== $newTN || $antCT !== $newCT) {
+                $huboCambio = true;
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => $cliNombre,
+                    'tipo_evento' => 'CAMBIO_DE_CLUSTER',
+                    'campo_afectado' => 'cluster',
+                    'valor_anterior' => "tipo_negocio: {$antTN} | cluster_t: {$antCT}",
+                    'valor_nuevo' => "tipo_negocio: {$newTN} | cluster_t: {$newCT}",
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Cambio de cluster o tipología de negocio.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+
+            // Regla Vendedor: cambio en vendedor o cod_vendedor
+            $antV = trim((string) ($pRow['vendedor'] ?? ''));
+            $newV = trim((string) ($eRow['vendedor'] ?? ''));
+            $antCV = trim((string) ($pRow['cod_vendedor'] ?? ''));
+            $newCV = trim((string) ($eRow['cod_vendedor'] ?? ''));
+
+            if ($antV !== $newV || $antCV !== $newCV) {
+                $huboCambio = true;
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => $cliNombre,
+                    'tipo_evento' => 'MODIFICADO_VENDEDOR',
+                    'campo_afectado' => 'vendedor',
+                    'valor_anterior' => $antV !== '' ? $antV : ($antCV !== '' ? "Cod: {$antCV}" : null),
+                    'valor_nuevo' => $newV !== '' ? $newV : ($newCV !== '' ? "Cod: {$newCV}" : null),
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Modificación de preventista o vendedor asignado.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+
+            // Regla Estado: Activo a Inactivo / Inactivo a Activo
+            $antSt = trim((string) ($pRow['estado'] ?? ''));
+            $newSt = trim((string) ($eRow['estado'] ?? ''));
+
+            if (strtolower($antSt) !== strtolower($newSt) && $antSt !== '' && $newSt !== '') {
+                $huboCambio = true;
+                $tipoEv = 'MODIFICADO';
+                if (strtolower($antSt) === 'activo' && strtolower($newSt) === 'inactivo') {
+                    $tipoEv = 'INACTIVADO';
+                } elseif (strtolower($antSt) === 'inactivo' && strtolower($newSt) === 'activo') {
+                    $tipoEv = 'REACTIVADO';
+                }
+
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => $cliNombre,
+                    'tipo_evento' => $tipoEv,
+                    'campo_afectado' => 'estado',
+                    'valor_anterior' => $antSt,
+                    'valor_nuevo' => $newSt,
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => "Transición de estado: {$antSt} a {$newSt}.",
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+
+            // Regla Coordenadas: max(|lat1 - lat2|, |lon1 - lon2|) > 0.00001
+            $lat1 = isset($pRow['latitud']) && is_numeric($pRow['latitud']) ? (float) $pRow['latitud'] : null;
+            $lon1 = isset($pRow['longitud']) && is_numeric($pRow['longitud']) ? (float) $pRow['longitud'] : null;
+            $lat2 = isset($eRow['latitud']) && is_numeric($eRow['latitud']) ? (float) $eRow['latitud'] : null;
+            $lon2 = isset($eRow['longitud']) && is_numeric($eRow['longitud']) ? (float) $eRow['longitud'] : null;
+
+            $cambioCoord = false;
+            if ($lat1 !== null && $lon1 !== null && $lat2 !== null && $lon2 !== null) {
+                if (max(abs($lat1 - $lat2), abs($lon1 - $lon2)) > 0.00001) {
+                    $cambioCoord = true;
+                }
+            } elseif (($lat1 !== null || $lon1 !== null) !== ($lat2 !== null || $lon2 !== null)) {
+                $cambioCoord = true;
+            }
+
+            if ($cambioCoord) {
+                $huboCambio = true;
+                $eventos[] = [
+                    'archivo_origen' => $filename,
+                    'cliente_id' => $cid,
+                    'cliente' => $cliNombre,
+                    'tipo_evento' => 'MODIFICADO_COORDENADAS',
+                    'campo_afectado' => 'coordenadas',
+                    'valor_anterior' => $lat1 !== null ? "{$lat1}, {$lon1}" : null,
+                    'valor_nuevo' => $lat2 !== null ? "{$lat2}, {$lon2}" : null,
+                    'fecha_auditoria' => $fechaOperativa,
+                    'estado_auditoria' => 'PENDIENTE',
+                    'observaciones' => 'Desplazamiento geográfico de coordenadas.',
+                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                ];
+            }
+
+            // Regla Atributos Generales (trim, tratando null y '' como iguales)
+            foreach (self::GENERAL_DIFF_COLUMNS as $col) {
+                $valP = trim((string) ($pRow[$col] ?? ''));
+                $valE = trim((string) ($eRow[$col] ?? ''));
+
+                if ($valP !== $valE) {
+                    $huboCambio = true;
+                    $eventos[] = [
+                        'archivo_origen' => $filename,
+                        'cliente_id' => $cid,
+                        'cliente' => $cliNombre,
+                        'tipo_evento' => 'MODIFICADO',
+                        'campo_afectado' => $col,
+                        'valor_anterior' => $valP !== '' ? $valP : null,
+                        'valor_nuevo' => $valE !== '' ? $valE : null,
+                        'fecha_auditoria' => $fechaOperativa,
+                        'estado_auditoria' => 'PENDIENTE',
+                        'observaciones' => "Actualización del atributo {$col}.",
+                        'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                    ];
+                }
+            }
+        }
+
+        return $eventos;
+    }
+
+    /**
+     * Determina la fecha operativa del archivo para consistencia histórica.
+     */
+    private function determinarFechaOperativa(string $filePath, string $filename, ?string $fechaCustom): string
+    {
+        if (!empty($fechaCustom)) {
+            $fTrim = trim($fechaCustom);
+            if (strlen($fTrim) === 10 && $fTrim[4] === '-' && $fTrim[7] === '-') {
+                return "{$fTrim} 12:00:00";
+            }
+            return $fTrim;
+        }
+
+        if (preg_match('/ruteo_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})/', $filename, $m)) {
+            return "{$m[1]} {$m[2]}:{$m[3]}:{$m[4]}";
+        }
+
+        if (preg_match('/(\d{4}-\d{2}-\d{2})[_\sT](\d{2})[_\:]?(\d{2})[_\:]?(\d{2})?/', $filename, $m)) {
+            $seg = isset($m[4]) ? $m[4] : '00';
+            return "{$m[1]} {$m[2]}:{$m[3]}:{$seg}";
+        }
+
+        if (preg_match('/(\d{4}-\d{2}-\d{2})/', $filename, $m)) {
+            return "{$m[1]} 12:00:00";
+        }
+
+        return date('Y-m-d H:i:s', filemtime($filePath) ?: time());
+    }
+
+    /**
+     * Limpia un texto a mayúsculas alfanuméricas sin tildes ni símbolos especiales.
+     */
+    private function cleanUpperAlphaNum(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        $replacements = [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'ñ' => 'N', 'Ñ' => 'N', 'ü' => 'U', 'Ü' => 'U',
+            'à' => 'a', 'è' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
+        ];
+        $str = strtr($text, $replacements);
+        $unaccented = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $str);
+        if ($unaccented === false) {
+            $unaccented = $str;
+        }
+
+        $cleaned = preg_replace('/[^A-Za-z0-9 ]/', '', (string) $unaccented);
+        return trim(strtoupper((string) preg_replace('/\s+/', ' ', (string) $cleaned)));
     }
 }
-
