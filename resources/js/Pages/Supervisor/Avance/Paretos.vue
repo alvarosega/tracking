@@ -78,22 +78,8 @@
           </div>
         </div>
 
-        <!-- Filtros Contextuales de Pareto -->
+        <!-- Filtros Contextuales -->
         <div class="flex items-center gap-2 text-[11px]">
-          <!-- Selector de Clase Pareto -->
-          <div class="flex items-center gap-1.5 apple-control-pill rounded-[8px] px-2.5 py-1">
-            <label class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Pareto:</label>
-            <select
-              v-model="filtroClase"
-              class="bg-transparent font-bold text-[#1D1D1F] cursor-pointer focus:outline-none"
-            >
-              <option value="TODAS">Todas (A + B + C)</option>
-              <option value="A">Solo A (Top 80%)</option>
-              <option value="B">Solo B (Medio 15%)</option>
-              <option value="C">Solo C (Bajo 5%)</option>
-            </select>
-          </div>
-
           <!-- Selector Tipo de Negocio -->
           <div
             v-if="tiposNegocioDisponibles.length > 0"
@@ -838,8 +824,7 @@ function iniciarArrastreSplitter() {
   window.addEventListener('mouseup', onMouseUp);
 }
 
-// Filtros Locales de Pareto
-const filtroClase = ref('TODAS');
+// Filtros Locales
 const filtroTipoNegocio = ref('');
 const mostrarInactivos = ref(false);
 const clienteSeleccionadoId = ref(null);
@@ -1143,10 +1128,6 @@ const clientesFiltrados = computed(() => {
     lista = lista.filter(c => c.tipo_negocio === filtroTipoNegocio.value);
   }
 
-  if (filtroClase.value !== 'TODAS') {
-    lista = lista.filter(c => (c.clasificacion || c._clase_monto) === filtroClase.value);
-  }
-
   const busqueda = store.filtrosAplicados?.busqueda || '';
   if (busqueda.trim()) {
     const q = busqueda.toLowerCase().trim();
@@ -1207,7 +1188,7 @@ function actualizarCapasMapaDebounced(forzarAjuste = false) {
   }, 100);
 }
 
-watch([filtroClase, filtroTipoNegocio, mostrarInactivos, () => store.filtrosAplicados?.busqueda], () => {
+watch([filtroTipoNegocio, mostrarInactivos, () => store.filtrosAplicados?.busqueda], () => {
   actualizarCapasMapaDebounced(false);
 });
 
@@ -1329,11 +1310,13 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
   const puntosActivos = Boolean(mapaCapas.value.puntos);
   const cfg = configCriterioActual.value;
 
-  // Agrupar puntos por categoría de la leyenda para manchas de calor contrastables
+  // Agrupar puntos y marcadores por categoría de la leyenda para manchas de calor y apilamiento correcto
   const ptsPorCategoria = {};
+  const markersPorCategoria = {};
   if (cfg?.opciones) {
     cfg.opciones.forEach(op => {
       ptsPorCategoria[op.key] = [];
+      markersPorCategoria[op.key] = [];
     });
   }
 
@@ -1366,13 +1349,20 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
         weight: calorActivo ? 1.0 : 1.5,
       });
       marker.bindPopup(() => generarPopupHtml(c));
-      markers.push(marker);
+      if (!markersPorCategoria[info.key]) {
+        markersPorCategoria[info.key] = [];
+      }
+      markersPorCategoria[info.key].push(marker);
     }
   }
 
+  // Invertir orden de opciones: Los más bajos (Sin Venta / Sin Facturas) se dibujan en la capa de abajo (fondo)
+  // y los más altos (Alta) se dibujan al final para que queden encima de todo.
+  const opcionesOrdenadas = [...(cfg?.opciones || [])].reverse();
+
   // Crear una capa de calor por cada categoría activa con el color EXACTO de la leyenda
   if (calorActivo && typeof L.heatLayer === 'function' && cfg?.opciones) {
-    for (const op of cfg.opciones) {
+    for (const op of opcionesOrdenadas) {
       const permiso = capasRangosActivas.value[op.key] !== false;
       const pts = ptsPorCategoria[op.key] || [];
 
@@ -1399,9 +1389,16 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
     });
   }
 
-  if (puntosActivos && markers.length > 0) {
-    capaPuntos = L.layerGroup(markers);
-    mapaInstancia.addLayer(capaPuntos);
+  if (puntosActivos) {
+    const markersOrdenados = [];
+    for (const op of opcionesOrdenadas) {
+      const lista = markersPorCategoria[op.key] || [];
+      markersOrdenados.push(...lista);
+    }
+    if (markersOrdenados.length > 0) {
+      capaPuntos = L.layerGroup(markersOrdenados);
+      mapaInstancia.addLayer(capaPuntos);
+    }
   }
 
   if (bounds.length > 0 && !marcadorEnfocado && (!mapaAjustadoInicial || forzarAjusteBounds)) {
