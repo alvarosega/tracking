@@ -226,19 +226,6 @@
             </svg>
           </button>
 
-          <!-- Filtro Dropdown: Rutas (Teleport al Body) -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
-          >
-            <span class="text-slate-400 font-normal">Rutas:</span>
-            <span class="font-semibold text-slate-900">{{ labelRutas }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
           <!-- Filtro Segmentado: Días de Visita -->
           <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <button
@@ -316,8 +303,23 @@
             <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
           </button>
 
-          <!-- Filtros de Fronteras GIS por Ruta -->
+          <!-- Filtros Dinámicos GIS: Puntos (Rutas), Frontera Ruta y Frontera Día -->
           <div class="hidden lg:flex items-center space-x-2 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
+            <!-- Botón Dropdown Dinámico: Puntos por Ruta -->
+            <button
+              type="button"
+              @click.stop="toggleMenu('puntos_rutas', $event)"
+              class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0"
+              :class="{ 'bg-slate-200/80 border-slate-300 font-semibold': filtroRutas.length > 0 }"
+              title="Mostrar u ocultar puntos de clientes por ruta en tiempo real"
+            >
+              <span class="text-slate-400 font-normal">Puntos:</span>
+              <span class="font-bold text-slate-900">{{ labelRutasPuntos }}</span>
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
             <!-- Botón Dropdown Frontera Rutas -->
             <button
               type="button"
@@ -406,41 +408,51 @@
           </div>
         </div>
 
-        <!-- Menú Rutas -->
+        <!-- Menú Dinámico: Puntos por Ruta -->
         <div
-          v-if="menuAbierto === 'rutas'"
+          v-if="menuAbierto === 'puntos_rutas'"
           @click.stop
           :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
           class="fixed w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
         >
           <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
-            <button type="button" @click="seleccionarTodasRutas" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todas ({{ rutasDisponibles.length }})</button>
-            <button type="button" @click="limpiarRutas" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
+            <span class="font-bold text-[11px] text-slate-700 uppercase tracking-tight">Puntos por Ruta</span>
+            <div class="flex items-center gap-2">
+              <button type="button" @click="seleccionarTodasRutasPuntos" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todos</button>
+              <button type="button" @click="limpiarRutasPuntos" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
+            </div>
           </div>
           <input
-            v-model="busquedaRuta"
+            v-if="rutasDisponiblesParaFronteras.length > 5"
+            v-model="busquedaPuntosRuta"
             type="text"
-            placeholder="Buscar ruta o preventa..."
+            placeholder="Buscar ruta..."
             class="w-full h-7 px-2.5 mb-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 font-mono"
           />
           <div class="max-h-56 overflow-y-auto space-y-1">
-            <label v-for="r in rutasFiltradasEnDropdown" :key="r.ruta" class="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
-              <input type="checkbox" :value="r.ruta" v-model="filtroRutas" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
-              <div class="truncate flex items-center gap-2 flex-1">
-                <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: getRutaColor(r.ruta) }"></span>
-                <span class="font-mono font-semibold text-slate-800">{{ formatRuta(r.ruta) }}</span>
-                <span class="text-slate-400 text-[10px]">({{ r.canal }})</span>
-              </div>
-            </label>
-          </div>
-          <div class="pt-2 mt-1.5 border-t border-slate-100 flex justify-end">
-            <button
-              type="button"
-              @click="menuAbierto = null; cargarDatos();"
-              class="w-full py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            <div v-if="rutasFiltradasEnDropdownPuntos.length === 0" class="py-2 text-center text-slate-400 text-[11px]">
+              No hay rutas disponibles
+            </div>
+            <label
+              v-for="r in rutasFiltradasEnDropdownPuntos"
+              :key="r.ruta"
+              class="flex items-center justify-between gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none"
             >
-              Consultar
-            </button>
+              <div class="flex items-center gap-2 truncate">
+                <input
+                  type="checkbox"
+                  :value="r.ruta"
+                  v-model="filtroRutas"
+                  @change="renderizarEnMapa(true)"
+                  class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
+                />
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: r.color }"></span>
+                <span class="font-mono font-semibold text-slate-800 truncate">{{ r.nombre }}</span>
+              </div>
+              <span class="text-[9.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0 bg-slate-100 text-slate-600">
+                {{ conteoPuntosPorRuta[r.ruta] || 0 }} pts
+              </span>
+            </label>
           </div>
         </div>
 
@@ -1751,12 +1763,49 @@ const labelCanales = computed(() => {
   return `${filtroCanales.value.length} sel.`;
 });
 
-const labelRutas = computed(() => {
-  if (filtroRutas.value.length === 0) return 'Ninguna';
-  if (filtroRutas.value.length === rutasDisponibles.value.length) return 'Todas';
-  if (filtroRutas.value.length === 1) return formatRuta(filtroRutas.value[0]);
-  return `${filtroRutas.value.length} sel.`;
+const labelRutasPuntos = computed(() => {
+  const total = rutasDisponiblesParaFronteras.value.length;
+  if (total === 0) return 'Sin rutas';
+  const activas = filtroRutas.value.length;
+  if (activas === 0) return 'Ocultos (0)';
+  if (activas === total) return `Todas (${total})`;
+  if (activas === 1) return formatRuta(filtroRutas.value[0]);
+  return `${activas}/${total}`;
 });
+
+const labelRutas = labelRutasPuntos;
+
+const busquedaPuntosRuta = ref('');
+
+const conteoPuntosPorRuta = computed(() => {
+  const mapCounts = {};
+  clientes.value.forEach(c => {
+    if (c.ruta && c.tiene_gps) {
+      const k = c.ruta.toUpperCase();
+      mapCounts[k] = (mapCounts[k] || 0) + 1;
+    }
+  });
+  return mapCounts;
+});
+
+const rutasFiltradasEnDropdownPuntos = computed(() => {
+  if (!busquedaPuntosRuta.value.trim()) return rutasDisponiblesParaFronteras.value;
+  const q = busquedaPuntosRuta.value.toLowerCase().trim();
+  return rutasDisponiblesParaFronteras.value.filter(r =>
+    r.ruta.toLowerCase().includes(q) ||
+    r.nombre.toLowerCase().includes(q)
+  );
+});
+
+function seleccionarTodasRutasPuntos() {
+  filtroRutas.value = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+  renderizarEnMapa(true);
+}
+
+function limpiarRutasPuntos() {
+  filtroRutas.value = [];
+  renderizarEnMapa(true);
+}
 
 // Rutas con polígonos detectados
 const rutasConPoligonoRuta = computed(() => {
@@ -2035,12 +2084,15 @@ const tituloCodificacionLeyenda = computed(() => {
 
 // Elementos dinámicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
-  if (clientes.value.length === 0) return [];
+  if (clientes.value.length === 0 || filtroRutas.value.length === 0) return [];
   const mapCounts = new Map();
   const modoEfectivo = modoColorEfectivo.value;
+  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => r.toUpperCase()));
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
+    const rKey = (c.ruta || '').trim().toUpperCase();
+    if (!setRutasPuntosPermitidas.has(rKey)) return;
 
     let key, nombre, color;
 
@@ -2211,7 +2263,7 @@ function toggleTodosDias() {
 async function cargarDatos(mantenerVista = false) {
   menuAbierto.value = null;
 
-  if (filtroRutas.value.length === 0 && filtroCanales.value.length === 0) {
+  if (filtroCanales.value.length === 0 && filtroRutas.value.length === 0) {
     clientes.value = [];
     fronterasRutas.value = [];
     fronterasDias.value = [];
@@ -2220,21 +2272,12 @@ async function cargarDatos(mantenerVista = false) {
     return;
   }
 
-  // Ajustar automáticamente el modo de color óptimo solo si no es recarga por cambio
-  if (!mantenerVista) {
-    if (filtroRutas.value.length === 1) {
-      modoColor.value = 'dia';
-    } else if (filtroRutas.value.length > 1) {
-      modoColor.value = 'ruta';
-    }
-  }
-
   cargando.value = true;
   try {
     const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
     const res = await axios.post(route('supervisor.saneamiento.visor.data'), {
       canales: filtroCanales.value,
-      rutas: filtroRutas.value,
+      rutas: (mantenerVista && filtroRutas.value.length > 0) ? filtroRutas.value : [],
       dias: filtroDias.value,
       ver_frontera_rutas: true,
       ver_frontera_dias: true,
@@ -2249,9 +2292,17 @@ async function cargarDatos(mantenerVista = false) {
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
 
-    // Inicializar o sincronizar filtros por ruta de polígonos de fronteras
+    // Inicializar o sincronizar filtros por ruta de puntos y fronteras
+    const rutasEnClientes = Array.from(new Set(clientes.value.map(c => (c.ruta || '').trim().toUpperCase()).filter(Boolean)));
     const rutasFR = Array.from(new Set(fronterasRutas.value.map(fr => (fr.ruta || '').trim().toUpperCase()).filter(Boolean)));
     const rutasFD = Array.from(new Set(fronterasDias.value.map(fd => (fd.ruta || '').trim().toUpperCase()).filter(Boolean)));
+
+    if (!mantenerVista || filtroRutas.value.length === 0) {
+      filtroRutas.value = [...rutasEnClientes];
+    } else {
+      const validClientes = new Set(rutasEnClientes);
+      filtroRutas.value = filtroRutas.value.filter(r => validClientes.has(r));
+    }
 
     if (!mantenerVista || filtroFronterasRutas.value.length === 0) {
       filtroFronterasRutas.value = [...rutasFR];
@@ -2265,6 +2316,15 @@ async function cargarDatos(mantenerVista = false) {
     } else {
       const validFD = new Set(rutasFD);
       filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validFD.has(r));
+    }
+
+    // Ajustar automáticamente el modo de color óptimo solo si no es recarga por cambio
+    if (!mantenerVista) {
+      if (filtroRutas.value.length === 1) {
+        modoColor.value = 'dia';
+      } else if (filtroRutas.value.length > 1) {
+        modoColor.value = 'ruta';
+      }
     }
 
     renderizarEnMapa(mantenerVista);
@@ -2919,9 +2979,16 @@ function renderizarEnMapa(mantenerVista = false) {
     });
   }
 
-  // Marcadores de Clientes
+  // Marcadores de Clientes (Filtrados dinámicamente por el selector de rutas/puntos)
+  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => r.toUpperCase()));
+
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
+      const rutaCliente = (c.ruta || '').trim().toUpperCase();
+      if (!setRutasPuntosPermitidas.has(rutaCliente)) {
+        return;
+      }
+
       const esModoAjusteRtm = (modoPrincipal.value === 'ajuste_rtm');
       const esModoOriginal = (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original');
       const tieneCambio = !esModoOriginal && Boolean(c.tiene_cambio);
