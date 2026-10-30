@@ -6,8 +6,89 @@
         <SubNavTabs :tabs="avanceTabs" />
       </div>
 
-      <!-- ── Barra de Filtros Centralizada (Fechas, Canales, Rutas, Búsqueda) ── -->
-      <AvanceFiltrosBar @consultar="ejecutarConsulta" />
+      <!-- ── Barra de Filtros Centralizada (Fechas, Canales, Rutas, Clientes, Búsqueda) ── -->
+      <AvanceFiltrosBar :menu-extra-abierto="menuClientesAbierto" @consultar="ejecutarConsulta">
+        <template #after-rutas>
+          <!-- Selector de Clientes (Multiselección con Buscador) -->
+          <div
+            class="relative inline-block text-left"
+            :class="menuClientesAbierto ? 'z-[101]' : 'z-10'"
+            ref="clientesDropdownRef"
+          >
+            <button
+              type="button"
+              @click="menuClientesAbierto = !menuClientesAbierto"
+              class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px] font-semibold text-[#1D1D1F] cursor-pointer"
+            >
+              <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Clientes:</span>
+              <span class="max-w-[130px] truncate text-[11px] font-bold text-[#0071E3]">{{ etiquetaClientesSeleccionados }}</span>
+              <svg
+                class="w-3 h-3 text-[#86868B] transition-transform duration-200 pointer-events-none"
+                :class="menuClientesAbierto ? 'rotate-180 text-[#0071E3]' : ''"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Dropdown Clientes -->
+            <div
+              v-if="menuClientesAbierto"
+              class="absolute top-full left-0 mt-2 w-72 glass-dropdown rounded-[14px] z-[102] p-2 space-y-1 shadow-float bg-white/95 border border-black/[0.08]"
+            >
+              <div class="flex items-center justify-between px-1.5 pb-1.5 border-b border-black/[0.06] text-[10px]">
+                <button type="button" @click="seleccionarTodosClientes" class="text-[#0071E3] font-bold hover:underline cursor-pointer">
+                  Marcar todos
+                </button>
+                <button type="button" @click="deseleccionarTodosClientes" class="text-[#86868B] font-semibold hover:underline cursor-pointer">
+                  Desmarcar todos
+                </button>
+              </div>
+
+              <div class="relative pt-0.5">
+                <input
+                  v-model="filtroTextoCliente"
+                  type="text"
+                  placeholder="Buscar por código o nombre..."
+                  class="w-full text-[10px] bg-white/90 rounded-[8px] px-2.5 py-1.5 focus:outline-none font-medium border border-black/[0.08] placeholder-[#86868B]"
+                />
+              </div>
+
+              <div class="max-h-56 overflow-y-auto custom-scroll space-y-0.5 pt-1">
+                <label
+                  v-for="c in clientesOpcionesFiltradas"
+                  :key="c.cliente_id"
+                  class="flex items-center gap-2 px-2 py-1.5 rounded-[8px] hover:bg-blue-500/10 cursor-pointer text-[11px] transition-colors select-none"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="esClienteMarcado(c.cliente_id)"
+                    @change="toggleCliente(c.cliente_id)"
+                    class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer shrink-0"
+                  />
+                  <div class="truncate flex-1">
+                    <span class="font-mono font-bold text-[#0071E3] mr-1">[{{ c.cliente_id }}]</span>
+                    <span class="font-semibold text-[#1D1D1F]">{{ c.cliente }}</span>
+                    <span v-if="c.ruta" class="text-[9px] text-[#86868B] ml-1">({{ c.ruta }})</span>
+                  </div>
+                </label>
+                <div v-if="clientesOpcionesFiltradas.length === 0" class="py-3 text-center text-[10px] text-[#86868B]">
+                  No se encontraron clientes
+                </div>
+              </div>
+
+              <div class="pt-1.5 border-t border-black/[0.06] flex items-center justify-between text-[9px] text-[#86868B] px-1 font-mono">
+                <span>{{ clientesOpcionesDisponibles.length }} clientes</span>
+                <button type="button" @click="menuClientesAbierto = false" class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </AvanceFiltrosBar>
 
       <!-- ── Barra Superior: Presets Split, Filtros Contextuales y Conteo ── -->
       <section class="relative z-20 apple-glass-card rounded-[14px] p-2 shadow-xs flex flex-wrap items-center justify-between gap-2 select-none border border-black/[0.06]">
@@ -180,6 +261,7 @@
             <table v-if="clientesFiltrados.length > 0" class="w-full text-left border-separate border-spacing-0 font-sans text-[11px]">
               <thead class="bg-slate-100 text-[#6E6E73] font-bold text-[9px] uppercase tracking-tight border-b border-black/[0.08] sticky top-0 z-20 select-none shadow-xs">
                 <tr>
+                  <th class="py-2 px-1 border-b border-r border-black/[0.06] w-6 text-center" title="Desglosar comportamiento 6 meses"></th>
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] w-7 text-center">#</th>
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] w-10 text-center">Clase</th>
                   <th class="py-2 px-2.5 border-b border-r border-black/[0.06] min-w-[160px]">Cliente</th>
@@ -195,140 +277,311 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-black/[0.04] bg-white">
-                <tr
-                  v-for="(c, idx) in clientesFiltrados"
-                  :key="c.cliente_id"
-                  @click="enfocarClienteEnMapa(c)"
-                  class="hover:bg-blue-50/50 transition-colors cursor-pointer group"
-                  :class="{ 'bg-blue-50/80 ring-1 ring-inset ring-[#0071E3] font-medium': clienteSeleccionadoId === c.cliente_id }"
-                >
-                  <!-- # -->
-                  <td class="py-1.5 px-2 text-center text-[#86868B] text-[10px] border-r border-black/[0.04] font-mono">
-                    {{ idx + 1 }}
-                  </td>
-
-                  <!-- Clase Badge -->
-                  <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04]">
-                    <span
-                      class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono"
-                      :class="getClaseParetoBadge(c.clasificacion || c._clase_monto)"
-                    >
-                      {{ c.clasificacion || c._clase_monto || 'C' }}
-                    </span>
-                  </td>
-
-                  <!-- Cliente -->
-                  <td class="py-1.5 px-2.5 border-r border-black/[0.04]">
-                    <div class="font-bold text-[#1D1D1F] truncate max-w-[200px]" :title="c.cliente">
-                      {{ c.cliente }}
-                    </div>
-                    <div class="text-[9px] text-[#86868B] flex items-center gap-1 font-mono">
-                      <span>ID: {{ c.cliente_id }}</span>
-                      <span v-if="c.estado_cliente === 'INACTIVO'" class="px-1 py-0.2 rounded bg-rose-50 text-rose-700 font-bold">
-                        INACTIVO
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Ruta -->
-                  <td class="py-1.5 px-2 text-[#1D1D1F] border-r border-black/[0.04] font-bold whitespace-nowrap text-[10px]">
-                    <div>{{ c.ruta }}</div>
-                    <div class="text-[8.5px] text-[#86868B] font-mono">{{ c.canal || 'S/C' }}</div>
-                  </td>
-
-                  <!-- Monto Bs MTD -->
-                  <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap font-mono">
-                    <div>Bs {{ formatNum(c.venta_mtd) }}</div>
-                    <div class="text-[8.5px] text-[#86868B] font-mono">{{ (c.pct_acumulado || 0).toFixed(1) }}%</div>
-                  </td>
-
-                  <!-- Unidades / Cajas -->
-                  <td class="py-1.5 px-2 text-right font-mono text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap text-[10px]">
-                    <div><strong>{{ c.unidades || 0 }}</strong> u.</div>
-                    <div class="text-[8.5px] text-[#86868B]">{{ formatNum(c.cajas) }} cj.</div>
-                  </td>
-
-                  <!-- Facturas Efectivas (Frecuencia) -->
-                  <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap">
-                    <button
-                      type="button"
-                      @click.stop="abrirModalFrecuencia(c)"
-                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-100 text-[#1D1D1F] cursor-pointer font-mono text-[10px]"
-                      title="Ver detalle de facturas efectivas"
-                    >
-                      <span class="font-bold">{{ c.facturas_efectivas || 0 }} fac.</span>
-                      <span class="text-[8px] font-bold px-1 rounded" :class="getMicroBadge(c._clase_frec)">
-                        {{ c._clase_frec || 'C' }}
-                      </span>
-                    </button>
-                  </td>
-
-                  <!-- Portafolio (SKUs y Marcas) -->
-                  <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap">
-                    <button
-                      type="button"
-                      @click.stop="abrirModalAmplitud(c)"
-                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-100 text-[#1D1D1F] cursor-pointer font-mono text-[10px]"
-                      title="Ver desglose de SKUs y Marcas"
-                    >
-                      <span><strong>{{ c.skus_distintos || 0 }}</strong> sku</span>
-                      <span class="text-slate-400">/</span>
-                      <span><strong>{{ c.marcas_distintas || 0 }}</strong> mrc</span>
-                    </button>
-                  </td>
-
-                  <!-- Drop Size -->
-                  <td class="py-1.5 px-2 text-right font-mono text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap text-[10px]">
-                    <span>Bs {{ formatNum(c.drop_size) }}</span>
-                  </td>
-
-                  <!-- Consistencia Histórica -->
-                  <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap font-mono text-[10px]">
-                    <span
-                      class="px-1.5 py-0.5 rounded font-bold"
-                      :class="(c.meses_activos_6m || 0) >= 5 ? 'bg-emerald-50 text-emerald-800' : ((c.meses_activos_6m || 0) >= 3 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600')"
-                      :title="`Activo ${c.meses_activos_6m || 0} de 6 meses (6M) y ${c.meses_activos_12m || 0} de 12 meses (12M)`"
-                    >
-                      {{ c.meses_activos_6m || 0 }}m / 6m
-                    </span>
-                  </td>
-
-                  <!-- vs L2M -->
-                  <td class="py-1.5 px-2 text-right border-r border-black/[0.04] whitespace-nowrap">
-                    <span class="text-[10px] font-bold font-mono" :class="getClaseTendencia(c.var_l2m)">
-                      {{ formatVarPct(c.var_l2m) }}
-                    </span>
-                  </td>
-
-                  <!-- GIS Acciones -->
-                  <td class="py-1.5 px-1.5 text-center whitespace-nowrap" @click.stop>
-                    <div class="flex items-center justify-center gap-1">
+                <template v-for="(c, idx) in clientesFiltrados" :key="c.cliente_id">
+                  <tr
+                    @click="enfocarClienteEnMapa(c)"
+                    class="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                    :class="{ 'bg-blue-50/80 ring-1 ring-inset ring-[#0071E3] font-medium': clienteSeleccionadoId === c.cliente_id }"
+                  >
+                    <!-- Botón Toggle Desglose 6M -->
+                    <td class="py-1 px-1 text-center border-r border-black/[0.04]" @click.stop>
                       <button
-                        v-if="c.latitud && c.longitud"
                         type="button"
-                        @click="enfocarClienteEnMapa(c)"
-                        class="p-1 text-[#0071E3] hover:bg-sky-50 rounded cursor-pointer transition-colors"
-                        title="Enfocar cliente en el Mapa"
+                        @click="toggleHistorialCliente(c.cliente_id)"
+                        class="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-slate-200/80 text-[#86868B] hover:text-[#1D1D1F] transition-all cursor-pointer"
+                        :title="clientesExpandidos.has(c.cliente_id) ? 'Colapsar historial 6M' : 'Ver comportamiento 6 meses atrás'"
                       >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <svg
+                          class="w-3 h-3 transition-transform duration-200"
+                          :class="clientesExpandidos.has(c.cliente_id) ? 'rotate-90 text-[#0071E3]' : ''"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
-                      <button
-                        v-if="c.tiene_fotos"
-                        type="button"
-                        @click="abrirModalFotos(c)"
-                        class="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded cursor-pointer transition-colors"
-                        title="Ver evidencia fotográfica"
+                    </td>
+
+                    <!-- # -->
+                    <td class="py-1.5 px-2 text-center text-[#86868B] text-[10px] border-r border-black/[0.04] font-mono">
+                      {{ idx + 1 }}
+                    </td>
+
+                    <!-- Clase Badge -->
+                    <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04]">
+                      <span
+                        class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono"
+                        :class="getClaseParetoBadge(c.clasificacion || c._clase_monto)"
                       >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        </svg>
+                        {{ c.clasificacion || c._clase_monto || 'C' }}
+                      </span>
+                    </td>
+
+                    <!-- Cliente -->
+                    <td class="py-1.5 px-2.5 border-r border-black/[0.04]">
+                      <div class="font-bold text-[#1D1D1F] truncate max-w-[200px]" :title="c.cliente">
+                        {{ c.cliente }}
+                      </div>
+                      <div class="text-[9px] text-[#86868B] flex items-center gap-1 font-mono">
+                        <span>ID: {{ c.cliente_id }}</span>
+                        <span v-if="c.estado_cliente === 'INACTIVO'" class="px-1 py-0.2 rounded bg-rose-50 text-rose-700 font-bold">
+                          INACTIVO
+                        </span>
+                      </div>
+                    </td>
+
+                    <!-- Ruta -->
+                    <td class="py-1.5 px-2 text-[#1D1D1F] border-r border-black/[0.04] font-bold whitespace-nowrap text-[10px]">
+                      <div>{{ c.ruta }}</div>
+                      <div class="text-[8.5px] text-[#86868B] font-mono">{{ c.canal || 'S/C' }}</div>
+                    </td>
+
+                    <!-- Monto Bs MTD -->
+                    <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap font-mono">
+                      <div>Bs {{ formatNum(c.venta_mtd) }}</div>
+                      <div class="text-[8.5px] text-[#86868B] font-mono">{{ (c.pct_acumulado || 0).toFixed(1) }}%</div>
+                    </td>
+
+                    <!-- Unidades / Cajas -->
+                    <td class="py-1.5 px-2 text-right font-mono text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap text-[10px]">
+                      <div><strong>{{ c.unidades || 0 }}</strong> u.</div>
+                      <div class="text-[8.5px] text-[#86868B]">{{ formatNum(c.cajas) }} cj.</div>
+                    </td>
+
+                    <!-- Facturas Efectivas (Frecuencia) -->
+                    <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap">
+                      <button
+                        type="button"
+                        @click.stop="abrirModalFrecuencia(c)"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-100 text-[#1D1D1F] cursor-pointer font-mono text-[10px]"
+                        title="Ver detalle de facturas efectivas"
+                      >
+                        <span class="font-bold">{{ c.facturas_efectivas || 0 }} fac.</span>
+                        <span class="text-[8px] font-bold px-1 rounded" :class="getMicroBadge(c._clase_frec)">
+                          {{ c._clase_frec || 'C' }}
+                        </span>
                       </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+
+                    <!-- Portafolio (SKUs y Marcas) -->
+                    <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap">
+                      <button
+                        type="button"
+                        @click.stop="abrirModalAmplitud(c)"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-100 text-[#1D1D1F] cursor-pointer font-mono text-[10px]"
+                        title="Ver desglose de SKUs y Marcas"
+                      >
+                        <span><strong>{{ c.skus_distintos || 0 }}</strong> sku</span>
+                        <span class="text-slate-400">/</span>
+                        <span><strong>{{ c.marcas_distintas || 0 }}</strong> mrc</span>
+                      </button>
+                    </td>
+
+                    <!-- Drop Size -->
+                    <td class="py-1.5 px-2 text-right font-mono text-[#1D1D1F] border-r border-black/[0.04] whitespace-nowrap text-[10px]">
+                      <span>Bs {{ formatNum(c.drop_size) }}</span>
+                    </td>
+
+                    <!-- Consistencia Histórica -->
+                    <td class="py-1.5 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap font-mono text-[10px]">
+                      <span
+                        class="px-1.5 py-0.5 rounded font-bold"
+                        :class="(c.meses_activos_6m || 0) >= 5 ? 'bg-emerald-50 text-emerald-800' : ((c.meses_activos_6m || 0) >= 3 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600')"
+                        :title="`Activo ${c.meses_activos_6m || 0} de 6 meses (6M) y ${c.meses_activos_12m || 0} de 12 meses (12M)`"
+                      >
+                        {{ c.meses_activos_6m || 0 }}m / 6m
+                      </span>
+                    </td>
+
+                    <!-- vs L2M -->
+                    <td class="py-1.5 px-2 text-right border-r border-black/[0.04] whitespace-nowrap">
+                      <span class="text-[10px] font-bold font-mono" :class="getClaseTendencia(c.var_l2m)">
+                        {{ formatVarPct(c.var_l2m) }}
+                      </span>
+                    </td>
+
+                    <!-- GIS Acciones -->
+                    <td class="py-1.5 px-1.5 text-center whitespace-nowrap" @click.stop>
+                      <div class="flex items-center justify-center gap-1">
+                        <button
+                          v-if="c.latitud && c.longitud"
+                          type="button"
+                          @click="enfocarClienteEnMapa(c)"
+                          class="p-1 text-[#0071E3] hover:bg-sky-50 rounded cursor-pointer transition-colors"
+                          title="Enfocar cliente en el Mapa"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
+                        <button
+                          v-if="c.tiene_fotos"
+                          type="button"
+                          @click="abrirModalFotos(c)"
+                          class="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded cursor-pointer transition-colors"
+                          title="Ver evidencia fotográfica"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- FILA EXPANDIBLE: COMPORTAMIENTO 6 MESES ATRÁS -->
+                  <tr v-if="clientesExpandidos.has(c.cliente_id)" class="bg-slate-50/80 border-b border-black/[0.08]" @click.stop>
+                    <td colspan="13" class="p-3">
+                      <!-- Loading Skeleton -->
+                      <div v-if="cargandoHistorialCliente[c.cliente_id]" class="py-5 flex items-center justify-center gap-2 text-xs text-[#86868B] font-mono bg-white rounded-xl border border-black/[0.06]">
+                        <svg class="w-4 h-4 animate-spin text-[#0071E3]" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        <span>Cargando comportamiento histórico 6 meses...</span>
+                      </div>
+
+                      <!-- Detalle 6M -->
+                      <div
+                        v-else-if="historial6mClientes[c.cliente_id]"
+                        class="rounded-xl border border-black/[0.08] bg-white p-3 shadow-xs space-y-3 font-sans"
+                      >
+                        <!-- Encabezado y KPIs del Historial -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2 h-2 rounded-full bg-[#0071E3] shrink-0"></span>
+                            <span class="text-[11px] font-bold text-[#1D1D1F] uppercase tracking-wide truncate">
+                              Comportamiento Histórico 6 Meses
+                            </span>
+                            <span class="text-[10px] text-[#86868B] font-mono shrink-0">
+                              [{{ c.cliente_id }}]
+                            </span>
+                          </div>
+
+                          <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                            <div class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Total 6M:</span>
+                              <strong class="text-[#0071E3] ml-1">Bs {{ formatNum(historial6mClientes[c.cliente_id].kpis.total_venta_6m) }}</strong>
+                            </div>
+                            <div class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Prom. Mensual:</span>
+                              <strong class="ml-1">Bs {{ formatNum(historial6mClientes[c.cliente_id].kpis.promedio_mensual_bs) }}</strong>
+                            </div>
+                            <div class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Meses Activos:</span>
+                              <strong class="ml-1" :class="historial6mClientes[c.cliente_id].kpis.meses_con_compra >= 5 ? 'text-emerald-700' : (historial6mClientes[c.cliente_id].kpis.meses_con_compra >= 3 ? 'text-amber-700' : 'text-slate-700')">
+                                {{ historial6mClientes[c.cliente_id].kpis.meses_con_compra }} de 6
+                              </strong>
+                            </div>
+                            <div class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Facturas:</span>
+                              <strong class="ml-1">{{ historial6mClientes[c.cliente_id].kpis.total_facturas_6m }}</strong>
+                            </div>
+                            <div class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Drop Promedio:</span>
+                              <strong class="ml-1">Bs {{ formatNum(historial6mClientes[c.cliente_id].kpis.drop_size_promedio_6m) }}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Matriz Comparativa Mes a Mes (6 Meses) -->
+                        <div class="overflow-x-auto rounded-lg border border-black/[0.06]">
+                          <table class="w-full text-left border-collapse text-[10.5px]">
+                            <thead>
+                              <tr class="bg-slate-50 border-b border-black/[0.06] text-[9px] uppercase tracking-tight text-[#6E6E73] font-bold">
+                                <th class="py-1.5 px-2.5">Mes Calendario</th>
+                                <th class="py-1.5 px-2.5 text-right">Venta Facturada</th>
+                                <th class="py-1.5 px-2 text-right">vs Mes Ant.</th>
+                                <th class="py-1.5 px-2 text-center">Facturas</th>
+                                <th class="py-1.5 px-2 text-right">Unidades</th>
+                                <th class="py-1.5 px-2 text-right">Cajas</th>
+                                <th class="py-1.5 px-2 text-center">SKUs</th>
+                                <th class="py-1.5 px-2 text-center">Marcas</th>
+                                <th class="py-1.5 px-2.5 text-right">Drop Size</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-black/[0.04]">
+                              <tr
+                                v-for="m in historial6mClientes[c.cliente_id].meses"
+                                :key="m.ym"
+                                class="hover:bg-slate-50/80 transition-colors font-mono"
+                                :class="{ 'bg-sky-50/40 font-semibold': m.es_actual }"
+                              >
+                                <td class="py-1.5 px-2.5 whitespace-nowrap">
+                                  <span class="text-[#1D1D1F] font-bold">{{ m.label }}</span>
+                                  <span v-if="m.es_actual" class="ml-1.5 text-[8px] px-1 py-0.2 rounded bg-sky-100 text-[#0071E3] font-sans font-bold">
+                                    Período Activo
+                                  </span>
+                                </td>
+                                <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F] whitespace-nowrap">
+                                  Bs {{ formatNum(m.venta_bs) }}
+                                </td>
+                                <td class="py-1.5 px-2 text-right whitespace-nowrap text-[9.5px]">
+                                  <span
+                                    v-if="m.var_mom_pct !== null"
+                                    class="font-bold px-1 py-0.2 rounded"
+                                    :class="m.tendencia === 'up' ? 'text-emerald-700 bg-emerald-50' : (m.tendencia === 'down' ? 'text-rose-700 bg-rose-50' : 'text-slate-500 bg-slate-100')"
+                                  >
+                                    {{ m.var_mom_pct > 0 ? '+' : '' }}{{ m.var_mom_pct }}%
+                                  </span>
+                                  <span v-else class="text-[#86868B]">-</span>
+                                </td>
+                                <td class="py-1.5 px-2 text-center text-[#1D1D1F] whitespace-nowrap">
+                                  {{ m.facturas }} fac.
+                                </td>
+                                <td class="py-1.5 px-2 text-right text-[#1D1D1F] whitespace-nowrap">
+                                  {{ m.unidades }} u.
+                                </td>
+                                <td class="py-1.5 px-2 text-right text-[#1D1D1F] whitespace-nowrap">
+                                  {{ formatNum(m.cajas) }} cj.
+                                </td>
+                                <td class="py-1.5 px-2 text-center text-[#1D1D1F] whitespace-nowrap">
+                                  {{ m.skus }}
+                                </td>
+                                <td class="py-1.5 px-2 text-center text-[#1D1D1F] whitespace-nowrap">
+                                  {{ m.marcas }}
+                                </td>
+                                <td class="py-1.5 px-2.5 text-right text-[#1D1D1F] whitespace-nowrap font-bold">
+                                  Bs {{ formatNum(m.drop_size) }}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <!-- Top 5 Productos más comprados en los 6 meses -->
+                        <div v-if="historial6mClientes[c.cliente_id].top_productos && historial6mClientes[c.cliente_id].top_productos.length > 0" class="pt-0.5">
+                          <div class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                            <span>Top Productos Más Comprados (6 Meses)</span>
+                            <span class="font-normal font-mono text-[8.5px] text-[#86868B]">Ranking por volumen total facturado</span>
+                          </div>
+                          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                            <div
+                              v-for="p in historial6mClientes[c.cliente_id].top_productos"
+                              :key="p.producto_id"
+                              class="p-2 rounded-lg bg-slate-50/70 border border-black/[0.06] text-[10px] flex flex-col justify-between"
+                            >
+                              <div>
+                                <div class="font-bold text-[#1D1D1F] line-clamp-2 leading-tight" :title="p.producto">
+                                  {{ p.producto }}
+                                </div>
+                                <div class="text-[9px] text-[#86868B] mt-0.5 truncate font-mono">
+                                  Marca: {{ p.marca || 'S/M' }}
+                                </div>
+                              </div>
+                              <div class="mt-2 pt-1 border-t border-black/[0.04] flex items-center justify-between font-mono text-[9px]">
+                                <span class="text-[#86868B]">{{ p.unidades }} u. ({{ formatNum(p.cajas) }} cj.)</span>
+                                <span class="font-bold text-[#0071E3]">Bs {{ formatNum(p.total_bs) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
 
@@ -829,6 +1082,17 @@ const filtroTipoNegocio = ref('');
 const mostrarInactivos = ref(false);
 const clienteSeleccionadoId = ref(null);
 
+// Filtro Multiselección de Clientes
+const menuClientesAbierto = ref(false);
+const clientesDropdownRef = ref(null);
+const filtroTextoCliente = ref('');
+const clientesSeleccionados = ref([]);
+
+// Historial 6 Meses por Cliente (Acordeón de Fila)
+const clientesExpandidos = ref(new Set());
+const historial6mClientes = ref({});
+const cargandoHistorialCliente = ref({});
+
 // Configuración de los 5 Mapas de Calor Analíticos
 const criterioColorMapa = ref('volumen');
 const subMetricaVolumen = ref('bs');
@@ -1103,6 +1367,119 @@ const tiposNegocioDisponibles = computed(() => {
   return datosPareto.value?.tipos_negocio_disponibles || [];
 });
 
+// Opciones para el filtro multiselección de Clientes
+const clientesOpcionesDisponibles = computed(() => {
+  if (!datosPareto.value?.clientes) return [];
+  let lista = datosPareto.value.clientes;
+
+  if (!mostrarInactivos.value) {
+    lista = lista.filter(c => c.estado_cliente === 'ACTIVO');
+  }
+
+  const canales = store.filtrosAplicados?.canalesSeleccionados || [];
+  if (canales.length > 0) {
+    const selCanales = new Set(canales.map(c => String(c).trim().toUpperCase()));
+    lista = lista.filter(c => selCanales.has(String(c.canal || '').trim().toUpperCase()));
+  }
+
+  const rutas = store.filtrosAplicados?.rutasSeleccionadas || [];
+  if (rutas.length > 0) {
+    const selRutas = new Set(rutas.map(r => String(r).trim().toUpperCase()));
+    lista = lista.filter(r => selRutas.has(String(r.ruta || '').trim().toUpperCase()));
+  }
+
+  if (filtroTipoNegocio.value) {
+    lista = lista.filter(c => c.tipo_negocio === filtroTipoNegocio.value);
+  }
+
+  return lista;
+});
+
+const clientesOpcionesFiltradas = computed(() => {
+  const todos = clientesOpcionesDisponibles.value;
+  const q = filtroTextoCliente.value.trim().toLowerCase();
+  if (!q) {
+    return todos.slice(0, 80);
+  }
+  return todos.filter(c =>
+    String(c.cliente_id).includes(q) ||
+    String(c.cliente || '').toLowerCase().includes(q) ||
+    String(c.ruta || '').toLowerCase().includes(q)
+  ).slice(0, 80);
+});
+
+const etiquetaClientesSeleccionados = computed(() => {
+  const sel = clientesSeleccionados.value;
+  const total = clientesOpcionesDisponibles.value.length;
+  if (sel.includes(-1)) return 'Ninguno';
+  if (sel.length === 0 || (total > 0 && sel.length >= total)) return 'TODOS';
+  if (sel.length === 1) {
+    const c = clientesOpcionesDisponibles.value.find(x => x.cliente_id === sel[0]);
+    return c ? `[${c.cliente_id}] ${c.cliente}` : `ID ${sel[0]}`;
+  }
+  return `${sel.length} de ${total}`;
+});
+
+function esClienteMarcado(clienteId) {
+  const sel = clientesSeleccionados.value;
+  if (sel.includes(-1)) return false;
+  if (sel.length === 0) return true;
+  return sel.includes(Number(clienteId));
+}
+
+function toggleCliente(clienteId) {
+  const id = Number(clienteId);
+  const todos = clientesOpcionesDisponibles.value.map(c => Number(c.cliente_id));
+  let actuales = (clientesSeleccionados.value || []).filter(x => x !== -1);
+
+  if (actuales.length === 0 || actuales.length >= todos.length) {
+    actuales = todos.filter(x => x !== id);
+  } else if (actuales.includes(id)) {
+    actuales = actuales.filter(x => x !== id);
+  } else {
+    actuales.push(id);
+  }
+  clientesSeleccionados.value = actuales.length === 0 ? [-1] : actuales;
+  actualizarCapasMapaDebounced(true);
+}
+
+function seleccionarTodosClientes() {
+  clientesSeleccionados.value = [];
+  actualizarCapasMapaDebounced(true);
+}
+
+function deseleccionarTodosClientes() {
+  clientesSeleccionados.value = [-1];
+  actualizarCapasMapaDebounced(true);
+}
+
+async function toggleHistorialCliente(clienteId) {
+  const cid = Number(clienteId);
+  if (clientesExpandidos.value.has(cid)) {
+    clientesExpandidos.value.delete(cid);
+    return;
+  }
+
+  clientesExpandidos.value.add(cid);
+
+  if (historial6mClientes.value[cid]) {
+    return;
+  }
+
+  cargandoHistorialCliente.value[cid] = true;
+  try {
+    const res = await axios.post('/supervisor/avance/paretos/cliente-historial', {
+      cliente_id: cid,
+      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
+    });
+    historial6mClientes.value[cid] = res.data;
+  } catch (err) {
+    console.error('Error al cargar historial 6M del cliente:', err);
+  } finally {
+    cargandoHistorialCliente.value[cid] = false;
+  }
+}
+
 // Filtrado Reactivo de Clientes Pareto
 const clientesFiltrados = computed(() => {
   if (!datosPareto.value?.clientes) return [];
@@ -1137,6 +1514,15 @@ const clientesFiltrados = computed(() => {
       String(c.ruta || '').toLowerCase().includes(q) ||
       String(c.vendedor || '').toLowerCase().includes(q)
     );
+  }
+
+  // Filtro de Clientes Seleccionados
+  if (clientesSeleccionados.value.includes(-1)) {
+    return [];
+  }
+  if (clientesSeleccionados.value.length > 0) {
+    const selIds = new Set(clientesSeleccionados.value);
+    lista = lista.filter(c => selIds.has(Number(c.cliente_id)));
   }
 
   return lista;
@@ -1188,7 +1574,7 @@ function actualizarCapasMapaDebounced(forzarAjuste = false) {
   }, 100);
 }
 
-watch([filtroTipoNegocio, mostrarInactivos, () => store.filtrosAplicados?.busqueda], () => {
+watch([filtroTipoNegocio, mostrarInactivos, () => store.filtrosAplicados?.busqueda, clientesSeleccionados], () => {
   actualizarCapasMapaDebounced(false);
 });
 
@@ -1544,6 +1930,11 @@ async function ejecutarConsulta() {
     marcadorEnfocado = null;
   }
 
+  clientesExpandidos.value = new Set();
+  historial6mClientes.value = {};
+  cargandoHistorialCliente.value = {};
+  clientesSeleccionados.value = [];
+
   cargando.value = true;
   errorMensaje.value = '';
 
@@ -1572,6 +1963,9 @@ async function ejecutarConsulta() {
 function handleClickOutside(e) {
   if (refMenuCapas.value && !refMenuCapas.value.contains(e.target)) {
     menuCapasAbierto.value = false;
+  }
+  if (clientesDropdownRef.value && !clientesDropdownRef.value.contains(e.target)) {
+    menuClientesAbierto.value = false;
   }
 }
 

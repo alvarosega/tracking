@@ -24,6 +24,7 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHistoricoPreventasDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceInitDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceParetoAmplitudAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceParetoClienteHistorialAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceParetoDataAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceParetoFrecuenciaAction;
 use Carbon\Carbon;
@@ -308,6 +309,22 @@ class SupervisorAvanceController extends Controller
         );
 
         return response()->json(['compras' => $compras]);
+    }
+
+    /**
+     * Devuelve el comportamiento mensual de los últimos 6 meses para un cliente específico.
+     */
+    public function paretoClienteHistorial(Request $request, GetAvanceParetoClienteHistorialAction $action): JsonResponse
+    {
+        $clienteId = (int) $request->input('cliente_id');
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+
+        $data = $action->execute(
+            clienteId: $clienteId,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
     }
 
     /**

@@ -1,7 +1,7 @@
 <template>
   <div
     class="relative apple-glass-card rounded-[14px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2 mb-2.5 select-none font-sans transition-all duration-150"
-    :class="menuCanalAbierto || menuRutasAbierto ? 'z-[100]' : 'z-30'"
+    :class="menuCanalAbierto || menuRutasAbierto || props.menuExtraAbierto ? 'z-[100]' : 'z-30'"
   >
     <!-- Grupo de Filtros Izquierda -->
     <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -149,6 +149,9 @@
         </div>
       </div>
 
+      <!-- Slot para filtros adicionales (ej. Clientes) -->
+      <slot name="after-rutas" />
+
       <!-- Buscador -->
       <div class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1">
         <svg class="w-3.5 h-3.5 text-[#86868B] shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,6 +210,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAvanceStore } from '@/Stores/avanceStore'
+
+const props = defineProps({
+  menuExtraAbierto: { type: Boolean, default: false },
+})
 
 const store = useAvanceStore()
 const emit = defineEmits(['consultar', 'cambio'])
