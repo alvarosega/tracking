@@ -159,7 +159,7 @@
       <div v-if="cargando" class="apple-glass-card rounded-[16px] p-12 text-center border border-white/70">
         <div class="inline-block animate-spin w-8 h-8 border-3 border-[#0071E3] border-t-transparent rounded-full mb-3"></div>
         <div class="text-sm font-bold text-[#1D1D1F]">Consultando auditoría de ruteo...</div>
-        <div class="text-xs text-[#86868B] mt-0.5">Analizando registros y métricas de cartera</div>
+        <div class="text-xs text-[#86868B] mt-0.5">Analizando registros y causas de cambio en cartera</div>
       </div>
 
       <!-- BANDEJA VACÍA -->
@@ -178,7 +178,7 @@
         </div>
       </div>
 
-      <!-- TABLA DE CAMBIOS PENDIENTES -->
+      <!-- TABLA DE CAMBIOS PENDIENTES CON COMPARATIVA ANTES VS DESPUÉS Y CAUSA EXPLÍCITA -->
       <div v-else class="apple-glass-card rounded-[16px] overflow-hidden border border-white/70 shadow-xs">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
@@ -192,217 +192,334 @@
                     class="rounded cursor-pointer accent-[#0071E3]"
                   />
                 </th>
-                <th class="py-2.5 px-3">Tipo de Modificación</th>
-                <th class="py-2.5 px-3">Cliente</th>
-                <th class="py-2.5 px-3">Ruta / Canal / Día</th>
-                <th class="py-2.5 px-3">Detalle del Cambio</th>
-                <th class="py-2.5 px-3">Vendedor Asignado</th>
-                <th class="py-2.5 px-3">Impacto / Riesgo Comercial</th>
-                <th class="py-2.5 px-3 text-right">Acciones</th>
+                <th class="py-2.5 px-3 w-44">Qué Cambió</th>
+                <th class="py-2.5 px-3 min-w-[200px]">Cliente & Territorio</th>
+                <th class="py-2.5 px-3 min-w-[200px]">Antes (Situación Previa)</th>
+                <th class="py-2.5 px-3 min-w-[200px]">Después (Propuesta Nueva)</th>
+                <th class="py-2.5 px-3 min-w-[230px]">Por Qué Cambió (Causa & Origen)</th>
+                <th class="py-2.5 px-3 text-right w-44">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04]">
-              <tr
-                v-for="reg in registros"
-                :key="reg.id"
-                class="hover:bg-black/[0.02] transition-colors duration-150"
-                :class="seleccionados.includes(reg.id) ? 'bg-[#0071E3]/[0.04]' : ''"
-              >
-                <!-- Checkbox Selección -->
-                <td class="py-2.5 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    :value="reg.id"
-                    v-model="seleccionados"
-                    class="rounded cursor-pointer accent-[#0071E3]"
-                  />
-                </td>
+              <template v-for="reg in registros" :key="reg.id">
+                <tr
+                  class="hover:bg-black/[0.02] transition-colors duration-150"
+                  :class="[
+                    seleccionados.includes(reg.id) ? 'bg-[#0071E3]/[0.04]' : '',
+                    filaExpandida === reg.id ? 'bg-black/[0.015]' : ''
+                  ]"
+                >
+                  <!-- Checkbox Selección -->
+                  <td class="py-3 px-3 text-center align-top">
+                    <input
+                      type="checkbox"
+                      :value="reg.id"
+                      v-model="seleccionados"
+                      class="rounded cursor-pointer accent-[#0071E3] mt-1"
+                    />
+                  </td>
 
-                <!-- Tipo de Modificación -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
-                    :class="obtenerBadgeClase(reg.categoria_clave)"
-                  >
-                    {{ reg.etiqueta_evento }}
-                  </span>
-                  <div class="text-[10px] font-mono text-[#86868B] mt-1">
-                    {{ reg.fecha_auditoria }}
-                  </div>
-                </td>
+                  <!-- 1. QUÉ CAMBIÓ: Atributo Legible + Categoría + Fecha -->
+                  <td class="py-3 px-3 align-top whitespace-nowrap">
+                    <div class="space-y-1">
+                      <div class="font-bold text-[#1D1D1F] text-xs leading-tight">
+                        {{ reg.campo_label }}
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        <span
+                          class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                          :class="obtenerBadgeClase(reg.categoria_clave)"
+                        >
+                          {{ reg.etiqueta_evento }}
+                        </span>
+                      </div>
+                      <div class="text-[10px] font-mono text-[#86868B] flex items-center gap-1">
+                        <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{{ reg.fecha_auditoria }}</span>
+                      </div>
+                    </div>
+                  </td>
 
-                <!-- Cliente -->
-                <td class="py-2.5 px-3 min-w-[200px]">
-                  <div class="flex items-start gap-1.5">
-                    <div>
-                      <div class="font-bold text-[#1D1D1F] leading-tight">
-                        {{ reg.cliente }}
+                  <!-- 2. CLIENTE & TERRITORIO: Datos del punto de venta y asignación -->
+                  <td class="py-3 px-3 align-top min-w-[200px]">
+                    <div class="space-y-1">
+                      <div class="flex items-start justify-between gap-1.5">
+                        <div>
+                          <div class="font-bold text-[#1D1D1F] leading-tight">
+                            {{ reg.cliente }}
+                          </div>
+                          <div class="text-[10px] font-mono text-[#6E6E73] mt-0.5">
+                            ID: #{{ reg.cliente_id }}
+                          </div>
+                        </div>
+
+                        <!-- Botón de Fotos -->
+                        <button
+                          v-if="reg.cant_fotos > 0"
+                          type="button"
+                          @click="abrirFotos(reg)"
+                          class="shrink-0 flex items-center gap-1 apple-control-pill px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold text-[#0071E3] hover:bg-[#0071E3]/10 cursor-pointer"
+                          title="Ver fotografías de visitas"
+                        >
+                          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                          </svg>
+                          <span>{{ reg.cant_fotos }}</span>
+                        </button>
                       </div>
-                      <div class="text-[10px] font-mono text-[#6E6E73] mt-0.5">
-                        ID: #{{ reg.cliente_id }}
-                      </div>
-                      <div class="text-[10px] text-[#86868B] truncate max-w-[240px] mt-0.5">
+
+                      <div class="text-[10px] text-[#6E6E73] truncate max-w-[220px]" :title="reg.direccion">
                         {{ reg.direccion }}
                       </div>
-                    </div>
 
-                    <!-- Botón de Fotos -->
-                    <button
-                      v-if="reg.cant_fotos > 0"
-                      type="button"
-                      @click="abrirFotos(reg)"
-                      class="shrink-0 apple-control-pill px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold text-[#0071E3] hover:bg-[#0071E3]/10 cursor-pointer"
-                      title="Ver fotografías de visitas"
-                    >
-                      📷 {{ reg.cant_fotos }}
-                    </button>
-                  </div>
-                </td>
-
-                <!-- Ruta / Canal / Día -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <div class="font-bold text-[#1D1D1F] font-mono">
-                    {{ reg.ruta }}
-                  </div>
-                  <div class="text-[10px] text-[#6E6E73]">
-                    Canal: <span class="font-semibold text-[#1D1D1F]">{{ reg.canal }}</span>
-                  </div>
-                  <div class="text-[10px] text-[#86868B] capitalize">
-                    Día: {{ reg.dia }}
-                  </div>
-                </td>
-
-                <!-- Detalle del Cambio (Anterior vs Nuevo) -->
-                <td class="py-2.5 px-3 min-w-[220px]">
-                  <div class="space-y-1">
-                    <div class="text-[10px] font-mono text-[#86868B] uppercase">
-                      Campo: <span class="font-bold text-[#1D1D1F]">{{ reg.campo_afectado }}</span>
-                    </div>
-
-                    <!-- Si es cambio de ruta o día -->
-                    <div v-if="reg.categoria_clave === 'CAMBIOS_RUTA' || reg.categoria_clave === 'CAMBIOS_DIA'" class="flex items-center gap-1.5 text-xs font-mono">
-                      <span class="px-1.5 py-0.5 rounded bg-black/[0.04] text-[#6E6E73] line-through">
-                        {{ reg.valor_anterior }}
-                      </span>
-                      <span class="text-[#86868B]">→</span>
-                      <span class="px-1.5 py-0.5 rounded bg-[#0071E3]/10 text-[#0071E3] font-bold">
-                        {{ reg.valor_nuevo }}
-                      </span>
-                    </div>
-
-                    <!-- Si es cambio de cluster o vendedor -->
-                    <div v-else-if="reg.categoria_clave === 'CAMBIO_DE_CLUSTER' || reg.categoria_clave === 'MODIFICADO_VENDEDOR'" class="space-y-0.5 text-[11px]">
-                      <div class="text-[#86868B] text-[10px]">
-                        Antes: <span class="text-[#6E6E73] font-semibold">{{ reg.valor_anterior }}</span>
-                      </div>
-                      <div class="text-[#0071E3] font-bold">
-                        Nuevo: {{ reg.valor_nuevo }}
+                      <div class="flex flex-wrap items-center gap-1 pt-0.5 text-[10px] font-mono">
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.04] text-[#1D1D1F] font-semibold">
+                          {{ reg.ruta }}
+                        </span>
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.03] text-[#6E6E73]">
+                          {{ reg.canal }}
+                        </span>
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.03] text-[#6E6E73] capitalize">
+                          {{ reg.dia }}
+                        </span>
                       </div>
                     </div>
+                  </td>
 
-                    <!-- Si es coordenadas -->
-                    <div v-else-if="reg.categoria_clave === 'MODIFICADO_COORDENADAS'" class="text-[10px] font-mono">
-                      <div class="text-[#86868B]">Anterior: {{ reg.valor_anterior }}</div>
-                      <div class="text-[#0071E3] font-bold">Nuevo: {{ reg.valor_nuevo }}</div>
-                    </div>
-
-                    <!-- Otros atributos generales -->
-                    <div v-else class="text-[11px]">
-                      <div v-if="reg.valor_anterior !== '-'" class="text-[#86868B] text-[10px]">
-                        Antes: <span class="line-through text-[#6E6E73]">{{ reg.valor_anterior }}</span>
+                  <!-- 3. ANTES: Situación Previa Legible -->
+                  <td class="py-3 px-3 align-top min-w-[200px]">
+                    <div class="p-2 rounded-[9px] bg-slate-50 border border-slate-200/80 space-y-1">
+                      <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span>Estado Previo</span>
                       </div>
-                      <div class="text-[#1D1D1F] font-semibold">
-                        {{ reg.valor_nuevo }}
+                      <div class="text-[11px] font-mono text-slate-700 leading-snug break-words">
+                        {{ reg.antes_fmt }}
                       </div>
                     </div>
+                  </td>
 
-                    <div v-if="reg.observaciones" class="text-[10px] text-[#86868B] italic">
-                      {{ reg.observaciones }}
+                  <!-- 4. DESPUÉS: Propuesta Nueva Legible -->
+                  <td class="py-3 px-3 align-top min-w-[200px]">
+                    <div class="p-2 rounded-[9px] bg-sky-50/80 border border-sky-200/90 space-y-1">
+                      <div class="text-[9px] font-bold text-[#0071E3] uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
+                        <span>Propuesta Nueva</span>
+                      </div>
+                      <div class="text-[11px] font-mono font-semibold text-[#0071E3] leading-snug break-words">
+                        {{ reg.despues_fmt }}
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Vendedor Asignado -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <div class="font-semibold text-[#1D1D1F]">
-                    {{ reg.vendedor }}
-                  </div>
-                  <div class="text-[10px] font-mono text-[#86868B]">
-                    {{ reg.archivo_origen }}
-                  </div>
-                </td>
+                  <!-- 5. POR QUÉ CAMBIÓ: Causa, Impacto & Archivo Origen -->
+                  <td class="py-3 px-3 align-top min-w-[230px]">
+                    <div class="space-y-1.5">
+                      <!-- Motivo o Causa Principal -->
+                      <div class="text-[11px] text-[#1D1D1F] font-medium leading-relaxed">
+                        {{ reg.motivo_cambio?.motivo || 'Actualización registrada en el padrón de clientes.' }}
+                      </div>
 
-                <!-- Impacto / Riesgo Comercial -->
-                <td class="py-2.5 px-3 min-w-[170px]">
-                  <!-- Si es baja/inactivado con ventas históricas -->
-                  <div v-if="reg.historico_ventas" class="space-y-1">
-                    <div class="flex items-center gap-1.5">
-                      <span
-                        class="text-[9px] font-bold px-1.5 py-0.2 rounded border"
-                        :class="reg.evaluacion_riesgo?.badge_class || 'bg-black/[0.05] text-[#6E6E73]'"
+                      <!-- Alerta / Impacto Comercial o Territorial -->
+                      <div
+                        v-if="reg.motivo_cambio?.impacto"
+                        class="p-1.5 rounded-[7px] text-[10px] leading-tight border"
+                        :class="obtenerNivelClase(reg.motivo_cambio?.nivel)"
                       >
-                        {{ reg.evaluacion_riesgo?.nivel_riesgo || 'EVALUADO' }}
-                      </span>
-                      <span class="text-[10px] font-mono font-bold text-[#1D1D1F]">
-                        Bs {{ reg.historico_ventas.promedio_mensual.toLocaleString('es-BO') }}/mes
-                      </span>
+                        {{ reg.motivo_cambio.impacto }}
+                      </div>
+
+                      <!-- Origen / Archivo Excel -->
+                      <div class="text-[10px] font-mono text-[#86868B] flex items-center gap-1">
+                        <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="truncate max-w-[200px]" :title="reg.archivo_origen">
+                          {{ reg.archivo_origen }}
+                        </span>
+                      </div>
                     </div>
-                    <div class="text-[9px] text-[#86868B]">
-                      5M Total: Bs {{ reg.historico_ventas.total_5m.toLocaleString('es-BO') }}
+                  </td>
+
+                  <!-- 6. ACCIONES: Dictámenes y Botón de Inspección -->
+                  <td class="py-3 px-3 text-right align-top whitespace-nowrap">
+                    <div class="space-y-1.5">
+                      <div class="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          @click="abrirModalResolucion([reg.id], 'APROBADO', reg)"
+                          class="px-2 py-1 rounded-[6px] bg-[#34C759]/15 text-[#248A3D] hover:bg-[#34C759] hover:text-white text-[11px] font-bold transition-all cursor-pointer"
+                          title="Aprobar modificación"
+                        >
+                          Aprobar
+                        </button>
+
+                        <button
+                          type="button"
+                          @click="abrirModalResolucion([reg.id], 'RECHAZADO', reg)"
+                          class="px-2 py-1 rounded-[6px] bg-[#FF3B30]/15 text-[#C9342C] hover:bg-[#FF3B30] hover:text-white text-[11px] font-bold transition-all cursor-pointer"
+                          title="Rechazar modificación"
+                        >
+                          Rechazar
+                        </button>
+
+                        <button
+                          type="button"
+                          @click="abrirModalResolucion([reg.id], 'DESCARTADO', reg)"
+                          class="px-2 py-1 rounded-[6px] bg-black/[0.05] text-[#6E6E73] hover:bg-black/[0.1] hover:text-[#1D1D1F] text-[11px] font-semibold transition-all cursor-pointer"
+                          title="Descartar evento"
+                        >
+                          Descartar
+                        </button>
+                      </div>
+
+                      <!-- Botón para alternar inspector de detalle cara a cara -->
+                      <div>
+                        <button
+                          type="button"
+                          @click="alternarInspector(reg.id)"
+                          class="text-[10px] font-semibold text-[#0071E3] hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <span>{{ filaExpandida === reg.id ? 'Ocultar Detalle' : 'Ver Comparativa' }}</span>
+                          <svg
+                            class="w-3 h-3 transition-transform duration-150"
+                            :class="filaExpandida === reg.id ? 'rotate-180' : ''"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </td>
+                </tr>
 
-                  <!-- Si es coordenadas con desplazamiento -->
-                  <div v-else-if="reg.evaluacion_riesgo?.distancia_metros !== undefined" class="space-y-0.5">
-                    <span
-                      class="text-[9px] font-bold px-1.5 py-0.2 rounded border inline-block"
-                      :class="reg.evaluacion_riesgo.nivel_riesgo === 'ALTO' ? 'bg-[#FDF0EF] text-[#C9342C] border-[#FADCD5]' : 'bg-[#EBF5FF] text-[#0071E3] border-[#B3D7FF]'"
-                    >
-                      Delta: {{ reg.evaluacion_riesgo.distancia_metros }} m
-                    </span>
-                  </div>
+                <!-- FILA EXPANDIBLE: INSPECTOR COMPARATIVO CARA A CARA -->
+                <tr v-if="filaExpandida === reg.id" class="bg-black/[0.02]">
+                  <td colspan="7" class="p-3 sm:p-4">
+                    <div class="apple-glass-card rounded-[14px] p-4 border border-white/80 shadow-xs space-y-3.5">
+                      <div class="flex items-center justify-between pb-2 border-b border-black/[0.06]">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+                          <span class="text-xs font-bold text-[#1D1D1F]">
+                            Auditoría Detallada · Evento #{{ reg.id }} · {{ reg.campo_label }}
+                          </span>
+                        </div>
+                        <span class="text-[10px] font-mono text-[#86868B]">
+                          Archivo Fuente: {{ reg.archivo_origen }}
+                        </span>
+                      </div>
 
-                  <!-- Sin impacto crítico -->
-                  <div v-else class="text-[10px] text-[#86868B]">
-                    Impacto operativo estándar
-                  </div>
-                </td>
+                      <!-- BLOQUE 1: COMPARATIVA CARA A CARA (ANTES VS DESPUÉS) -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Lado Izquierdo: Situación Previa -->
+                        <div class="p-3 rounded-[10px] bg-slate-50 border border-slate-200/90 space-y-2">
+                          <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                              Situación Previa (Antes)
+                            </span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-semibold">
+                              Original
+                            </span>
+                          </div>
 
-                <!-- Acciones en Línea -->
-                <td class="py-2.5 px-3 text-right whitespace-nowrap">
-                  <div class="inline-flex items-center gap-1">
-                    <!-- Botón Aprobar -->
-                    <button
-                      type="button"
-                      @click="abrirModalResolucion([reg.id], 'APROBADO', reg)"
-                      class="px-2 py-1 rounded-[6px] bg-[#34C759]/15 text-[#248A3D] hover:bg-[#34C759] hover:text-white text-[11px] font-bold transition-all cursor-pointer"
-                      title="Aprobar modificación"
-                    >
-                      Aprobar
-                    </button>
+                          <div class="text-xs font-mono text-slate-800 font-semibold bg-white p-2 rounded border border-slate-200">
+                            {{ reg.antes_fmt }}
+                          </div>
 
-                    <!-- Botón Rechazar -->
-                    <button
-                      type="button"
-                      @click="abrirModalResolucion([reg.id], 'RECHAZADO', reg)"
-                      class="px-2 py-1 rounded-[6px] bg-[#FF3B30]/15 text-[#C9342C] hover:bg-[#FF3B30] hover:text-white text-[11px] font-bold transition-all cursor-pointer"
-                      title="Rechazar modificación"
-                    >
-                      Rechazar
-                    </button>
+                          <div class="text-[10px] text-slate-600 space-y-0.5">
+                            <div><span class="font-bold text-slate-700">Ruta Asignada:</span> {{ reg.ruta }}</div>
+                            <div><span class="font-bold text-slate-700">Día de Visita:</span> {{ reg.dia }}</div>
+                            <div><span class="font-bold text-slate-700">Preventista Asignado:</span> {{ reg.vendedor }}</div>
+                          </div>
+                        </div>
 
-                    <!-- Botón Descartar -->
-                    <button
-                      type="button"
-                      @click="abrirModalResolucion([reg.id], 'DESCARTADO', reg)"
-                      class="px-2 py-1 rounded-[6px] bg-black/[0.05] text-[#6E6E73] hover:bg-black/[0.1] hover:text-[#1D1D1F] text-[11px] font-semibold transition-all cursor-pointer"
-                      title="Descartar evento"
-                    >
-                      Descartar
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                        <!-- Lado Derecho: Propuesta Nueva -->
+                        <div class="p-3 rounded-[10px] bg-sky-50/70 border border-sky-200 space-y-2">
+                          <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-[#0071E3] uppercase tracking-wider">
+                              Propuesta Evaluada (Después)
+                            </span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#0071E3]/15 text-[#0071E3] font-semibold">
+                              Nuevo
+                            </span>
+                          </div>
+
+                          <div class="text-xs font-mono text-[#0071E3] font-bold bg-white p-2 rounded border border-sky-200">
+                            {{ reg.despues_fmt }}
+                          </div>
+
+                          <div class="text-[10px] text-slate-600 space-y-0.5">
+                            <div><span class="font-bold text-slate-700">Campo Técnico Modificado:</span> {{ reg.campo_afectado }}</div>
+                            <div><span class="font-bold text-slate-700">Tipo de Evento:</span> {{ reg.tipo_evento }}</div>
+                            <div><span class="font-bold text-slate-700">Estado Auditoría:</span> {{ reg.estado_auditoria }}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- BLOQUE 2: POR QUÉ CAMBIÓ (JUSTIFICACIÓN Y DIAGNÓSTICO) -->
+                      <div class="p-3 rounded-[10px] bg-white border border-black/[0.06] space-y-2">
+                        <div class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider flex items-center gap-1.5">
+                          <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Diagnóstico y Causa de Negocio</span>
+                        </div>
+
+                        <div class="text-xs text-[#1D1D1F] leading-relaxed">
+                          {{ reg.motivo_cambio?.motivo }}
+                        </div>
+
+                        <div v-if="reg.motivo_cambio?.impacto" class="text-xs text-[#6E6E73] font-medium">
+                          {{ reg.motivo_cambio.impacto }}
+                        </div>
+
+                        <div v-if="reg.observaciones" class="text-[10px] text-[#86868B] italic pt-1 border-t border-black/[0.04]">
+                          Observaciones registradas: {{ reg.observaciones }}
+                        </div>
+
+                        <!-- Detalle adicional para Bajas: Historial de Ventas 5 Meses -->
+                        <div v-if="reg.historico_ventas" class="pt-2 border-t border-black/[0.04] space-y-1.5">
+                          <div class="text-[10px] font-bold text-[#1D1D1F] uppercase">
+                            Desglose de Facturación Histórica (Últimos 5 Meses):
+                          </div>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <div
+                              v-for="mes in reg.historico_ventas.meses"
+                              :key="mes.periodo"
+                              class="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-mono"
+                            >
+                              <span class="text-slate-500">{{ mes.periodo }}:</span>
+                              <span class="font-bold text-slate-800 ml-1">Bs {{ mes.monto.toLocaleString('es-BO') }}</span>
+                            </div>
+                            <div class="px-2 py-1 rounded bg-[#0071E3]/10 border border-[#0071E3]/25 text-[10px] font-mono">
+                              <span class="text-[#0071E3] font-bold">Promedio: Bs {{ reg.historico_ventas.promedio_mensual.toLocaleString('es-BO') }}/mes</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Detalle adicional para Coordenadas: Desplazamiento Satelital -->
+                        <div v-if="reg.lat_actual && reg.lng_actual" class="pt-2 border-t border-black/[0.04] flex items-center gap-2">
+                          <a
+                            :href="`https://www.google.com/maps?q=${reg.lat_actual},${reg.lng_actual}`"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="apple-control-pill px-2.5 py-1 rounded-[8px] text-[10px] font-bold text-[#0071E3] hover:underline inline-flex items-center gap-1"
+                          >
+                            <span>Ver Ubicación Actual en Google Maps</span>
+                            <span>&rarr;</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -546,7 +663,7 @@ const categoriasDisponibles = [
   { id: 'CAMBIO_DE_CLUSTER', nombre: 'Cambios de Clúster' },
   { id: 'MODIFICADO_VENDEDOR', nombre: 'Cambios de Vendedor' },
   { id: 'MODIFICADO_COORDENADAS', nombre: 'Coordenadas' },
-  { id: 'FRECUENCIA_VISITA', nombre: 'Frecuencia Logística' },
+  { id: 'FRECUENCIA_VISITA', nombre: 'Frecuencia Semanal' },
   { id: 'MODIFICACION_DATOS', nombre: 'Modificación de Datos' },
 ];
 
@@ -555,6 +672,7 @@ const cargando = ref(false);
 const registros = ref([]);
 const totalRegistros = ref(0);
 const seleccionados = ref([]);
+const filaExpandida = ref(null);
 const fotosModalRef = ref(null);
 
 const conteos = reactive({
@@ -596,9 +714,14 @@ function toggleSeleccionarTodos() {
   }
 }
 
+function alternarInspector(id) {
+  filaExpandida.value = filaExpandida.value === id ? null : id;
+}
+
 function seleccionarCategoria(catId) {
   categoriaActiva.value = catId;
   seleccionados.value = [];
+  filaExpandida.value = null;
   consultar(true);
 }
 
@@ -609,6 +732,7 @@ function restablecerFiltros() {
   filtros.fecha_fin = '';
   filtros.busqueda = '';
   categoriaActiva.value = 'TODOS';
+  filaExpandida.value = null;
   consultar(true);
 }
 
@@ -711,8 +835,20 @@ function obtenerBadgeClase(catClave) {
   }
 }
 
+function obtenerNivelClase(nivel) {
+  switch (nivel) {
+    case 'DANGER':
+      return 'bg-[#FDF0EF] text-[#C9342C] border-[#FADCD5] font-semibold';
+    case 'WARNING':
+      return 'bg-[#FFF8E6] text-[#B7791F] border-[#FCE8B3] font-semibold';
+    case 'SUCCESS':
+      return 'bg-[#EBF9EF] text-[#1E6B37] border-[#D1F2D9]';
+    default:
+      return 'bg-black/[0.03] text-[#6E6E73] border-black/[0.06]';
+  }
+}
+
 onMounted(() => {
   consultar();
 });
 </script>
-

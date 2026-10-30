@@ -120,15 +120,15 @@ class GetAuditoriaRuteoAction
             COALESCE(SUM(CASE WHEN a.estado_auditoria = 'APROBADO' THEN 1 ELSE 0 END), 0) AS aprobados,
             COALESCE(SUM(CASE WHEN a.estado_auditoria = 'RECHAZADO' THEN 1 ELSE 0 END), 0) AS rechazados,
             COALESCE(SUM(CASE WHEN a.estado_auditoria = 'DESCARTADO' THEN 1 ELSE 0 END), 0) AS descartados,
-            COALESCE(SUM(CASE WHEN a.tipo_evento IN ('NUEVO', 'REACTIVADO') OR a.campo_afectado = 'cliente_alta_total' THEN 1 ELSE 0 END), 0) AS cat_altas,
-            COALESCE(SUM(CASE WHEN a.tipo_evento IN ('ELIMINADO', 'INACTIVADO') OR a.campo_afectado = 'cliente_baja_total' THEN 1 ELSE 0 END), 0) AS cat_bajas,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN 1 ELSE 0 END), 0) AS cat_ruta,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_DIA' THEN 1 ELSE 0 END), 0) AS cat_dia,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'CAMBIO_DE_CLUSTER' THEN 1 ELSE 0 END), 0) AS cat_cluster,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_VENDEDOR' THEN 1 ELSE 0 END), 0) AS cat_vendedor,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_COORDENADAS' THEN 1 ELSE 0 END), 0) AS cat_coordenadas,
+            COALESCE(SUM(CASE WHEN a.campo_afectado != 'frecuencia_visita' AND (a.tipo_evento IN ('NUEVO', 'REACTIVADO') OR a.campo_afectado = 'cliente_alta_total') THEN 1 ELSE 0 END), 0) AS cat_altas,
+            COALESCE(SUM(CASE WHEN a.campo_afectado != 'frecuencia_visita' AND (a.tipo_evento IN ('ELIMINADO', 'INACTIVADO') OR a.campo_afectado = 'cliente_baja_total') THEN 1 ELSE 0 END), 0) AS cat_bajas,
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_RUTA' OR a.campo_afectado = 'ruta' THEN 1 ELSE 0 END), 0) AS cat_ruta,
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_DIA' OR a.campo_afectado = 'dia' THEN 1 ELSE 0 END), 0) AS cat_dia,
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'CAMBIO_DE_CLUSTER' OR a.campo_afectado IN ('cluster', 'cluster_t', 'tipo_negocio') THEN 1 ELSE 0 END), 0) AS cat_cluster,
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_VENDEDOR' OR a.campo_afectado = 'vendedor' THEN 1 ELSE 0 END), 0) AS cat_vendedor,
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO_COORDENADAS' OR a.campo_afectado = 'coordenadas' THEN 1 ELSE 0 END), 0) AS cat_coordenadas,
             COALESCE(SUM(CASE WHEN a.campo_afectado = 'frecuencia_visita' THEN 1 ELSE 0 END), 0) AS cat_frecuencia,
-            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO' AND a.campo_afectado != 'frecuencia_visita' THEN 1 ELSE 0 END), 0) AS cat_datos
+            COALESCE(SUM(CASE WHEN a.tipo_evento = 'MODIFICADO' AND a.campo_afectado NOT IN ('frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas') THEN 1 ELSE 0 END), 0) AS cat_datos
         ")->first();
 
         $conteos = [
@@ -156,38 +156,55 @@ class GetAuditoriaRuteoAction
         if ($categoria !== '' && $categoria !== 'TODOS') {
             switch ($categoria) {
                 case 'ALTAS_REACTIVACIONES':
-                    $dataQuery->where(function ($q) {
-                        $q->whereIn('a.tipo_evento', ['NUEVO', 'REACTIVADO'])
-                          ->orWhere('a.campo_afectado', 'cliente_alta_total');
-                    });
+                    $dataQuery->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                              ->where(function ($q) {
+                                  $q->whereIn('a.tipo_evento', ['NUEVO', 'REACTIVADO'])
+                                    ->orWhere('a.campo_afectado', 'cliente_alta_total');
+                              });
                     break;
                 case 'BAJAS_INACTIVADOS':
-                    $dataQuery->where(function ($q) {
-                        $q->whereIn('a.tipo_evento', ['ELIMINADO', 'INACTIVADO'])
-                          ->orWhere('a.campo_afectado', 'cliente_baja_total');
-                    });
+                    $dataQuery->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                              ->where(function ($q) {
+                                  $q->whereIn('a.tipo_evento', ['ELIMINADO', 'INACTIVADO'])
+                                    ->orWhere('a.campo_afectado', 'cliente_baja_total');
+                              });
                     break;
                 case 'CAMBIOS_RUTA':
-                    $dataQuery->where('a.tipo_evento', 'MODIFICADO_RUTA');
+                    $dataQuery->where(function ($q) {
+                        $q->where('a.tipo_evento', 'MODIFICADO_RUTA')
+                          ->orWhere('a.campo_afectado', 'ruta');
+                    });
                     break;
                 case 'CAMBIOS_DIA':
-                    $dataQuery->where('a.tipo_evento', 'MODIFICADO_DIA');
+                    $dataQuery->where(function ($q) {
+                        $q->where('a.tipo_evento', 'MODIFICADO_DIA')
+                          ->orWhere('a.campo_afectado', 'dia');
+                    });
                     break;
                 case 'CAMBIO_DE_CLUSTER':
-                    $dataQuery->where('a.tipo_evento', 'CAMBIO_DE_CLUSTER');
+                    $dataQuery->where(function ($q) {
+                        $q->where('a.tipo_evento', 'CAMBIO_DE_CLUSTER')
+                          ->orWhereIn('a.campo_afectado', ['cluster', 'cluster_t', 'tipo_negocio']);
+                    });
                     break;
                 case 'MODIFICADO_VENDEDOR':
-                    $dataQuery->where('a.tipo_evento', 'MODIFICADO_VENDEDOR');
+                    $dataQuery->where(function ($q) {
+                        $q->where('a.tipo_evento', 'MODIFICADO_VENDEDOR')
+                          ->orWhere('a.campo_afectado', 'vendedor');
+                    });
                     break;
                 case 'MODIFICADO_COORDENADAS':
-                    $dataQuery->where('a.tipo_evento', 'MODIFICADO_COORDENADAS');
+                    $dataQuery->where(function ($q) {
+                        $q->where('a.tipo_evento', 'MODIFICADO_COORDENADAS')
+                          ->orWhere('a.campo_afectado', 'coordenadas');
+                    });
                     break;
                 case 'FRECUENCIA_VISITA':
                     $dataQuery->where('a.campo_afectado', 'frecuencia_visita');
                     break;
                 case 'MODIFICACION_DATOS':
                     $dataQuery->where('a.tipo_evento', 'MODIFICADO')
-                              ->where('a.campo_afectado', '!=', 'frecuencia_visita');
+                              ->whereNotIn('a.campo_afectado', ['frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas']);
                     break;
             }
         }
@@ -241,7 +258,7 @@ class GetAuditoriaRuteoAction
         foreach ($rows as $r) {
             $tipo = (string) $r->tipo_evento;
             $campo = (string) $r->campo_afectado;
-            if (in_array($tipo, ['ELIMINADO', 'INACTIVADO'], true) || $campo === 'cliente_baja_total') {
+            if ($campo !== 'frecuencia_visita' && (in_array($tipo, ['ELIMINADO', 'INACTIVADO'], true) || $campo === 'cliente_baja_total')) {
                 $cid = (int) $r->cliente_id;
                 if ($cid > 0) {
                     $bajaIds[] = $cid;
@@ -281,7 +298,7 @@ class GetAuditoriaRuteoAction
             }
         }
 
-        // Formateo y clasificación amigable
+        // Formateo y clasificación enriquecida
         $resultados = [];
         foreach ($rows as $r) {
             $cid = (int) $r->cliente_id;
@@ -290,34 +307,34 @@ class GetAuditoriaRuteoAction
             $valorAnterior = (string) ($r->valor_anterior ?? '-');
             $valorNuevo = (string) ($r->valor_nuevo ?? '-');
 
-            // Determinar categoría clave y etiqueta legible
+            // Determinar categoría clave y etiqueta legible (evaluando con prioridad frecuencia_visita)
             $catClave = 'MODIFICACION_DATOS';
             $etiqueta = 'Modificación de Datos';
 
-            if (in_array($tipoEvento, ['NUEVO', 'REACTIVADO'], true) || $campoAfectado === 'cliente_alta_total') {
+            if ($campoAfectado === 'frecuencia_visita') {
+                $catClave = 'FRECUENCIA_VISITA';
+                $etiqueta = $tipoEvento === 'ELIMINADO' ? 'Reducción Frecuencia' : 'Ampliación Frecuencia';
+            } elseif ($campoAfectado === 'cliente_alta_total' || in_array($tipoEvento, ['NUEVO', 'REACTIVADO'], true)) {
                 $catClave = 'ALTAS_REACTIVACIONES';
                 $etiqueta = $tipoEvento === 'REACTIVADO' ? 'Cliente Reactivado' : 'Alta de Cliente';
-            } elseif (in_array($tipoEvento, ['ELIMINADO', 'INACTIVADO'], true) || $campoAfectado === 'cliente_baja_total') {
+            } elseif ($campoAfectado === 'cliente_baja_total' || in_array($tipoEvento, ['ELIMINADO', 'INACTIVADO'], true)) {
                 $catClave = 'BAJAS_INACTIVADOS';
-                $etiqueta = $tipoEvento === 'INACTIVADO' ? 'Cliente Inactivado' : 'Baja Total de Cartera';
-            } elseif ($tipoEvento === 'MODIFICADO_RUTA') {
+                $etiqueta = $tipoEvento === 'INACTIVADO' ? 'Cliente Inactivado' : 'Baja de Cartera';
+            } elseif ($tipoEvento === 'MODIFICADO_RUTA' || $campoAfectado === 'ruta') {
                 $catClave = 'CAMBIOS_RUTA';
                 $etiqueta = 'Cambio de Ruta';
-            } elseif ($tipoEvento === 'MODIFICADO_DIA') {
+            } elseif ($tipoEvento === 'MODIFICADO_DIA' || $campoAfectado === 'dia') {
                 $catClave = 'CAMBIOS_DIA';
                 $etiqueta = 'Cambio de Día';
-            } elseif ($tipoEvento === 'CAMBIO_DE_CLUSTER') {
+            } elseif ($tipoEvento === 'CAMBIO_DE_CLUSTER' || in_array($campoAfectado, ['cluster', 'cluster_t', 'tipo_negocio'], true)) {
                 $catClave = 'CAMBIO_DE_CLUSTER';
                 $etiqueta = 'Cambio de Clúster';
-            } elseif ($tipoEvento === 'MODIFICADO_VENDEDOR') {
+            } elseif ($tipoEvento === 'MODIFICADO_VENDEDOR' || $campoAfectado === 'vendedor') {
                 $catClave = 'MODIFICADO_VENDEDOR';
                 $etiqueta = 'Cambio de Vendedor';
-            } elseif ($tipoEvento === 'MODIFICADO_COORDENADAS') {
+            } elseif ($tipoEvento === 'MODIFICADO_COORDENADAS' || $campoAfectado === 'coordenadas') {
                 $catClave = 'MODIFICADO_COORDENADAS';
-                $etiqueta = 'Desplazamiento Coordenadas';
-            } elseif ($campoAfectado === 'frecuencia_visita') {
-                $catClave = 'FRECUENCIA_VISITA';
-                $etiqueta = 'Variación Frecuencia Logística';
+                $etiqueta = 'Desplazamiento GPS';
             }
 
             // Cálculo de ventas 5 meses para bajas
@@ -355,7 +372,6 @@ class GetAuditoriaRuteoAction
                     'historico_ventas' => $historialVentas,
                 ]);
             } elseif ($catClave === 'MODIFICADO_COORDENADAS') {
-                // Parsear coordenadas para distancia si es posible
                 $geoDistancia = null;
                 if (str_contains($valorAnterior, ',') && str_contains($valorNuevo, ',')) {
                     $p1 = array_map('floatval', explode(',', $valorAnterior));
@@ -373,6 +389,11 @@ class GetAuditoriaRuteoAction
                 }
             }
 
+            // Generación de etiquetas claras, antes/después y motivo estructurado
+            $campoLabel = $this->formatCampoLabel($campoAfectado, $tipoEvento);
+            $antesDespues = $this->resolverAntesYDespues($r, $catClave);
+            $porQueCambio = $this->resolverPorQueCambio($r, $catClave, $historialVentas, $evaluacionRiesgo);
+
             $item = [
                 'id' => (int) $r->id,
                 'archivo_origen' => (string) ($r->archivo_origen ?? ''),
@@ -380,10 +401,14 @@ class GetAuditoriaRuteoAction
                 'cliente' => (string) ($r->cliente ?? ''),
                 'tipo_evento' => $tipoEvento,
                 'campo_afectado' => $campoAfectado,
+                'campo_label' => $campoLabel,
                 'categoria_clave' => $catClave,
                 'etiqueta_evento' => $etiqueta,
                 'valor_anterior' => $valorAnterior,
                 'valor_nuevo' => $valorNuevo,
+                'antes_fmt' => $antesDespues['antes'],
+                'despues_fmt' => $antesDespues['despues'],
+                'motivo_cambio' => $porQueCambio,
                 'fecha_auditoria' => (string) ($r->fecha_auditoria_fmt ?? ''),
                 'estado_auditoria' => (string) ($r->estado_auditoria ?? 'PENDIENTE'),
                 'observaciones' => (string) ($r->observaciones ?? ''),
@@ -394,6 +419,8 @@ class GetAuditoriaRuteoAction
                 'dia' => (string) ($r->dia ?? ''),
                 'direccion' => (string) ($r->direccion ?? ''),
                 'vendedor' => (string) ($r->vendedor ?? ''),
+                'lat_actual' => $r->lat_actual ? (float) $r->lat_actual : null,
+                'lng_actual' => $r->lng_actual ? (float) $r->lng_actual : null,
                 'historico_ventas' => $historialVentas,
                 'evaluacion_riesgo' => $evaluacionRiesgo,
             ];
@@ -410,5 +437,268 @@ class GetAuditoriaRuteoAction
             'conteos' => $conteos,
         ];
     }
-}
 
+    /**
+     * Mapea el nombre técnico de base de datos a una etiqueta de negocio amigable.
+     */
+    public function formatCampoLabel(string $campo, string $tipoEvento): string
+    {
+        $campo = strtolower(trim($campo));
+        return match ($campo) {
+            'cliente_alta_total' => 'Alta en Cartera',
+            'cliente_baja_total' => 'Baja de Cartera',
+            'ruta' => 'Ruta de Atención',
+            'dia' => 'Día de Visita Semanal',
+            'vendedor' => 'Vendedor / Preventista',
+            'coordenadas' => 'Ubicación GPS (Coordenadas)',
+            'cluster' => 'Clúster y Tipo de Negocio',
+            'cluster_t' => 'Clúster Comercial',
+            'tipo_negocio' => 'Tipo de Negocio',
+            'frecuencia_visita' => 'Frecuencia Semanal de Visita',
+            'precio' => 'Lista de Precios / Tarifa',
+            'estado' => $tipoEvento === 'REACTIVADO' ? 'Reactivación de Estado' : 'Inactivación de Estado',
+            'cliente' => 'Nombre Comercial / Razón Social',
+            'celular' => 'Teléfono Celular',
+            'telefono' => 'Teléfono Fijo',
+            'direccion' => 'Dirección de Entrega',
+            'referencia' => 'Referencia de Ubicación',
+            'nombre_factura' => 'Razón Social para Facturación',
+            'ci' => 'Cédula de Identidad / NIT',
+            'tipo_pago' => 'Condición de Pago',
+            'contacto' => 'Persona de Contacto',
+            'territorio' => 'Territorio Comercial',
+            default => ucwords(str_replace('_', ' ', $campo ?: 'Modificación')),
+        };
+    }
+
+    /**
+     * Resuelve y da formato legible al valor anterior y valor nuevo propuesto.
+     *
+     * @return array{antes: string, despues: string}
+     */
+    public function resolverAntesYDespues(object $r, string $catClave): array
+    {
+        $ant = trim((string) ($r->valor_anterior ?? ''));
+        $nue = trim((string) ($r->valor_nuevo ?? ''));
+        $tipo = (string) ($r->tipo_evento ?? '');
+        $campo = (string) ($r->campo_afectado ?? '');
+
+        $antesFmt = $ant !== '' && $ant !== '-' ? $ant : 'Sin dato previo';
+        $despuesFmt = $nue !== '' && $nue !== '-' ? $nue : 'Sin dato nuevo';
+
+        switch ($catClave) {
+            case 'ALTAS_REACTIVACIONES':
+                if ($tipo === 'REACTIVADO') {
+                    $antesFmt = 'Estado previo: Inactivo / Fuera de Cartera';
+                    $despuesFmt = 'Reactivado en Cartera: ' . ($nue ?: 'Activo');
+                } else {
+                    $antesFmt = 'Sin registro previo en padrón activo';
+                    $despuesFmt = $nue !== '' && $nue !== '-' ? $nue : "Ruta: {$r->ruta} | Día: {$r->dia}";
+                }
+                break;
+
+            case 'BAJAS_INACTIVADOS':
+                $rutaInfo = trim(($r->ruta ?? '') . ' (' . ($r->dia ?? '') . ')');
+                $antesFmt = 'Activo en Cartera' . ($rutaInfo !== '()' && $rutaInfo !== '' ? ' • ' . $rutaInfo : '');
+                if ($ant !== '' && $ant !== '-' && $ant !== 'Activo') {
+                    $antesFmt .= " [{$ant}]";
+                }
+                $despuesFmt = $tipo === 'INACTIVADO' ? 'Inactivación Solicitada (Estado: Inactivo)' : 'Baja Definitiva de Cartera';
+                break;
+
+            case 'CAMBIOS_RUTA':
+                $antesFmt = 'Ruta previa: ' . ($ant ?: 'Sin ruta');
+                $despuesFmt = 'Ruta nueva: ' . ($nue ?: 'Sin asignar');
+                break;
+
+            case 'CAMBIOS_DIA':
+                $antesFmt = 'Día previo: ' . ($ant ?: 'Sin día');
+                $despuesFmt = 'Día nuevo: ' . ($nue ?: 'Sin asignar');
+                break;
+
+            case 'CAMBIO_DE_CLUSTER':
+                $antesFmt = str_ireplace(['tipo_negocio:', 'cluster_t:'], ['Tipo Negocio:', 'Clúster:'], $ant);
+                $despuesFmt = str_ireplace(['tipo_negocio:', 'cluster_t:'], ['Tipo Negocio:', 'Clúster:'], $nue);
+                break;
+
+            case 'MODIFICADO_VENDEDOR':
+                $antesFmt = 'Vendedor previo: ' . ($ant ?: 'Sin asignar');
+                $despuesFmt = 'Vendedor nuevo: ' . ($nue ?: 'Sin asignar');
+                break;
+
+            case 'MODIFICADO_COORDENADAS':
+                if (str_contains($ant, ',')) {
+                    $parts = explode(',', $ant);
+                    $antesFmt = sprintf('Lat: %s, Lng: %s', trim($parts[0] ?? ''), trim($parts[1] ?? ''));
+                }
+                if (str_contains($nue, ',')) {
+                    $partsN = explode(',', $nue);
+                    $despuesFmt = sprintf('Lat: %s, Lng: %s', trim($partsN[0] ?? ''), trim($partsN[1] ?? ''));
+                }
+                break;
+
+            case 'FRECUENCIA_VISITA':
+                if ($tipo === 'NUEVO') {
+                    $antesFmt = 'Frecuencia previa estándar (1 visita/semana)';
+                    $despuesFmt = '+1 Visita agregada: ' . ($nue ?: 'Multivisita');
+                } else {
+                    $antesFmt = 'Visita activa previa: ' . ($ant ?: 'Multivisita');
+                    $despuesFmt = 'Visita suprimida (Retorna a Monovisita)';
+                }
+                break;
+
+            case 'MODIFICACION_DATOS':
+                if ($campo === 'precio') {
+                    $antesFmt = 'Tarifa anterior: ' . ($ant ?: 'Sin tarifa');
+                    $despuesFmt = 'Tarifa nueva: ' . ($nue ?: 'Sin tarifa');
+                }
+                break;
+        }
+
+        return [
+            'antes' => $antesFmt,
+            'despues' => $despuesFmt,
+        ];
+    }
+
+    /**
+     * Resuelve la justificación de negocio ("Por qué cambió") y su impacto comercial o logístico.
+     *
+     * @return array{motivo: string, impacto: string, observacion_origen: string, archivo_origen: string, nivel: string}
+     */
+    public function resolverPorQueCambio(
+        object $r,
+        string $catClave,
+        ?array $historialVentas,
+        ?array $evaluacionRiesgo
+    ): array {
+        $obs = trim((string) ($r->observaciones ?? ''));
+        $archivo = trim((string) ($r->archivo_origen ?? ''));
+        $tipo = (string) ($r->tipo_evento ?? '');
+        $campo = (string) ($r->campo_afectado ?? '');
+
+        $motivoCausa = '';
+        $contextoImpacto = '';
+        $nivel = 'INFO'; // INFO, WARNING, DANGER, SUCCESS
+
+        switch ($catClave) {
+            case 'BAJAS_INACTIVADOS':
+                $nivel = 'WARNING';
+                $motivoCausa = $tipo === 'INACTIVADO'
+                    ? 'Solicitud de inactivación en cartera comercial.'
+                    : 'Punto de venta suprimido de la base de ruteo.';
+
+                if ($historialVentas && ($historialVentas['total_5m'] ?? 0) > 0) {
+                    $prom = number_format((float) ($historialVentas['promedio_mensual'] ?? 0), 2, '.', ',');
+                    $tot = number_format((float) ($historialVentas['total_5m'] ?? 0), 2, '.', ',');
+                    $contextoImpacto = "Impacto comercial en riesgo: Promedio de Bs {$prom}/mes (Total 5 meses: Bs {$tot}).";
+                    if (($historialVentas['promedio_mensual'] ?? 0) > 2000) {
+                        $nivel = 'DANGER';
+                    }
+                } else {
+                    $contextoImpacto = 'Sin facturación registrada en los últimos 5 meses (Riesgo comercial bajo).';
+                }
+                break;
+
+            case 'ALTAS_REACTIVACIONES':
+                $nivel = 'SUCCESS';
+                if ($tipo === 'REACTIVADO') {
+                    $motivoCausa = 'Cliente reactivado para reanudar visitas y toma de pedidos comerciales.';
+                    $contextoImpacto = 'Reincorporación de punto de venta previo.';
+                } else {
+                    $motivoCausa = 'Nuevo punto de venta censado e incorporado a la cartera comercial activa.';
+                    $contextoImpacto = 'Ampliación de cobertura en ruta.';
+                }
+                break;
+
+            case 'CAMBIOS_RUTA':
+                $nivel = 'INFO';
+                $motivoCausa = 'Rebalanceo de sectorización comercial o reasignación entre rutas de preventa.';
+                $contextoImpacto = "Transferencia de ruta: {$r->valor_anterior} → {$r->valor_nuevo}.";
+                break;
+
+            case 'CAMBIOS_DIA':
+                $nivel = 'INFO';
+                $motivoCausa = 'Reprogramación logística del día de visita para optimizar la secuencia y entrega.';
+                $contextoImpacto = "Cambio de día de atención: {$r->valor_anterior} → {$r->valor_nuevo}.";
+                break;
+
+            case 'MODIFICADO_VENDEDOR':
+                $nivel = 'INFO';
+                $motivoCausa = 'Transferencia de cartera de clientes o sustitución de preventista asignado.';
+                $contextoImpacto = 'Reasignación de preventista responsable del cliente.';
+                break;
+
+            case 'MODIFICADO_COORDENADAS':
+                $distM = $evaluacionRiesgo['distancia_metros'] ?? null;
+                if ($distM !== null) {
+                    $motivoCausa = "Actualización de coordenadas GPS. Desplazamiento detectado de {$distM} metros.";
+                    if ($distM > 300) {
+                        $nivel = 'DANGER';
+                        $contextoImpacto = 'Alerta: Desplazamiento significativo (> 300m). Verificar posible cambio de local o captura errónea.';
+                    } elseif ($distM > 50) {
+                        $nivel = 'WARNING';
+                        $contextoImpacto = 'Desplazamiento moderado. Posible ajuste de precisión en punto de venta.';
+                    } else {
+                        $nivel = 'INFO';
+                        $contextoImpacto = 'Ajuste fino de precisión GPS (< 50m).';
+                    }
+                } else {
+                    $motivoCausa = 'Actualización de geolocalización satelital del punto de venta.';
+                    $contextoImpacto = 'Ajuste de coordenadas geográficas.';
+                }
+                break;
+
+            case 'FRECUENCIA_VISITA':
+                $nivel = 'INFO';
+                if ($tipo === 'NUEVO') {
+                    $motivoCausa = 'Adición de frecuencia logística: ampliación a multivisita semanal.';
+                    $contextoImpacto = 'Incremento de días de visita para atender alta rotación o volumen.';
+                } else {
+                    $motivoCausa = 'Reducción de frecuencia logística: cliente consolidado en monovisita.';
+                    $contextoImpacto = 'Supresión de segundo día de atención por baja rotación.';
+                }
+                break;
+
+            case 'CAMBIO_DE_CLUSTER':
+                $nivel = 'INFO';
+                $motivoCausa = 'Recategorización comercial o tipología de negocio en padrón maestro.';
+                $contextoImpacto = 'Ajuste de tipología o clúster de asignación comercial.';
+                break;
+
+            case 'MODIFICACION_DATOS':
+            default:
+                $nivel = 'INFO';
+                if ($campo === 'precio') {
+                    $motivoCausa = 'Actualización de lista tarifaria asignada al cliente en base de ruteo.';
+                    $contextoImpacto = "Cambio de tarifa: {$r->valor_anterior} → {$r->valor_nuevo}.";
+                } elseif (in_array($campo, ['celular', 'telefono'], true)) {
+                    $motivoCausa = 'Actualización de datos telefónicos de contacto comercial.';
+                    $contextoImpacto = 'Saneamiento de contacto.';
+                } elseif (in_array($campo, ['direccion', 'referencia'], true)) {
+                    $motivoCausa = 'Actualización de dirección física o referencia de entrega para logística.';
+                    $contextoImpacto = 'Facilidad de despacho y ubicación en terreno.';
+                } elseif (in_array($campo, ['nombre_factura', 'ci'], true)) {
+                    $motivoCausa = 'Saneamiento de datos fiscales para emisión correcta de facturación.';
+                    $contextoImpacto = 'Cumplimiento y consistencia tributaria.';
+                } else {
+                    $motivoCausa = "Actualización del atributo '{$campo}' en padrón maestro.";
+                    $contextoImpacto = $obs ?: 'Modificación registrada en la importación de ruteo.';
+                }
+                break;
+        }
+
+        $obsLimpia = '';
+        if ($obs !== '' && !str_starts_with($obs, 'Actualización del atributo') && !str_starts_with($obs, 'Snapshot inicial')) {
+            $obsLimpia = $obs;
+        }
+
+        return [
+            'motivo' => $motivoCausa,
+            'impacto' => $contextoImpacto,
+            'observacion_origen' => $obsLimpia,
+            'archivo_origen' => $archivo,
+            'nivel' => $nivel,
+        ];
+    }
+}

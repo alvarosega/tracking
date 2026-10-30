@@ -1,73 +1,77 @@
 <template>
-  <SupervisorLayout title="Auditoría | Histórico de Resoluciones de Ruteo">
+  <SupervisorLayout title="Auditoría | Histórico de Resoluciones">
     <div class="space-y-3 max-w-full font-sans select-none pb-8">
       <AuditoriaSubTabs active-tab="historico" />
 
-      <!-- PANEL SUPERIOR DE FILTROS Y CATEGORÍAS (APPLE LIQUID GLASS) -->
+      <!-- PANEL PRINCIPAL DE CONTROL Y FILTROS -->
       <div class="sticky top-0 z-40 apple-glass-card rounded-[16px] p-3 space-y-2.5 shadow-sm border border-white/70">
-        <!-- NIVEL 1: ESTADO DE RESOLUCIÓN + SELECTOR DE CATEGORÍA -->
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <!-- Segmented Control de Estados Resueltos -->
-          <div class="flex items-center gap-1 bg-black/[0.05] p-1 rounded-[12px] text-xs">
+        <!-- NIVEL 1: SELECTOR DE ESTADO DE RESOLUCIÓN -->
+        <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          <div class="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               @click="cambiarEstado('RESUELTOS')"
-              class="px-3 py-1.5 rounded-[9px] cursor-pointer transition-all flex items-center gap-1.5 font-bold"
-              :class="filtros.estado_auditoria === 'RESUELTOS' ? 'bg-white text-[#0071E3] shadow-xs border border-black/[0.06]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-3 py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer transition-all"
+              :class="filtros.estado_auditoria === 'RESUELTOS'
+                ? 'bg-[#1D1D1F] text-white shadow-xs'
+                : 'apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F]'"
             >
               <span>Todos Resueltos</span>
-              <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-[#0071E3]/15 text-[#0071E3]">
-                {{ (conteos.aprobados + conteos.rechazados + conteos.descartados).toLocaleString('es-BO') }}
+              <span class="ml-1.5 text-[10px] font-mono opacity-80">
+                {{ ((conteos.aprobados || 0) + (conteos.rechazados || 0) + (conteos.descartados || 0)).toLocaleString('es-BO') }}
               </span>
             </button>
 
             <button
               type="button"
               @click="cambiarEstado('APROBADO')"
-              class="px-3 py-1.5 rounded-[9px] cursor-pointer transition-all flex items-center gap-1.5 font-bold"
-              :class="filtros.estado_auditoria === 'APROBADO' ? 'bg-white text-[#248A3D] shadow-xs border border-black/[0.06]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-3 py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer transition-all"
+              :class="filtros.estado_auditoria === 'APROBADO'
+                ? 'bg-[#34C759] text-white shadow-[0_2px_8px_rgba(52,199,89,0.35)]'
+                : 'apple-control-pill text-[#248A3D] hover:bg-[#34C759]/10'"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-[#34C759]"></span>
               <span>Aprobados</span>
-              <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-[#34C759]/15 text-[#248A3D]">
-                {{ conteos.aprobados.toLocaleString('es-BO') }}
+              <span class="ml-1.5 text-[10px] font-mono opacity-80">
+                {{ (conteos.aprobados || 0).toLocaleString('es-BO') }}
               </span>
             </button>
 
             <button
               type="button"
               @click="cambiarEstado('RECHAZADO')"
-              class="px-3 py-1.5 rounded-[9px] cursor-pointer transition-all flex items-center gap-1.5 font-bold"
-              :class="filtros.estado_auditoria === 'RECHAZADO' ? 'bg-white text-[#C9342C] shadow-xs border border-black/[0.06]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-3 py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer transition-all"
+              :class="filtros.estado_auditoria === 'RECHAZADO'
+                ? 'bg-[#FF3B30] text-white shadow-[0_2px_8px_rgba(255,59,48,0.35)]'
+                : 'apple-control-pill text-[#C9342C] hover:bg-[#FF3B30]/10'"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-[#FF3B30]"></span>
               <span>Rechazados</span>
-              <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-[#FF3B30]/15 text-[#C9342C]">
-                {{ conteos.rechazados.toLocaleString('es-BO') }}
+              <span class="ml-1.5 text-[10px] font-mono opacity-80">
+                {{ (conteos.rechazados || 0).toLocaleString('es-BO') }}
               </span>
             </button>
 
             <button
               type="button"
               @click="cambiarEstado('DESCARTADO')"
-              class="px-3 py-1.5 rounded-[9px] cursor-pointer transition-all flex items-center gap-1.5 font-bold"
-              :class="filtros.estado_auditoria === 'DESCARTADO' ? 'bg-white text-[#636366] shadow-xs border border-black/[0.06]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-3 py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer transition-all"
+              :class="filtros.estado_auditoria === 'DESCARTADO'
+                ? 'bg-[#8E8E93] text-white shadow-xs'
+                : 'apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F]'"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-[#8E8E93]"></span>
               <span>Descartados</span>
-              <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-black/[0.06] text-[#6E6E73]">
-                {{ conteos.descartados.toLocaleString('es-BO') }}
+              <span class="ml-1.5 text-[10px] font-mono opacity-80">
+                {{ (conteos.descartados || 0).toLocaleString('es-BO') }}
               </span>
             </button>
           </div>
 
-          <!-- Buscador Reactivo -->
-          <div class="relative w-full sm:w-72">
+          <!-- Buscador Rápido -->
+          <div class="relative w-64 sm:w-72 shrink-0">
             <input
               type="text"
               v-model="filtros.busqueda"
               @keyup.enter="consultar"
-              placeholder="Buscar cliente, ID, auditor, ruta..."
+              placeholder="Buscar por ID, cliente, auditor..."
               class="w-full apple-control-pill text-xs font-medium pl-8 pr-7 py-1.5 rounded-[10px] text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
             />
             <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,21 +88,21 @@
           </div>
         </div>
 
-        <!-- NIVEL 2: CHIPS DE CATEGORÍAS -->
+        <!-- NIVEL 2: CATEGORÍAS EN CHIPS -->
         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-touch pt-1 border-t border-black/[0.04]">
           <button
             v-for="cat in categoriasDisponibles"
             :key="cat.id"
             type="button"
             @click="seleccionarCategoria(cat.id)"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0"
+            class="flex items-center gap-1.5 px-3 py-1 rounded-[9px] text-[11px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0"
             :class="categoriaActiva === cat.id
-              ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
+              ? 'bg-[#0071E3] text-white shadow-xs'
               : 'apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F]'"
           >
             <span>{{ cat.nombre }}</span>
             <span
-              class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold"
+              class="text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold"
               :class="categoriaActiva === cat.id ? 'bg-white/25 text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
             >
               {{ (conteos.categorias[cat.id] || 0).toLocaleString('es-BO') }}
@@ -106,9 +110,9 @@
           </button>
         </div>
 
-        <!-- NIVEL 3: FILTROS MULTIFACÉTICOS -->
+        <!-- NIVEL 3: FILTROS ADICIONALES -->
         <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-black/[0.04]">
-          <!-- Selector de Canal -->
+          <!-- Canal -->
           <div class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px]">
             <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Canal:</span>
             <select
@@ -121,7 +125,7 @@
             </select>
           </div>
 
-          <!-- Selector de Archivo Base -->
+          <!-- Archivo Origen -->
           <div class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px] max-w-xs">
             <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Archivo:</span>
             <select
@@ -167,7 +171,7 @@
       <div v-if="cargando" class="apple-glass-card rounded-[16px] p-12 text-center border border-white/70">
         <div class="inline-block animate-spin w-8 h-8 border-3 border-[#0071E3] border-t-transparent rounded-full mb-3"></div>
         <div class="text-sm font-bold text-[#1D1D1F]">Consultando histórico de resoluciones...</div>
-        <div class="text-xs text-[#86868B] mt-0.5">Recuperando bitácora inmutable de auditoría</div>
+        <div class="text-xs text-[#86868B] mt-0.5">Recuperando bitácora de auditoría de ruteo</div>
       </div>
 
       <!-- BANDEJA VACÍA -->
@@ -186,142 +190,272 @@
         </div>
       </div>
 
-      <!-- TABLA DE HISTÓRICO DE RESOLUCIONES -->
+      <!-- TABLA DE HISTÓRICO DE RESOLUCIONES CON ANTES VS DESPUÉS Y CAUSA EXPLÍCITA -->
       <div v-else class="apple-glass-card rounded-[16px] overflow-hidden border border-white/70 shadow-xs">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
             <thead>
               <tr class="bg-black/[0.03] border-b border-black/[0.06] text-[#6E6E73] text-[10px] uppercase font-bold tracking-wider">
-                <th class="py-2.5 px-3">Estado / Dictamen</th>
-                <th class="py-2.5 px-3">Tipo de Modificación</th>
-                <th class="py-2.5 px-3">Cliente</th>
-                <th class="py-2.5 px-3">Ruta / Canal / Día</th>
-                <th class="py-2.5 px-3">Detalle del Cambio</th>
-                <th class="py-2.5 px-3">Auditor & Fecha</th>
-                <th class="py-2.5 px-3">Observaciones de Resolución</th>
+                <th class="py-2.5 px-3 w-32">Estado / Dictamen</th>
+                <th class="py-2.5 px-3 w-40">Qué Cambió</th>
+                <th class="py-2.5 px-3 min-w-[200px]">Cliente & Territorio</th>
+                <th class="py-2.5 px-3 min-w-[190px]">Antes (Situación Previa)</th>
+                <th class="py-2.5 px-3 min-w-[190px]">Después (Propuesta Resuelta)</th>
+                <th class="py-2.5 px-3 min-w-[220px]">Por Qué Cambió (Causa & Origen)</th>
+                <th class="py-2.5 px-3 min-w-[180px]">Auditor & Observaciones</th>
+                <th class="py-2.5 px-3 text-right w-24">Detalle</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04]">
-              <tr
-                v-for="reg in registros"
-                :key="reg.id"
-                class="hover:bg-black/[0.02] transition-colors duration-150"
-              >
-                <!-- Estado / Dictamen -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
-                    :class="obtenerBadgeEstadoClase(reg.estado_auditoria)"
-                  >
-                    {{ reg.estado_auditoria }}
-                  </span>
-                  <div class="text-[10px] font-mono text-[#86868B] mt-1">
-                    ID #{{ reg.id }}
-                  </div>
-                </td>
+              <template v-for="reg in registros" :key="reg.id">
+                <tr
+                  class="hover:bg-black/[0.02] transition-colors duration-150"
+                  :class="filaExpandida === reg.id ? 'bg-black/[0.015]' : ''"
+                >
+                  <!-- 1. Estado / Dictamen -->
+                  <td class="py-3 px-3 align-top whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                      :class="obtenerBadgeEstadoClase(reg.estado_auditoria)"
+                    >
+                      {{ reg.estado_auditoria }}
+                    </span>
+                    <div class="text-[10px] font-mono text-[#86868B] mt-1">
+                      ID #{{ reg.id }}
+                    </div>
+                  </td>
 
-                <!-- Tipo de Modificación -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
-                    :class="obtenerBadgeClase(reg.categoria_clave)"
-                  >
-                    {{ reg.etiqueta_evento }}
-                  </span>
-                  <div class="text-[10px] font-mono text-[#86868B] mt-1">
-                    Detectado: {{ reg.fecha_auditoria }}
-                  </div>
-                </td>
+                  <!-- 2. Qué Cambió -->
+                  <td class="py-3 px-3 align-top whitespace-nowrap">
+                    <div class="space-y-1">
+                      <div class="font-bold text-[#1D1D1F] text-xs leading-tight">
+                        {{ reg.campo_label }}
+                      </div>
+                      <div>
+                        <span
+                          class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                          :class="obtenerBadgeClase(reg.categoria_clave)"
+                        >
+                          {{ reg.etiqueta_evento }}
+                        </span>
+                      </div>
+                      <div class="text-[10px] font-mono text-[#86868B] flex items-center gap-1">
+                        <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{{ reg.fecha_auditoria }}</span>
+                      </div>
+                    </div>
+                  </td>
 
-                <!-- Cliente -->
-                <td class="py-2.5 px-3 min-w-[200px]">
-                  <div class="flex items-start gap-1.5">
-                    <div>
-                      <div class="font-bold text-[#1D1D1F] leading-tight">
-                        {{ reg.cliente }}
+                  <!-- 3. Cliente & Territorio -->
+                  <td class="py-3 px-3 align-top min-w-[200px]">
+                    <div class="space-y-1">
+                      <div class="flex items-start justify-between gap-1.5">
+                        <div>
+                          <div class="font-bold text-[#1D1D1F] leading-tight">
+                            {{ reg.cliente }}
+                          </div>
+                          <div class="text-[10px] font-mono text-[#6E6E73] mt-0.5">
+                            ID: #{{ reg.cliente_id }}
+                          </div>
+                        </div>
+
+                        <!-- Botón de Fotos -->
+                        <button
+                          v-if="reg.cant_fotos > 0"
+                          type="button"
+                          @click="abrirFotos(reg)"
+                          class="shrink-0 flex items-center gap-1 apple-control-pill px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold text-[#0071E3] hover:bg-[#0071E3]/10 cursor-pointer"
+                          title="Ver fotografías de visitas"
+                        >
+                          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                          </svg>
+                          <span>{{ reg.cant_fotos }}</span>
+                        </button>
                       </div>
-                      <div class="text-[10px] font-mono text-[#6E6E73] mt-0.5">
-                        ID: #{{ reg.cliente_id }}
-                      </div>
-                      <div class="text-[10px] text-[#86868B] truncate max-w-[220px] mt-0.5">
+
+                      <div class="text-[10px] text-[#6E6E73] truncate max-w-[220px]" :title="reg.direccion">
                         {{ reg.direccion }}
                       </div>
-                    </div>
 
-                    <!-- Botón de Fotos -->
+                      <div class="flex flex-wrap items-center gap-1 pt-0.5 text-[10px] font-mono">
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.04] text-[#1D1D1F] font-semibold">
+                          {{ reg.ruta }}
+                        </span>
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.03] text-[#6E6E73]">
+                          {{ reg.canal }}
+                        </span>
+                        <span class="px-1.5 py-0.2 rounded bg-black/[0.03] text-[#6E6E73] capitalize">
+                          {{ reg.dia }}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- 4. ANTES: Situación Previa -->
+                  <td class="py-3 px-3 align-top min-w-[190px]">
+                    <div class="p-2 rounded-[9px] bg-slate-50 border border-slate-200/80 space-y-1">
+                      <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span>Estado Previo</span>
+                      </div>
+                      <div class="text-[11px] font-mono text-slate-700 leading-snug break-words">
+                        {{ reg.antes_fmt }}
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- 5. DESPUÉS: Propuesta Resuelta -->
+                  <td class="py-3 px-3 align-top min-w-[190px]">
+                    <div class="p-2 rounded-[9px] bg-sky-50/80 border border-sky-200/90 space-y-1">
+                      <div class="text-[9px] font-bold text-[#0071E3] uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
+                        <span>Propuesta Resuelta</span>
+                      </div>
+                      <div class="text-[11px] font-mono font-semibold text-[#0071E3] leading-snug break-words">
+                        {{ reg.despues_fmt }}
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- 6. POR QUÉ CAMBIÓ: Causa, Impacto & Archivo -->
+                  <td class="py-3 px-3 align-top min-w-[220px]">
+                    <div class="space-y-1.5">
+                      <div class="text-[11px] text-[#1D1D1F] font-medium leading-relaxed">
+                        {{ reg.motivo_cambio?.motivo || 'Actualización registrada en padrón maestro.' }}
+                      </div>
+
+                      <div
+                        v-if="reg.motivo_cambio?.impacto"
+                        class="p-1.5 rounded-[7px] text-[10px] leading-tight border"
+                        :class="obtenerNivelClase(reg.motivo_cambio?.nivel)"
+                      >
+                        {{ reg.motivo_cambio.impacto }}
+                      </div>
+
+                      <div class="text-[10px] font-mono text-[#86868B] flex items-center gap-1">
+                        <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="truncate max-w-[190px]" :title="reg.archivo_origen">
+                          {{ reg.archivo_origen }}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- 7. Auditor & Observaciones -->
+                  <td class="py-3 px-3 align-top min-w-[180px]">
+                    <div class="space-y-1">
+                      <div class="font-bold text-[#1D1D1F] text-xs">
+                        {{ reg.auditado_por || 'SUPERVISOR' }}
+                      </div>
+                      <div class="text-[10px] font-mono text-[#86868B]">
+                        {{ reg.fecha_resolucion || '-' }}
+                      </div>
+                      <div class="text-[11px] text-[#1D1D1F] font-medium leading-relaxed bg-black/[0.02] p-1.5 rounded-[6px] border border-black/[0.04]">
+                        {{ reg.observaciones || 'Sin observaciones registradas.' }}
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- 8. Detalle / Inspección -->
+                  <td class="py-3 px-3 text-right align-top whitespace-nowrap">
                     <button
-                      v-if="reg.cant_fotos > 0"
                       type="button"
-                      @click="abrirFotos(reg)"
-                      class="shrink-0 apple-control-pill px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold text-[#0071E3] hover:bg-[#0071E3]/10 cursor-pointer"
-                      title="Ver fotografías de visitas"
+                      @click="alternarInspector(reg.id)"
+                      class="text-[10px] font-semibold text-[#0071E3] hover:underline cursor-pointer inline-flex items-center gap-1"
                     >
-                      📷 {{ reg.cant_fotos }}
+                      <span>{{ filaExpandida === reg.id ? 'Cerrar' : 'Comparativa' }}</span>
+                      <svg
+                        class="w-3 h-3 transition-transform duration-150"
+                        :class="filaExpandida === reg.id ? 'rotate-180' : ''"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
-                  </div>
-                </td>
+                  </td>
+                </tr>
 
-                <!-- Ruta / Canal / Día -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <div class="font-bold text-[#1D1D1F] font-mono">
-                    {{ reg.ruta }}
-                  </div>
-                  <div class="text-[10px] text-[#6E6E73]">
-                    Canal: <span class="font-semibold text-[#1D1D1F]">{{ reg.canal }}</span>
-                  </div>
-                  <div class="text-[10px] text-[#86868B] capitalize">
-                    Día: {{ reg.dia }}
-                  </div>
-                </td>
-
-                <!-- Detalle del Cambio -->
-                <td class="py-2.5 px-3 min-w-[200px]">
-                  <div class="space-y-1">
-                    <div class="text-[10px] font-mono text-[#86868B] uppercase">
-                      Campo: <span class="font-bold text-[#1D1D1F]">{{ reg.campo_afectado }}</span>
-                    </div>
-
-                    <div v-if="reg.categoria_clave === 'CAMBIOS_RUTA' || reg.categoria_clave === 'CAMBIOS_DIA'" class="flex items-center gap-1.5 text-xs font-mono">
-                      <span class="px-1.5 py-0.5 rounded bg-black/[0.04] text-[#6E6E73] line-through">
-                        {{ reg.valor_anterior }}
-                      </span>
-                      <span class="text-[#86868B]">→</span>
-                      <span class="px-1.5 py-0.5 rounded bg-[#0071E3]/10 text-[#0071E3] font-bold">
-                        {{ reg.valor_nuevo }}
-                      </span>
-                    </div>
-
-                    <div v-else class="text-[11px]">
-                      <div v-if="reg.valor_anterior !== '-'" class="text-[#86868B] text-[10px]">
-                        Antes: <span class="line-through text-[#6E6E73]">{{ reg.valor_anterior }}</span>
+                <!-- FILA EXPANDIBLE: INSPECTOR HISTÓRICO CARA A CARA -->
+                <tr v-if="filaExpandida === reg.id" class="bg-black/[0.02]">
+                  <td colspan="8" class="p-3 sm:p-4">
+                    <div class="apple-glass-card rounded-[14px] p-4 border border-white/80 shadow-xs space-y-3.5">
+                      <div class="flex items-center justify-between pb-2 border-b border-black/[0.06]">
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                            :class="obtenerBadgeEstadoClase(reg.estado_auditoria)"
+                          >
+                            {{ reg.estado_auditoria }}
+                          </span>
+                          <span class="text-xs font-bold text-[#1D1D1F]">
+                            Bitácora Histórica · Evento #{{ reg.id }} · {{ reg.campo_label }}
+                          </span>
+                        </div>
+                        <span class="text-[10px] font-mono text-[#86868B]">
+                          Resuelto: {{ reg.fecha_resolucion }} por {{ reg.auditado_por }}
+                        </span>
                       </div>
-                      <div class="text-[#1D1D1F] font-semibold">
-                        {{ reg.valor_nuevo }}
+
+                      <!-- COMPARATIVA CARA A CARA -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Situación Previa -->
+                        <div class="p-3 rounded-[10px] bg-slate-50 border border-slate-200/90 space-y-2">
+                          <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                            Situación Previa (Antes)
+                          </span>
+                          <div class="text-xs font-mono text-slate-800 font-semibold bg-white p-2 rounded border border-slate-200">
+                            {{ reg.antes_fmt }}
+                          </div>
+                          <div class="text-[10px] text-slate-600 space-y-0.5">
+                            <div><span class="font-bold text-slate-700">Ruta Asignada:</span> {{ reg.ruta }}</div>
+                            <div><span class="font-bold text-slate-700">Día de Visita:</span> {{ reg.dia }}</div>
+                            <div><span class="font-bold text-slate-700">Vendedor:</span> {{ reg.vendedor }}</div>
+                          </div>
+                        </div>
+
+                        <!-- Propuesta Dictaminada -->
+                        <div class="p-3 rounded-[10px] bg-sky-50/70 border border-sky-200 space-y-2">
+                          <span class="text-[10px] font-bold text-[#0071E3] uppercase tracking-wider">
+                            Propuesta Dictaminada (Después)
+                          </span>
+                          <div class="text-xs font-mono text-[#0071E3] font-bold bg-white p-2 rounded border border-sky-200">
+                            {{ reg.despues_fmt }}
+                          </div>
+                          <div class="text-[10px] text-slate-600 space-y-0.5">
+                            <div><span class="font-bold text-slate-700">Campo Técnico:</span> {{ reg.campo_afectado }}</div>
+                            <div><span class="font-bold text-slate-700">Evento:</span> {{ reg.tipo_evento }}</div>
+                            <div><span class="font-bold text-slate-700">Dictamen Final:</span> {{ reg.estado_auditoria }}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- CAUSA Y DETALLES -->
+                      <div class="p-3 rounded-[10px] bg-white border border-black/[0.06] space-y-2">
+                        <div class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider">
+                          Diagnóstico & Causa Registrada
+                        </div>
+                        <div class="text-xs text-[#1D1D1F]">
+                          {{ reg.motivo_cambio?.motivo }}
+                        </div>
+                        <div v-if="reg.motivo_cambio?.impacto" class="text-xs text-[#6E6E73]">
+                          {{ reg.motivo_cambio.impacto }}
+                        </div>
+                        <div class="text-[10px] text-slate-600 pt-1 border-t border-black/[0.04]">
+                          <span class="font-bold">Dictamen del Auditor:</span> {{ reg.observaciones || 'Sin observaciones adicionales.' }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-
-                <!-- Auditor & Fecha -->
-                <td class="py-2.5 px-3 whitespace-nowrap">
-                  <div class="font-bold text-[#1D1D1F]">
-                    {{ reg.auditado_por || 'SUPERVISOR' }}
-                  </div>
-                  <div class="text-[10px] font-mono text-[#86868B] mt-0.5">
-                    {{ reg.fecha_resolucion || '-' }}
-                  </div>
-                </td>
-
-                <!-- Observaciones -->
-                <td class="py-2.5 px-3 min-w-[180px]">
-                  <div class="text-[11px] text-[#1D1D1F] font-medium leading-relaxed">
-                    {{ reg.observaciones || 'Sin observaciones adicionales.' }}
-                  </div>
-                  <div class="text-[10px] font-mono text-[#86868B] mt-1">
-                    Archivo: {{ reg.archivo_origen }}
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -329,7 +463,7 @@
         <!-- PIE DE TABLA -->
         <div class="px-4 py-3 bg-black/[0.02] border-t border-black/[0.05] flex items-center justify-between text-xs text-[#6E6E73]">
           <div>
-            Mostrando <span class="font-bold text-[#1D1D1F]">{{ registros.length }}</span> de <span class="font-bold text-[#1D1D1F]">{{ totalRegistros.toLocaleString('es-BO') }}</span> eventos resueltos
+            Mostrando <span class="font-bold text-[#1D1D1F]">{{ registros.length }}</span> de <span class="font-bold text-[#1D1D1F]">{{ totalRegistros.toLocaleString('es-BO') }}</span> eventos resueltos en esta categoría
           </div>
 
           <div class="text-[11px] text-[#86868B]">
@@ -367,7 +501,7 @@ const categoriasDisponibles = [
   { id: 'CAMBIO_DE_CLUSTER', nombre: 'Cambios de Clúster' },
   { id: 'MODIFICADO_VENDEDOR', nombre: 'Cambios de Vendedor' },
   { id: 'MODIFICADO_COORDENADAS', nombre: 'Coordenadas' },
-  { id: 'FRECUENCIA_VISITA', nombre: 'Frecuencia Logística' },
+  { id: 'FRECUENCIA_VISITA', nombre: 'Frecuencia Semanal' },
   { id: 'MODIFICACION_DATOS', nombre: 'Modificación de Datos' },
 ];
 
@@ -375,6 +509,7 @@ const categoriaActiva = ref(props.initial_categoria || 'TODOS');
 const cargando = ref(false);
 const registros = ref([]);
 const totalRegistros = ref(0);
+const filaExpandida = ref(null);
 const fotosModalRef = ref(null);
 
 const conteos = reactive({
@@ -397,11 +532,17 @@ const filtros = reactive({
 
 function cambiarEstado(nuevoEstado) {
   filtros.estado_auditoria = nuevoEstado;
+  filaExpandida.value = null;
   consultar();
+}
+
+function alternarInspector(id) {
+  filaExpandida.value = filaExpandida.value === id ? null : id;
 }
 
 function seleccionarCategoria(catId) {
   categoriaActiva.value = catId;
+  filaExpandida.value = null;
   consultar();
 }
 
@@ -413,6 +554,7 @@ function restablecerFiltros() {
   filtros.fecha_fin = '';
   filtros.busqueda = '';
   categoriaActiva.value = 'TODOS';
+  filaExpandida.value = null;
   consultar();
 }
 
@@ -487,6 +629,19 @@ function obtenerBadgeClase(catClave) {
       return 'bg-[#EBF5FB] text-[#2980B9] border-[#D4E6F1]';
     default:
       return 'bg-black/[0.05] text-[#1D1D1F] border-black/10';
+  }
+}
+
+function obtenerNivelClase(nivel) {
+  switch (nivel) {
+    case 'DANGER':
+      return 'bg-[#FDF0EF] text-[#C9342C] border-[#FADCD5] font-semibold';
+    case 'WARNING':
+      return 'bg-[#FFF8E6] text-[#B7791F] border-[#FCE8B3] font-semibold';
+    case 'SUCCESS':
+      return 'bg-[#EBF9EF] text-[#1E6B37] border-[#D1F2D9]';
+    default:
+      return 'bg-black/[0.03] text-[#6E6E73] border-black/[0.06]';
   }
 }
 
