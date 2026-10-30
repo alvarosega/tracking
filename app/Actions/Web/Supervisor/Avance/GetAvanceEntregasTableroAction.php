@@ -15,7 +15,7 @@ class GetAvanceEntregasTableroAction
     /**
      * Calcula el tablero de cruce de entregas D-1 vs facturación.
      */
-    public function execute(?string $fechaCorte = null, ?string $canal = null, ?string $ruta = null): array
+    public function execute(?string $fechaCorte = null, ?string $canal = null, ?string $ruta = null, ?string $fechaInicio = null): array
     {
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')
@@ -26,16 +26,17 @@ class GetAvanceEntregasTableroAction
 
         $canalKey = $canal ?: 'ALL';
         $rutaKey = $ruta ?: 'ALL';
-        $cacheKey = "avance_entregas_tablero_{$fechaCorte}_{$canalKey}_{$rutaKey}";
+        $inicioKey = $fechaInicio ?: 'AUTO';
+        $cacheKey = "avance_entregas_tablero_{$fechaCorte}_{$inicioKey}_{$canalKey}_{$rutaKey}";
 
-        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaCorte, $canal, $ruta) {
-            return $this->procesarTablero($fechaCorte, $canal, $ruta);
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaCorte, $canal, $ruta, $fechaInicio) {
+            return $this->procesarTablero($fechaCorte, $canal, $ruta, $fechaInicio);
         });
     }
 
-    private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro): array
+    private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro, ?string $fechaInicio = null): array
     {
-        $fechaD1 = $this->calcularFechaOperativaPrevia($fechaCorte);
+        $fechaD1 = $fechaInicio ?: $this->calcularFechaOperativaPrevia($fechaCorte);
 
         $params = [$fechaCorte, $fechaD1];
         $extraSql = '';
@@ -132,10 +133,14 @@ class GetAvanceEntregasTableroAction
 
             if (!isset($rutasMap[$rNombre]['pedidos_dict'][$nroPrev])) {
                 $rutasMap[$rNombre]['pedidos_dict'][$nroPrev] = [
+                    'ruta' => $rNombre,
+                    'canal' => (string) $row->canal,
+                    'vendedor' => (string) $row->vendedor,
                     'nro_preventa' => $nroPrev,
                     'fecha_preventa' => (string) $row->fecha_preventa,
                     'cliente_id' => $row->cliente_id ? (int) $row->cliente_id : null,
                     'cliente' => (string) $row->cliente,
+                    'codigo_cliente' => (string) $row->codigo_cliente,
                     'nro_factura' => $row->nro_factura ? (string) $row->nro_factura : null,
                     'items' => [],
                     'total_unidades_prev' => 0,

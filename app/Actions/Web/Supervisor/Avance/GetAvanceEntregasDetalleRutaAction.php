@@ -100,10 +100,14 @@ class GetAvanceEntregasDetalleRutaAction
 
             if (!isset($pedidosDict[$nroPrev])) {
                 $pedidosDict[$nroPrev] = [
+                    'ruta' => (string) $row->ruta,
+                    'canal' => (string) $row->canal,
+                    'vendedor' => (string) $row->vendedor,
                     'nro_preventa' => $nroPrev,
                     'fecha_preventa' => (string) $row->fecha_preventa,
                     'cliente_id' => $row->cliente_id ? (int) $row->cliente_id : null,
                     'cliente' => (string) $row->cliente,
+                    'codigo_cliente' => (string) $row->codigo_cliente,
                     'nro_factura' => $row->nro_factura ? (string) $row->nro_factura : null,
                     'items' => [],
                     'total_unidades_prev' => 0,
