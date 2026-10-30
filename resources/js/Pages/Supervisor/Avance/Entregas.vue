@@ -19,7 +19,7 @@
             <span class="font-bold text-slate-900 uppercase tracking-wide text-[11px]">
               {{
                 submodo === 'diario'
-                  ? 'Despacho por Rutas · Cruce Preventas vs Facturación (D-1)'
+                  ? 'Despacho por Rutas · Cruce Preventas vs Facturación (Diario)'
                   : 'Histórico por Rango · Avance y Efectividad de Entregas'
               }}
             </span>
@@ -27,7 +27,7 @@
               v-if="submodo === 'diario'"
               class="text-[11px] text-slate-500 font-medium hidden sm:inline font-mono"
             >
-              (Ref. D-1: <strong class="text-slate-800">{{ fechaD1Referencia }}</strong>)
+              (Fecha de Corte: <strong class="text-slate-800">{{ fechaD1Referencia }}</strong>)
             </span>
             <span
               v-else
@@ -1577,7 +1577,6 @@ async function ejecutarConsulta() {
       }
     } else {
       const res = await axios.post('/supervisor/avance/entregas/tablero', {
-        fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
         fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       });
       datosEntregas.value = res.data;

@@ -13,12 +13,12 @@ class GetAvanceEntregasTableroAction
     private const CACHE_TTL_SECS = 300;
 
     /**
-     * Calcula el tablero de cruce de entregas D-1 vs facturación.
+     * Calcula el tablero de cruce de entregas diario vs facturación.
      */
-    public function execute(?string $fechaCorte = null, ?string $canal = null, ?string $ruta = null, ?string $fechaInicio = null): array
+    public function execute(?string $fechaCorte = null, ?string $canal = null, ?string $ruta = null): array
     {
         if (!$fechaCorte) {
-            $maxFecha = DB::connection('supervisor')->table('fact_ventas')
+            $maxFecha = DB::connection('supervisor')->table('fact_preventas')
                 ->where('monto_final', '>', 0)
                 ->max('fecha_norm');
             $fechaCorte = $maxFecha ? (string) $maxFecha : date('Y-m-d');
@@ -26,17 +26,16 @@ class GetAvanceEntregasTableroAction
 
         $canalKey = $canal ?: 'ALL';
         $rutaKey = $ruta ?: 'ALL';
-        $inicioKey = $fechaInicio ?: 'AUTO';
-        $cacheKey = "avance_entregas_tablero_{$fechaCorte}_{$inicioKey}_{$canalKey}_{$rutaKey}";
+        $cacheKey = "avance_entregas_tablero_{$fechaCorte}_{$canalKey}_{$rutaKey}";
 
-        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaCorte, $canal, $ruta, $fechaInicio) {
-            return $this->procesarTablero($fechaCorte, $canal, $ruta, $fechaInicio);
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECS, function () use ($fechaCorte, $canal, $ruta) {
+            return $this->procesarTablero($fechaCorte, $canal, $ruta);
         });
     }
 
-    private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro, ?string $fechaInicio = null): array
+    private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro): array
     {
-        $fechaPreventa = $fechaInicio ?: $this->calcularFechaOperativaPrevia($fechaCorte);
+        $fechaPreventa = $fechaCorte;
         $fechaMaxFact = Carbon::parse($fechaPreventa)->addDays(6)->format('Y-m-d');
 
         $params = [$fechaPreventa, $fechaMaxFact, $fechaPreventa];

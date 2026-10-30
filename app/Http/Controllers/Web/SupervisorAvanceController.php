@@ -335,15 +335,13 @@ class SupervisorAvanceController extends Controller
     {
         try {
             $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
-            $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
             $canal = $request->input('canal') ? (string) $request->input('canal') : null;
             $ruta = $request->input('ruta') ? (string) $request->input('ruta') : null;
 
             $data = $action->execute(
                 fechaCorte: $fechaCorte,
                 canal: $canal,
-                ruta: $ruta,
-                fechaInicio: $fechaInicio
+                ruta: $ruta
             );
 
             return response()->json($data);
