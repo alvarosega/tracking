@@ -372,6 +372,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::get('/visor', [SupervisorSaneamientoController::class, 'visor'])->name('visor');
             Route::post('/visor/data', [SupervisorSaneamientoController::class, 'getVisorData'])->name('visor.data');
             Route::post('/visor/ajustar-rtm', [SupervisorSaneamientoController::class, 'ajustarRtm'])->name('visor.ajustar-rtm');
+            Route::match(['get', 'post'], '/visor/cliente/{clienteId}/kpis-ventas', [SupervisorSaneamientoController::class, 'getKpisVentasCliente'])->name('visor.cliente.kpis-ventas');
             Route::post('/fronteras/guardar', [SupervisorSaneamientoController::class, 'guardarFronteraRuta'])->name('fronteras.guardar');
         });
 

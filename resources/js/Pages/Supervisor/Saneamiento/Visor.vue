@@ -949,6 +949,68 @@
                 </button>
               </div>
 
+              <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
+              <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
+                <div class="flex items-center justify-between text-[10px] font-bold font-mono text-slate-700 uppercase tracking-wider">
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3 h-3 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Compras fact_ventas</span>
+                  </span>
+                  <span v-if="kpisVentasCliente" class="text-[9px] text-slate-400 font-normal">
+                    2 Meses
+                  </span>
+                </div>
+
+                <!-- Cargando -->
+                <div v-if="cargandoKpisVentas" class="py-2 text-center text-[10px] text-slate-400 animate-pulse font-mono flex items-center justify-center gap-1">
+                  <div class="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Consultando fact_ventas...</span>
+                </div>
+
+                <!-- Grilla Resumen -->
+                <div v-else-if="kpisVentasCliente" class="grid grid-cols-2 gap-1.5">
+                  <!-- Mes Actual -->
+                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                    <div class="flex items-center justify-between text-[9px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase">Mes Act.</span>
+                      <span class="font-bold text-[#0071E3] truncate max-w-[70px]" :title="kpisVentasCliente.mes_actual.nombre">
+                        {{ kpisVentasCliente.mes_actual.nombre }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] font-bold font-mono text-slate-900 leading-tight">
+                      {{ formatMonto(kpisVentasCliente.mes_actual.monto_acumulado) }}
+                    </div>
+                    <div class="text-[9px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                      <span class="text-slate-400">Frec:</span>
+                      <span class="font-bold">{{ kpisVentasCliente.mes_actual.frecuencia_compra }} comp</span>
+                    </div>
+                  </div>
+
+                  <!-- Mes Anterior -->
+                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                    <div class="flex items-center justify-between text-[9px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase">Mes Ant.</span>
+                      <span class="font-bold text-slate-600 truncate max-w-[70px]" :title="kpisVentasCliente.mes_anterior.nombre">
+                        {{ kpisVentasCliente.mes_anterior.nombre }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] font-bold font-mono text-slate-700 leading-tight">
+                      {{ formatMonto(kpisVentasCliente.mes_anterior.monto_acumulado) }}
+                    </div>
+                    <div class="text-[9px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                      <span class="text-slate-400">Frec:</span>
+                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior.frecuencia_compra }} comp</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="py-1 text-center text-[10px] text-slate-400 font-mono">
+                  Sin ventas registradas en los últimos 2 meses.
+                </div>
+              </div>
+
               <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-0.5">
                 <span>ID: {{ clienteSeleccionado.cliente_id }}</span>
                 <span v-if="clienteSeleccionado.celular || clienteSeleccionado.contacto" class="text-sky-600">
@@ -1399,7 +1461,87 @@
             </div>
 
             <!-- CUERPO DEL MODAL (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scroll text-xs">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scroll text-xs space-y-4">
+              <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
+              <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-800 uppercase tracking-wider font-mono">
+                      Comportamiento de Compra (fact_ventas)
+                    </span>
+                  </div>
+                  <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
+                    Últimos 2 Meses
+                  </span>
+                </div>
+
+                <!-- Estado de Carga -->
+                <div v-if="cargandoKpisVentas" class="py-3 text-center text-xs text-slate-400 animate-pulse font-mono flex items-center justify-center gap-1.5">
+                  <div class="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Consultando fact_ventas...</span>
+                </div>
+
+                <!-- Grilla Mes Actual vs Mes Anterior -->
+                <div v-else-if="kpisVentasCliente" class="grid grid-cols-2 gap-3">
+                  <!-- Mes Actual -->
+                  <div class="p-3 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+                    <div class="flex items-center justify-between text-[10px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Actual</span>
+                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-50 text-[#0071E3] border border-sky-200 font-mono">
+                        {{ kpisVentasCliente.mes_actual.nombre }}
+                      </span>
+                    </div>
+                    <div>
+                      <div class="text-[10px] text-slate-500 font-mono">Monto Acumulado:</div>
+                      <div class="text-sm font-bold font-mono text-slate-900 leading-tight">
+                        {{ formatMonto(kpisVentasCliente.mes_actual.monto_acumulado) }}
+                      </div>
+                    </div>
+                    <div class="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
+                      <span class="text-slate-500">Frecuencia Compra:</span>
+                      <span class="font-bold text-slate-800">
+                        {{ kpisVentasCliente.mes_actual.frecuencia_compra }} compras
+                        <span v-if="kpisVentasCliente.mes_actual.dias_compra > 0" class="text-slate-400 font-normal">
+                          ({{ kpisVentasCliente.mes_actual.dias_compra }}d)
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Mes Anterior -->
+                  <div class="p-3 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+                    <div class="flex items-center justify-between text-[10px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Anterior</span>
+                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">
+                        {{ kpisVentasCliente.mes_anterior.nombre }}
+                      </span>
+                    </div>
+                    <div>
+                      <div class="text-[10px] text-slate-500 font-mono">Monto Acumulado:</div>
+                      <div class="text-sm font-bold font-mono text-slate-700 leading-tight">
+                        {{ formatMonto(kpisVentasCliente.mes_anterior.monto_acumulado) }}
+                      </div>
+                    </div>
+                    <div class="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
+                      <span class="text-slate-500">Frecuencia Compra:</span>
+                      <span class="font-bold text-slate-700">
+                        {{ kpisVentasCliente.mes_anterior.frecuencia_compra }} compras
+                        <span v-if="kpisVentasCliente.mes_anterior.dias_compra > 0" class="text-slate-400 font-normal">
+                          ({{ kpisVentasCliente.mes_anterior.dias_compra }}d)
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="py-2 text-center text-[11px] text-slate-400 font-mono">
+                  Sin registros de compra en fact_ventas para este cliente.
+                </div>
+              </div>
+
               <!-- TAB 1: FORMULARIO DE AJUSTE RTM -->
               <form v-if="modalAjusteRtm.tabActivo === 'rtm'" @submit.prevent="confirmarAjusteRtm" class="space-y-4">
                 <!-- Comparativa RTM Actual vs Nueva Propuesta -->
@@ -1704,6 +1846,11 @@ const clienteActivoId = ref(null);
 const clienteSeleccionado = ref(null);
 const visitasCliente = ref([]);
 const cargandoVisitas = ref(false);
+
+// Métricas de Compra desde fact_ventas (Mes actual y Mes anterior)
+const kpisVentasCliente = ref(null);
+const cargandoKpisVentas = ref(false);
+const kpisVentasCache = reactive(new Map());
 
 const clientes = ref([]);
 const fronterasRutas = ref([]);
@@ -2575,6 +2722,101 @@ function getCanalRuta(ruta) {
   return r?.canal || '';
 }
 
+function formatMonto(val) {
+  const num = typeof val === 'number' ? val : parseFloat(val || 0);
+  return 'Bs ' + num.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function obtenerKpisVentasCliente(clienteId) {
+  if (!clienteId) return null;
+  if (kpisVentasCache.has(clienteId)) {
+    return kpisVentasCache.get(clienteId);
+  }
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.cliente.kpis-ventas', { clienteId })
+      : `/supervisor/saneamiento/visor/cliente/${clienteId}/kpis-ventas`;
+
+    const res = await axios.get(url);
+    if (res.data && res.data.mes_actual) {
+      kpisVentasCache.set(clienteId, res.data);
+      return res.data;
+    }
+  } catch (error) {
+    console.error('Error al consultar KPIs de fact_ventas del cliente:', error);
+  }
+  return null;
+}
+
+async function cargarKpisVentasCliente(clienteId) {
+  if (!clienteId) {
+    kpisVentasCliente.value = null;
+    return;
+  }
+
+  if (kpisVentasCache.has(clienteId)) {
+    kpisVentasCliente.value = kpisVentasCache.get(clienteId);
+    return;
+  }
+
+  cargandoKpisVentas.value = true;
+  kpisVentasCliente.value = null;
+
+  try {
+    const data = await obtenerKpisVentasCliente(clienteId);
+    if (data) {
+      kpisVentasCliente.value = data;
+    }
+  } finally {
+    cargandoKpisVentas.value = false;
+  }
+}
+
+async function actualizarKpisEnPopup(c) {
+  const container = document.getElementById(`rtm-kpis-content-${c.id}`);
+  if (!container) return;
+
+  const data = await obtenerKpisVentasCliente(c.cliente_id);
+  const el = document.getElementById(`rtm-kpis-content-${c.id}`);
+  if (!el) return;
+
+  if (data && data.mes_actual) {
+    const actM = formatMonto(data.mes_actual.monto_acumulado);
+    const antM = formatMonto(data.mes_anterior.monto_acumulado);
+
+    el.innerHTML = `
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #BAE6FD;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #0284C7; font-weight: 700;">
+          <span>Mes Actual</span>
+          <span style="font-size: 7.5px;">${data.mes_actual.nombre}</span>
+        </div>
+        <div style="font-weight: 700; color: #0F172A; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
+        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #0F172A;">${data.mes_actual.frecuencia_compra}</b> comp
+          ${data.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_actual.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #475569; font-weight: 700;">
+          <span>Mes Anterior</span>
+          <span style="font-size: 7.5px;">${data.mes_anterior.nombre}</span>
+        </div>
+        <div style="font-weight: 700; color: #334155; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
+        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #334155;">${data.mes_anterior.frecuencia_compra}</b> comp
+          ${data.mes_anterior.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div style="grid-column: span 2; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
+        Sin compras en fact_ventas
+      </div>
+    `;
+  }
+}
+
 async function cargarVisitasCliente(clienteId) {
   if (!clienteId) {
     visitasCliente.value = [];
@@ -2617,6 +2859,7 @@ function abrirModalPuntoCliente(c) {
   }
 
   cargarVisitasCliente(c.cliente_id);
+  cargarKpisVentasCliente(c.cliente_id);
 }
 
 const abrirModalAjusteRtm = abrirModalPuntoCliente;
@@ -2659,6 +2902,7 @@ function cerrarExpediente() {
   clienteSeleccionado.value = null;
   clienteActivoId.value = null;
   visitasCliente.value = [];
+  kpisVentasCliente.value = null;
 }
 
 function limpiarTel(t) {
@@ -2723,8 +2967,52 @@ function generarPopupHtmlRtm(c) {
   const diaOrig = c.dia_original || c.dia_norm;
   const tieneCambio = Boolean(c.tiene_cambio);
 
+  const cachedKpis = kpisVentasCache.get(c.cliente_id);
+  let kpisHtml = '';
+  if (cachedKpis && cachedKpis.mes_actual) {
+    const actM = formatMonto(cachedKpis.mes_actual.monto_acumulado);
+    const antM = formatMonto(cachedKpis.mes_anterior.monto_acumulado);
+    kpisHtml = `
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #BAE6FD;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #0284C7; font-weight: 700;">
+          <span>Mes Actual</span>
+          <span style="font-size: 7.5px;">${cachedKpis.mes_actual.nombre}</span>
+        </div>
+        <div style="font-weight: 700; color: #0F172A; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
+        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #0F172A;">${cachedKpis.mes_actual.frecuencia_compra}</b> comp
+          ${cachedKpis.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_actual.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #475569; font-weight: 700;">
+          <span>Mes Anterior</span>
+          <span style="font-size: 7.5px;">${cachedKpis.mes_anterior.nombre}</span>
+        </div>
+        <div style="font-weight: 700; color: #334155; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
+        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #334155;">${cachedKpis.mes_anterior.frecuencia_compra}</b> comp
+          ${cachedKpis.mes_anterior.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+    `;
+  } else {
+    kpisHtml = `
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="color: #64748B; font-size: 8.5px;">Mes Actual</div>
+        <div style="font-weight: 700; color: #0F172A; font-size: 10px; margin-top: 1px;">Cargando...</div>
+        <div style="color: #64748B; font-size: 8.5px; margin-top: 2px;">Frec: --</div>
+      </div>
+      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="color: #64748B; font-size: 8.5px;">Mes Anterior</div>
+        <div style="font-weight: 700; color: #475569; font-size: 10px; margin-top: 1px;">Cargando...</div>
+        <div style="color: #64748B; font-size: 8.5px; margin-top: 2px;">Frec: --</div>
+      </div>
+    `;
+  }
+
   return `
-    <div style="min-width: 240px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
+    <div style="min-width: 250px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
         <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25;">${escapeHtml(c.nombre)}</div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
@@ -2745,6 +3033,17 @@ function generarPopupHtmlRtm(c) {
             </div>
           </div>
         ` : ''}
+      </div>
+
+      <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
+      <div id="rtm-kpis-${c.id}" style="margin: 4px 0 6px 0; padding: 5px 6px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-family: monospace; font-size: 10px;">
+        <div style="color: #64748B; font-size: 8.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="color: #0F172A;">COMPORTAMIENTO COMPRA (fact_ventas)</span>
+          <span style="font-size: 8px; color: #64748B;">2 Meses</span>
+        </div>
+        <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+          ${kpisHtml}
+        </div>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -3085,11 +3384,19 @@ function renderizarEnMapa(mantenerVista = false) {
         : '';
 
       if (modoPrincipal.value === 'ajuste_rtm') {
-        // En modo Ajuste RTM: se enlaza el popup interactivo compacto en el punto. ¡CERO MODALES, CERO FOTOS!
+        // En modo Ajuste RTM: se enlaza el popup interactivo compacto en el punto con métricas de fact_ventas
         marker.bindPopup(generarPopupHtmlRtm(c), {
-          maxWidth: 280,
+          maxWidth: 295,
           closeButton: true,
           className: 'rtm-clean-popup',
+        });
+
+        marker.on('popupopen', () => {
+          clienteSeleccionado.value = c;
+          clienteActivoId.value = c.id;
+          actualizarKpisEnPopup(c);
+          cargarKpisVentasCliente(c.cliente_id);
+          cargarVisitasCliente(c.cliente_id);
         });
 
         marker.bindTooltip(`

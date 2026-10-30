@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Web;
 use App\Actions\Web\Supervisor\Ruteo\GetCatalogoRutasAction;
 use App\Actions\Web\Supervisor\Ruteo\GetCercanosInitDataAction;
 use App\Actions\Web\Supervisor\Ruteo\GetClientesCercanosAction;
+use App\Actions\Web\Supervisor\Ruteo\GetKpisVentasClienteAction;
 use App\Actions\Web\Supervisor\Ruteo\GetRuteoDataAction;
 use App\Actions\Web\Supervisor\Ruteo\GetVentasClienteAction;
 use App\Actions\Web\Supervisor\Ruteo\GetVisitasClienteAction;
@@ -69,6 +70,18 @@ class SupervisorSaneamientoController extends Controller
         );
 
         return response()->json($resultado);
+    }
+
+    /**
+     * KPIs de ventas (monto acumulado y frecuencia de compra del mes actual y mes anterior) desde fact_ventas.
+     */
+    public function getKpisVentasCliente(int|string $clienteId, GetKpisVentasClienteAction $action): JsonResponse
+    {
+        try {
+            return response()->json($action->execute($clienteId));
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
