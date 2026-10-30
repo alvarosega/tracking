@@ -44,6 +44,7 @@ class GetAvanceParetoClienteHistorialAction
                 'anio' => $mCarbon->format('Y'),
                 'label' => $this->getNombreMesAbrev((int) $mCarbon->format('n')) . ' ' . $mCarbon->format('Y'),
                 'es_actual' => ($ym === $mesActualYm),
+                'rutas' => '-',
                 'venta_bs' => 0.0,
                 'facturas' => 0,
                 'unidades' => 0,
@@ -72,6 +73,7 @@ class GetAvanceParetoClienteHistorialAction
             ->orderByRaw("DATE_FORMAT(fecha_norm, '%Y-%m') ASC")
             ->selectRaw("
                 DATE_FORMAT(fecha_norm, '%Y-%m') AS mes_ym,
+                GROUP_CONCAT(DISTINCT NULLIF(TRIM(ruta), '') ORDER BY ruta SEPARATOR ', ') AS rutas,
                 ROUND(SUM(monto_final), 2) AS venta_bs,
                 COUNT(DISTINCT venta_id) AS facturas,
                 SUM(cantidad) AS unidades,
@@ -84,6 +86,7 @@ class GetAvanceParetoClienteHistorialAction
         foreach ($rowsMensuales as $row) {
             $ym = (string) $row->mes_ym;
             if (isset($mesesCalendario[$ym])) {
+                $mesesCalendario[$ym]['rutas'] = $row->rutas ? (string) $row->rutas : '-';
                 $mesesCalendario[$ym]['venta_bs'] = (float) $row->venta_bs;
                 $mesesCalendario[$ym]['facturas'] = (int) $row->facturas;
                 $mesesCalendario[$ym]['unidades'] = (int) $row->unidades;
@@ -129,6 +132,19 @@ class GetAvanceParetoClienteHistorialAction
         $promedioMensualBs = round($totalVenta / 6.0, 2);
         $dropSizePromedio = $totalFacturas > 0 ? round($totalVenta / $totalFacturas, 2) : 0.0;
 
+        $todasRutas = [];
+        foreach ($mesesList as $m) {
+            if (!empty($m['rutas']) && $m['rutas'] !== '-') {
+                foreach (explode(',', $m['rutas']) as $r) {
+                    $rTrim = trim($r);
+                    if ($rTrim !== '') {
+                        $todasRutas[$rTrim] = true;
+                    }
+                }
+            }
+        }
+        $rutas6m = count($todasRutas) > 0 ? implode(', ', array_keys($todasRutas)) : '-';
+
         // 4. Top 5 productos comprados en 6M
         $topProductos = DB::connection('supervisor')->table('fact_ventas')
             ->where('cliente_id', $clienteId)
@@ -173,6 +189,7 @@ class GetAvanceParetoClienteHistorialAction
                 'total_unidades_6m' => $totalUnidades,
                 'total_cajas_6m' => round($totalCajas, 2),
                 'drop_size_promedio_6m' => $dropSizePromedio,
+                'rutas_6m' => $rutas6m,
             ],
             'meses' => $mesesList,
             'top_productos' => $topProductos,
@@ -199,3 +216,4 @@ class GetAvanceParetoClienteHistorialAction
         return $meses[$m] ?? '';
     }
 }
+

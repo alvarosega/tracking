@@ -483,6 +483,10 @@
                               <span class="text-[#86868B]">Drop Promedio:</span>
                               <strong class="ml-1">Bs {{ formatNum(historial6mClientes[c.cliente_id].kpis.drop_size_promedio_6m) }}</strong>
                             </div>
+                            <div v-if="historial6mClientes[c.cliente_id].kpis.rutas_6m && historial6mClientes[c.cliente_id].kpis.rutas_6m !== '-'" class="px-2 py-0.5 rounded bg-slate-50 border border-black/[0.06] text-[#1D1D1F]">
+                              <span class="text-[#86868B]">Rutas 6M:</span>
+                              <strong class="text-[#0071E3] ml-1">{{ historial6mClientes[c.cliente_id].kpis.rutas_6m }}</strong>
+                            </div>
                           </div>
                         </div>
 
@@ -492,6 +496,7 @@
                             <thead>
                               <tr class="bg-slate-50 border-b border-black/[0.06] text-[9px] uppercase tracking-tight text-[#6E6E73] font-bold">
                                 <th class="py-1.5 px-2.5">Mes Calendario</th>
+                                <th class="py-1.5 px-2 text-center" title="Ruta o rutas en las que se facturó en el mes">Ruta(s) Facturada(s)</th>
                                 <th class="py-1.5 px-2.5 text-right">Venta Facturada</th>
                                 <th class="py-1.5 px-2 text-right">vs Mes Ant.</th>
                                 <th class="py-1.5 px-2 text-center">Facturas</th>
@@ -514,6 +519,16 @@
                                   <span v-if="m.es_actual" class="ml-1.5 text-[8px] px-1 py-0.2 rounded bg-sky-100 text-[#0071E3] font-sans font-bold">
                                     Período Activo
                                   </span>
+                                </td>
+                                <td class="py-1.5 px-2 text-center whitespace-nowrap text-[9.5px]">
+                                  <span
+                                    v-if="m.rutas && m.rutas !== '-'"
+                                    class="font-mono font-bold text-[#1D1D1F] px-1.5 py-0.5 rounded bg-slate-100 border border-black/[0.06]"
+                                    :title="`Facturado en ruta(s): ${m.rutas}`"
+                                  >
+                                    {{ m.rutas }}
+                                  </span>
+                                  <span v-else class="text-[#86868B]">-</span>
                                 </td>
                                 <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F] whitespace-nowrap">
                                   Bs {{ formatNum(m.venta_bs) }}
