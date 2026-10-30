@@ -305,7 +305,7 @@
 
           <!-- Filtros Dinámicos GIS: Puntos (Rutas), Frontera Ruta y Frontera Día -->
           <div class="hidden lg:flex items-center space-x-2 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
-            <!-- Botón Dropdown Dinámico: Puntos por Ruta -->
+            <!-- Botón Dropdown Dinámico: Rutas (Puntos) -->
             <button
               type="button"
               @click.stop="toggleMenu('puntos_rutas', $event)"
@@ -313,7 +313,7 @@
               :class="{ 'bg-slate-200/80 border-slate-300 font-semibold': filtroRutas.length > 0 }"
               title="Mostrar u ocultar puntos de clientes por ruta en tiempo real"
             >
-              <span class="text-slate-400 font-normal">Puntos:</span>
+              <span class="text-slate-400 font-normal">Rutas:</span>
               <span class="font-bold text-slate-900">{{ labelRutasPuntos }}</span>
               <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -416,7 +416,7 @@
           class="fixed w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
         >
           <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
-            <span class="font-bold text-[11px] text-slate-700 uppercase tracking-tight">Puntos por Ruta</span>
+            <span class="font-bold text-[11px] text-slate-700 uppercase tracking-tight">Rutas (Puntos)</span>
             <div class="flex items-center gap-2">
               <button type="button" @click="seleccionarTodasRutasPuntos" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todos</button>
               <button type="button" @click="limpiarRutasPuntos" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
@@ -448,8 +448,12 @@
                 />
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: r.color }"></span>
                 <span class="font-mono font-semibold text-slate-800 truncate">{{ r.nombre }}</span>
+                <span v-if="r.vendedor" class="text-[9.5px] text-slate-400 truncate max-w-[85px]" :title="r.vendedor">({{ r.vendedor }})</span>
               </div>
-              <span class="text-[9.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0 bg-slate-100 text-slate-600">
+              <span
+                class="text-[9.5px] font-mono px-1.5 py-0.2 rounded shrink-0"
+                :class="(conteoPuntosPorRuta[r.ruta] || 0) > 0 ? 'bg-slate-100 text-slate-700 font-bold' : 'bg-slate-50 text-slate-400 font-normal'"
+              >
                 {{ conteoPuntosPorRuta[r.ruta] || 0 }} pts
               </span>
             </label>
@@ -496,6 +500,7 @@
                 />
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: r.color }"></span>
                 <span class="font-mono font-semibold text-slate-800 truncate">{{ r.nombre }}</span>
+                <span v-if="r.vendedor" class="text-[9.5px] text-slate-400 truncate max-w-[85px]" :title="r.vendedor">({{ r.vendedor }})</span>
               </div>
               <span
                 class="text-[9.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0"
@@ -547,6 +552,7 @@
                 />
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: r.color }"></span>
                 <span class="font-mono font-semibold text-slate-800 truncate">{{ r.nombre }}</span>
+                <span v-if="r.vendedor" class="text-[9.5px] text-slate-400 truncate max-w-[85px]" :title="r.vendedor">({{ r.vendedor }})</span>
               </div>
               <span
                 class="text-[9.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0"
@@ -1935,12 +1941,94 @@ const conteoPuntosPorRuta = computed(() => {
   return mapCounts;
 });
 
+// Rutas completas disponibles para el canal o canales seleccionados (incluye todas las rutas del catálogo, no solo las que tienen puntos)
+const rutasDisponiblesParaFronteras = computed(() => {
+  const mapRutas = new Map();
+
+  // 1. Incluir primero TODAS las rutas del catálogo de los canales seleccionados (o todas si no hay filtro de canal)
+  rutasDisponibles.value.forEach(r => {
+    const rKey = (r.ruta || '').trim().toUpperCase();
+    if (!rKey) return;
+    mapRutas.set(rKey, {
+      ruta: rKey,
+      nombre: formatRuta(rKey),
+      canal: r.canal || '',
+      vendedor: r.vendedor || '',
+      color: getRutaColor(rKey),
+    });
+  });
+
+  // 2. Incorporar rutas que pudieran venir en clientes o fronteras pertenecientes a los canales activos
+  const setCanales = new Set(filtroCanales.value);
+  const canalFiltroActivo = setCanales.size > 0;
+
+  clientes.value.forEach(c => {
+    if (c.ruta) {
+      const rKey = c.ruta.trim().toUpperCase();
+      if (!mapRutas.has(rKey)) {
+        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const canalRuta = info ? info.canal : '';
+        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
+          mapRutas.set(rKey, {
+            ruta: rKey,
+            nombre: formatRuta(rKey),
+            canal: canalRuta,
+            vendedor: info ? info.vendedor : '',
+            color: getRutaColor(rKey),
+          });
+        }
+      }
+    }
+  });
+
+  fronterasRutas.value.forEach(fr => {
+    if (fr.ruta) {
+      const rKey = fr.ruta.trim().toUpperCase();
+      if (!mapRutas.has(rKey)) {
+        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const canalRuta = fr.canal || (info ? info.canal : '');
+        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
+          mapRutas.set(rKey, {
+            ruta: rKey,
+            nombre: formatRuta(rKey),
+            canal: canalRuta,
+            vendedor: info ? info.vendedor : '',
+            color: getRutaColor(rKey),
+          });
+        }
+      }
+    }
+  });
+
+  fronterasDias.value.forEach(fd => {
+    if (fd.ruta) {
+      const rKey = fd.ruta.trim().toUpperCase();
+      if (!mapRutas.has(rKey)) {
+        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const canalRuta = info ? info.canal : '';
+        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
+          mapRutas.set(rKey, {
+            ruta: rKey,
+            nombre: formatRuta(rKey),
+            canal: canalRuta,
+            vendedor: info ? info.vendedor : '',
+            color: getRutaColor(rKey),
+          });
+        }
+      }
+    }
+  });
+
+  return Array.from(mapRutas.values()).sort((a, b) => a.ruta.localeCompare(b.ruta, undefined, { numeric: true }));
+});
+
 const rutasFiltradasEnDropdownPuntos = computed(() => {
   if (!busquedaPuntosRuta.value.trim()) return rutasDisponiblesParaFronteras.value;
   const q = busquedaPuntosRuta.value.toLowerCase().trim();
   return rutasDisponiblesParaFronteras.value.filter(r =>
     r.ruta.toLowerCase().includes(q) ||
-    r.nombre.toLowerCase().includes(q)
+    r.nombre.toLowerCase().includes(q) ||
+    (r.vendedor && r.vendedor.toLowerCase().includes(q))
   );
 });
 
@@ -1963,87 +2051,13 @@ const rutasConPoligonoDia = computed(() => {
   return new Set(fronterasDias.value.map(fd => (fd.ruta || '').trim().toUpperCase()).filter(Boolean));
 });
 
-// Rutas relevantes para los filtros de fronteras
-const rutasDisponiblesParaFronteras = computed(() => {
-  const mapRutas = new Map();
-
-  if (filtroRutas.value.length > 0) {
-    filtroRutas.value.forEach(r => {
-      const rKey = r.toUpperCase();
-      const info = props.catalogo_rutas.find(cr => cr.ruta.toUpperCase() === rKey);
-      mapRutas.set(rKey, {
-        ruta: rKey,
-        nombre: formatRuta(rKey),
-        canal: info ? info.canal : '',
-        color: getRutaColor(rKey),
-      });
-    });
-  } else {
-    clientes.value.forEach(c => {
-      if (c.ruta) {
-        const rKey = c.ruta.toUpperCase();
-        if (!mapRutas.has(rKey)) {
-          const info = props.catalogo_rutas.find(cr => cr.ruta.toUpperCase() === rKey);
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: info ? info.canal : '',
-            color: getRutaColor(rKey),
-          });
-        }
-      }
-    });
-
-    fronterasRutas.value.forEach(fr => {
-      if (fr.ruta) {
-        const rKey = fr.ruta.toUpperCase();
-        if (!mapRutas.has(rKey)) {
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: fr.canal || '',
-            color: getRutaColor(rKey),
-          });
-        }
-      }
-    });
-
-    fronterasDias.value.forEach(fd => {
-      if (fd.ruta) {
-        const rKey = fd.ruta.toUpperCase();
-        if (!mapRutas.has(rKey)) {
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: '',
-            color: getRutaColor(rKey),
-          });
-        }
-      }
-    });
-
-    if (mapRutas.size === 0) {
-      rutasDisponibles.value.forEach(r => {
-        const rKey = r.ruta.toUpperCase();
-        mapRutas.set(rKey, {
-          ruta: rKey,
-          nombre: formatRuta(r.ruta),
-          canal: r.canal || '',
-          color: getRutaColor(r.ruta),
-        });
-      });
-    }
-  }
-
-  return Array.from(mapRutas.values()).sort((a, b) => a.ruta.localeCompare(b.ruta));
-});
-
 const rutasFiltradasEnDropdownFronteraRuta = computed(() => {
   if (!busquedaFronteraRuta.value.trim()) return rutasDisponiblesParaFronteras.value;
   const q = busquedaFronteraRuta.value.toLowerCase().trim();
   return rutasDisponiblesParaFronteras.value.filter(r =>
     r.ruta.toLowerCase().includes(q) ||
-    r.nombre.toLowerCase().includes(q)
+    r.nombre.toLowerCase().includes(q) ||
+    (r.vendedor && r.vendedor.toLowerCase().includes(q))
   );
 });
 
@@ -2052,7 +2066,8 @@ const rutasFiltradasEnDropdownFronteraDia = computed(() => {
   const q = busquedaFronteraDia.value.toLowerCase().trim();
   return rutasDisponiblesParaFronteras.value.filter(r =>
     r.ruta.toLowerCase().includes(q) ||
-    r.nombre.toLowerCase().includes(q)
+    r.nombre.toLowerCase().includes(q) ||
+    (r.vendedor && r.vendedor.toLowerCase().includes(q))
   );
 });
 
@@ -2367,8 +2382,10 @@ function toggleMenu(nombre, e) {
 
 // Filtros: solo actualizan estado, NO autoejecutan consulta
 function onCanalesChange() {
-  const validRutas = new Set(rutasDisponibles.value.map(r => r.ruta));
-  filtroRutas.value = filtroRutas.value.filter(r => validRutas.has(r));
+  const validRutas = new Set(rutasDisponibles.value.map(r => (r.ruta || '').trim().toUpperCase()));
+  filtroRutas.value = filtroRutas.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
+  filtroFronterasRutas.value = filtroFronterasRutas.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
+  filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
 }
 
 function seleccionarTodosCanales() {
@@ -2439,30 +2456,26 @@ async function cargarDatos(mantenerVista = false) {
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
 
-    // Inicializar o sincronizar filtros por ruta de puntos y fronteras
-    const rutasEnClientes = Array.from(new Set(clientes.value.map(c => (c.ruta || '').trim().toUpperCase()).filter(Boolean)));
-    const rutasFR = Array.from(new Set(fronterasRutas.value.map(fr => (fr.ruta || '').trim().toUpperCase()).filter(Boolean)));
-    const rutasFD = Array.from(new Set(fronterasDias.value.map(fd => (fd.ruta || '').trim().toUpperCase()).filter(Boolean)));
+    // Inicializar o sincronizar filtros por ruta de puntos y fronteras con todas las rutas del canal o canales seleccionados
+    const todasRutasCanalKeys = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+    const validRutasCanalSet = new Set(todasRutasCanalKeys);
 
     if (!mantenerVista || filtroRutas.value.length === 0) {
-      filtroRutas.value = [...rutasEnClientes];
+      filtroRutas.value = [...todasRutasCanalKeys];
     } else {
-      const validClientes = new Set(rutasEnClientes);
-      filtroRutas.value = filtroRutas.value.filter(r => validClientes.has(r));
+      filtroRutas.value = filtroRutas.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
     }
 
     if (!mantenerVista || filtroFronterasRutas.value.length === 0) {
-      filtroFronterasRutas.value = [...rutasFR];
+      filtroFronterasRutas.value = [...todasRutasCanalKeys];
     } else {
-      const validFR = new Set(rutasFR);
-      filtroFronterasRutas.value = filtroFronterasRutas.value.filter(r => validFR.has(r));
+      filtroFronterasRutas.value = filtroFronterasRutas.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
     }
 
     if (!mantenerVista || filtroFronterasDias.value.length === 0) {
-      filtroFronterasDias.value = [...rutasFD];
+      filtroFronterasDias.value = [...todasRutasCanalKeys];
     } else {
-      const validFD = new Set(rutasFD);
-      filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validFD.has(r));
+      filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
     }
 
     // Ajustar automáticamente el modo de color óptimo solo si no es recarga por cambio
@@ -3485,6 +3498,11 @@ if (typeof window !== 'undefined') {
 
 onMounted(() => {
   registerRutasCatalogo(props.catalogo_rutas);
+  const rutasIniciales = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+  filtroRutas.value = [...rutasIniciales];
+  filtroFronterasRutas.value = [...rutasIniciales];
+  filtroFronterasDias.value = [...rutasIniciales];
+
   nextTick(() => {
     initMap();
     if (filtroCanales.value.length > 0 || filtroRutas.value.length > 0) {
