@@ -922,18 +922,17 @@ function renderizarEnMapa() {
 
   const boundsList = [];
 
-  // Polígonos de Rutas (Sutiles y limpios)
+  // Polígonos de Rutas (Línea gruesa, bien enmarcada y sin color de fondo)
   if (verFronteraRutas.value && fronterasRutas.value.length > 0) {
     fronterasRutas.value.forEach(fr => {
       const rutaColor = getRutaColor(fr.ruta);
       const layer = L.geoJSON(fr.geojson, {
         style: {
           color: rutaColor,
-          weight: 2,
-          opacity: 0.85,
-          fillColor: rutaColor,
-          fillOpacity: 0.03,
-          dashArray: '5, 5',
+          weight: 4,
+          opacity: 0.95,
+          fill: false,
+          fillOpacity: 0,
         }
       }).addTo(fronterasRutasLayer);
       layer.bindTooltip(`Ruta: <b>${formatRuta(fr.ruta)}</b> (${fr.canal || 'Canal'})`, { sticky: true });

@@ -319,11 +319,11 @@
           <!-- Checkboxes de Fronteras GIS -->
           <div class="hidden xl:flex items-center space-x-3 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" v-model="verFronteraRutas" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
+              <input type="checkbox" v-model="verFronteraRutas" @change="renderizarEnMapa(true)" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
               <span>Frontera Rutas</span>
             </label>
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" v-model="verFronteraDias" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
+              <input type="checkbox" v-model="verFronteraDias" @change="renderizarEnMapa(true)" class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer" />
               <span>Frontera Días</span>
             </label>
           </div>
@@ -938,7 +938,7 @@
           >
             <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                Codificación: {{ modoColor.toUpperCase() }}
+                Codificación: {{ tituloCodificacionLeyenda }}
               </p>
               <span class="text-[10px] font-mono text-slate-500">{{ elementosLeyenda.length }} grupos</span>
             </div>
@@ -1737,30 +1737,56 @@ const balanceRtmPorRuta = computed(() => {
   return Array.from(mapRutas.values()).sort((a, b) => b.total - a.total);
 });
 
+// Determina si solo hay una ruta seleccionada o cargada en el mapa
+const tieneUnaSolaRutaMarcada = computed(() => {
+  if (filtroRutas.value.length === 1) return true;
+  if (filtroRutas.value.length > 1) return false;
+  if (clientes.value.length > 0) {
+    const rutasUnicas = new Set(clientes.value.map(c => (c.ruta || '').trim().toUpperCase()).filter(Boolean));
+    return rutasUnicas.size === 1;
+  }
+  return false;
+});
+
+const modoColorEfectivo = computed(() => {
+  if (modoPrincipal.value === 'ajuste_rtm') {
+    return tieneUnaSolaRutaMarcada.value ? 'dia' : 'ruta';
+  }
+  return modoColor.value;
+});
+
+const tituloCodificacionLeyenda = computed(() => {
+  if (modoPrincipal.value === 'ajuste_rtm') {
+    return tieneUnaSolaRutaMarcada.value ? 'DÍA DE VISITA' : 'RUTA / DÍA';
+  }
+  return modoColor.value.toUpperCase();
+});
+
 // Elementos dinámicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0) return [];
   const mapCounts = new Map();
+  const modoEfectivo = modoColorEfectivo.value;
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
 
     let key, nombre, color;
 
-    if (modoColor.value === 'ruta') {
-      key = c.ruta || 'Sin Ruta';
-      nombre = formatRuta(c.ruta);
-      color = getRutaColor(c.ruta);
-    } else if (modoColor.value === 'dia') {
+    if (modoEfectivo === 'dia') {
       key = c.dia_norm || 'Sin Día';
       nombre = c.dia_norm || 'Sin Día';
       color = getDiaColor(c.dia_norm);
-    } else {
+    } else if (modoEfectivo === 'canal') {
       const rutaInfo = props.catalogo_rutas.find(r => r.ruta === c.ruta);
       const canal = rutaInfo ? rutaInfo.canal : 'General';
       key = canal;
       nombre = canal;
       color = getCanalColor(canal);
+    } else {
+      key = c.ruta || 'Sin Ruta';
+      nombre = formatRuta(c.ruta);
+      color = getRutaColor(c.ruta);
     }
 
     if (!mapCounts.has(key)) {
@@ -2108,10 +2134,10 @@ function crearCapaEdicionPoligono() {
 
   poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion, {
     color: '#0F172A',
-    weight: 2.5,
+    weight: 3.5,
     dashArray: '4, 4',
-    fillColor: rutaColor,
-    fillOpacity: 0.18,
+    fill: false,
+    fillOpacity: 0,
   }).addTo(map);
 
   map.fitBounds(poligonoEnEdicion.getBounds(), { padding: [40, 40] });
@@ -2556,18 +2582,17 @@ function renderizarEnMapa(mantenerVista = false) {
 
   const boundsList = [];
 
-  // Polígonos de Rutas (Sutiles y limpios)
+  // Polígonos de Rutas (Línea gruesa, bien enmarcada y sin color de fondo)
   if (verFronteraRutas.value && fronterasRutas.value.length > 0) {
     fronterasRutas.value.forEach(fr => {
       const rutaColor = getRutaColor(fr.ruta);
       const layer = L.geoJSON(fr.geojson, {
         style: {
           color: rutaColor,
-          weight: 2,
-          opacity: 0.85,
-          fillColor: rutaColor,
-          fillOpacity: 0.04,
-          dashArray: '5, 5',
+          weight: 4,
+          opacity: 0.95,
+          fill: false,
+          fillOpacity: 0,
         }
       }).addTo(fronterasRutasLayer);
       layer.bindTooltip(`Ruta: <b>${formatRuta(fr.ruta)}</b> (${fr.canal || 'Canal'})`, { sticky: true });
@@ -2618,14 +2643,23 @@ function renderizarEnMapa(mantenerVista = false) {
 
       if (esModoAjusteRtm) {
         // EN MODO AJUSTAR RTM:
-        // Relleno: Color definido para la RUTA (efectiva)
-        // Borde: Color definido para el DÍA de visita (efectivo)
-        // Si tiene cambio: Borde segmentado (dashArray: '3, 3') con peso 3.5
-        markerColor = getRutaColor(rutaEfectiva);
-        markerBorder = getDiaColor(diaEfectivo);
-        markerWeight = tieneCambio ? 3.5 : 2;
-        markerDashArray = tieneCambio ? '3, 3' : null;
-        markerRadius = tieneCambio ? 7 : 6;
+        if (tieneUnaSolaRutaMarcada.value) {
+          // Si solo tenemos una ruta marcada: se ven solo los colores del DÍA de visita
+          markerColor = getDiaColor(diaEfectivo);
+          markerBorder = tieneCambio ? '#0F172A' : '#FFFFFF';
+          markerWeight = tieneCambio ? 3 : 1.5;
+          markerDashArray = tieneCambio ? '3, 3' : null;
+          markerRadius = tieneCambio ? 7 : 6;
+        } else {
+          // Si hay múltiples rutas marcadas:
+          // Relleno: Color definido para la RUTA (efectiva)
+          // Borde: Color definido para el DÍA de visita (efectivo)
+          markerColor = getRutaColor(rutaEfectiva);
+          markerBorder = getDiaColor(diaEfectivo);
+          markerWeight = tieneCambio ? 3.5 : 2;
+          markerDashArray = tieneCambio ? '3, 3' : null;
+          markerRadius = tieneCambio ? 7 : 6;
+        }
       } else {
         // EN MODO VISUALIZACIÓN:
         markerColor = getMarkerColor(c);
