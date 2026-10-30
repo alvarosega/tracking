@@ -873,7 +873,7 @@ const CONFIG_HEATMAPS = {
             { key: 'vol_u_bajo', label: 'Bajo (1 a 29 u.)', color: '#0066FF', test: c => (c.unidades || 0) > 0 && (c.unidades || 0) < 30 },
             { key: 'vol_u_cero', label: 'Sin Venta (0 u.)', color: '#94A3B8', test: c => (c.unidades || 0) <= 0 },
           ],
-          getIntensity: c => (c.unidades || 0) <= 0 ? 0 : Math.min(Math.max((c.unidades || 0) / 150, 0.25), 1.0),
+          getIntensity: c => (c.unidades || 0) <= 0 ? 0.60 : Math.min(Math.max((c.unidades || 0) / 150, 0.40), 1.0),
         };
       }
       if (sub === 'cajas') {
@@ -886,7 +886,7 @@ const CONFIG_HEATMAPS = {
             { key: 'vol_c_bajo', label: 'Bajo (> 0 a < 1.5 cj.)', color: '#0066FF', test: c => (c.cajas || 0) > 0 && (c.cajas || 0) < 1.5 },
             { key: 'vol_c_cero', label: 'Sin Venta (0 cj.)', color: '#94A3B8', test: c => (c.cajas || 0) <= 0 },
           ],
-          getIntensity: c => (c.cajas || 0) <= 0 ? 0 : Math.min(Math.max((c.cajas || 0) / 8, 0.25), 1.0),
+          getIntensity: c => (c.cajas || 0) <= 0 ? 0.60 : Math.min(Math.max((c.cajas || 0) / 8, 0.40), 1.0),
         };
       }
       return {
@@ -898,7 +898,7 @@ const CONFIG_HEATMAPS = {
           { key: 'vol_bajo', label: 'Bajo (1 a 499 Bs)', color: '#0066FF', test: c => (c.venta_mtd || 0) > 0 && (c.venta_mtd || 0) < 500 },
           { key: 'vol_cero', label: 'Sin Venta (0 Bs)', color: '#94A3B8', test: c => (c.venta_mtd || 0) <= 0 },
         ],
-        getIntensity: c => (c.venta_mtd || 0) <= 0 ? 0 : Math.min(Math.max((c.venta_mtd || 0) / 1500, 0.25), 1.0),
+        getIntensity: c => (c.venta_mtd || 0) <= 0 ? 0.60 : Math.min(Math.max((c.venta_mtd || 0) / 1500, 0.40), 1.0),
       };
     },
   },
@@ -914,7 +914,7 @@ const CONFIG_HEATMAPS = {
         { key: 'frec_1', label: 'Ocasional (1 factura)', color: '#0099FF', test: c => (c.facturas_efectivas || 0) === 1 },
         { key: 'frec_0', label: 'Sin facturas (0)', color: '#94A3B8', test: c => (c.facturas_efectivas || 0) <= 0 },
       ],
-      getIntensity: c => (c.facturas_efectivas || 0) <= 0 ? 0 : Math.min(Math.max((c.facturas_efectivas || 0) / 4, 0.25), 1.0),
+      getIntensity: c => (c.facturas_efectivas || 0) <= 0 ? 0.60 : Math.min(Math.max((c.facturas_efectivas || 0) / 4, 0.40), 1.0),
     }),
   },
   penetracion: {
@@ -930,7 +930,7 @@ const CONFIG_HEATMAPS = {
             { key: 'marca_baja', label: 'Baja (1 marca)', color: '#0099FF', test: c => (c.marcas_distintas || 0) === 1 },
             { key: 'marca_cero', label: 'Sin marcas (0)', color: '#94A3B8', test: c => (c.marcas_distintas || 0) <= 0 },
           ],
-          getIntensity: c => (c.marcas_distintas || 0) <= 0 ? 0 : Math.min(Math.max((c.marcas_distintas || 0) / 6, 0.25), 1.0),
+          getIntensity: c => (c.marcas_distintas || 0) <= 0 ? 0.60 : Math.min(Math.max((c.marcas_distintas || 0) / 6, 0.40), 1.0),
         };
       }
       return {
@@ -942,7 +942,7 @@ const CONFIG_HEATMAPS = {
           { key: 'sku_bajo', label: 'Bajo (1 a 3 SKUs)', color: '#0099FF', test: c => (c.skus_distintos || 0) >= 1 && (c.skus_distintos || 0) <= 3 },
           { key: 'sku_cero', label: 'Sin SKUs (0)', color: '#94A3B8', test: c => (c.skus_distintos || 0) <= 0 },
         ],
-        getIntensity: c => (c.skus_distintos || 0) <= 0 ? 0 : Math.min(Math.max((c.skus_distintos || 0) / 12, 0.25), 1.0),
+        getIntensity: c => (c.skus_distintos || 0) <= 0 ? 0.60 : Math.min(Math.max((c.skus_distintos || 0) / 12, 0.40), 1.0),
       };
     },
   },
@@ -957,7 +957,7 @@ const CONFIG_HEATMAPS = {
         { key: 'drop_bajo', label: 'Bajo (< 200 Bs/fac)', color: '#0066FF', test: c => (c.drop_size || 0) > 0 && (c.drop_size || 0) < 200 },
         { key: 'drop_cero', label: 'Sin Venta (0 Bs)', color: '#94A3B8', test: c => (c.drop_size || 0) <= 0 },
       ],
-      getIntensity: c => (c.drop_size || 0) <= 0 ? 0 : Math.min(Math.max((c.drop_size || 0) / 600, 0.25), 1.0),
+      getIntensity: c => (c.drop_size || 0) <= 0 ? 0.60 : Math.min(Math.max((c.drop_size || 0) / 600, 0.40), 1.0),
     }),
   },
   consistencia: {
@@ -973,7 +973,7 @@ const CONFIG_HEATMAPS = {
             { key: 'cons_12m_baja', label: 'Baja / Esporádico (1 a 5 meses)', color: '#0099FF', test: c => (c.meses_activos_12m || 0) >= 1 && (c.meses_activos_12m || 0) <= 5 },
             { key: 'cons_12m_cero', label: 'Sin Actividad (0 meses)', color: '#94A3B8', test: c => (c.meses_activos_12m || 0) <= 0 },
           ],
-          getIntensity: c => (c.meses_activos_12m || 0) <= 0 ? 0 : Math.min(Math.max((c.meses_activos_12m || 0) / 12, 0.25), 1.0),
+          getIntensity: c => (c.meses_activos_12m || 0) <= 0 ? 0.60 : Math.min(Math.max((c.meses_activos_12m || 0) / 12, 0.40), 1.0),
         };
       }
       return {
@@ -985,7 +985,7 @@ const CONFIG_HEATMAPS = {
           { key: 'cons_6m_baja', label: 'Esporádico (1 a 2 meses)', color: '#0099FF', test: c => (c.meses_activos_6m || 0) >= 1 && (c.meses_activos_6m || 0) <= 2 },
           { key: 'cons_6m_cero', label: 'Sin Actividad (0 meses)', color: '#94A3B8', test: c => (c.meses_activos_6m || 0) <= 0 },
         ],
-        getIntensity: c => (c.meses_activos_6m || 0) <= 0 ? 0 : Math.min(Math.max((c.meses_activos_6m || 0) / 6, 0.25), 1.0),
+        getIntensity: c => (c.meses_activos_6m || 0) <= 0 ? 0.60 : Math.min(Math.max((c.meses_activos_6m || 0) / 6, 0.40), 1.0),
       };
     },
   },
@@ -1049,12 +1049,36 @@ function resolverGrupoYColorCliente(c) {
     }
   }
   const lastOp = cfg.opciones[cfg.opciones.length - 1];
-  return { key: lastOp.key, color: lastOp.color, label: lastOp.label, intensity: 0 };
+  return { key: lastOp.key, color: lastOp.color, label: lastOp.label, intensity: 0.60 };
+}
+
+// Convertidor de color HEX a RGBA para gradientes de capas de calor
+function hexToRgba(hex, alpha) {
+  let c = String(hex || '#94A3B8').replace('#', '').trim();
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(148, 163, 184, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Generador de gradiente cromático monocromático idéntico al color de la leyenda
+function generarGradientePorColor(hex) {
+  return {
+    0.20: hexToRgba(hex, 0.20),
+    0.50: hexToRgba(hex, 0.55),
+    0.80: hexToRgba(hex, 0.85),
+    1.00: hex,
+  };
 }
 
 // Instancias de Mapa Leaflet
 let mapaInstancia = null;
-let capaTermica = null;
+let capasTermicas = [];
 let capaPuntos = null;
 let marcadorEnfocado = null;
 let mapaAjustadoInicial = false;
@@ -1067,7 +1091,7 @@ function centrarMapa() {
   for (const c of clientes) {
     const lat = parseFloat(c.latitud);
     const lon = parseFloat(c.longitud);
-    if (lat && lon && (lat !== 0 || lon !== 0)) {
+    if (!isNaN(lat) && !isNaN(lon) && Math.abs(lat) > 0.0001 && Math.abs(lon) > 0.0001) {
       bounds.push([lat, lon]);
     }
   }
@@ -1138,9 +1162,11 @@ const clientesFiltrados = computed(() => {
 });
 
 const clientesParaMapa = computed(() => {
-  return clientesFiltrados.value.filter(c =>
-    c.latitud && c.longitud && (c.latitud !== 0 || c.longitud !== 0)
-  );
+  return clientesFiltrados.value.filter(c => {
+    const lat = parseFloat(c.latitud);
+    const lon = parseFloat(c.longitud);
+    return !isNaN(lat) && !isNaN(lon) && Math.abs(lat) > 0.0001 && Math.abs(lon) > 0.0001;
+  });
 });
 
 const conteoUsuariosPorRango = computed(() => {
@@ -1274,11 +1300,21 @@ function generarPopupHtml(c) {
 function actualizarCapasMapa(forzarAjusteBounds = false) {
   if (!mapaInstancia) return;
 
-  if (capaTermica && mapaInstancia) {
-    mapaInstancia.removeLayer(capaTermica);
-    capaTermica = null;
+  // Limpiar capas térmicas anteriores
+  if (capasTermicas && capasTermicas.length > 0) {
+    capasTermicas.forEach(capa => {
+      try {
+        if (mapaInstancia && mapaInstancia.hasLayer(capa)) {
+          mapaInstancia.removeLayer(capa);
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
+    capasTermicas = [];
   }
 
+  // Limpiar capa de puntos anteriores
   if (capaPuntos && mapaInstancia) {
     mapaInstancia.removeLayer(capaPuntos);
     capaPuntos = null;
@@ -1288,16 +1324,23 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
   if (clientes.length === 0) return;
 
   const bounds = [];
-  const ptsCalor = [];
   const markers = [];
-
   const calorActivo = Boolean(mapaCapas.value.calor);
   const puntosActivos = Boolean(mapaCapas.value.puntos);
+  const cfg = configCriterioActual.value;
+
+  // Agrupar puntos por categoría de la leyenda para manchas de calor contrastables
+  const ptsPorCategoria = {};
+  if (cfg?.opciones) {
+    cfg.opciones.forEach(op => {
+      ptsPorCategoria[op.key] = [];
+    });
+  }
 
   for (const c of clientes) {
     const lat = parseFloat(c.latitud);
     const lon = parseFloat(c.longitud);
-    if (!lat || !lon || (lat === 0 && lon === 0)) continue;
+    if (isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) continue;
 
     bounds.push([lat, lon]);
     const info = resolverGrupoYColorCliente(c);
@@ -1305,44 +1348,53 @@ function actualizarCapasMapa(forzarAjusteBounds = false) {
 
     if (!permiso) continue;
 
-    if (calorActivo && info.intensity > 0) {
-      ptsCalor.push([lat, lon, info.intensity]);
+    // Agregar a la mancha de calor de su categoría con su intensidad correspondiente
+    if (calorActivo) {
+      if (!ptsPorCategoria[info.key]) {
+        ptsPorCategoria[info.key] = [];
+      }
+      const peso = Math.max(0.40, Math.min(1.0, info.intensity || 0.60));
+      ptsPorCategoria[info.key].push([lat, lon, peso]);
     }
 
     if (puntosActivos) {
       const marker = L.circleMarker([lat, lon], {
-        radius: calorActivo ? 3.0 : 4.5,
+        radius: calorActivo ? 3.5 : 5.0,
         fillColor: info.color,
-        fillOpacity: calorActivo ? 0.65 : 0.85,
+        fillOpacity: calorActivo ? 0.75 : 0.90,
         color: '#FFFFFF',
-        weight: calorActivo ? 0.8 : 1.5,
+        weight: calorActivo ? 1.0 : 1.5,
       });
       marker.bindPopup(() => generarPopupHtml(c));
       markers.push(marker);
     }
   }
 
-  if (calorActivo && ptsCalor.length > 0 && typeof L.heatLayer === 'function') {
-    capaTermica = L.heatLayer(ptsCalor, {
-      radius: 28,
-      blur: 18,
-      maxZoom: 13,
-      max: 1.0,
-      minOpacity: 0.40,
-      gradient: {
-        0.15: '#0044FF',
-        0.35: '#00CCFF',
-        0.55: '#00FF66',
-        0.70: '#FFCC00',
-        0.85: '#FF6600',
-        1.0: '#EE0000',
-      },
-    }).addTo(mapaInstancia);
+  // Crear una capa de calor por cada categoría activa con el color EXACTO de la leyenda
+  if (calorActivo && typeof L.heatLayer === 'function' && cfg?.opciones) {
+    for (const op of cfg.opciones) {
+      const permiso = capasRangosActivas.value[op.key] !== false;
+      const pts = ptsPorCategoria[op.key] || [];
+
+      if (permiso && pts.length > 0) {
+        const gradiente = generarGradientePorColor(op.color);
+        const heatLayerCat = L.heatLayer(pts, {
+          radius: 25,
+          blur: 16,
+          maxZoom: 14,
+          max: 1.0,
+          minOpacity: 0.35,
+          gradient: gradiente,
+        }).addTo(mapaInstancia);
+
+        capasTermicas.push(heatLayerCat);
+      }
+    }
 
     nextTick(() => {
       const canvasHeat = document.querySelectorAll('.leaflet-heatmap-layer');
       canvasHeat.forEach(c => {
-        c.style.opacity = '0.85';
+        c.style.opacity = '0.78';
       });
     });
   }
