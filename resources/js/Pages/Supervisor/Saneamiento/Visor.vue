@@ -1362,37 +1362,147 @@
           <table v-else class="w-full text-left text-xs border-collapse">
             <thead class="bg-slate-50 text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 z-10 select-none">
               <tr>
-                <th class="py-1.5 px-3 font-bold">ID</th>
-                <th class="py-1.5 px-3 font-bold">Cliente</th>
-                <th class="py-1.5 px-3 font-bold">Ruta Anterior -> Nueva</th>
-                <th class="py-1.5 px-3 font-bold">Día Anterior -> Nuevo</th>
+                <th
+                  @click="ordenarPor('cliente_id')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por ID"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>ID</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'cliente_id' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'cliente_id' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="ordenarPor('nombre')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por Nombre del cliente"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>Cliente</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'nombre' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'nombre' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="ordenarPor('ruta')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por Ruta"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>Ruta Anterior -> Nueva</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'ruta' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'ruta' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="ordenarPor('dia_norm')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por Día de visita"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>Día Anterior -> Nuevo</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'dia_norm' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'dia_norm' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
                 <!-- 4 Columnas de Históricos de Cliente -->
-                <th class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-sky-50/50 border-l border-slate-200">
-                  <div title="Ventas acumuladas en el mes actual">Acum. Mes Act.</div>
-                  <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
-                    ({{ periodosHistoricos.mes_actual.corto }})
+                <th
+                  @click="ordenarPor('venta_mes_actual')"
+                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-sky-50/50 border-l border-slate-200 cursor-pointer hover:bg-sky-100/60 transition-colors"
+                  title="Clic para ordenar por Ventas acumuladas Mes Actual"
+                >
+                  <div class="inline-flex items-center justify-end gap-1 w-full">
+                    <div>
+                      <div>Acum. Mes Act.</div>
+                      <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
+                        ({{ periodosHistoricos.mes_actual.corto }})
+                      </div>
+                    </div>
+                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_actual' ? 'text-sky-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'venta_mes_actual' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
                   </div>
                 </th>
-                <th class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50">
-                  <div title="Ventas acumuladas en el mes anterior">Acum. Mes Ant.</div>
-                  <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
-                    ({{ periodosHistoricos.mes_anterior.corto }})
+                <th
+                  @click="ordenarPor('venta_mes_anterior')"
+                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
+                  title="Clic para ordenar por Ventas acumuladas Mes Anterior"
+                >
+                  <div class="inline-flex items-center justify-end gap-1 w-full">
+                    <div>
+                      <div>Acum. Mes Ant.</div>
+                      <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                        ({{ periodosHistoricos.mes_anterior.corto }})
+                      </div>
+                    </div>
+                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_anterior' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'venta_mes_anterior' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
                   </div>
                 </th>
-                <th class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-sky-50/50">
-                  <div title="Frecuencia de pedidos en el mes actual">Frec. Mes Act.</div>
-                  <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
-                    ({{ periodosHistoricos.mes_actual.corto }})
+                <th
+                  @click="ordenarPor('frecuencia_mes_actual')"
+                  class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-sky-50/50 cursor-pointer hover:bg-sky-100/60 transition-colors"
+                  title="Clic para ordenar por Frecuencia Mes Actual"
+                >
+                  <div class="inline-flex items-center justify-center gap-1 w-full">
+                    <div>
+                      <div>Frec. Mes Act.</div>
+                      <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
+                        ({{ periodosHistoricos.mes_actual.corto }})
+                      </div>
+                    </div>
+                    <span class="text-[9px]" :class="columnaOrden === 'frecuencia_mes_actual' ? 'text-sky-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'frecuencia_mes_actual' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
                   </div>
                 </th>
-                <th class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-slate-100/50 border-r border-slate-200">
-                  <div title="Frecuencia de pedidos en el mes anterior">Frec. Mes Ant.</div>
-                  <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
-                    ({{ periodosHistoricos.mes_anterior.corto }})
+                <th
+                  @click="ordenarPor('frecuencia_mes_anterior')"
+                  class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-slate-100/50 border-r border-slate-200 cursor-pointer hover:bg-slate-200/60 transition-colors"
+                  title="Clic para ordenar por Frecuencia Mes Anterior"
+                >
+                  <div class="inline-flex items-center justify-center gap-1 w-full">
+                    <div>
+                      <div>Frec. Mes Ant.</div>
+                      <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                        ({{ periodosHistoricos.mes_anterior.corto }})
+                      </div>
+                    </div>
+                    <span class="text-[9px]" :class="columnaOrden === 'frecuencia_mes_anterior' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'frecuencia_mes_anterior' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
                   </div>
                 </th>
-                <th class="py-1.5 px-3 font-bold">Tipo Ajuste</th>
-                <th class="py-1.5 px-3 font-bold">Observación</th>
+                <th
+                  @click="ordenarPor('tipo_ajuste')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por Tipo de Ajuste"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>Tipo Ajuste</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'tipo_ajuste' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'tipo_ajuste' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="ordenarPor('observaciones')"
+                  class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                  title="Clic para ordenar por Observación"
+                >
+                  <div class="inline-flex items-center gap-1">
+                    <span>Observación</span>
+                    <span class="text-[9px]" :class="columnaOrden === 'observaciones' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'observaciones' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
                 <th class="py-1.5 px-3 font-bold text-right">Acciones</th>
               </tr>
             </thead>
@@ -2613,16 +2723,107 @@ const clientesMatrizInferior = computed(() => {
   return clientesConCambio.value;
 });
 
+const columnaOrden = ref('cliente_id');
+const direccionOrden = ref('asc');
+
+function ordenarPor(col) {
+  if (columnaOrden.value === col) {
+    direccionOrden.value = direccionOrden.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    columnaOrden.value = col;
+    if (['venta_mes_actual', 'venta_mes_anterior', 'frecuencia_mes_actual', 'frecuencia_mes_anterior'].includes(col)) {
+      direccionOrden.value = 'desc';
+    } else {
+      direccionOrden.value = 'asc';
+    }
+  }
+}
+
 const clientesConCambioFiltrados = computed(() => {
   const lista = clientesMatrizInferior.value;
-  if (!busquedaTablaCambios.value.trim()) return lista;
-  const q = busquedaTablaCambios.value.toLowerCase();
-  return lista.filter(c =>
-    (c.nombre && c.nombre.toLowerCase().includes(q)) ||
-    (c.cliente_id && String(c.cliente_id).includes(q)) ||
-    (c.ruta && c.ruta.toLowerCase().includes(q)) ||
-    (c.ruta_original && c.ruta_original.toLowerCase().includes(q))
-  );
+  let res = lista;
+  if (busquedaTablaCambios.value.trim()) {
+    const q = busquedaTablaCambios.value.toLowerCase();
+    res = res.filter(c =>
+      (c.nombre && c.nombre.toLowerCase().includes(q)) ||
+      (c.cliente_id && String(c.cliente_id).includes(q)) ||
+      (c.ruta && c.ruta.toLowerCase().includes(q)) ||
+      (c.ruta_original && c.ruta_original.toLowerCase().includes(q))
+    );
+  }
+
+  const col = columnaOrden.value;
+  const dir = direccionOrden.value === 'asc' ? 1 : -1;
+
+  return [...res].sort((a, b) => {
+    let valA, valB;
+
+    switch (col) {
+      case 'cliente_id':
+        valA = Number(a.cliente_id) || 0;
+        valB = Number(b.cliente_id) || 0;
+        return (valA - valB) * dir;
+
+      case 'nombre':
+        valA = (a.nombre || '').toLowerCase();
+        valB = (b.nombre || '').toLowerCase();
+        return valA.localeCompare(valB, 'es') * dir;
+
+      case 'ruta':
+        valA = (a.ruta || '').toLowerCase();
+        valB = (b.ruta || '').toLowerCase();
+        return valA.localeCompare(valB, 'es') * dir;
+
+      case 'dia_norm': {
+        const ordenDias = { 'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'DOMINGO': 7 };
+        valA = ordenDias[normalizarDiaClave(a.dia_norm)] || 99;
+        valB = ordenDias[normalizarDiaClave(b.dia_norm)] || 99;
+        return (valA - valB) * dir;
+      }
+
+      case 'venta_mes_actual':
+        valA = Number(a.venta_mes_actual) || 0;
+        valB = Number(b.venta_mes_actual) || 0;
+        return (valA - valB) * dir;
+
+      case 'venta_mes_anterior':
+        valA = Number(a.venta_mes_anterior) || 0;
+        valB = Number(b.venta_mes_anterior) || 0;
+        return (valA - valB) * dir;
+
+      case 'frecuencia_mes_actual':
+        valA = Number(a.frecuencia_mes_actual) || 0;
+        valB = Number(b.frecuencia_mes_actual) || 0;
+        return (valA - valB) * dir;
+
+      case 'frecuencia_mes_anterior':
+        valA = Number(a.frecuencia_mes_anterior) || 0;
+        valB = Number(b.frecuencia_mes_anterior) || 0;
+        return (valA - valB) * dir;
+
+      case 'tipo_ajuste': {
+        const getTipo = (c) => {
+          const cRuta = c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase();
+          const cDia = c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm);
+          if (cRuta && cDia) return '1_Ruta_Dia';
+          if (cRuta) return '2_Ruta';
+          if (cDia) return '3_Dia';
+          return '4_Propuesta';
+        };
+        valA = getTipo(a);
+        valB = getTipo(b);
+        return valA.localeCompare(valB) * dir;
+      }
+
+      case 'observaciones':
+        valA = (a.observaciones_propuesta || '').toLowerCase();
+        valB = (b.observaciones_propuesta || '').toLowerCase();
+        return valA.localeCompare(valB, 'es') * dir;
+
+      default:
+        return 0;
+    }
+  });
 });
 
 // Edición directa en la matriz inferior de Ajuste RTM (desplegables directos)
@@ -2851,6 +3052,14 @@ async function cargarDatos(mantenerVista = false) {
     kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
     if (res.data.periodos_historicos) {
       periodosHistoricos.value = res.data.periodos_historicos;
+    }
+
+    // Mantener sincronizado el cliente del modal si está abierto para que no se cierre ni pierda datos
+    if (modalAjusteRtm.value.show && modalAjusteRtm.value.cliente) {
+      const cAct = clientes.value.find(cl => cl.id === modalAjusteRtm.value.cliente.id || cl.cliente_id === modalAjusteRtm.value.cliente.cliente_id);
+      if (cAct) {
+        modalAjusteRtm.value.cliente = cAct;
+      }
     }
 
     // Cachear métricas de ventas precargadas para acceso instantáneo
@@ -3286,10 +3495,13 @@ async function cargarVisitasCliente(clienteId) {
   cargandoVisitas.value = true;
   visitasCliente.value = [];
   try {
-    const res = await axios.post(`/supervisor/visitas/fotos/${clienteId}`);
-    visitasCliente.value = res.data.visitas || [];
+    const url = typeof route === 'function'
+      ? route('supervisor.visitas.fotos', { clienteId })
+      : `/supervisor/visitas/fotos/${clienteId}`;
+    const res = await axios.post(url, {}, { timeout: 10000 });
+    visitasCliente.value = res.data?.visitas || [];
   } catch (error) {
-    console.error('Error al cargar visitas:', error);
+    console.warn('No se pudieron cargar visitas del cliente:', error.message);
     visitasCliente.value = [];
   } finally {
     cargandoVisitas.value = false;
@@ -3339,7 +3551,16 @@ async function confirmarAjusteRtm() {
 
     if (res.data?.success) {
       mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
-      modalAjusteRtm.value.show = false;
+      // Actualizar datos del cliente en el modal sin forzar su cierre
+      if (modalAjusteRtm.value.cliente) {
+        modalAjusteRtm.value.cliente = {
+          ...modalAjusteRtm.value.cliente,
+          ruta: formRtm.value.ruta_propuesta,
+          dia_norm: formRtm.value.dia_propuesto,
+          tiene_cambio: true,
+          tiene_propuesta: true,
+        };
+      }
       await cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
@@ -3590,9 +3811,6 @@ async function guardarPropuestaRtmDesdePopup(clienteId, domId) {
 
     if (res.data?.success) {
       mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente.');
-      if (map) {
-        map.closePopup();
-      }
       await cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo guardar la propuesta.');
@@ -3684,6 +3902,7 @@ function renderizarEnMapa(mantenerVista = false) {
 
   const centroActual = mantenerVista ? map.getCenter() : null;
   const zoomActual = mantenerVista ? map.getZoom() : null;
+  const popupAbiertoId = (mantenerVista && map._popup && clienteActivoId.value) ? clienteActivoId.value : null;
 
   markersLayer.clearLayers();
   fronterasRutasLayer.clearLayers();
@@ -3857,7 +4076,6 @@ function renderizarEnMapa(mantenerVista = false) {
           clienteActivoId.value = c.id;
           actualizarKpisEnPopup(c);
           cargarKpisVentasCliente(c.cliente_id);
-          cargarVisitasCliente(c.cliente_id);
         });
 
         marker.bindTooltip(`
@@ -3924,6 +4142,14 @@ function renderizarEnMapa(mantenerVista = false) {
     }
   } else if (mantenerVista && centroActual && zoomActual) {
     map.setView(centroActual, zoomActual, { animate: false });
+  }
+
+  // Mantener popup abierto si estaba activo antes del refresco
+  if (mantenerVista && popupAbiertoId && markersMap.has(popupAbiertoId)) {
+    const m = markersMap.get(popupAbiertoId);
+    if (m) {
+      m.openPopup();
+    }
   }
 }
 
