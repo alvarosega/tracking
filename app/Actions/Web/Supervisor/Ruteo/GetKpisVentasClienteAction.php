@@ -19,6 +19,14 @@ class GetKpisVentasClienteAction
     {
         $conn = DB::connection('supervisor');
         $now = Carbon::now();
+        try {
+            $maxFecha = $conn->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
+            if ($maxFecha) {
+                $now = Carbon::parse($maxFecha);
+            }
+        } catch (\Throwable $e) {
+            // Silenciar si fact_ventas falla temporalmente
+        }
 
         $mesActualPeriodo = $now->format('Y-m');
         $mesAnteriorPeriodo = $now->copy()->subMonth()->format('Y-m');

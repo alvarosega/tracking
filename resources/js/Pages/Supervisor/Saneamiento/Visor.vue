@@ -1170,12 +1170,33 @@
       <div class="bg-white border-t border-slate-300 shrink-0 z-20 flex flex-col transition-all">
         <!-- Cabecera de la Barra de Cambios -->
         <div class="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
-              Cambios y Propuestas RTM
+              Matriz de Clientes y Propuestas RTM
             </span>
+
+            <!-- Selector de vista en matriz inferior: Solo Cambios vs Todos los Clientes -->
+            <div class="flex items-center bg-slate-200/80 p-0.5 rounded-md font-mono text-[10px]">
+              <button
+                type="button"
+                @click="filtroMatrizInferior = 'cambios'"
+                class="px-2 py-0.5 rounded transition-all cursor-pointer"
+                :class="filtroMatrizInferior === 'cambios' ? 'bg-white font-bold text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              >
+                Con Cambios ({{ clientesConCambio.length }})
+              </button>
+              <button
+                type="button"
+                @click="filtroMatrizInferior = 'todos'"
+                class="px-2 py-0.5 rounded transition-all cursor-pointer"
+                :class="filtroMatrizInferior === 'todos' ? 'bg-white font-bold text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+              >
+                Todos los Clientes ({{ clientes.length }})
+              </button>
+            </div>
+
             <span
-              v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original'"
+              v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original' && filtroMatrizInferior === 'cambios'"
               class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300"
             >
               Base Original Activa ({{ kpis.total_propuestas || kpis.con_cambios }} propuestas registradas)
@@ -1184,17 +1205,17 @@
               v-else
               class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700"
             >
-              {{ clientesConCambio.length }} modificaciones en vista
+              {{ clientesConCambioFiltrados.length }} clientes en vista
             </span>
           </div>
 
           <div class="flex items-center gap-2">
-            <!-- Buscador interno de cambios si hay más de 3 -->
+            <!-- Buscador interno de la matriz inferior -->
             <input
-              v-if="clientesConCambio.length > 3 && tablaCambiosVisible"
+              v-if="clientesMatrizInferior.length > 3 && tablaCambiosVisible"
               v-model="busquedaTablaCambios"
               type="text"
-              placeholder="Filtrar cambios..."
+              placeholder="Filtrar por cliente, ID o ruta..."
               class="h-6 px-2 text-[11px] bg-white border border-slate-300 rounded font-mono placeholder:text-slate-400 focus:outline-none"
             />
 
@@ -1221,9 +1242,9 @@
 
         <!-- Contenido de la Tabla (Desplegable) -->
         <div v-show="tablaCambiosVisible" class="max-h-52 overflow-y-auto custom-scroll">
-          <!-- Mensaje cuando estamos en Base Original -->
+          <!-- Mensaje cuando estamos en Base Original y filtro de cambios -->
           <div
-            v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original'"
+            v-if="modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original' && filtroMatrizInferior === 'cambios'"
             class="py-4 px-4 text-center text-xs text-slate-500 font-sans flex flex-col items-center justify-center gap-1.5"
           >
             <div>
@@ -1232,22 +1253,41 @@
                 Se registran <strong>{{ kpis.total_propuestas || kpis.con_cambios }}</strong> propuesta(s) para esta selección.
               </span>
             </div>
-            <button
-              v-if="(kpis.total_propuestas || kpis.con_cambios) > 0"
-              type="button"
-              @click="setSubModoVisualizacion('cambios')"
-              class="mt-1 px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Ver y Gestionar Propuestas en Modo "Con Cambios"
-            </button>
+            <div class="flex items-center gap-2 mt-1">
+              <button
+                v-if="(kpis.total_propuestas || kpis.con_cambios) > 0"
+                type="button"
+                @click="setSubModoVisualizacion('cambios')"
+                class="px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Ver y Gestionar Propuestas en Modo "Con Cambios"
+              </button>
+              <button
+                type="button"
+                @click="filtroMatrizInferior = 'todos'"
+                class="px-3 py-1 bg-white border border-slate-300 text-slate-700 rounded text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Ver Todos los Clientes ({{ clientes.length }})
+              </button>
+            </div>
           </div>
 
-          <!-- Mensaje cuando no hay cambios en modo cambios -->
+          <!-- Mensaje cuando no hay registros para mostrar -->
           <div
-            v-else-if="clientesConCambio.length === 0"
-            class="py-6 px-4 text-center text-xs text-slate-400 font-sans"
+            v-else-if="clientesMatrizInferior.length === 0"
+            class="py-6 px-4 text-center text-xs text-slate-400 font-sans flex flex-col items-center justify-center gap-1.5"
           >
-            No se registran cambios o propuestas de ruteo en la selección actual. Al ajustar rutas o días en el mapa, los cambios se listarán aquí.
+            <div>
+              No se registran cambios o propuestas de ruteo en la selección actual. Al ajustar rutas o días en el mapa, los cambios se listarán aquí.
+            </div>
+            <button
+              v-if="clientes.length > 0 && filtroMatrizInferior === 'cambios'"
+              type="button"
+              @click="filtroMatrizInferior = 'todos'"
+              class="mt-1 px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Ver todos los {{ clientes.length }} clientes de la selección con sus históricos de venta
+            </button>
           </div>
 
           <table v-else class="w-full text-left text-xs border-collapse">
@@ -1257,6 +1297,31 @@
                 <th class="py-1.5 px-3 font-bold">Cliente</th>
                 <th class="py-1.5 px-3 font-bold">Ruta Anterior -> Nueva</th>
                 <th class="py-1.5 px-3 font-bold">Día Anterior -> Nuevo</th>
+                <!-- 4 Columnas de Históricos de Cliente -->
+                <th class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-sky-50/50 border-l border-slate-200">
+                  <div title="Ventas acumuladas en el mes actual">Acum. Mes Act.</div>
+                  <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
+                    ({{ periodosHistoricos.mes_actual.corto }})
+                  </div>
+                </th>
+                <th class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50">
+                  <div title="Ventas acumuladas en el mes anterior">Acum. Mes Ant.</div>
+                  <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                    ({{ periodosHistoricos.mes_anterior.corto }})
+                  </div>
+                </th>
+                <th class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-sky-50/50">
+                  <div title="Frecuencia de pedidos en el mes actual">Frec. Mes Act.</div>
+                  <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
+                    ({{ periodosHistoricos.mes_actual.corto }})
+                  </div>
+                </th>
+                <th class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-slate-100/50 border-r border-slate-200">
+                  <div title="Frecuencia de pedidos en el mes anterior">Frec. Mes Ant.</div>
+                  <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                    ({{ periodosHistoricos.mes_anterior.corto }})
+                  </div>
+                </th>
                 <th class="py-1.5 px-3 font-bold">Tipo Ajuste</th>
                 <th class="py-1.5 px-3 font-bold">Observación</th>
                 <th class="py-1.5 px-3 font-bold text-right">Acciones</th>
@@ -1305,6 +1370,47 @@
                     <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
                   </template>
                 </td>
+
+                <!-- 1. Acumulado Mes Actual -->
+                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-sky-50/20 border-l border-slate-100">
+                  <span
+                    class="font-semibold text-xs"
+                    :class="(c.venta_mes_actual || 0) > 0 ? 'text-slate-900' : 'text-slate-300'"
+                  >
+                    {{ formatearMoneda(c.venta_mes_actual || 0) }}
+                  </span>
+                </td>
+
+                <!-- 2. Acumulado Mes Anterior -->
+                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
+                  <span
+                    class="font-semibold text-xs"
+                    :class="(c.venta_mes_anterior || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
+                  >
+                    {{ formatearMoneda(c.venta_mes_anterior || 0) }}
+                  </span>
+                </td>
+
+                <!-- 3. Frecuencia de Compra Mes Actual -->
+                <td class="py-2 px-3 text-center font-mono whitespace-nowrap bg-sky-50/20">
+                  <span
+                    class="px-2 py-0.5 rounded text-[11px] font-bold"
+                    :class="(c.frecuencia_mes_actual || 0) > 0 ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-slate-100 text-slate-400 border border-slate-200'"
+                  >
+                    {{ c.frecuencia_mes_actual || 0 }}
+                  </span>
+                </td>
+
+                <!-- 4. Frecuencia de Compra Mes Anterior -->
+                <td class="py-2 px-3 text-center font-mono whitespace-nowrap bg-slate-50/30 border-r border-slate-100">
+                  <span
+                    class="px-2 py-0.5 rounded text-[11px] font-bold"
+                    :class="(c.frecuencia_mes_anterior || 0) > 0 ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-50 text-slate-300 border border-slate-200'"
+                  >
+                    {{ c.frecuencia_mes_anterior || 0 }}
+                  </span>
+                </td>
+
                 <td class="py-2 px-3 whitespace-nowrap font-mono">
                   <div class="flex items-center gap-1">
                     <span
@@ -2286,18 +2392,29 @@ const elementosLeyenda = computed(() => {
 // ── TABLA INFERIOR DE REGISTRO DE CAMBIOS ──
 const tablaCambiosVisible = ref(true);
 const busquedaTablaCambios = ref('');
+const filtroMatrizInferior = ref('cambios'); // 'cambios' | 'todos'
+
+const periodosHistoricos = ref({
+  mes_actual: { nombre: 'Mes Actual', corto: 'Mes Act.' },
+  mes_anterior: { nombre: 'Mes Anterior', corto: 'Mes Ant.' },
+});
 
 const clientesConCambio = computed(() => {
-  if (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original') {
-    return [];
-  }
   return clientes.value.filter(c => Boolean(c.tiene_cambio) || Boolean(c.tiene_propuesta));
 });
 
+const clientesMatrizInferior = computed(() => {
+  if (filtroMatrizInferior.value === 'todos') {
+    return clientes.value;
+  }
+  return clientesConCambio.value;
+});
+
 const clientesConCambioFiltrados = computed(() => {
-  if (!busquedaTablaCambios.value.trim()) return clientesConCambio.value;
+  const lista = clientesMatrizInferior.value;
+  if (!busquedaTablaCambios.value.trim()) return lista;
   const q = busquedaTablaCambios.value.toLowerCase();
-  return clientesConCambio.value.filter(c =>
+  return lista.filter(c =>
     (c.nombre && c.nombre.toLowerCase().includes(q)) ||
     (c.cliente_id && String(c.cliente_id).includes(q)) ||
     (c.ruta && c.ruta.toLowerCase().includes(q)) ||
@@ -2453,6 +2570,32 @@ async function cargarDatos(mantenerVista = false) {
     fronterasRutas.value = res.data.fronteras_rutas || [];
     fronterasDias.value = res.data.fronteras_dias || [];
     kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
+    if (res.data.periodos_historicos) {
+      periodosHistoricos.value = res.data.periodos_historicos;
+    }
+
+    // Cachear métricas de ventas precargadas para acceso instantáneo
+    clientes.value.forEach(c => {
+      if (c.cliente_id && c.venta_mes_actual !== undefined) {
+        kpisVentasCache.set(c.cliente_id, {
+          cliente_id: c.cliente_id,
+          mes_actual: {
+            periodo: periodosHistoricos.value.mes_actual?.periodo,
+            nombre: periodosHistoricos.value.mes_actual?.nombre || 'Mes Actual',
+            monto_acumulado: c.venta_mes_actual || 0,
+            frecuencia_compra: c.frecuencia_mes_actual || 0,
+            dias_compra: 0,
+          },
+          mes_anterior: {
+            periodo: periodosHistoricos.value.mes_anterior?.periodo,
+            nombre: periodosHistoricos.value.mes_anterior?.nombre || 'Mes Anterior',
+            monto_acumulado: c.venta_mes_anterior || 0,
+            frecuencia_compra: c.frecuencia_mes_anterior || 0,
+            dias_compra: 0,
+          },
+        });
+      }
+    });
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
 
@@ -2745,6 +2888,31 @@ async function obtenerKpisVentasCliente(clienteId) {
   if (kpisVentasCache.has(clienteId)) {
     return kpisVentasCache.get(clienteId);
   }
+
+  // Verificar si ya viene precargado en clientes
+  const cli = clientes.value.find(c => c.cliente_id == clienteId);
+  if (cli && cli.venta_mes_actual !== undefined) {
+    const kpiObj = {
+      cliente_id: clienteId,
+      mes_actual: {
+        periodo: periodosHistoricos.value.mes_actual?.periodo,
+        nombre: periodosHistoricos.value.mes_actual?.nombre || 'Mes Actual',
+        monto_acumulado: cli.venta_mes_actual || 0,
+        frecuencia_compra: cli.frecuencia_mes_actual || 0,
+        dias_compra: 0,
+      },
+      mes_anterior: {
+        periodo: periodosHistoricos.value.mes_anterior?.periodo,
+        nombre: periodosHistoricos.value.mes_anterior?.nombre || 'Mes Anterior',
+        monto_acumulado: cli.venta_mes_anterior || 0,
+        frecuencia_compra: cli.frecuencia_mes_anterior || 0,
+        dias_compra: 0,
+      },
+    };
+    kpisVentasCache.set(clienteId, kpiObj);
+    return kpiObj;
+  }
+
   try {
     const url = typeof route === 'function'
       ? route('supervisor.saneamiento.visor.cliente.kpis-ventas', { clienteId })

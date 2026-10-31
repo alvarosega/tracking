@@ -6,6 +6,7 @@ use App\Models\Supervisor\FronteraDia;
 use App\Models\Supervisor\FronteraRuta;
 use App\Models\Supervisor\PanRuteo;
 use App\Models\Supervisor\Ruta;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class GetRuteoDataAction
@@ -126,6 +127,76 @@ class GetRuteoDataAction
             'estado', 'ruta', 'dia_norm'
         ])->get();
 
+        // 3. Consulta agregada de métricas históricas de fact_ventas (Mes actual y mes anterior)
+        $now = Carbon::now();
+        try {
+            $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
+            if ($maxFecha) {
+                $now = Carbon::parse($maxFecha);
+            }
+        } catch (\Throwable $e) {
+            // Silenciar si fact_ventas falla temporalmente
+        }
+
+        $mesActualPeriodo = $now->format('Y-m');
+        $mesAnteriorPeriodo = $now->copy()->subMonth()->format('Y-m');
+        $inicioMesAnterior = $now->copy()->subMonth()->startOfMonth()->toDateString();
+        $finMesActual = $now->copy()->endOfMonth()->toDateString();
+
+        $mesesEspanol = [
+            '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
+            '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto',
+            '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre',
+        ];
+        $mesesCorto = [
+            '01' => 'Ene', '02' => 'Feb', '03' => 'Mar', '04' => 'Abr',
+            '05' => 'May', '06' => 'Jun', '07' => 'Jul', '08' => 'Ago',
+            '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Dic',
+        ];
+
+        $nombreMesActual = ($mesesEspanol[$now->format('m')] ?? 'Mes Actual') . ' ' . $now->format('Y');
+        $mesAntObj = $now->copy()->subMonth();
+        $nombreMesAnterior = ($mesesEspanol[$mesAntObj->format('m')] ?? 'Mes Anterior') . ' ' . $mesAntObj->format('Y');
+
+        $cortoMesActual = ($mesesCorto[$now->format('m')] ?? 'Act.') . ' ' . $now->format('y');
+        $cortoMesAnterior = ($mesesCorto[$mesAntObj->format('m')] ?? 'Ant.') . ' ' . $mesAntObj->format('y');
+
+        $cidsTodos = $clientesRaw->pluck('cliente_id')->filter()->unique()->values()->all();
+        $ventasMap = [];
+
+        if (!empty($cidsTodos)) {
+            try {
+                foreach (array_chunk($cidsTodos, 1000) as $chunkIds) {
+                    $ventasRows = DB::connection('supervisor')->table('fact_ventas')
+                        ->whereIn('cliente_id', $chunkIds)
+                        ->whereBetween('fecha_norm', [$inicioMesAnterior, $finMesActual])
+                        ->where(function ($q) {
+                            $q->whereNull('revertida')
+                              ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
+                        })
+                        ->select([
+                            'cliente_id',
+                            DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as periodo"),
+                            DB::raw("COALESCE(SUM(monto_final), 0) as monto_acumulado"),
+                            DB::raw("COUNT(DISTINCT COALESCE(NULLIF(nro_factura, ''), venta_id)) as frecuencia_compra"),
+                        ])
+                        ->groupBy('cliente_id', DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
+                        ->get();
+
+                    foreach ($ventasRows as $vr) {
+                        $cid = (int) $vr->cliente_id;
+                        $periodo = (string) $vr->periodo;
+                        $ventasMap[$cid][$periodo] = [
+                            'monto' => round((float) ($vr->monto_acumulado ?? 0.0), 2),
+                            'frecuencia' => (int) ($vr->frecuencia_compra ?? 0),
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silenciar si fact_ventas no está accesible
+            }
+        }
+
         $kpis = [
             'total' => 0,
             'con_gps' => 0,
@@ -141,6 +212,9 @@ class GetRuteoDataAction
             $cid = (int)$c->cliente_id;
             $prop = $propuestasMap[$cid] ?? null;
             $tienePropuesta = ($prop !== null);
+
+            $vActual = $ventasMap[$cid][$mesActualPeriodo] ?? ['monto' => 0.0, 'frecuencia' => 0];
+            $vAnterior = $ventasMap[$cid][$mesAnteriorPeriodo] ?? ['monto' => 0.0, 'frecuencia' => 0];
 
             $rutaOriginal = strtoupper(trim((string)$c->ruta));
             $diaOriginal = strtoupper(trim((string)$c->dia_norm));
@@ -218,6 +292,12 @@ class GetRuteoDataAction
                 'observaciones_propuesta' => $prop ? (string)$prop->observaciones : null,
                 'estado' => $c->estado ?? 'Activo',
                 'tiene_gps' => $tieneGps,
+
+                // Métricas históricas de ventas (fact_ventas)
+                'venta_mes_actual' => (float) ($vActual['monto'] ?? 0.0),
+                'venta_mes_anterior' => (float) ($vAnterior['monto'] ?? 0.0),
+                'frecuencia_mes_actual' => (int) ($vActual['frecuencia'] ?? 0),
+                'frecuencia_mes_anterior' => (int) ($vAnterior['frecuencia'] ?? 0),
             ];
         }
 
@@ -275,6 +355,18 @@ class GetRuteoDataAction
             'fronteras_rutas' => $fronterasRutas,
             'fronteras_dias' => $fronterasDias,
             'kpis' => $kpis,
+            'periodos_historicos' => [
+                'mes_actual' => [
+                    'periodo' => $mesActualPeriodo,
+                    'nombre' => $nombreMesActual,
+                    'corto' => $cortoMesActual,
+                ],
+                'mes_anterior' => [
+                    'periodo' => $mesAnteriorPeriodo,
+                    'nombre' => $nombreMesAnterior,
+                    'corto' => $cortoMesAnterior,
+                ],
+            ],
         ];
     }
 }
