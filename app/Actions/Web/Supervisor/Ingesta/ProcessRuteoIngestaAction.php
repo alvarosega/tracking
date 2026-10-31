@@ -227,11 +227,6 @@ class ProcessRuteoIngestaAction
         $totalBdAnterior = count($clientesEnBd);
         $totalClientesArchivo = count($clientesEnArchivo);
 
-        // Carga Completa (Reemplazo Maestro) vs Carga Parcial (Sincronización/Upsert Seguro)
-        // Se considera Carga Completa si la BD previa está vacía/pequeña (<100) o si el archivo
-        // contiene al menos el 70% del universo de clientes existente.
-        $esCargaCompleta = ($totalBdAnterior < 100) || ($totalClientesArchivo >= ($totalBdAnterior * 0.70));
-
         $registrosAuditoria = [];
         $altasCnt = 0;
         $modificadosCnt = 0;
@@ -260,31 +255,29 @@ class ProcessRuteoIngestaAction
             }
         } else {
             // Modo Diferencial
-            // B1. Clientes Desaparecidos (en previos pero no en entrantes)
-            if ($esCargaCompleta) {
-                foreach ($cidsBd as $cid) {
-                    if (!isset($setArch[$cid])) {
-                        $eliminadosCnt++;
-                        foreach ($clientesEnBd[$cid] as $prev) {
-                            $registrosAuditoria[] = [
-                                'archivo_origen' => $filename,
-                                'cliente_id' => $cid,
-                                'cliente' => (string) ($prev['cliente'] ?? ''),
-                                'tipo_evento' => 'ELIMINADO',
-                                'campo_afectado' => 'cliente_baja_total',
-                                'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
-                                'valor_nuevo' => 'Desaparecido de Ruteo',
-                                'fecha_auditoria' => $fechaOperativa,
-                                'estado_auditoria' => 'PENDIENTE',
-                                'observaciones' => 'Baja total de cliente. Eliminado de la cartera comercial.',
-                                'auditado_por' => 'SISTEMA_INGESTA_WEB',
-                            ];
-                        }
+            // B1. Clientes Desaparecidos (Bajas de Cartera)
+            foreach ($cidsBd as $cid) {
+                if (!isset($setArch[$cid])) {
+                    $eliminadosCnt++;
+                    foreach ($clientesEnBd[$cid] as $prev) {
+                        $registrosAuditoria[] = [
+                            'archivo_origen' => $filename,
+                            'cliente_id' => $cid,
+                            'cliente' => (string) ($prev['cliente'] ?? ''),
+                            'tipo_evento' => 'ELIMINADO',
+                            'campo_afectado' => 'cliente_baja_total',
+                            'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
+                            'valor_nuevo' => 'Desaparecido de Ruteo',
+                            'fecha_auditoria' => $fechaOperativa,
+                            'estado_auditoria' => 'PENDIENTE',
+                            'observaciones' => 'Baja total de cliente. Eliminado de la cartera comercial.',
+                            'auditado_por' => 'SISTEMA_INGESTA_WEB',
+                        ];
                     }
                 }
             }
 
-            // B2. Clientes Nuevos (en entrantes pero no en previos)
+            // B2. Clientes Nuevos (Altas de Cartera)
             foreach ($cidsArchivo as $cid) {
                 if (!isset($setBd[$cid])) {
                     $altasCnt++;
@@ -353,39 +346,17 @@ class ProcessRuteoIngestaAction
             }
         }
 
-        // 3. Actualización de pan_ruteo
-        if ($esCargaCompleta) {
-            // Reemplazo Atómico Transaccional Completo
-            $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
-                $conn->table('pan_ruteo')->delete();
+        // 3. Reemplazo Atómico Transaccional Completo de pan_ruteo
+        $conn->transaction(function () use ($conn, $registrosVivos, $chunkSize) {
+            $conn->table('pan_ruteo')->delete();
 
-                if (!empty($registrosVivos)) {
-                    $chunksVivos = array_chunk($registrosVivos, $chunkSize);
-                    foreach ($chunksVivos as $chunk) {
-                        $conn->table('pan_ruteo')->insert($chunk);
-                    }
+            if (!empty($registrosVivos)) {
+                $chunksVivos = array_chunk($registrosVivos, $chunkSize);
+                foreach ($chunksVivos as $chunk) {
+                    $conn->table('pan_ruteo')->insert($chunk);
                 }
-            });
-        } else {
-            // Sincronización / Upsert Parcial Seguro:
-            // Borra solo las visitas de los clientes presentes en el archivo y reinserta sus nuevas visitas,
-            // preservando intactos todos los demás clientes de pan_ruteo.
-            $conn->transaction(function () use ($conn, $cidsArchivo, $registrosVivos, $chunkSize) {
-                if (!empty($cidsArchivo)) {
-                    $chunksCids = array_chunk($cidsArchivo, 500);
-                    foreach ($chunksCids as $chunkCid) {
-                        $conn->table('pan_ruteo')->whereIn('cliente_id', $chunkCid)->delete();
-                    }
-                }
-
-                if (!empty($registrosVivos)) {
-                    $chunksVivos = array_chunk($registrosVivos, $chunkSize);
-                    foreach ($chunksVivos as $chunk) {
-                        $conn->table('pan_ruteo')->insert($chunk);
-                    }
-                }
-            });
-        }
+            }
+        });
 
         // 4. Registrar Bitácora en sys_cargas
         $totalVivos = count($registrosVivos);
