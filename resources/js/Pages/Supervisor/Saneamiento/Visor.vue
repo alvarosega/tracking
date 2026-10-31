@@ -618,7 +618,7 @@
 
                 <button
                   type="button"
-                  @click="modoAgregarVertice = !modoAgregarVertice"
+                  @click="modoAgregarVertice = !modoAgregarVertice; if (!modoAgregarVertice) ocultarIndicadorSnap();"
                   class="h-7 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border"
                   :class="modoAgregarVertice ? 'bg-sky-600 text-white border-sky-700 animate-pulse' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'"
                   :title="modoAgregarVertice ? 'Haz clic en cualquier punto del mapa para agregar un vértice' : 'Activar modo clic en mapa para agregar punto'"
@@ -628,6 +628,26 @@
                   </svg>
                   <span>{{ modoAgregarVertice ? 'Clic en mapa...' : '+ Punto' }}</span>
                 </button>
+
+                <button
+                  type="button"
+                  @click="snapProximidadActivado = !snapProximidadActivado; if (!snapProximidadActivado) ocultarIndicadorSnap();"
+                  class="h-7 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border"
+                  :class="snapProximidadActivado ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-bold' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'"
+                  :title="snapProximidadActivado ? 'Detector de proximidad activo: Los vértices se adhieren magnéticamente a fronteras de rutas vecinas' : 'Detector de proximidad desactivado'"
+                >
+                  <svg class="w-3.5 h-3.5" :class="snapProximidadActivado ? 'text-emerald-600' : 'text-slate-400'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4v7a8 8 0 0 0 16 0V4" />
+                    <path d="M4 8h5" />
+                    <path d="M15 8h5" />
+                  </svg>
+                  <span>{{ snapProximidadActivado ? 'Imán Proximidad: ON' : 'Imán: OFF' }}</span>
+                </button>
+
+                <span v-if="textoSnapActivo" class="text-xs font-semibold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2.5 py-1 rounded-md shadow-2xs flex items-center gap-1 animate-pulse">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>{{ textoSnapActivo }}</span>
+                </span>
 
                 <button
                   type="button"
@@ -2194,6 +2214,10 @@ const rutaParaAjustarFrontera = ref('');
 const editandoVertices = ref(false);
 const guardandoFrontera = ref(false);
 const modoAgregarVertice = ref(false);
+const snapProximidadActivado = ref(true);
+const textoSnapActivo = ref('');
+let markerIndicadorSnap = null;
+let geometriasVecinasCache = { vertices: [], segmentos: [] };
 let markersVertices = [];
 let markersPuntosIntermedios = [];
 let poligonoEnEdicion = null;
@@ -3175,7 +3199,7 @@ async function ejecutarReasignacionMasiva() {
   }
 }
 
-// ── LÓGICA DE EDICIÓN Y AJUSTE DE FRONTERAS RTM ──
+// ── LÓGICA DE EDICIÓN Y AJUSTE DE FRONTERAS RTM CON DETECTOR DE PROXIMIDAD (SNAPPING) ──
 
 function alCambiarRutaParaFrontera() {
   cancelarEdicionVertices();
@@ -3193,6 +3217,192 @@ function alCambiarRutaParaFrontera() {
   }
 }
 
+function extraerPuntosDeGeoJSON(geojson) {
+  if (!geojson || !geojson.coordinates) return [];
+  const anillos = [];
+  if (geojson.type === 'Polygon') {
+    (geojson.coordinates || []).forEach(ring => {
+      if (Array.isArray(ring)) {
+        anillos.push(ring.map(c => [Number(c[1]), Number(c[0])]));
+      }
+    });
+  } else if (geojson.type === 'MultiPolygon') {
+    (geojson.coordinates || []).forEach(poly => {
+      if (Array.isArray(poly)) {
+        poly.forEach(ring => {
+          if (Array.isArray(ring)) {
+            anillos.push(ring.map(c => [Number(c[1]), Number(c[0])]));
+          }
+        });
+      }
+    });
+  }
+  return anillos;
+}
+
+function obtenerGeometriasVecinasParaSnapping() {
+  const rutaActual = (rutaParaAjustarFrontera.value || '').trim().toUpperCase();
+  const vertices = [];
+  const segmentos = [];
+
+  (fronterasRutas.value || []).forEach(fr => {
+    const rKey = (fr.ruta || '').trim().toUpperCase();
+    if (!rKey || rKey === rutaActual) return;
+    if (!fr.geojson) return;
+
+    const anillos = extraerPuntosDeGeoJSON(fr.geojson);
+    anillos.forEach(anillo => {
+      if (!anillo || anillo.length < 2) return;
+
+      let pts = anillo;
+      if (pts.length > 2) {
+        const primer = pts[0];
+        const ultimo = pts[pts.length - 1];
+        if (Math.abs(primer[0] - ultimo[0]) < 1e-7 && Math.abs(primer[1] - ultimo[1]) < 1e-7) {
+          pts = pts.slice(0, pts.length - 1);
+        }
+      }
+
+      pts.forEach(p => {
+        vertices.push({ lat: p[0], lng: p[1], ruta: fr.ruta });
+      });
+
+      for (let i = 0; i < pts.length; i++) {
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % pts.length];
+        segmentos.push({
+          p1: { lat: p1[0], lng: p1[1] },
+          p2: { lat: p2[0], lng: p2[1] },
+          ruta: fr.ruta,
+        });
+      }
+    });
+  });
+
+  return { vertices, segmentos };
+}
+
+function actualizarCacheGeometriasVecinas() {
+  geometriasVecinasCache = obtenerGeometriasVecinasParaSnapping();
+}
+
+function proyectarPuntoEnSegmentoPixel(p, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+
+  if (lenSq === 0) {
+    const dist = Math.hypot(p.x - a.x, p.y - a.y);
+    return { x: a.x, y: a.y, distPx: dist };
+  }
+
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+  const projX = a.x + t * dx;
+  const projY = a.y + t * dy;
+  const dist = Math.hypot(p.x - projX, p.y - projY);
+
+  return { x: projX, y: projY, distPx: dist };
+}
+
+const SNAP_VERTEX_TOLERANCE_PX = 20;
+const SNAP_EDGE_TOLERANCE_PX = 14;
+
+function detectarSnappingProximidad(latlng) {
+  if (!map || !snapProximidadActivado.value) {
+    return { snapped: false, latlng: latlng };
+  }
+
+  const pMousePx = map.latLngToLayerPoint(latlng);
+  const { vertices, segmentos } = geometriasVecinasCache;
+
+  let mejorSnap = null;
+  let menorDistanciaPx = Infinity;
+
+  // 1. Prioridad: Vértices de rutas vecinas (Snap exacto a nodo)
+  for (let i = 0; i < vertices.length; i++) {
+    const v = vertices[i];
+    const vPx = map.latLngToLayerPoint([v.lat, v.lng]);
+    const distPx = Math.hypot(pMousePx.x - vPx.x, pMousePx.y - vPx.y);
+
+    if (distPx <= SNAP_VERTEX_TOLERANCE_PX && distPx < menorDistanciaPx) {
+      menorDistanciaPx = distPx;
+      mejorSnap = {
+        snapped: true,
+        tipo: 'vertice',
+        latlng: L.latLng(v.lat, v.lng),
+        ruta: v.ruta,
+        distPx: distPx,
+        etiqueta: `Vértice de ${formatRuta(v.ruta)}`,
+      };
+    }
+  }
+
+  if (mejorSnap) {
+    return mejorSnap;
+  }
+
+  // 2. Segunda prioridad: Bordes / Aristas de rutas vecinas (Snap a la línea divisoria)
+  for (let i = 0; i < segmentos.length; i++) {
+    const seg = segmentos[i];
+    const aPx = map.latLngToLayerPoint([seg.p1.lat, seg.p1.lng]);
+    const bPx = map.latLngToLayerPoint([seg.p2.lat, seg.p2.lng]);
+
+    const projResult = proyectarPuntoEnSegmentoPixel(pMousePx, aPx, bPx);
+    if (projResult.distPx <= SNAP_EDGE_TOLERANCE_PX && projResult.distPx < menorDistanciaPx) {
+      menorDistanciaPx = projResult.distPx;
+      const snappedLatLng = map.layerPointToLatLng(L.point(projResult.x, projResult.y));
+      mejorSnap = {
+        snapped: true,
+        tipo: 'arista',
+        latlng: snappedLatLng,
+        ruta: seg.ruta,
+        distPx: projResult.distPx,
+        etiqueta: `Borde de ${formatRuta(seg.ruta)}`,
+      };
+    }
+  }
+
+  if (mejorSnap) {
+    return mejorSnap;
+  }
+
+  return { snapped: false, latlng: latlng };
+}
+
+function mostrarIndicadorSnap(snapResult) {
+  if (!map || !snapResult.snapped) return;
+
+  textoSnapActivo.value = `Imán: Adherido a ${snapResult.etiqueta}`;
+  const colorSnap = snapResult.tipo === 'vertice' ? '#10B981' : '#06B6D4';
+
+  if (!markerIndicadorSnap) {
+    markerIndicadorSnap = L.circleMarker(snapResult.latlng, {
+      radius: snapResult.tipo === 'vertice' ? 8 : 6,
+      color: '#064E3B',
+      fillColor: colorSnap,
+      fillOpacity: 0.95,
+      weight: 2.5,
+      interactive: false,
+    }).addTo(map);
+  } else {
+    markerIndicadorSnap.setLatLng(snapResult.latlng);
+    markerIndicadorSnap.setStyle({
+      radius: snapResult.tipo === 'vertice' ? 8 : 6,
+      fillColor: colorSnap,
+    });
+    if (!map.hasLayer(markerIndicadorSnap)) {
+      markerIndicadorSnap.addTo(map);
+    }
+  }
+}
+
+function ocultarIndicadorSnap() {
+  textoSnapActivo.value = '';
+  if (markerIndicadorSnap && map && map.hasLayer(markerIndicadorSnap)) {
+    map.removeLayer(markerIndicadorSnap);
+  }
+}
+
 function distanciaPuntoASegmento(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -3206,6 +3416,8 @@ function distanciaPuntoASegmento(px, py, x1, y1, x2, y2) {
 }
 
 function limpiarMarkersVertices() {
+  ocultarIndicadorSnap();
+
   markersVertices.forEach(m => {
     if (map) map.removeLayer(m);
   });
@@ -3225,6 +3437,7 @@ function limpiarMarkersVertices() {
 function cancelarEdicionVertices() {
   editandoVertices.value = false;
   modoAgregarVertice.value = false;
+  ocultarIndicadorSnap();
   limpiarMarkersVertices();
   renderizarEnMapa(true);
 }
@@ -3248,6 +3461,7 @@ function activarEdicionVertices() {
     return;
   }
 
+  actualizarCacheGeometriasVecinas();
   editandoVertices.value = true;
   crearCapaEdicionPoligono(true);
 }
@@ -3271,6 +3485,7 @@ function generarConvexHullRuta() {
   }
 
   coordsPoligonoEnEdicion.value = hull;
+  actualizarCacheGeometriasVecinas();
   editandoVertices.value = true;
   crearCapaEdicionPoligono(true);
 }
@@ -3307,20 +3522,31 @@ function agregarVerticeEnCoordenada(clickLat, clickLng) {
   const coords = coordsPoligonoEnEdicion.value;
   if (coords.length < 3) return;
 
+  let targetLat = clickLat;
+  let targetLng = clickLng;
+
+  if (snapProximidadActivado.value) {
+    const snap = detectarSnappingProximidad(L.latLng(clickLat, clickLng));
+    if (snap.snapped) {
+      targetLat = snap.latlng.lat;
+      targetLng = snap.latlng.lng;
+    }
+  }
+
   let mejorIndice = coords.length;
   let distMinima = Infinity;
 
   for (let i = 0; i < coords.length; i++) {
     const p1 = coords[i];
     const p2 = coords[(i + 1) % coords.length];
-    const dist = distanciaPuntoASegmento(clickLat, clickLng, p1[0], p1[1], p2[0], p2[1]);
+    const dist = distanciaPuntoASegmento(targetLat, targetLng, p1[0], p1[1], p2[0], p2[1]);
     if (dist < distMinima) {
       distMinima = dist;
       mejorIndice = i + 1;
     }
   }
 
-  coordsPoligonoEnEdicion.value.splice(mejorIndice, 0, [clickLat, clickLng]);
+  coordsPoligonoEnEdicion.value.splice(mejorIndice, 0, [targetLat, targetLng]);
   mostrarToast(`Vértice agregado en la línea (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
   crearCapaEdicionPoligono(false);
 }
@@ -3376,7 +3602,7 @@ function crearCapaEdicionPoligono(centrar = false) {
     marker.bindTooltip(`
       <div style="font-family: inherit; font-size: 11px; text-align: center;">
         <b>Vértice #${idx + 1}</b><br>
-        <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover</span><br>
+        <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover (Imán activo)</span><br>
         <span style="font-size: 9.5px; color: #DC2626; font-weight: bold;">Clic derecho o doble clic para eliminar</span>
       </div>
     `, { direction: 'top', offset: [0, -6] });
@@ -3406,16 +3632,30 @@ function crearCapaEdicionPoligono(centrar = false) {
       eliminarVertice(idx);
     });
 
-    // Arrastre con mouse en PC
+    // Arrastre con mouse en PC con soporte de imán de proximidad (Snapping)
     marker.on('mousedown', function (e) {
       if (e.originalEvent && e.originalEvent.button !== 0) return;
       L.DomEvent.stopPropagation(e);
       map.dragging.disable();
 
       function onMouseMove(moveEvent) {
-        const latlng = map.mouseEventToLatLng(moveEvent);
-        marker.setLatLng(latlng);
-        coordsPoligonoEnEdicion.value[idx] = [latlng.lat, latlng.lng];
+        const rawLatLng = map.mouseEventToLatLng(moveEvent);
+        let finalLatLng = rawLatLng;
+
+        if (snapProximidadActivado.value) {
+          const snap = detectarSnappingProximidad(rawLatLng);
+          if (snap.snapped) {
+            finalLatLng = snap.latlng;
+            mostrarIndicadorSnap(snap);
+          } else {
+            ocultarIndicadorSnap();
+          }
+        } else {
+          ocultarIndicadorSnap();
+        }
+
+        marker.setLatLng(finalLatLng);
+        coordsPoligonoEnEdicion.value[idx] = [finalLatLng.lat, finalLatLng.lng];
         if (poligonoEnEdicion) {
           poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion.value);
         }
@@ -3425,6 +3665,7 @@ function crearCapaEdicionPoligono(centrar = false) {
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
         map.dragging.enable();
+        ocultarIndicadorSnap();
         crearCapaEdicionPoligono(false);
       }
 
@@ -3432,16 +3673,30 @@ function crearCapaEdicionPoligono(centrar = false) {
       window.addEventListener('mouseup', onMouseUp);
     });
 
-    // Soporte táctil móvil para arrastre
+    // Soporte táctil móvil para arrastre con snapping
     marker.on('touchstart', function (e) {
       L.DomEvent.stopPropagation(e);
       map.dragging.disable();
 
       function onTouchMove(moveEvent) {
         if (!moveEvent.touches || moveEvent.touches.length !== 1) return;
-        const latlng = map.mouseEventToLatLng(moveEvent.touches[0]);
-        marker.setLatLng(latlng);
-        coordsPoligonoEnEdicion.value[idx] = [latlng.lat, latlng.lng];
+        const rawLatLng = map.mouseEventToLatLng(moveEvent.touches[0]);
+        let finalLatLng = rawLatLng;
+
+        if (snapProximidadActivado.value) {
+          const snap = detectarSnappingProximidad(rawLatLng);
+          if (snap.snapped) {
+            finalLatLng = snap.latlng;
+            mostrarIndicadorSnap(snap);
+          } else {
+            ocultarIndicadorSnap();
+          }
+        } else {
+          ocultarIndicadorSnap();
+        }
+
+        marker.setLatLng(finalLatLng);
+        coordsPoligonoEnEdicion.value[idx] = [finalLatLng.lat, finalLatLng.lng];
         if (poligonoEnEdicion) {
           poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion.value);
         }
@@ -3451,6 +3706,7 @@ function crearCapaEdicionPoligono(centrar = false) {
         window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('touchend', onTouchEnd);
         map.dragging.enable();
+        ocultarIndicadorSnap();
         crearCapaEdicionPoligono(false);
       }
 
@@ -4062,11 +4318,30 @@ function initMap() {
   fronterasDiasLayer = L.featureGroup().addTo(map);
   markersLayer = L.featureGroup().addTo(map);
 
+  map.on('mousemove', (e) => {
+    if (editandoVertices.value && modoAgregarVertice.value && snapProximidadActivado.value && e.latlng) {
+      const snap = detectarSnappingProximidad(e.latlng);
+      if (snap.snapped) {
+        mostrarIndicadorSnap(snap);
+      } else {
+        ocultarIndicadorSnap();
+      }
+    }
+  });
+
   map.on('click', (e) => {
     menuAbierto.value = null;
     if (editandoVertices.value && modoAgregarVertice.value && e.latlng) {
-      agregarVerticeEnCoordenada(e.latlng.lat, e.latlng.lng);
+      let targetLatLng = e.latlng;
+      if (snapProximidadActivado.value) {
+        const snap = detectarSnappingProximidad(targetLatLng);
+        if (snap.snapped) {
+          targetLatLng = snap.latlng;
+        }
+      }
+      agregarVerticeEnCoordenada(targetLatLng.lat, targetLatLng.lng);
       modoAgregarVertice.value = false;
+      ocultarIndicadorSnap();
     }
   });
 
@@ -4392,6 +4667,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  ocultarIndicadorSnap();
+  markerIndicadorSnap = null;
   if (typeof window !== 'undefined') {
     delete window.__abrirExpedienteCliente;
     delete window.__abrirModalAjusteRtm;
