@@ -1341,33 +1341,71 @@
                   <div class="text-[10px] text-slate-400 truncate max-w-xs">{{ c.direccion || 'Sin dirección' }}</div>
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
-                  <template v-if="c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase()">
-                    <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }}</span>
-                    <span class="text-slate-400 mx-1.5">-></span>
-                    <span class="font-bold" :style="{ color: getRutaColor(c.ruta) }">
-                      {{ formatRuta(c.ruta) }}
-                    </span>
+                  <!-- Edición directa de Ruta en la fila -->
+                  <template v-if="clienteEnEdicionId === c.id">
+                    <select
+                      v-model="filaEditando.ruta_propuesta"
+                      class="h-7 px-2 bg-white border border-sky-400 rounded text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 max-w-[150px] cursor-pointer"
+                    >
+                      <option v-for="r in rutasDisponiblesParaFronteras" :key="r.ruta" :value="r.ruta">
+                        {{ formatRuta(r.ruta) }}
+                      </option>
+                    </select>
                   </template>
                   <template v-else>
-                    <span class="font-semibold" :style="{ color: getRutaColor(c.ruta) }">
-                      {{ formatRuta(c.ruta) }}
-                    </span>
-                    <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                    <div
+                      class="cursor-pointer group/ruta inline-flex items-center gap-1"
+                      @click="iniciarEdicionFila(c)"
+                      title="Clic para modificar ruta"
+                    >
+                      <template v-if="c.ruta_original && c.ruta_original.toUpperCase() !== c.ruta.toUpperCase()">
+                        <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }}</span>
+                        <span class="text-slate-400 mx-1.5">-></span>
+                        <span class="font-bold underline decoration-dotted underline-offset-2" :style="{ color: getRutaColor(c.ruta) }">
+                          {{ formatRuta(c.ruta) }}
+                        </span>
+                      </template>
+                      <template v-else>
+                        <span class="font-semibold underline decoration-dotted underline-offset-2" :style="{ color: getRutaColor(c.ruta) }">
+                          {{ formatRuta(c.ruta) }}
+                        </span>
+                        <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                      </template>
+                    </div>
                   </template>
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
-                  <template v-if="c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm)">
-                    <span class="line-through text-slate-400">{{ c.dia_original }}</span>
-                    <span class="text-slate-400 mx-1.5">-></span>
-                    <span class="font-bold" :style="{ color: getDiaColor(c.dia_norm) }">
-                      {{ c.dia_norm }}
-                    </span>
+                  <!-- Edición directa de Día en la fila -->
+                  <template v-if="clienteEnEdicionId === c.id">
+                    <select
+                      v-model="filaEditando.dia_propuesto"
+                      class="h-7 px-2 bg-white border border-sky-400 rounded text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                    >
+                      <option v-for="d in diasSemana" :key="d.key" :value="d.label">
+                        {{ d.label }}
+                      </option>
+                    </select>
                   </template>
                   <template v-else>
-                    <span class="font-semibold" :style="{ color: getDiaColor(c.dia_norm) }">
-                      {{ c.dia_norm }}
-                    </span>
-                    <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                    <div
+                      class="cursor-pointer group/dia inline-flex items-center gap-1"
+                      @click="iniciarEdicionFila(c)"
+                      title="Clic para modificar día de visita"
+                    >
+                      <template v-if="c.dia_original && normalizarDiaClave(c.dia_original) !== normalizarDiaClave(c.dia_norm)">
+                        <span class="line-through text-slate-400">{{ c.dia_original }}</span>
+                        <span class="text-slate-400 mx-1.5">-></span>
+                        <span class="font-bold underline decoration-dotted underline-offset-2" :style="{ color: getDiaColor(c.dia_norm) }">
+                          {{ c.dia_norm }}
+                        </span>
+                      </template>
+                      <template v-else>
+                        <span class="font-semibold underline decoration-dotted underline-offset-2" :style="{ color: getDiaColor(c.dia_norm) }">
+                          {{ c.dia_norm }}
+                        </span>
+                        <span class="text-[10px] text-slate-400 ml-1 font-normal">(sin cambio)</span>
+                      </template>
+                    </div>
                   </template>
                 </td>
 
@@ -1377,7 +1415,7 @@
                     class="font-semibold text-xs"
                     :class="(c.venta_mes_actual || 0) > 0 ? 'text-slate-900' : 'text-slate-300'"
                   >
-                    {{ formatearMoneda(c.venta_mes_actual || 0) }}
+                    {{ formatMonto(c.venta_mes_actual || 0) }}
                   </span>
                 </td>
 
@@ -1387,7 +1425,7 @@
                     class="font-semibold text-xs"
                     :class="(c.venta_mes_anterior || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
                   >
-                    {{ formatearMoneda(c.venta_mes_anterior || 0) }}
+                    {{ formatMonto(c.venta_mes_anterior || 0) }}
                   </span>
                 </td>
 
@@ -1443,24 +1481,58 @@
                 <td class="py-2 px-3 text-[11px] text-slate-600 truncate max-w-xs">
                   {{ c.observaciones_propuesta || 'Ajuste dinámico RTM' }}
                 </td>
-                <td class="py-2 px-3 text-right whitespace-nowrap space-x-2">
-                  <button
-                    type="button"
-                    @click="enfocarClienteEnMapa(c)"
-                    class="px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors cursor-pointer"
-                    title="Localizar y ver en mapa"
-                  >
-                    Ver en mapa
-                  </button>
-                  <button
-                    v-if="c.propuesta_id"
-                    type="button"
-                    @click="descartarPropuesta(c)"
-                    class="px-2 py-1 text-[11px] font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                    title="Descartar propuesta y revertir"
-                  >
-                    Descartar
-                  </button>
+                <td class="py-2 px-3 text-right whitespace-nowrap space-x-1.5">
+                  <!-- Si la fila está en edición: Guardar y Cancelar -->
+                  <template v-if="clienteEnEdicionId === c.id">
+                    <button
+                      type="button"
+                      @click="guardarEdicionFila(c)"
+                      :disabled="guardandoEdicionFila"
+                      class="px-2.5 py-1 text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 rounded transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1 shadow-2xs"
+                      title="Guardar propuesta RTM para este cliente"
+                    >
+                      <span v-if="guardandoEdicionFila" class="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin"></span>
+                      <span>{{ guardandoEdicionFila ? 'Guardando...' : 'Guardar' }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      @click="cancelarEdicionFila"
+                      :disabled="guardandoEdicionFila"
+                      class="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                      title="Cancelar edición"
+                    >
+                      Cancelar
+                    </button>
+                  </template>
+
+                  <!-- Si la fila no está en edición -->
+                  <template v-else>
+                    <button
+                      type="button"
+                      @click="iniciarEdicionFila(c)"
+                      class="px-2 py-1 text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded transition-colors cursor-pointer"
+                      title="Modificar ruta y día de visita"
+                    >
+                      Modificar
+                    </button>
+                    <button
+                      type="button"
+                      @click="enfocarClienteEnMapa(c)"
+                      class="px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+                      title="Localizar y ver en mapa"
+                    >
+                      Ver en mapa
+                    </button>
+                    <button
+                      v-if="c.propuesta_id"
+                      type="button"
+                      @click="descartarPropuesta(c)"
+                      class="px-2 py-1 text-[11px] font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                      title="Descartar propuesta y revertir"
+                    >
+                      Descartar
+                    </button>
+                  </template>
                 </td>
               </tr>
             </tbody>
@@ -2422,6 +2494,66 @@ const clientesConCambioFiltrados = computed(() => {
   );
 });
 
+// Edición directa en la matriz inferior de Ajuste RTM
+const clienteEnEdicionId = ref(null);
+const guardandoEdicionFila = ref(false);
+const filaEditando = ref({
+  ruta_propuesta: '',
+  dia_propuesto: '',
+  observaciones: '',
+});
+
+function iniciarEdicionFila(c) {
+  clienteEnEdicionId.value = c.id;
+  const diaOriginalClave = normalizarDiaClave(c.dia_propuesto || c.dia_norm || 'LUNES');
+  const diaEncontrado = diasSemana.find(d => normalizarDiaClave(d.key) === diaOriginalClave || normalizarDiaClave(d.label) === diaOriginalClave);
+  filaEditando.value = {
+    ruta_propuesta: c.ruta_propuesta || c.ruta,
+    dia_propuesto: diaEncontrado ? diaEncontrado.label : (c.dia_propuesto || c.dia_norm || 'LUNES').toUpperCase(),
+    observaciones: c.observaciones_propuesta || 'Ajuste directo desde matriz inferior RTM',
+  };
+}
+
+function cancelarEdicionFila() {
+  clienteEnEdicionId.value = null;
+  filaEditando.value = {
+    ruta_propuesta: '',
+    dia_propuesto: '',
+    observaciones: '',
+  };
+}
+
+async function guardarEdicionFila(c) {
+  if (!filaEditando.value.ruta_propuesta) return;
+  guardandoEdicionFila.value = true;
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.ajustar-rtm')
+      : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+    const res = await axios.post(url, {
+      cliente_id: c.cliente_id || c.id,
+      ruta_propuesta: filaEditando.value.ruta_propuesta,
+      dia_propuesto: filaEditando.value.dia_propuesto || c.dia_norm,
+      observaciones: filaEditando.value.observaciones || 'Ajuste directo desde matriz inferior RTM',
+      aplicar_inmediato: true,
+    });
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || `Ajuste RTM guardado para ${c.nombre}`);
+      clienteEnEdicionId.value = null;
+      await cargarDatos(true);
+    } else {
+      alert(res.data?.message || 'No se pudo guardar el ajuste.');
+    }
+  } catch (err) {
+    console.error('Error al guardar ajuste desde matriz:', err);
+    alert('Error al guardar ajuste: ' + (err.response?.data?.message || err.message));
+  } finally {
+    guardandoEdicionFila.value = false;
+  }
+}
+
 function enfocarClienteEnMapa(c) {
   if (!c || !map) return;
   vistaMovil.value = 'mapa';
@@ -2882,6 +3014,7 @@ function formatMonto(val) {
   const num = typeof val === 'number' ? val : parseFloat(val || 0);
   return 'Bs ' + num.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+const formatearMoneda = formatMonto;
 
 async function obtenerKpisVentasCliente(clienteId) {
   if (!clienteId) return null;
