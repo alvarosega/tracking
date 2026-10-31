@@ -611,9 +611,23 @@
               </button>
 
               <template v-if="editandoVertices">
-                <span class="text-[11px] font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-300">
-                  Arrastra los vértices para ajustar el perímetro
+                <span class="text-[11px] font-mono text-slate-700 bg-white px-2.5 py-0.5 rounded border border-slate-300 flex items-center gap-1.5 shadow-2xs">
+                  <span class="font-bold text-sky-700">{{ coordsPoligonoEnEdicion.length }} vértices:</span>
+                  <span class="hidden lg:inline text-slate-500">Arrastra puntos blancos • Clic en puntos intermedios (+) o en la línea para agregar • Clic derecho o doble clic para eliminar</span>
                 </span>
+
+                <button
+                  type="button"
+                  @click="modoAgregarVertice = !modoAgregarVertice"
+                  class="h-7 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border"
+                  :class="modoAgregarVertice ? 'bg-sky-600 text-white border-sky-700 animate-pulse' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'"
+                  :title="modoAgregarVertice ? 'Haz clic en cualquier punto del mapa para agregar un vértice' : 'Activar modo clic en mapa para agregar punto'"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  <span>{{ modoAgregarVertice ? 'Clic en mapa...' : '+ Punto' }}</span>
+                </button>
 
                 <button
                   type="button"
@@ -2179,9 +2193,11 @@ const mostrarHerramientaFronteras = ref(false);
 const rutaParaAjustarFrontera = ref('');
 const editandoVertices = ref(false);
 const guardandoFrontera = ref(false);
+const modoAgregarVertice = ref(false);
 let markersVertices = [];
+let markersPuntosIntermedios = [];
 let poligonoEnEdicion = null;
-let coordsPoligonoEnEdicion = [];
+const coordsPoligonoEnEdicion = ref([]);
 
 // ── Modal de Ajuste Dinámico de RTM de Cliente ──
 const modalAjusteRtm = ref({
@@ -3177,11 +3193,29 @@ function alCambiarRutaParaFrontera() {
   }
 }
 
+function distanciaPuntoASegmento(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(px - x1, py - y1);
+  }
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
 function limpiarMarkersVertices() {
   markersVertices.forEach(m => {
     if (map) map.removeLayer(m);
   });
   markersVertices = [];
+
+  markersPuntosIntermedios.forEach(m => {
+    if (map) map.removeLayer(m);
+  });
+  markersPuntosIntermedios = [];
+
   if (poligonoEnEdicion && map) {
     map.removeLayer(poligonoEnEdicion);
     poligonoEnEdicion = null;
@@ -3190,6 +3224,7 @@ function limpiarMarkersVertices() {
 
 function cancelarEdicionVertices() {
   editandoVertices.value = false;
+  modoAgregarVertice.value = false;
   limpiarMarkersVertices();
   renderizarEnMapa(true);
 }
@@ -3202,19 +3237,19 @@ function activarEdicionVertices() {
   if (fr && fr.geojson) {
     // GeoJSON almacena [lng, lat]
     const coordsGeo = fr.geojson.coordinates?.[0] || [];
-    coordsPoligonoEnEdicion = coordsGeo.map(pt => [Number(pt[1]), Number(pt[0])]);
+    coordsPoligonoEnEdicion.value = coordsGeo.map(pt => [Number(pt[1]), Number(pt[0])]);
   } else {
     generarConvexHullRuta();
     return;
   }
 
-  if (coordsPoligonoEnEdicion.length < 3) {
+  if (coordsPoligonoEnEdicion.value.length < 3) {
     alert('Se requieren al menos 3 vértices para editar el polígono.');
     return;
   }
 
   editandoVertices.value = true;
-  crearCapaEdicionPoligono();
+  crearCapaEdicionPoligono(true);
 }
 
 function generarConvexHullRuta() {
@@ -3235,9 +3270,9 @@ function generarConvexHullRuta() {
     return;
   }
 
-  coordsPoligonoEnEdicion = hull;
+  coordsPoligonoEnEdicion.value = hull;
   editandoVertices.value = true;
-  crearCapaEdicionPoligono();
+  crearCapaEdicionPoligono(true);
 }
 
 // Algoritmo Convex Hull (Monotone Chain) en JS
@@ -3268,58 +3303,211 @@ function calcularConvexHull(puntos) {
   return lower.concat(upper);
 }
 
-function crearCapaEdicionPoligono() {
-  if (!map || coordsPoligonoEnEdicion.length < 3) return;
+function agregarVerticeEnCoordenada(clickLat, clickLng) {
+  const coords = coordsPoligonoEnEdicion.value;
+  if (coords.length < 3) return;
 
-  const rutaColor = getRutaColor(rutaParaAjustarFrontera.value);
+  let mejorIndice = coords.length;
+  let distMinima = Infinity;
 
-  poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion, {
+  for (let i = 0; i < coords.length; i++) {
+    const p1 = coords[i];
+    const p2 = coords[(i + 1) % coords.length];
+    const dist = distanciaPuntoASegmento(clickLat, clickLng, p1[0], p1[1], p2[0], p2[1]);
+    if (dist < distMinima) {
+      distMinima = dist;
+      mejorIndice = i + 1;
+    }
+  }
+
+  coordsPoligonoEnEdicion.value.splice(mejorIndice, 0, [clickLat, clickLng]);
+  mostrarToast(`Vértice agregado en la línea (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
+  crearCapaEdicionPoligono(false);
+}
+
+function eliminarVertice(idx) {
+  if (coordsPoligonoEnEdicion.value.length <= 3) {
+    alert('Un polígono cerrado requiere un mínimo de 3 vértices. No se pueden quitar más puntos.');
+    return;
+  }
+  if (map) {
+    map.closePopup();
+  }
+  coordsPoligonoEnEdicion.value.splice(idx, 1);
+  mostrarToast(`Vértice #${idx + 1} eliminado (${coordsPoligonoEnEdicion.value.length} vértices restantes).`);
+  crearCapaEdicionPoligono(false);
+}
+
+function crearCapaEdicionPoligono(centrar = false) {
+  if (!map || coordsPoligonoEnEdicion.value.length < 3) return;
+
+  limpiarMarkersVertices();
+
+  poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion.value, {
     color: '#0F172A',
     weight: 3.5,
-    dashArray: '4, 4',
-    fill: false,
-    fillOpacity: 0,
+    dashArray: '5, 5',
+    fillColor: '#0284C7',
+    fillOpacity: 0.08,
   }).addTo(map);
 
-  map.fitBounds(poligonoEnEdicion.getBounds(), { padding: [40, 40] });
+  // Al hacer clic en la línea del polígono: agregar vértice automáticamente
+  poligonoEnEdicion.on('click', function (e) {
+    L.DomEvent.stopPropagation(e);
+    agregarVerticeEnCoordenada(e.latlng.lat, e.latlng.lng);
+  });
 
-  // Crear marcadores interactivos arrastrables en cada vértice
-  coordsPoligonoEnEdicion.forEach((pt, idx) => {
+  if (centrar) {
+    map.fitBounds(poligonoEnEdicion.getBounds(), { padding: [40, 40] });
+  }
+
+  const coords = coordsPoligonoEnEdicion.value;
+
+  // 1. Crear marcadores interactivos en cada vértice principal
+  coords.forEach((pt, idx) => {
     const marker = L.circleMarker(pt, {
-      radius: 6.5,
+      radius: 7,
       color: '#0F172A',
       fillColor: '#FFFFFF',
       fillOpacity: 1,
       weight: 2.5,
     }).addTo(map);
 
-    marker.on('mousedown', function () {
+    marker.bindTooltip(`
+      <div style="font-family: inherit; font-size: 11px; text-align: center;">
+        <b>Vértice #${idx + 1}</b><br>
+        <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover</span><br>
+        <span style="font-size: 9.5px; color: #DC2626; font-weight: bold;">Clic derecho o doble clic para eliminar</span>
+      </div>
+    `, { direction: 'top', offset: [0, -6] });
+
+    marker.bindPopup(`
+      <div style="font-family: inherit; font-size: 11px; text-align: center; padding: 4px;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Vértice #${idx + 1}</div>
+        <button
+          type="button"
+          onclick="window.__eliminarVerticePoligono(${idx})"
+          style="background-color: #EF4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;"
+        >
+          Eliminar vértice
+        </button>
+      </div>
+    `, { offset: [0, -6] });
+
+    // Eliminar con clic derecho
+    marker.on('contextmenu', function (e) {
+      L.DomEvent.stop(e);
+      eliminarVertice(idx);
+    });
+
+    // Eliminar con doble clic
+    marker.on('dblclick', function (e) {
+      L.DomEvent.stop(e);
+      eliminarVertice(idx);
+    });
+
+    // Arrastre con mouse en PC
+    marker.on('mousedown', function (e) {
+      if (e.originalEvent && e.originalEvent.button !== 0) return;
+      L.DomEvent.stopPropagation(e);
       map.dragging.disable();
 
       function onMouseMove(moveEvent) {
-        marker.setLatLng(moveEvent.latlng);
-        coordsPoligonoEnEdicion[idx] = [moveEvent.latlng.lat, moveEvent.latlng.lng];
+        const latlng = map.mouseEventToLatLng(moveEvent);
+        marker.setLatLng(latlng);
+        coordsPoligonoEnEdicion.value[idx] = [latlng.lat, latlng.lng];
         if (poligonoEnEdicion) {
-          poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion);
+          poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion.value);
         }
       }
 
       function onMouseUp() {
-        map.off('mousemove', onMouseMove);
-        map.off('mouseup', onMouseUp);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
         map.dragging.enable();
+        crearCapaEdicionPoligono(false);
       }
 
-      map.on('mousemove', onMouseMove);
-      map.on('mouseup', onMouseUp);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    // Soporte táctil móvil para arrastre
+    marker.on('touchstart', function (e) {
+      L.DomEvent.stopPropagation(e);
+      map.dragging.disable();
+
+      function onTouchMove(moveEvent) {
+        if (!moveEvent.touches || moveEvent.touches.length !== 1) return;
+        const latlng = map.mouseEventToLatLng(moveEvent.touches[0]);
+        marker.setLatLng(latlng);
+        coordsPoligonoEnEdicion.value[idx] = [latlng.lat, latlng.lng];
+        if (poligonoEnEdicion) {
+          poligonoEnEdicion.setLatLngs(coordsPoligonoEnEdicion.value);
+        }
+      }
+
+      function onTouchEnd() {
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        map.dragging.enable();
+        crearCapaEdicionPoligono(false);
+      }
+
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('touchend', onTouchEnd);
     });
 
     markersVertices.push(marker);
   });
+
+  // 2. Crear puntos intermedios (+) en cada segmento para agregar nuevos vértices
+  for (let i = 0; i < coords.length; i++) {
+    const pt1 = coords[i];
+    const pt2 = coords[(i + 1) % coords.length];
+    const midLat = (pt1[0] + pt2[0]) / 2;
+    const midLng = (pt1[1] + pt2[1]) / 2;
+    const insertIdx = i + 1;
+
+    const midMarker = L.circleMarker([midLat, midLng], {
+      radius: 4.5,
+      color: '#0284C7',
+      fillColor: '#38BDF8',
+      fillOpacity: 0.9,
+      weight: 1.5,
+    }).addTo(map);
+
+    midMarker.bindTooltip(`
+      <div style="font-family: inherit; font-size: 10px; text-align: center;">
+        <b style="color: #0284C7;">+ Agregar Vértice</b><br>
+        <span style="color: #64748B;">Clic o arrastra aquí</span>
+      </div>
+    `, { direction: 'top', offset: [0, -4] });
+
+    midMarker.on('click', function (e) {
+      L.DomEvent.stop(e);
+      coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [midLat, midLng]);
+      mostrarToast(`Vértice agregado (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
+      crearCapaEdicionPoligono(false);
+    });
+
+    midMarker.on('mousedown', function (e) {
+      if (e.originalEvent && e.originalEvent.button !== 0) return;
+      L.DomEvent.stopPropagation(e);
+      coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [midLat, midLng]);
+      crearCapaEdicionPoligono(false);
+      const nuevoMarker = markersVertices[insertIdx];
+      if (nuevoMarker) {
+        nuevoMarker.fire('mousedown', e);
+      }
+    });
+
+    markersPuntosIntermedios.push(midMarker);
+  }
 }
 
 async function guardarFronteraRtm() {
-  if (!rutaParaAjustarFrontera.value || coordsPoligonoEnEdicion.length < 3) return;
+  if (!rutaParaAjustarFrontera.value || coordsPoligonoEnEdicion.value.length < 3) return;
   guardandoFrontera.value = true;
 
   try {
@@ -3329,7 +3517,7 @@ async function guardarFronteraRtm() {
 
     const res = await axios.post(url, {
       ruta: rutaParaAjustarFrontera.value,
-      coordenadas: coordsPoligonoEnEdicion,
+      coordenadas: coordsPoligonoEnEdicion.value,
     });
 
     if (res.data?.status === 'ok' || res.data?.frontera_id) {
@@ -3874,8 +4062,12 @@ function initMap() {
   fronterasDiasLayer = L.featureGroup().addTo(map);
   markersLayer = L.featureGroup().addTo(map);
 
-  map.on('click', () => {
+  map.on('click', (e) => {
     menuAbierto.value = null;
+    if (editandoVertices.value && modoAgregarVertice.value && e.latlng) {
+      agregarVerticeEnCoordenada(e.latlng.lat, e.latlng.lng);
+      modoAgregarVertice.value = false;
+    }
   });
 
   setTimeout(() => {
@@ -4168,6 +4360,10 @@ if (typeof window !== 'undefined') {
   window.__guardarPropuestaRtmDesdePopup = (clienteId, domId) => {
     guardarPropuestaRtmDesdePopup(clienteId, domId);
   };
+
+  window.__eliminarVerticePoligono = (idx) => {
+    eliminarVertice(idx);
+  };
 }
 
 onMounted(() => {
@@ -4200,6 +4396,7 @@ onUnmounted(() => {
     delete window.__abrirExpedienteCliente;
     delete window.__abrirModalAjusteRtm;
     delete window.__guardarPropuestaRtmDesdePopup;
+    delete window.__eliminarVerticePoligono;
   }
   if (map) {
     map.remove();
