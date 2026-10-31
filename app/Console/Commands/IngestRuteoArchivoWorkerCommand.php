@@ -22,7 +22,9 @@ class IngestRuteoArchivoWorkerCommand extends Command
     protected $signature = 'ingesta:ruteo-archivo-worker 
                             {path : Ruta absoluta o relativa del archivo} 
                             {--fecha= : Timestamp retroactivo YYYY-MM-DD HH:MM:SS} 
-                            {--baseline : Marca si es el snapshot inicial sin auditoría previa}';
+                            {--baseline : Marca si es el snapshot inicial sin auditoría previa}
+                            {--force-full : Forzar tratamiento como reemplazo maestro completo del padrón}
+                            {--force-partial : Forzar tratamiento como sincronización parcial por ruta/canal}';
 
     /**
      * Descripción del comando en consola.
@@ -279,7 +281,27 @@ class IngestRuteoArchivoWorkerCommand extends Command
         $setPrevios = array_flip($cidsPrevios);
         $setNuevos = array_flip($cidsNuevos);
 
-        $esBaselineEfectivo = $isBaseline || count($previosPorCliente) === 0;
+        $totalBdAnterior = count($previosPorCliente);
+        $totalClientesArchivo = count($nuevosPorCliente);
+
+        $forceFull = (bool) $this->option('force-full');
+        $forcePartial = (bool) $this->option('force-partial');
+
+        if ($isBaseline || $totalBdAnterior === 0) {
+            $esCargaCompleta = true;
+            $esBaselineEfectivo = true;
+        } elseif ($forceFull) {
+            $esCargaCompleta = true;
+            $esBaselineEfectivo = false;
+        } elseif ($forcePartial) {
+            $esCargaCompleta = false;
+            $esBaselineEfectivo = false;
+        } else {
+            // Carga completa si la base previa es muy pequeña (< 100) o si el archivo
+            // contiene al menos el 70% del universo de clientes previo.
+            $esCargaCompleta = ($totalBdAnterior < 100) || ($totalClientesArchivo >= ($totalBdAnterior * 0.70));
+            $esBaselineEfectivo = false;
+        }
 
         if ($esBaselineEfectivo) {
             $this->line("  Modo Baseline activado (Padrón inicial).");
@@ -300,25 +322,73 @@ class IngestRuteoArchivoWorkerCommand extends Command
                 ];
             }
         } else {
-            // Modo Diferencial
-            // B1. Clientes Desaparecidos (en previos pero no en entrantes)
-            foreach ($cidsPrevios as $cid) {
-                if (!isset($setNuevos[$cid])) {
-                    $eliminadosCnt++;
-                    foreach ($previosPorCliente[$cid] as $prev) {
-                        $registrosAuditoria[] = [
-                            'archivo_origen' => $filename,
-                            'cliente_id' => $cid,
-                            'cliente' => (string) ($prev['cliente'] ?? ''),
-                            'tipo_evento' => 'ELIMINADO',
-                            'campo_afectado' => 'cliente_baja_total',
-                            'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
-                            'valor_nuevo' => 'Desaparecido de Ruteo',
-                            'fecha_auditoria' => $fechaOperativa,
-                            'estado_auditoria' => 'PENDIENTE',
-                            'observaciones' => 'Baja total de cliente. Eliminado de la cartera comercial.',
-                            'auditado_por' => 'SISTEMA_INGESTA_HISTORICA',
-                        ];
+            $modoDesc = $esCargaCompleta ? 'Reemplazo Maestro Completo' : 'Sincronización Parcial por Rutas/Clientes';
+            $this->line("  Modo Diferencial: {$modoDesc} (Entrantes: {$totalClientesArchivo} | Previos en BD: {$totalBdAnterior})");
+
+            // B1. Clientes Desaparecidos (Bajas)
+            if ($esCargaCompleta) {
+                // En reemplazo completo, todo cliente ausente en el nuevo archivo es baja de cartera
+                foreach ($cidsPrevios as $cid) {
+                    if (!isset($setNuevos[$cid])) {
+                        $eliminadosCnt++;
+                        foreach ($previosPorCliente[$cid] as $prev) {
+                            $registrosAuditoria[] = [
+                                'archivo_origen' => $filename,
+                                'cliente_id' => $cid,
+                                'cliente' => (string) ($prev['cliente'] ?? ''),
+                                'tipo_evento' => 'ELIMINADO',
+                                'campo_afectado' => 'cliente_baja_total',
+                                'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
+                                'valor_nuevo' => 'Desaparecido de Ruteo',
+                                'fecha_auditoria' => $fechaOperativa,
+                                'estado_auditoria' => 'PENDIENTE',
+                                'observaciones' => 'Baja total de cliente. Eliminado de la cartera comercial.',
+                                'auditado_por' => 'SISTEMA_INGESTA_HISTORICA',
+                            ];
+                        }
+                    }
+                }
+            } else {
+                // En carga parcial, NO se generan bajas masivas de las otras rutas no incluidas en el archivo.
+                // Evaluamos bajas únicamente si el archivo cubre rutas completas y un cliente desapareció de esas rutas específicas.
+                $rutasEnArchivo = [];
+                foreach ($registrosNormalizados as $rn) {
+                    $rK = strtoupper(trim((string) ($rn['ruta'] ?? '')));
+                    if ($rK !== '') {
+                        $rutasEnArchivo[$rK] = true;
+                    }
+                }
+
+                foreach ($cidsPrevios as $cid) {
+                    if (!isset($setNuevos[$cid])) {
+                        $todasEnArchivo = true;
+                        foreach ($previosPorCliente[$cid] as $prevVisita) {
+                            $rPrev = strtoupper(trim((string) ($prevVisita['ruta'] ?? '')));
+                            if (!isset($rutasEnArchivo[$rPrev])) {
+                                $todasEnArchivo = false;
+                                break;
+                            }
+                        }
+
+                        // Si todas las rutas del cliente estaban en el archivo y ya no aparece en ninguna, es baja
+                        if ($todasEnArchivo && !empty($rutasEnArchivo)) {
+                            $eliminadosCnt++;
+                            foreach ($previosPorCliente[$cid] as $prev) {
+                                $registrosAuditoria[] = [
+                                    'archivo_origen' => $filename,
+                                    'cliente_id' => $cid,
+                                    'cliente' => (string) ($prev['cliente'] ?? ''),
+                                    'tipo_evento' => 'ELIMINADO',
+                                    'campo_afectado' => 'cliente_baja_total',
+                                    'valor_anterior' => "Ruta: {$prev['ruta']} | Dia: {$prev['dia']}",
+                                    'valor_nuevo' => 'Desaparecido de Ruteo',
+                                    'fecha_auditoria' => $fechaOperativa,
+                                    'estado_auditoria' => 'PENDIENTE',
+                                    'observaciones' => 'Baja de cartera en rutas incluidas en el archivo.',
+                                    'auditado_por' => 'SISTEMA_INGESTA_HISTORICA',
+                                ];
+                            }
+                        }
                     }
                 }
             }
@@ -385,12 +455,26 @@ class IngestRuteoArchivoWorkerCommand extends Command
 
         // 4. Actualización Atómica de pan_ruteo
         $this->line("  Actualizando tabla viva pan_ruteo...");
-        $conn->transaction(function () use ($conn, $registrosNormalizados) {
-            $conn->table('pan_ruteo')->delete();
-            foreach (array_chunk($registrosNormalizados, self::CHUNK_SIZE) as $chunk) {
-                $conn->table('pan_ruteo')->insert($chunk);
-            }
-        });
+        if ($esCargaCompleta) {
+            $conn->transaction(function () use ($conn, $registrosNormalizados) {
+                $conn->table('pan_ruteo')->delete();
+                foreach (array_chunk($registrosNormalizados, self::CHUNK_SIZE) as $chunk) {
+                    $conn->table('pan_ruteo')->insert($chunk);
+                }
+            });
+        } else {
+            // Sincronización Parcial Segura: actualiza solo los clientes del archivo sin borrar las otras rutas
+            $conn->transaction(function () use ($conn, $cidsNuevos, $registrosNormalizados) {
+                if (!empty($cidsNuevos)) {
+                    foreach (array_chunk($cidsNuevos, 500) as $chunkCid) {
+                        $conn->table('pan_ruteo')->whereIn('cliente_id', $chunkCid)->delete();
+                    }
+                }
+                foreach (array_chunk($registrosNormalizados, self::CHUNK_SIZE) as $chunk) {
+                    $conn->table('pan_ruteo')->insert($chunk);
+                }
+            });
+        }
 
         // 5. Bitácora en sys_cargas
         $this->line("  Registrando bitácora en sys_cargas...");

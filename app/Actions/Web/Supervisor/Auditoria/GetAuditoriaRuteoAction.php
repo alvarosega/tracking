@@ -43,14 +43,37 @@ class GetAuditoriaRuteoAction
             ->selectRaw('cliente_id, MAX(cliente) AS cliente, MAX(ruta) AS ruta, MAX(dia_norm) AS dia_norm, MAX(dia) AS dia, MAX(direccion) AS direccion, MAX(vendedor) AS vendedor, MAX(latitud) AS latitud, MAX(longitud) AS longitud, MAX(tipo_negocio) AS tipo_negocio, MAX(cluster_t) AS cluster_t')
             ->groupBy('cliente_id');
 
-        // Query base
+        // Subquery deduplicado de dim_rutas para evitar producto cartesiano y filas multiplicadas
+        $subRutas = $conn->table('dim_rutas')
+            ->selectRaw("TRIM(UPPER(ruta)) AS ruta_clean, MAX(TRIM(canal)) AS canal, MAX(TRIM(vendedor)) AS vendedor")
+            ->whereNotNull('ruta')
+            ->whereRaw("TRIM(ruta) != ''")
+            ->groupBy(DB::raw("TRIM(UPPER(ruta))"));
+
+        // Query base con extracción limpia de rutas para emparejamiento con el catálogo
         $baseQuery = $conn->table('auditoria_ruteo_cambios as a')
             ->leftJoinSub($subPan, 'p', 'a.cliente_id', '=', 'p.cliente_id')
-            ->leftJoin('dim_rutas as r', function ($join) {
-                $join->on(DB::raw("TRIM(UPPER(COALESCE(p.ruta, a.valor_anterior, '')))"), '=', DB::raw("TRIM(UPPER(r.ruta))"));
+            ->leftJoinSub($subRutas, 'r_ant', function ($join) {
+                $join->on(DB::raw("
+                    TRIM(UPPER(
+                        CASE 
+                            WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1)
+                            WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_anterior
+                            ELSE COALESCE(NULLIF(p.ruta, ''), a.valor_anterior, '')
+                        END
+                    ))
+                "), '=', 'r_ant.ruta_clean');
             })
-            ->leftJoin('dim_rutas as r_nue', function ($join) {
-                $join->on(DB::raw("TRIM(UPPER(a.valor_nuevo))"), '=', DB::raw("TRIM(UPPER(r_nue.ruta))"));
+            ->leftJoinSub($subRutas, 'r_nue', function ($join) {
+                $join->on(DB::raw("
+                    TRIM(UPPER(
+                        CASE 
+                            WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1)
+                            WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_nuevo
+                            ELSE COALESCE(NULLIF(a.valor_nuevo, ''), p.ruta, '')
+                        END
+                    ))
+                "), '=', 'r_nue.ruta_clean');
             });
 
         // 1. Filtro de Estado de Auditoría
@@ -62,22 +85,38 @@ class GetAuditoriaRuteoAction
             }
         }
 
-        // 2. Filtro de Canal
+        // 2. Filtro de Canal (evaluando canal nuevo o canal previo)
         if ($canal !== '' && strtoupper($canal) !== 'TODOS') {
             $baseQuery->where(function ($q) use ($canal) {
-                $q->whereRaw('TRIM(r.canal) = ?', [$canal])
+                $q->whereRaw('TRIM(r_ant.canal) = ?', [$canal])
                   ->orWhereRaw('TRIM(r_nue.canal) = ?', [$canal]);
             });
         }
 
-        // 3. Filtro de Rutas
+        // 3. Filtro de Rutas (evaluando ruta viva, ruta anterior limpia o ruta nueva limpia)
         $rutasValidas = array_filter(array_map('trim', $rutas));
         if (!empty($rutasValidas)) {
             $rutasUpper = array_map('strtoupper', $rutasValidas);
             $baseQuery->where(function ($q) use ($rutasUpper) {
                 $q->whereIn(DB::raw("TRIM(UPPER(COALESCE(p.ruta, '')))"), $rutasUpper)
-                  ->orWhereIn(DB::raw("TRIM(UPPER(COALESCE(a.valor_anterior, '')))"), $rutasUpper)
-                  ->orWhereIn(DB::raw("TRIM(UPPER(COALESCE(a.valor_nuevo, '')))"), $rutasUpper);
+                  ->orWhereIn(DB::raw("
+                      TRIM(UPPER(
+                          CASE 
+                              WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1)
+                              WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_anterior
+                              ELSE COALESCE(a.valor_anterior, '')
+                          END
+                      ))
+                  "), $rutasUpper)
+                  ->orWhereIn(DB::raw("
+                      TRIM(UPPER(
+                          CASE 
+                              WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1)
+                              WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_nuevo
+                              ELSE COALESCE(a.valor_nuevo, '')
+                          END
+                      ))
+                  "), $rutasUpper);
             });
         }
 
@@ -218,7 +257,7 @@ class GetAuditoriaRuteoAction
             'a.id',
             'a.archivo_origen',
             'a.cliente_id',
-            DB::raw("COALESCE(a.cliente, p.cliente, 'Sin Nombre') AS cliente"),
+            DB::raw("COALESCE(NULLIF(TRIM(a.cliente), ''), NULLIF(TRIM(p.cliente), ''), 'Sin Nombre') AS cliente"),
             'a.tipo_evento',
             'a.campo_afectado',
             DB::raw("COALESCE(a.valor_anterior, '-') AS valor_anterior"),
@@ -230,11 +269,32 @@ class GetAuditoriaRuteoAction
             DB::raw("COALESCE(a.observaciones, '') AS observaciones"),
             DB::raw("COALESCE(a.auditado_por, '') AS auditado_por"),
             DB::raw("DATE_FORMAT(a.fecha_resolucion, '%Y-%m-%d %H:%i') AS fecha_resolucion"),
-            DB::raw("COALESCE(TRIM(UPPER(p.ruta)), TRIM(UPPER(a.valor_anterior)), 'SIN RUTA') AS ruta"),
-            DB::raw("COALESCE(TRIM(r.canal), TRIM(r_nue.canal), 'SIN CANAL') AS canal"),
-            DB::raw("COALESCE(TRIM(p.dia_norm), TRIM(p.dia), 'SIN DIA') AS dia"),
+            // Ruta normalizada limpia
+            DB::raw("
+                COALESCE(
+                    NULLIF(TRIM(UPPER(p.ruta)), ''),
+                    NULLIF(TRIM(UPPER(CASE WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1) ELSE NULL END)), ''),
+                    NULLIF(TRIM(UPPER(CASE WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1) ELSE NULL END)), ''),
+                    NULLIF(TRIM(UPPER(r_nue.ruta_clean)), ''),
+                    NULLIF(TRIM(UPPER(r_ant.ruta_clean)), ''),
+                    NULLIF(TRIM(UPPER(a.valor_anterior)), ''),
+                    'SIN RUTA'
+                ) AS ruta
+            "),
+            // Canal limpio resuelto desde dim_rutas
+            DB::raw("COALESCE(NULLIF(TRIM(r_nue.canal), ''), NULLIF(TRIM(r_ant.canal), ''), 'SIN CANAL') AS canal"),
+            // Día de visita normalizado
+            DB::raw("
+                COALESCE(
+                    NULLIF(TRIM(p.dia_norm), ''),
+                    NULLIF(TRIM(p.dia), ''),
+                    NULLIF(TRIM(CASE WHEN a.valor_nuevo LIKE '%Dia: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Dia: ', -1), ' |', 1) ELSE NULL END), ''),
+                    NULLIF(TRIM(CASE WHEN a.valor_anterior LIKE '%Dia: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Dia: ', -1), ' |', 1) ELSE NULL END), ''),
+                    'SIN DIA'
+                ) AS dia
+            "),
             DB::raw("COALESCE(p.direccion, 'Sin Dirección') AS direccion"),
-            DB::raw("COALESCE(p.vendedor, r.vendedor, 'Sin Asignar') AS vendedor"),
+            DB::raw("COALESCE(NULLIF(TRIM(p.vendedor), ''), NULLIF(TRIM(r_nue.vendedor), ''), NULLIF(TRIM(r_ant.vendedor), ''), 'Sin Asignar') AS vendedor"),
             'p.latitud as lat_actual',
             'p.longitud as lng_actual',
         ])
@@ -493,14 +553,18 @@ class GetAuditoriaRuteoAction
                     $despuesFmt = 'Reactivado en Cartera: ' . ($nue ?: 'Activo');
                 } else {
                     $antesFmt = 'Sin registro previo en padrón activo';
-                    $despuesFmt = $nue !== '' && $nue !== '-' ? $nue : "Ruta: {$r->ruta} | Día: {$r->dia}";
+                    if ($nue !== '' && $nue !== '-' && !str_starts_with($nue, 'Ruta:')) {
+                        $despuesFmt = $nue;
+                    } else {
+                        $despuesFmt = "Alta en Cartera • Ruta {$r->ruta} ({$r->dia})";
+                    }
                 }
                 break;
 
             case 'BAJAS_INACTIVADOS':
                 $rutaInfo = trim(($r->ruta ?? '') . ' (' . ($r->dia ?? '') . ')');
-                $antesFmt = 'Activo en Cartera' . ($rutaInfo !== '()' && $rutaInfo !== '' ? ' • ' . $rutaInfo : '');
-                if ($ant !== '' && $ant !== '-' && $ant !== 'Activo') {
+                $antesFmt = 'Activo en Cartera' . ($rutaInfo !== '()' && $rutaInfo !== '' ? ' • Ruta ' . $rutaInfo : '');
+                if ($ant !== '' && $ant !== '-' && $ant !== 'Activo' && !str_starts_with($ant, 'Ruta:')) {
                     $antesFmt .= " [{$ant}]";
                 }
                 $despuesFmt = $tipo === 'INACTIVADO' ? 'Inactivación Solicitada (Estado: Inactivo)' : 'Baja Definitiva de Cartera';

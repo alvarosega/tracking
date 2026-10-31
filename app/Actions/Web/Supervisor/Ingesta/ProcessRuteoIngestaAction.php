@@ -229,8 +229,8 @@ class ProcessRuteoIngestaAction
 
         // Carga Completa (Reemplazo Maestro) vs Carga Parcial (Sincronización/Upsert Seguro)
         // Se considera Carga Completa si la BD previa está vacía/pequeña (<100) o si el archivo
-        // contiene al menos el 50% de los clientes existentes o más de 3000 registros.
-        $esCargaCompleta = ($totalBdAnterior < 100) || ($totalClientesArchivo >= 3000) || ($totalClientesArchivo >= ($totalBdAnterior * 0.5));
+        // contiene al menos el 70% del universo de clientes existente.
+        $esCargaCompleta = ($totalBdAnterior < 100) || ($totalClientesArchivo >= ($totalBdAnterior * 0.70));
 
         $registrosAuditoria = [];
         $altasCnt = 0;

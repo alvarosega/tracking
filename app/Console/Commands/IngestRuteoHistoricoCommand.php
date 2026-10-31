@@ -100,13 +100,18 @@ class IngestRuteoHistoricoCommand extends Command
             return Command::FAILURE;
         }
 
-        // 2. Ordenamiento Cronológico Estricto (ascendente lexicográfico: t_0 -> t_1 -> ... -> t_n)
-        sort($archivosValidos, SORT_STRING);
+        // 2. Ordenamiento Cronológico Estricto por Fecha Operativa Real (t_0 -> t_1 -> ... -> t_n)
+        usort($archivosValidos, function ($a, $b) {
+            $fa = $this->extraerFechaOperativa($a, basename($a));
+            $fb = $this->extraerFechaOperativa($b, basename($b));
+            return strcmp($fa, $fb);
+        });
 
-        $this->info("Se detectaron {$totalArchivos} archivos para procesar secuencialmente:");
+        $this->info("Se detectaron {$totalArchivos} archivos ordenados cronológicamente:");
         foreach ($archivosValidos as $idx => $archivo) {
             $tipoEtiqueta = ($idx === 0) ? "[t_0 : BASELINE]" : sprintf("[t_%d]", $idx);
-            $this->line("  {$tipoEtiqueta} " . basename($archivo));
+            $fOperativa = $this->extraerFechaOperativa($archivo, basename($archivo));
+            $this->line("  {$tipoEtiqueta} " . basename($archivo) . " ({$fOperativa})");
         }
         $this->line("");
 
@@ -121,11 +126,19 @@ class IngestRuteoHistoricoCommand extends Command
         foreach ($archivosValidos as $index => $archivoPath) {
             $numArchivo = $index + 1;
             $nombreArchivo = basename($archivoPath);
+            $fechaOperativa = $this->extraerFechaOperativa($archivoPath, $nombreArchivo);
 
             $this->info("--------------------------------------------------------------------------------");
-            $this->info("Ejecutando Worker [{$numArchivo}/{$totalArchivos}]: {$nombreArchivo}");
+            $this->info("Ejecutando Worker [{$numArchivo}/{$totalArchivos}]: {$nombreArchivo} [{$fechaOperativa}]");
 
-            $cmd = [$phpBinary, $artisanPath, 'ingesta:ruteo-archivo-worker', $archivoPath];
+            $cmd = [
+                $phpBinary,
+                $artisanPath,
+                'ingesta:ruteo-archivo-worker',
+                $archivoPath,
+                "--fecha={$fechaOperativa}",
+            ];
+
             if ($index === 0) {
                 $cmd[] = '--baseline';
             }
@@ -170,6 +183,34 @@ class IngestRuteoHistoricoCommand extends Command
         $this->info("================================================================================");
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Extrae el timestamp operativo cronológico desde regex en el nombre de archivo o filemtime.
+     */
+    private function extraerFechaOperativa(string $filePath, string $filename): string
+    {
+        // Regex estándar: /ruteo_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})/
+        if (preg_match('/ruteo_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})/', $filename, $m)) {
+            return "{$m[1]} {$m[2]}:{$m[3]}:{$m[4]}";
+        }
+
+        // Patrón alternativo con guiones / guiones bajos
+        if (preg_match('/(\d{4}-\d{2}-\d{2})[_\sT](\d{2})[_\:]?(\d{2})[_\:]?(\d{2})?/', $filename, $m)) {
+            $seg = isset($m[4]) ? $m[4] : '00';
+            return "{$m[1]} {$m[2]}:{$m[3]}:{$seg}";
+        }
+
+        if (preg_match('/(\d{4}-\d{2}-\d{2})/', $filename, $m)) {
+            return "{$m[1]} 12:00:00";
+        }
+
+        // Formato DD-MM-YYYY
+        if (preg_match('/(\d{2})[-_](\d{2})[-_](\d{4})/', $filename, $m)) {
+            return "{$m[3]}-{$m[2]}-{$m[1]} 12:00:00";
+        }
+
+        return date('Y-m-d H:i:s', filemtime($filePath) ?: time());
     }
 }
 
