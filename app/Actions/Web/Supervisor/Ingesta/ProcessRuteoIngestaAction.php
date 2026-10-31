@@ -236,23 +236,10 @@ class ProcessRuteoIngestaAction
         $esBaselineEfectivo = ($totalBdAnterior === 0);
 
         if ($esBaselineEfectivo) {
-            // Modo Baseline
-            foreach ($registrosVivos as $rv) {
-                $altasCnt++;
-                $registrosAuditoria[] = [
-                    'archivo_origen' => $filename,
-                    'cliente_id' => (int) $rv['cliente_id'],
-                    'cliente' => (string) ($rv['cliente'] ?? ''),
-                    'tipo_evento' => 'NUEVO',
-                    'campo_afectado' => 'cliente_alta_total',
-                    'valor_anterior' => null,
-                    'valor_nuevo' => "Ruta: {$rv['ruta']} | Dia: {$rv['dia']}",
-                    'fecha_auditoria' => $fechaOperativa,
-                    'estado_auditoria' => 'PENDIENTE',
-                    'observaciones' => 'Snapshot inicial baseline.',
-                    'auditado_por' => 'SISTEMA_INGESTA_WEB',
-                ];
-            }
+            // Modo Baseline inicial: se guarda en el padrón base sin generar falsas altas en la auditoría
+            $registrosAuditoria = [];
+            $altasCnt = 0;
+            $sinCambiosCnt = count($cidsArchivo);
         } else {
             // Modo Diferencial
             // B1. Clientes Desaparecidos (Bajas de Cartera)

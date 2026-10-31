@@ -285,23 +285,11 @@ class IngestRuteoArchivoWorkerCommand extends Command
         $esBaselineEfectivo = $isBaseline || $totalBdAnterior === 0;
 
         if ($esBaselineEfectivo) {
-            $this->line("  Modo Baseline activado (Padrón inicial).");
-            foreach ($registrosNormalizados as $rn) {
-                $altasCnt++;
-                $registrosAuditoria[] = [
-                    'archivo_origen' => $filename,
-                    'cliente_id' => (int) $rn['cliente_id'],
-                    'cliente' => (string) ($rn['cliente'] ?? ''),
-                    'tipo_evento' => 'NUEVO',
-                    'campo_afectado' => 'cliente_alta_total',
-                    'valor_anterior' => null,
-                    'valor_nuevo' => "Ruta: {$rn['ruta']} | Dia: {$rn['dia']}",
-                    'fecha_auditoria' => $fechaOperativa,
-                    'estado_auditoria' => 'PENDIENTE',
-                    'observaciones' => 'Snapshot inicial baseline.',
-                    'auditado_por' => 'SISTEMA_INGESTA_HISTORICA',
-                ];
-            }
+            $this->line("  Modo Baseline activado (Padrón inicial base). No se generan eventos de auditoría.");
+            // El primer archivo se guarda como baseline sin generar falsas altas en auditoría
+            $registrosAuditoria = [];
+            $altasCnt = 0;
+            $sinCambiosCnt = $totalClientesArchivo;
         } else {
             $this->line("  Modo Diferencial (Entrantes: {$totalClientesArchivo} | Previos en BD: {$totalBdAnterior})");
 
