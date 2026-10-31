@@ -73,19 +73,52 @@
         
         <!-- Mapa (2 columnas) -->
         <div class="lg:col-span-2 relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[580px] flex flex-col border border-black/[0.06] bg-white/70 backdrop-blur-md">
-          <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
+          <div class="px-4 py-2 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2 bg-white/80 shrink-0">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
               <span class="font-bold text-[12px] text-ink">Geolocalización de Colisiones Espaciales & Datos</span>
             </div>
-            <span class="text-[10px] text-ink-secondary font-mono">Radio de Proximidad: {{ radioMetros }}m</span>
+
+            <div class="flex items-center gap-2 text-[10px]">
+              <!-- Selector de Capa Calles / Satélite -->
+              <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('openStreetMap')"
+                  class="px-2 py-0.5 rounded font-medium transition-all cursor-pointer"
+                  :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+                >
+                  Calles
+                </button>
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('satellite')"
+                  class="px-2 py-0.5 rounded font-medium transition-all cursor-pointer"
+                  :class="capaActual === 'satellite' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+                >
+                  Satélite
+                </button>
+              </div>
+
+              <!-- Botón Recentrar -->
+              <button
+                type="button"
+                @click="recentrarMapa"
+                class="px-2 py-0.5 bg-white hover:bg-slate-50 border border-slate-200 rounded font-semibold text-slate-700 cursor-pointer shadow-2xs"
+                title="Recentrar mapa en los duplicados encontrados"
+              >
+                Recentrar
+              </button>
+
+              <span class="text-[10px] text-ink-secondary font-mono border-l border-slate-200 pl-2">Radio: {{ radioMetros }}m</span>
+            </div>
           </div>
 
-          <div id="mapaDuplicados" class="flex-1 w-full min-h-[500px] relative z-0"></div>
+          <div id="mapaDuplicados" class="flex-1 w-full min-h-[520px] h-[520px] relative z-0"></div>
         </div>
 
         <!-- Panel Lateral de Grupos (1 columna) -->
-        <div class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[580px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[580px] max-h-[600px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
           <div class="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
             <span class="font-bold text-[11px] text-ink">Colisiones Detectadas</span>
             <span class="text-[10px] font-mono text-ink-secondary">{{ clusters.length }} grupos</span>
@@ -191,37 +224,48 @@
 
       <!-- Tabla Inferior: Propuestas Pendientes de Duplicados -->
       <div class="apple-glass-card rounded-[16px] shadow-subtle overflow-hidden border border-black/[0.06] bg-white/70 backdrop-blur-md">
-        <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
+        <div class="px-4 py-2.5 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2 bg-white/80 shrink-0">
           <div class="flex items-center gap-2">
             <span class="font-bold text-[12px] text-ink">Propuestas de Resolución de Duplicados</span>
             <span class="text-[10px] font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-bold">
-              {{ propuestasPendientes.length }} pendientes
+              {{ propuestasFiltradas.length }} pendientes
             </span>
+          </div>
+
+          <!-- Buscador rápido para la tabla si hay varias filas -->
+          <div v-if="propuestasPendientes.length > 3" class="w-64">
+            <input
+              v-model="busquedaTabla"
+              type="text"
+              placeholder="Buscar por cliente, ID o ruta..."
+              class="w-full h-7 px-2.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 font-mono"
+            />
           </div>
         </div>
 
-        <div class="overflow-x-auto custom-scroll max-h-72">
-          <table class="w-full text-left text-[11px]">
-            <thead class="sticky top-0 bg-neutral-50/95 backdrop-blur-sm text-ink-secondary uppercase text-[9px] font-mono tracking-wider border-b border-neutral-200 z-10">
+        <!-- Contenedor con Scroll Vertical y Horizontal -->
+        <div class="overflow-x-auto overflow-y-auto max-h-[380px] custom-scroll relative">
+          <table class="w-full text-left text-[11px] border-collapse">
+            <thead class="sticky top-0 bg-slate-100 text-slate-700 uppercase text-[9.5px] font-mono font-bold tracking-wider border-b border-slate-200 z-10 shadow-2xs">
               <tr>
-                <th class="py-2.5 px-3">Cliente Origen</th>
-                <th class="py-2.5 px-3">ID Origen</th>
-                <th class="py-2.5 px-3">Cliente Vinculado</th>
-                <th class="py-2.5 px-3">Ruta</th>
-                <th class="py-2.5 px-3">Acción Propuesta</th>
-                <th class="py-2.5 px-3">Observaciones</th>
-                <th class="py-2.5 px-3 text-center">Estado</th>
-                <th class="py-2.5 px-3 text-right">Acciones</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">Cliente Origen</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">ID Origen</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">Cliente Vinculado</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">Ruta</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">Acción Propuesta</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap">Observaciones</th>
+                <th class="py-2.5 px-3 bg-slate-100 text-center whitespace-nowrap">Estado</th>
+                <th class="py-2.5 px-3 bg-slate-100 text-right whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-neutral-100 bg-white/60">
-              <tr v-if="propuestasPendientes.length === 0">
+              <tr v-if="propuestasFiltradas.length === 0">
                 <td colspan="8" class="py-8 text-center text-[#86868B] font-medium">
-                  No hay propuestas pendientes de resolución de duplicados.
+                  {{ busquedaTabla ? 'No se encontraron propuestas coincidentes con la búsqueda.' : 'No hay propuestas pendientes de resolución de duplicados.' }}
                 </td>
               </tr>
               <tr
-                v-for="p in propuestasPendientes"
+                v-for="p in propuestasFiltradas"
                 :key="p.id"
                 class="hover:bg-neutral-50/70 transition-colors"
               >
@@ -282,10 +326,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { mapsConfig } from '@/Config/maps'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SaneamientoSubTabs from './Components/SaneamientoSubTabs.vue'
 import ClienteFotosModal from './Components/ClienteFotosModal.vue'
@@ -303,12 +348,16 @@ const radioMetros = ref(20)
 const clusters = ref([])
 const propuestasPendientes = ref([])
 const grupoSeleccionadoId = ref(null)
+const busquedaTabla = ref('')
 
 const modalFotosVisible = ref(false)
 const clienteSeleccionadoFotos = ref(null)
 
+const capaActual = ref(mapsConfig.defaultTileLayer || 'openStreetMap')
 let map = null
+let currentTileLayer = null
 let layerGroupMarkers = null
+let mapResizeObserver = null
 
 const canalesDisponibles = computed(() => props.catalogo.canales || [])
 
@@ -320,33 +369,104 @@ const totalClientesImplicados = computed(() => {
   return count
 })
 
+const propuestasFiltradas = computed(() => {
+  if (!busquedaTabla.value.trim()) return propuestasPendientes.value
+  const q = busquedaTabla.value.toLowerCase().trim()
+  return propuestasPendientes.value.filter(p =>
+    (p.cliente_nombre && p.cliente_nombre.toLowerCase().includes(q)) ||
+    (p.cliente_id_origen && String(p.cliente_id_origen).includes(q)) ||
+    (p.cliente_id_vinculado && String(p.cliente_id_vinculado).includes(q)) ||
+    (p.ruta_actual && p.ruta_actual.toLowerCase().includes(q)) ||
+    (p.accion_propuesta && p.accion_propuesta.toLowerCase().includes(q)) ||
+    (p.observaciones && p.observaciones.toLowerCase().includes(q))
+  )
+})
+
 onMounted(() => {
-  inicializarMapa()
-  ejecutarAuditoriaDuplicados()
+  nextTick(() => {
+    inicializarMapa()
+    ejecutarAuditoriaDuplicados()
+
+    const container = document.getElementById('mapaDuplicados')
+    if (container && window.ResizeObserver) {
+      mapResizeObserver = new ResizeObserver(() => {
+        if (map) map.invalidateSize()
+      })
+      mapResizeObserver.observe(container)
+    }
+  })
 })
 
 onUnmounted(() => {
+  if (mapResizeObserver) {
+    mapResizeObserver.disconnect()
+    mapResizeObserver = null
+  }
   if (map) {
     map.remove()
     map = null
   }
 })
 
+function cambiarCapaMapa(nombreCapa) {
+  if (!map) return
+  const layerConf = mapsConfig.tileLayers[nombreCapa] || mapsConfig.tileLayers.openStreetMap
+  capaActual.value = nombreCapa
+
+  if (currentTileLayer) {
+    map.removeLayer(currentTileLayer)
+  }
+
+  currentTileLayer = L.tileLayer(layerConf.url, {
+    maxZoom: layerConf.maxZoom || 19,
+    subdomains: layerConf.subdomains || 'abc',
+    attribution: layerConf.attribution,
+  }).addTo(map)
+}
+
 function inicializarMapa() {
   const container = document.getElementById('mapaDuplicados')
   if (!container || map) return
 
+  const defaultLoc = mapsConfig.defaultLocation || { lat: -16.5050, lng: -68.1650, zoom: 13 }
+
   map = L.map('mapaDuplicados', {
-    zoomControl: true,
+    zoomControl: false,
     preferCanvas: true,
-  }).setView([-17.7833, -63.1821], 12)
+  }).setView([defaultLoc.lat, defaultLoc.lng], defaultLoc.zoom)
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; CartoDB &copy; OpenStreetMap',
-  }).addTo(map)
+  L.control.zoom({ position: 'topright' }).addTo(map)
+  cambiarCapaMapa(capaActual.value)
 
-  layerGroupMarkers = L.layerGroup().addTo(map)
+  layerGroupMarkers = L.featureGroup().addTo(map)
+
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize()
+    }
+  }, 250)
+}
+
+function recentrarMapa() {
+  if (!map) return
+  const bounds = []
+  clusters.value.forEach(grupo => {
+    if (!Array.isArray(grupo.clientes)) return
+    grupo.clientes.forEach(cli => {
+      const lat = parseFloat(cli.latitud)
+      const lng = parseFloat(cli.longitud)
+      if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+        bounds.push([lat, lng])
+      }
+    })
+  })
+
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 })
+  } else {
+    const defaultLoc = mapsConfig.defaultLocation || { lat: -16.5050, lng: -68.1650, zoom: 13 }
+    map.setView([defaultLoc.lat, defaultLoc.lng], defaultLoc.zoom)
+  }
 }
 
 function alCambiarCanal() {
@@ -378,11 +498,17 @@ async function ejecutarAuditoriaDuplicados() {
     console.error('Error al auditar duplicados:', err)
   } finally {
     cargando.value = false
+    setTimeout(() => {
+      if (map) map.invalidateSize()
+    }, 200)
   }
 }
 
 function renderizarClustersEnMapa() {
-  if (!map || !layerGroupMarkers) return
+  if (!map) return
+  if (!layerGroupMarkers) {
+    layerGroupMarkers = L.featureGroup().addTo(map)
+  }
   layerGroupMarkers.clearLayers()
 
   const bounds = []
@@ -391,20 +517,29 @@ function renderizarClustersEnMapa() {
     const isDobleCodigo = grupo.clasificacion === 'DOBLE_CODIGO'
     const color = isDobleCodigo ? '#DC2626' : '#2563EB'
 
-    grupo.clientes.forEach(cli => {
-      bounds.push([cli.latitud, cli.longitud])
+    if (!Array.isArray(grupo.clientes)) return
 
-      const circle = L.circle([cli.latitud, cli.longitud], {
-        radius: radioMetros.value,
+    grupo.clientes.forEach(cli => {
+      const lat = parseFloat(cli.latitud)
+      const lng = parseFloat(cli.longitud)
+
+      if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+        return
+      }
+
+      bounds.push([lat, lng])
+
+      const circle = L.circle([lat, lng], {
+        radius: radioMetros.value || 20,
         color: color,
-        weight: 1,
+        weight: 1.5,
         fillColor: color,
-        fillOpacity: 0.1,
+        fillOpacity: 0.12,
       })
       layerGroupMarkers.addLayer(circle)
 
-      const marker = L.circleMarker([cli.latitud, cli.longitud], {
-        radius: 6,
+      const marker = L.circleMarker([lat, lng], {
+        radius: 6.5,
         color: '#FFFFFF',
         weight: 2,
         fillColor: color,
@@ -412,16 +547,16 @@ function renderizarClustersEnMapa() {
       })
 
       marker.bindPopup(`
-        <div class="p-2 font-sans text-xs">
-          <div class="font-bold text-slate-900">${cli.cliente}</div>
-          <div class="text-[10px] text-slate-500 font-mono">ID: ${cli.cliente_id} • Ruta: ${cli.ruta}</div>
-          <div class="text-[10px] text-slate-500">${cli.direccion || ''}</div>
-          <div class="mt-1 font-mono font-bold text-emerald-700">MTD: Bs. ${cli.venta_mtd}</div>
-          <div class="mt-1 pt-1 border-t text-[10px] font-bold ${isDobleCodigo ? 'text-rose-600' : 'text-blue-600'}">
+        <div style="font-family: inherit; font-size: 11px; color: #0F172A; min-width: 190px; padding: 2px;">
+          <div style="font-weight: 700; font-size: 12px; margin-bottom: 2px;">${escapeHtml(cli.cliente)}</div>
+          <div style="color: #64748B; font-family: monospace; font-size: 10px;">ID: ${cli.cliente_id} &bull; Ruta: <b>${escapeHtml(cli.ruta)}</b> (${escapeHtml(cli.dia || 'S/D')})</div>
+          <div style="color: #64748B; font-size: 10px; margin-top: 2px;">${escapeHtml(cli.direccion || 'Sin dirección')}</div>
+          <div style="margin-top: 4px; font-family: monospace; font-weight: 700; color: #059669;">MTD: Bs. ${cli.venta_mtd}</div>
+          <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E2E8F0; font-size: 10px; font-weight: 700; color: ${isDobleCodigo ? '#DC2626' : '#2563EB'};">
             ${isDobleCodigo ? 'Doble Código Potencial' : 'Proximidad Extrema'}
           </div>
         </div>
-      `)
+      `, { maxWidth: 260 })
 
       marker.on('click', () => {
         grupoSeleccionadoId.value = grupo.cluster_id
@@ -433,19 +568,43 @@ function renderizarClustersEnMapa() {
 
   if (bounds.length > 0) {
     try {
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 })
+      map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 })
     } catch {
       // ignore
     }
   }
+
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 100)
 }
 
 function enfocarGrupoEnMapa(grupo) {
   grupoSeleccionadoId.value = grupo.cluster_id
   if (!map || !grupo.clientes || grupo.clientes.length === 0) return
 
-  const bounds = grupo.clientes.map(c => [c.latitud, c.longitud])
-  map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
+  const bounds = []
+  grupo.clientes.forEach(c => {
+    const lat = parseFloat(c.latitud)
+    const lng = parseFloat(c.longitud)
+    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+      bounds.push([lat, lng])
+    }
+  })
+
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 async function proponerInactivar(grupo) {
