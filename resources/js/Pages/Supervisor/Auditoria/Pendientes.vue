@@ -35,11 +35,24 @@
               <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Canal:</span>
               <select
                 v-model="filtros.canal"
-                @change="consultar(true)"
+                @change="onCanalChange"
                 class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
               >
                 <option value="TODOS">Todos los Canales</option>
                 <option v-for="c in canales" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+
+            <!-- Selector de Ruta -->
+            <div class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px]">
+              <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Ruta:</span>
+              <select
+                v-model="filtros.ruta"
+                @change="consultar(true)"
+                class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todas las Rutas</option>
+                <option v-for="r in rutasOpciones" :key="r.ruta" :value="r.ruta">{{ r.ruta }}</option>
               </select>
             </div>
 
@@ -686,11 +699,24 @@ const conteos = reactive({
 
 const filtros = reactive({
   canal: 'TODOS',
+  ruta: 'TODOS',
   archivo_origen: 'TODOS',
   fecha_inicio: '',
   fecha_fin: '',
   busqueda: '',
 });
+
+const rutasOpciones = computed(() => {
+  if (!filtros.canal || filtros.canal === 'TODOS') {
+    return props.rutas;
+  }
+  return props.rutas.filter(r => r.canal === filtros.canal);
+});
+
+function onCanalChange() {
+  filtros.ruta = 'TODOS';
+  consultar(true);
+}
 
 const modalResolucion = reactive({
   abierto: false,
@@ -727,6 +753,7 @@ function seleccionarCategoria(catId) {
 
 function restablecerFiltros() {
   filtros.canal = 'TODOS';
+  filtros.ruta = 'TODOS';
   filtros.archivo_origen = 'TODOS';
   filtros.fecha_inicio = '';
   filtros.fecha_fin = '';
@@ -752,6 +779,10 @@ async function consultar(resetSeleccion = false) {
       busqueda: filtros.busqueda,
       limit: 200,
     };
+
+    if (filtros.ruta && filtros.ruta !== 'TODOS') {
+      params.rutas = [filtros.ruta];
+    }
 
     const res = await axios.get(route('supervisor.auditoria.pendientes.consultar'), { params });
     registros.value = res.data.registros || [];
