@@ -33,10 +33,22 @@ class GetAuditoriaRuteoAction
         $fechaInicio = trim((string) ($params['fecha_inicio'] ?? ''));
         $fechaFin = trim((string) ($params['fecha_fin'] ?? ''));
         $busqueda = trim((string) ($params['busqueda'] ?? ''));
-        $limit = isset($params['limit']) && is_numeric($params['limit']) && (int) $params['limit'] > 0
-            ? min((int) $params['limit'], 20000)
-            : 100;
-        $offset = max(0, (int) ($params['offset'] ?? 0));
+
+        $page = isset($params['page']) && is_numeric($params['page']) && (int) $params['page'] > 0
+            ? (int) $params['page']
+            : 1;
+
+        $perPage = isset($params['per_page']) && is_numeric($params['per_page']) && (int) $params['per_page'] > 0
+            ? min((int) $params['per_page'], 2000)
+            : (isset($params['limit']) && is_numeric($params['limit']) && (int) $params['limit'] > 0
+                ? min((int) $params['limit'], 2000)
+                : 50);
+
+        $offset = isset($params['offset']) && is_numeric($params['offset']) && (int) $params['offset'] >= 0
+            ? (int) $params['offset']
+            : ($page - 1) * $perPage;
+
+        $limit = $perPage;
 
         // Subquery de pan_ruteo para consolidar datos vivos actuales de clientes
         $subPan = $conn->table('pan_ruteo')
@@ -305,10 +317,16 @@ class GetAuditoriaRuteoAction
         ->get();
 
         if ($rows->isEmpty()) {
+            $lastPage = max(1, (int) ceil($totalCategoria / max(1, $perPage)));
             return [
                 'registros' => [],
                 'total' => $totalCategoria,
                 'conteos' => $conteos,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => $lastPage,
+                'from' => 0,
+                'to' => 0,
             ];
         }
 
@@ -491,10 +509,19 @@ class GetAuditoriaRuteoAction
         // Enriquecer con evidencias fotográficas
         $resultados = $this->enriquecerFotos->execute($resultados, 'cliente_id');
 
+        $lastPage = max(1, (int) ceil($totalCategoria / max(1, $perPage)));
+        $from = $totalCategoria > 0 ? $offset + 1 : 0;
+        $to = min($offset + $rows->count(), $totalCategoria);
+
         return [
             'registros' => $resultados,
             'total' => $totalCategoria,
             'conteos' => $conteos,
+            'page' => $page,
+            'per_page' => $perPage,
+            'last_page' => $lastPage,
+            'from' => $from,
+            'to' => $to,
         ];
     }
 

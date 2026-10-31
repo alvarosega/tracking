@@ -48,7 +48,7 @@
               <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Ruta:</span>
               <select
                 v-model="filtros.ruta"
-                @change="consultar(true)"
+                @change="consultar(true, true)"
                 class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
               >
                 <option value="TODOS">Todas las Rutas</option>
@@ -61,7 +61,7 @@
               <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Archivo:</span>
               <select
                 v-model="filtros.archivo_origen"
-                @change="consultar(true)"
+                @change="consultar(true, true)"
                 class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer truncate max-w-[190px]"
               >
                 <option value="TODOS">Todos los Archivos</option>
@@ -75,14 +75,14 @@
               <input
                 type="date"
                 v-model="filtros.fecha_inicio"
-                @change="consultar(true)"
+                @change="consultar(true, true)"
                 class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
               />
               <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Hasta:</span>
               <input
                 type="date"
                 v-model="filtros.fecha_fin"
-                @change="consultar(true)"
+                @change="consultar(true, true)"
                 class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
               />
             </div>
@@ -102,7 +102,7 @@
             <input
               type="text"
               v-model="filtros.busqueda"
-              @keyup.enter="consultar(true)"
+              @keyup.enter="consultar(true, true)"
               placeholder="Buscar cliente, ID, vendedor, ruta..."
               class="w-full apple-control-pill text-xs font-medium pl-8 pr-7 py-1.5 rounded-[10px] text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
             />
@@ -112,7 +112,7 @@
             <button
               v-if="filtros.busqueda"
               type="button"
-              @click="filtros.busqueda = ''; consultar(true)"
+              @click="filtros.busqueda = ''; consultar(true, true)"
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868B] hover:text-[#1D1D1F] text-xs font-bold"
             >
               ✕
@@ -537,18 +537,18 @@
           </table>
         </div>
 
-        <!-- PIE DE TABLA Y CONTEO -->
-        <div class="px-4 py-3 bg-black/[0.02] border-t border-black/[0.05] flex items-center justify-between text-xs text-[#6E6E73]">
-          <div>
-            Mostrando <span class="font-bold text-[#1D1D1F]">{{ registros.length }}</span> de <span class="font-bold text-[#1D1D1F]">{{ totalRegistros.toLocaleString('es-BO') }}</span> eventos pendientes en esta categoría
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] text-[#86868B]">
-              Selección: {{ seleccionados.length }} registro(s)
-            </span>
-          </div>
-        </div>
+        <!-- PIE DE TABLA Y PAGINACIÓN -->
+        <AuditoriaPaginacion
+          :total="totalRegistros"
+          :page="pagina"
+          :per-page="perPage"
+          :loading="cargando"
+          :seleccionados-count="seleccionados.length"
+          etiqueta="eventos pendientes"
+          @update:page="pagina = $event"
+          @update:per-page="perPage = $event"
+          @change="onPaginacionChange"
+        />
       </div>
 
       <!-- MODAL DE RESOLUCIÓN (APROBAR / RECHAZAR / DESCARTAR) -->
@@ -659,6 +659,7 @@ import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from '@/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from '@/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue';
+import AuditoriaPaginacion from '@/Pages/Supervisor/Auditoria/Components/AuditoriaPaginacion.vue';
 
 const props = defineProps({
   canales: { type: Array, default: () => [] },
@@ -684,6 +685,8 @@ const categoriaActiva = ref(props.initial_categoria || 'TODOS');
 const cargando = ref(false);
 const registros = ref([]);
 const totalRegistros = ref(0);
+const pagina = ref(1);
+const perPage = ref(50);
 const seleccionados = ref([]);
 const filaExpandida = ref(null);
 const fotosModalRef = ref(null);
@@ -715,7 +718,7 @@ const rutasOpciones = computed(() => {
 
 function onCanalChange() {
   filtros.ruta = 'TODOS';
-  consultar(true);
+  consultar(true, true);
 }
 
 const modalResolucion = reactive({
@@ -729,14 +732,17 @@ const modalResolucion = reactive({
 });
 
 const todosSeleccionados = computed(() => {
-  return registros.value.length > 0 && seleccionados.value.length === registros.value.length;
+  if (registros.value.length === 0) return false;
+  return registros.value.every(r => seleccionados.value.includes(r.id));
 });
 
 function toggleSeleccionarTodos() {
+  const idsPagina = registros.value.map(r => r.id);
   if (todosSeleccionados.value) {
-    seleccionados.value = [];
+    seleccionados.value = seleccionados.value.filter(id => !idsPagina.includes(id));
   } else {
-    seleccionados.value = registros.value.map(r => r.id);
+    const set = new Set([...seleccionados.value, ...idsPagina]);
+    seleccionados.value = Array.from(set);
   }
 }
 
@@ -748,7 +754,7 @@ function seleccionarCategoria(catId) {
   categoriaActiva.value = catId;
   seleccionados.value = [];
   filaExpandida.value = null;
-  consultar(true);
+  consultar(true, true);
 }
 
 function restablecerFiltros() {
@@ -760,12 +766,21 @@ function restablecerFiltros() {
   filtros.busqueda = '';
   categoriaActiva.value = 'TODOS';
   filaExpandida.value = null;
-  consultar(true);
+  consultar(true, true);
 }
 
-async function consultar(resetSeleccion = false) {
+function onPaginacionChange(e) {
+  pagina.value = e.page;
+  perPage.value = e.perPage;
+  consultar(false, false);
+}
+
+async function consultar(resetSeleccion = false, resetPagina = false) {
   if (resetSeleccion) {
     seleccionados.value = [];
+  }
+  if (resetPagina) {
+    pagina.value = 1;
   }
   cargando.value = true;
   try {
@@ -777,7 +792,8 @@ async function consultar(resetSeleccion = false) {
       fecha_inicio: filtros.fecha_inicio,
       fecha_fin: filtros.fecha_fin,
       busqueda: filtros.busqueda,
-      limit: 200,
+      page: pagina.value,
+      per_page: perPage.value,
     };
 
     if (filtros.ruta && filtros.ruta !== 'TODOS') {
@@ -787,6 +803,12 @@ async function consultar(resetSeleccion = false) {
     const res = await axios.get(route('supervisor.auditoria.pendientes.consultar'), { params });
     registros.value = res.data.registros || [];
     totalRegistros.value = res.data.total || 0;
+    if (res.data.page) {
+      pagina.value = res.data.page;
+    }
+    if (res.data.per_page) {
+      perPage.value = res.data.per_page;
+    }
     if (res.data.conteos) {
       conteos.total = res.data.conteos.total || 0;
       conteos.pendientes = res.data.conteos.pendientes || 0;
@@ -835,7 +857,11 @@ async function ejecutarResolucion() {
     });
     modalResolucion.abierto = false;
     seleccionados.value = [];
-    await consultar();
+    await consultar(true, false);
+    if (registros.value.length === 0 && pagina.value > 1) {
+      pagina.value--;
+      await consultar(false, false);
+    }
   } catch (e) {
     alert('Error al guardar dictamen: ' + (e.response?.data?.error || e.message));
   } finally {
