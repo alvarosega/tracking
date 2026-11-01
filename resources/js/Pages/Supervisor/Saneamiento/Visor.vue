@@ -2150,6 +2150,11 @@ function normalizarDiaClave(val) {
     .toUpperCase();
 }
 
+function normalizarRutaClave(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).trim().toUpperCase();
+}
+
 // ── MODOS DEL VISOR Y FRONTERAS ──
 // modoPrincipal: 'visualizacion' | 'ajuste_rtm'
 const modoPrincipal = ref('visualizacion');
@@ -2180,7 +2185,6 @@ const filtroFronterasDias = ref([]);
 const busquedaFronteraRuta = ref('');
 const busquedaFronteraDia = ref('');
 const soloActivos = ref(true);
-const filtrosRutasInicializados = ref(false);
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
 const tabLateral = ref('lista'); // 'lista' | 'balance'
@@ -2298,7 +2302,7 @@ const rutasDisponiblesParaFronteras = computed(() => {
 
   // 1. Incluir TODAS las rutas del catálogo
   (props.catalogo_rutas || []).forEach(r => {
-    const rKey = (r.ruta || '').trim().toUpperCase();
+    const rKey = normalizarRutaClave(r.ruta);
     if (!rKey) return;
     mapRutas.set(rKey, {
       ruta: rKey,
@@ -2312,9 +2316,9 @@ const rutasDisponiblesParaFronteras = computed(() => {
   // 2. Incorporar rutas adicionales que pudieran venir en clientes o fronteras
   (clientes.value || []).forEach(c => {
     if (c.ruta) {
-      const rKey = c.ruta.trim().toUpperCase();
+      const rKey = normalizarRutaClave(c.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -2328,9 +2332,9 @@ const rutasDisponiblesParaFronteras = computed(() => {
 
   (fronterasRutas.value || []).forEach(fr => {
     if (fr.ruta) {
-      const rKey = fr.ruta.trim().toUpperCase();
+      const rKey = normalizarRutaClave(fr.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -2344,9 +2348,9 @@ const rutasDisponiblesParaFronteras = computed(() => {
 
   (fronterasDias.value || []).forEach(fd => {
     if (fd.ruta) {
-      const rKey = fd.ruta.trim().toUpperCase();
+      const rKey = normalizarRutaClave(fd.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
+        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -2383,11 +2387,11 @@ function limpiarRutasPuntos() {
 
 // Rutas con polígonos detectados
 const rutasConPoligonoRuta = computed(() => {
-  return new Set(fronterasRutas.value.map(fr => (fr.ruta || '').trim().toUpperCase()).filter(Boolean));
+  return new Set(fronterasRutas.value.map(fr => normalizarRutaClave(fr.ruta)).filter(Boolean));
 });
 
 const rutasConPoligonoDia = computed(() => {
-  return new Set(fronterasDias.value.map(fd => (fd.ruta || '').trim().toUpperCase()).filter(Boolean));
+  return new Set(fronterasDias.value.map(fd => normalizarRutaClave(fd.ruta)).filter(Boolean));
 });
 
 const rutasFiltradasEnDropdownFronteraRuta = computed(() => {
@@ -2450,6 +2454,35 @@ function limpiarFronterasDias() {
   renderizarEnMapa(true);
 }
 
+function sincronizarFiltrosConRutasDisponibles(forzarTodos = false) {
+  const todasRutasKeys = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+  const setTodas = new Set(todasRutasKeys.map(r => normalizarRutaClave(r)));
+
+  // 1. Filtro Rutas (Puntos de clientes)
+  if (forzarTodos || filtroRutas.value.length === 0) {
+    filtroRutas.value = [...todasRutasKeys];
+  } else {
+    const validas = filtroRutas.value.filter(r => setTodas.has(normalizarRutaClave(r)));
+    filtroRutas.value = validas.length > 0 ? validas : [...todasRutasKeys];
+  }
+
+  // 2. Filtro Fronteras Rutas (Polígonos de rutas)
+  if (forzarTodos || filtroFronterasRutas.value.length === 0) {
+    filtroFronterasRutas.value = [...todasRutasKeys];
+  } else {
+    const validas = filtroFronterasRutas.value.filter(r => setTodas.has(normalizarRutaClave(r)));
+    filtroFronterasRutas.value = validas.length > 0 ? validas : [...todasRutasKeys];
+  }
+
+  // 3. Filtro Fronteras Días (Polígonos de días)
+  if (forzarTodos || filtroFronterasDias.value.length === 0) {
+    filtroFronterasDias.value = [...todasRutasKeys];
+  } else {
+    const validas = filtroFronterasDias.value.filter(r => setTodas.has(normalizarRutaClave(r)));
+    filtroFronterasDias.value = validas.length > 0 ? validas : [...todasRutasKeys];
+  }
+}
+
 const rutasFiltradasParaAjuste = computed(() => {
   return getRutasParaSelectorPropuesta();
 });
@@ -2508,8 +2541,8 @@ const balanceRtmPorRuta = computed(() => {
   // Asegurar que todas las rutas filtradas aparezcan en el balance
   if (filtroRutas.value.length > 0) {
     filtroRutas.value.forEach(r => {
-      const rKey = r.toUpperCase();
-      const rutaInfo = props.catalogo_rutas.find(cr => cr.ruta.toUpperCase() === rKey);
+      const rKey = normalizarRutaClave(r);
+      const rutaInfo = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
       mapRutas.set(rKey, {
         ruta: rKey,
         canal: rutaInfo ? rutaInfo.canal : 'General',
@@ -2525,16 +2558,16 @@ const balanceRtmPorRuta = computed(() => {
   clientes.value.forEach(c => {
     // En Base Original usamos ruta_original y dia_original
     // En Con Cambios usamos ruta y dia_norm efectivos
-    const rKey = (esOrig ? (c.ruta_original || c.ruta) : (c.ruta || c.ruta_original)) || 'SIN RUTA';
+    const rKey = normalizarRutaClave(esOrig ? (c.ruta_original || c.ruta) : (c.ruta || c.ruta_original)) || 'SIN RUTA';
     const diaClave = normalizarDiaClave(esOrig ? (c.dia_original || c.dia_norm) : c.dia_norm);
 
     // Si se tienen rutas filtradas específicas, omitir del balance rutas que no están en el filtro
-    if (filtroRutas.value.length > 0 && !filtroRutas.value.some(fr => fr.toUpperCase() === rKey.toUpperCase())) {
+    if (filtroRutas.value.length > 0 && !filtroRutas.value.some(fr => normalizarRutaClave(fr) === rKey)) {
       return;
     }
 
     if (!mapRutas.has(rKey)) {
-      const rutaInfo = props.catalogo_rutas.find(r => r.ruta.toUpperCase() === rKey.toUpperCase());
+      const rutaInfo = props.catalogo_rutas.find(r => normalizarRutaClave(r.ruta) === rKey);
       mapRutas.set(rKey, {
         ruta: rKey,
         canal: rutaInfo ? rutaInfo.canal : 'General',
@@ -2563,7 +2596,7 @@ const tieneUnaSolaRutaMarcada = computed(() => {
   if (filtroRutas.value.length === 1) return true;
   if (filtroRutas.value.length > 1) return false;
   if (clientes.value.length > 0) {
-    const rutasUnicas = new Set(clientes.value.map(c => (c.ruta || '').trim().toUpperCase()).filter(Boolean));
+    const rutasUnicas = new Set(clientes.value.map(c => normalizarRutaClave(c.ruta)).filter(Boolean));
     return rutasUnicas.size === 1;
   }
   return false;
@@ -2588,11 +2621,11 @@ const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0 || filtroRutas.value.length === 0) return [];
   const mapCounts = new Map();
   const modoEfectivo = modoColorEfectivo.value;
-  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => r.toUpperCase()));
+  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => normalizarRutaClave(r)));
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
-    const rKey = (c.ruta || '').trim().toUpperCase();
+    const rKey = normalizarRutaClave(c.ruta);
     if (!setRutasPuntosPermitidas.has(rKey)) return;
 
     let key, nombre, color;
@@ -3054,22 +3087,19 @@ function toggleTodosDias() {
 async function cargarDatos(mantenerVista = false) {
   menuAbierto.value = null;
 
-  if (filtroCanales.value.length === 0 && filtroRutas.value.length === 0) {
-    clientes.value = [];
-    fronterasRutas.value = [];
-    fronterasDias.value = [];
-    kpis.value = { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
-    renderizarEnMapa(mantenerVista);
-    return;
-  }
-
   cargando.value = true;
   try {
     const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
+
+    // Si filtroCanales está vacío, el usuario seleccionó "Todos los canales"
+    const canalesParaConsulta = (filtroCanales.value.length > 0)
+      ? filtroCanales.value
+      : (props.canales || []);
+
     const res = await axios.post(route('supervisor.saneamiento.visor.data'), {
-      canales: filtroCanales.value,
+      canales: canalesParaConsulta,
       rutas: [],
-      dias: filtroDias.value,
+      dias: [], // Traer todos los días para permitir filtrado reactivo e independiente en Leaflet
       ver_frontera_rutas: true,
       ver_frontera_dias: true,
       solo_activos: soloActivos.value,
@@ -3117,14 +3147,8 @@ async function cargarDatos(mantenerVista = false) {
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
 
-    // Solo inicializar rutas en la primera carga si los filtros aún no tienen selección
-    if (!filtrosRutasInicializados.value) {
-      const todasRutasCanalKeys = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
-      if (filtroRutas.value.length === 0) filtroRutas.value = [...todasRutasCanalKeys];
-      if (filtroFronterasRutas.value.length === 0) filtroFronterasRutas.value = [...todasRutasCanalKeys];
-      if (filtroFronterasDias.value.length === 0) filtroFronterasDias.value = [...todasRutasCanalKeys];
-      filtrosRutasInicializados.value = true;
-    }
+    // Sincronizar filtros de rutas con las rutas resultantes
+    sincronizarFiltrosConRutasDisponibles();
 
     renderizarEnMapa(mantenerVista);
   } catch (error) {
@@ -3209,15 +3233,15 @@ function extraerPuntosDeGeoJSON(geojson) {
 }
 
 function obtenerGeometriasVecinasParaSnapping() {
-  const rutaActual = (rutaParaAjustarFrontera.value || '').trim().toUpperCase();
+  const rutaActual = normalizarRutaClave(rutaParaAjustarFrontera.value);
   const vertices = [];
   const segmentos = [];
 
   // Solo considerar rutas que están VISIBLES en el mapa (activadas en filtroFronterasRutas)
-  const setRutasVisibles = new Set((filtroFronterasRutas.value || []).map(r => r.toUpperCase()));
+  const setRutasVisibles = new Set((filtroFronterasRutas.value || []).map(r => normalizarRutaClave(r)));
 
   (fronterasRutas.value || []).forEach(fr => {
-    const rKey = (fr.ruta || '').trim().toUpperCase();
+    const rKey = normalizarRutaClave(fr.ruta);
     if (!rKey || rKey === rutaActual) return;
     if (setRutasVisibles.size > 0 && !setRutasVisibles.has(rKey)) return;
     if (!fr.geojson) return;
@@ -4058,8 +4082,8 @@ function getRutasParaSelectorPropuesta() {
 
 function generarPopupHtmlRtm(c) {
   const rutasCandidatas = getRutasParaSelectorPropuesta();
-  const rutaActualNorm = (c.ruta || '').trim().toUpperCase();
-  const rutaActualEnFiltro = rutasCandidatas.some(r => (r.ruta || '').trim().toUpperCase() === rutaActualNorm);
+  const rutaActualNorm = normalizarRutaClave(c.ruta);
+  const rutaActualEnFiltro = rutasCandidatas.some(r => normalizarRutaClave(r.ruta) === rutaActualNorm);
 
   let rutasOptions = '';
   if (!rutaActualEnFiltro) {
@@ -4067,7 +4091,7 @@ function generarPopupHtmlRtm(c) {
   }
 
   rutasOptions += rutasCandidatas.map(r => {
-    const esActual = (r.ruta || '').trim().toUpperCase() === rutaActualNorm;
+    const esActual = normalizarRutaClave(r.ruta) === rutaActualNorm;
     const sel = esActual ? 'selected' : '';
     return `<option value="${escapeHtml(r.ruta)}" ${sel}>${escapeHtml(formatRuta(r.ruta))} (${escapeHtml(r.canal || '')})</option>`;
   }).join('');
@@ -4372,10 +4396,10 @@ function renderizarEnMapa(mantenerVista = false) {
 
   // Polígonos de Rutas (Línea gruesa, bien enmarcada y sin color de fondo) filtrados por ruta
   if (fronterasRutas.value.length > 0 && filtroFronterasRutas.value.length > 0) {
-    const setRutasPermitidas = new Set(filtroFronterasRutas.value.map(r => r.toUpperCase()));
+    const setRutasPermitidas = new Set(filtroFronterasRutas.value.map(r => normalizarRutaClave(r)));
 
     fronterasRutas.value.forEach(fr => {
-      const rKey = (fr.ruta || '').trim().toUpperCase();
+      const rKey = normalizarRutaClave(fr.ruta);
       if (!setRutasPermitidas.has(rKey)) return;
 
       const rutaColor = getRutaColor(fr.ruta);
@@ -4395,10 +4419,10 @@ function renderizarEnMapa(mantenerVista = false) {
 
   // Polígonos de Días (Sutiles y punteados) filtrados por ruta
   if (fronterasDias.value.length > 0 && filtroFronterasDias.value.length > 0) {
-    const setDiasPermitidos = new Set(filtroFronterasDias.value.map(r => r.toUpperCase()));
+    const setDiasPermitidos = new Set(filtroFronterasDias.value.map(r => normalizarRutaClave(r)));
 
     fronterasDias.value.forEach(fd => {
-      const rKey = (fd.ruta || '').trim().toUpperCase();
+      const rKey = normalizarRutaClave(fd.ruta);
       if (!setDiasPermitidos.has(rKey)) return;
 
       const diaColor = getDiaColor(fd.dia);
@@ -4418,14 +4442,14 @@ function renderizarEnMapa(mantenerVista = false) {
   }
 
   // Marcadores de Clientes (Filtrados dinámicamente por el selector de rutas/puntos y días de visita)
-  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => r.toUpperCase()));
+  const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => normalizarRutaClave(r)));
   const setDiasVisitaPermitidos = (filtroDias.value.length > 0 && filtroDias.value.length < diasSemana.length)
     ? new Set(filtroDias.value.map(d => normalizarDiaClave(d)))
     : null;
 
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
-      const rutaCliente = (c.ruta || '').trim().toUpperCase();
+      const rutaCliente = normalizarRutaClave(c.ruta);
       if (!setRutasPuntosPermitidas.has(rutaCliente)) {
         return;
       }
@@ -4645,10 +4669,7 @@ if (typeof window !== 'undefined') {
 
 onMounted(() => {
   registerRutasCatalogo(props.catalogo_rutas);
-  const rutasIniciales = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
-  filtroRutas.value = [...rutasIniciales];
-  filtroFronterasRutas.value = [...rutasIniciales];
-  filtroFronterasDias.value = [...rutasIniciales];
+  sincronizarFiltrosConRutasDisponibles(true);
 
   if (typeof window !== 'undefined' && window.localStorage) {
     const savedH = localStorage.getItem('visor_alto_tabla_rtm');
@@ -4662,9 +4683,7 @@ onMounted(() => {
 
   nextTick(() => {
     initMap();
-    if (filtroCanales.value.length > 0 || filtroRutas.value.length > 0) {
-      cargarDatos();
-    }
+    cargarDatos();
   });
 });
 

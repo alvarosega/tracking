@@ -33,31 +33,23 @@ class GetRuteoDataAction
         string $modoVista = 'original'
     ): array {
         if (empty($rutas) && empty($canales)) {
-            return [
-                'clientes' => [],
-                'fronteras_rutas' => [],
-                'fronteras_dias' => [],
-                'kpis' => [
-                    'total' => 0,
-                    'con_gps' => 0,
-                    'sin_gps' => 0,
-                    'activos' => 0,
-                    'inactivos' => 0,
-                    'con_cambios' => 0,
-                    'total_propuestas' => 0,
-                ],
-            ];
-        }
-
-        if (empty($rutas) && !empty($canales)) {
+            // Si no se especificaron rutas ni canales, obtener todas las rutas disponibles en dim_rutas
+            $rutas = Ruta::query()
+                ->pluck('ruta')
+                ->filter()
+                ->unique()
+                ->toArray();
+        } elseif (empty($rutas) && !empty($canales)) {
             $rutas = Ruta::query()
                 ->whereIn('canal', $canales)
                 ->pluck('ruta')
+                ->filter()
                 ->unique()
                 ->toArray();
         }
 
-        $rutasUpper = array_map(fn($r) => strtoupper(trim((string) $r)), $rutas);
+        $rutasUpper = array_values(array_unique(array_map(fn($r) => strtoupper(trim((string) $r)), $rutas)));
+        $rutasVariantes = array_values(array_unique(array_merge($rutas, $rutasUpper)));
 
         // 1. Consultar propuestas activas de auditoria_saneamiento_propuestas
         $propuestasRows = DB::connection('supervisor')
@@ -92,12 +84,12 @@ class GetRuteoDataAction
         // 2. Consulta de clientes en pan_ruteo
         if ($modoVista === 'original') {
             // EN MODO ORIGINAL: Consultar estrictamente la asignación inmutable de pan_ruteo
-            $queryClientes = PanRuteo::query()->whereIn('ruta', $rutas);
+            $queryClientes = PanRuteo::query()->whereIn('ruta', $rutasVariantes);
         } else {
             // EN MODO CAMBIOS: Consultar los clientes de las rutas seleccionadas más cualquier cliente
             // que tenga propuesta de reasignación vinculada a estas rutas (entrante o saliente)
-            $queryClientes = PanRuteo::query()->where(function ($q) use ($rutas, $cidsAfectados) {
-                $q->whereIn('ruta', $rutas);
+            $queryClientes = PanRuteo::query()->where(function ($q) use ($rutasVariantes, $cidsAfectados) {
+                $q->whereIn('ruta', $rutasVariantes);
                 if (!empty($cidsAfectados)) {
                     $q->orWhereIn('cliente_id', $cidsAfectados);
                 }
@@ -115,7 +107,21 @@ class GetRuteoDataAction
         if (!empty($dias)) {
             $diasLower = array_map(fn($d) => strtolower(trim((string) $d)), $dias);
             $diasUpper = array_map(fn($d) => strtoupper(trim((string) $d)), $dias);
-            $diasMerge = array_values(array_unique(array_merge($diasLower, $diasUpper)));
+            $diasConTildes = [];
+            foreach (array_merge($diasLower, $diasUpper) as $d) {
+                $diasConTildes[] = $d;
+                if (str_contains(strtolower($d), 'miercoles')) {
+                    $diasConTildes[] = 'Miércoles';
+                    $diasConTildes[] = 'miércoles';
+                    $diasConTildes[] = 'MIÉRCOLES';
+                }
+                if (str_contains(strtolower($d), 'sabado')) {
+                    $diasConTildes[] = 'Sábado';
+                    $diasConTildes[] = 'sábado';
+                    $diasConTildes[] = 'SÁBADO';
+                }
+            }
+            $diasMerge = array_values(array_unique($diasConTildes));
             if ($modoVista === 'original') {
                 $queryClientes->whereIn('dia_norm', $diasMerge);
             }
@@ -239,8 +245,13 @@ class GetRuteoDataAction
                 // Filtrado por días en modo cambios:
                 // Se incluye si el día efectivo coincide, O si el día original coincidía (para poder observar el cambio de jornada)
                 if (!empty($diasMerge)) {
-                    $coincideDiaEfectivo = in_array(strtolower($diaEfectivo), $diasMerge, true) || in_array(strtoupper($diaEfectivo), $diasMerge, true);
-                    $coincideDiaOriginal = in_array(strtolower($diaOriginal), $diasMerge, true) || in_array(strtoupper($diaOriginal), $diasMerge, true);
+                    $cleanDia = fn($s) => strtoupper(trim(str_replace(['á','é','í','ó','ú','Á','É','Í','Ó','Ú'], ['a','e','i','o','u','A','E','I','O','U'], (string)$s)));
+                    $normEfectivo = $cleanDia($diaEfectivo);
+                    $normOriginal = $cleanDia($diaOriginal);
+                    $diasNormalizados = array_map($cleanDia, $diasMerge);
+
+                    $coincideDiaEfectivo = in_array($normEfectivo, $diasNormalizados, true);
+                    $coincideDiaOriginal = in_array($normOriginal, $diasNormalizados, true);
                     if (!$coincideDiaEfectivo && !$coincideDiaOriginal) {
                         continue;
                     }
@@ -303,10 +314,10 @@ class GetRuteoDataAction
 
         // Consulta de Polígonos de Rutas
         $fronterasRutas = [];
-        if ($verFronteraRutas && !empty($rutas)) {
+        if ($verFronteraRutas && !empty($rutasVariantes)) {
             $poligonosRutas = FronteraRuta::query()
                 ->activos()
-                ->whereIn('ruta', $rutas)
+                ->whereIn('ruta', $rutasVariantes)
                 ->select(['ruta', 'canal', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
                 ->get();
 
@@ -323,15 +334,12 @@ class GetRuteoDataAction
 
         // Consulta de Polígonos de Días
         $fronterasDias = [];
-        if ($verFronteraDias && !empty($rutas)) {
+        if ($verFronteraDias && !empty($rutasVariantes)) {
             $queryFronterasDias = FronteraDia::query()
                 ->activos()
-                ->whereIn('ruta', $rutas);
+                ->whereIn('ruta', $rutasVariantes);
 
-            if (!empty($dias)) {
-                $diasLower = array_map(fn($d) => strtolower(trim((string) $d)), $dias);
-                $diasUpper = array_map(fn($d) => strtoupper(trim((string) $d)), $dias);
-                $diasMerge = array_values(array_unique(array_merge($diasLower, $diasUpper)));
+            if (!empty($diasMerge)) {
                 $queryFronterasDias->whereIn('dia', $diasMerge);
             }
 
