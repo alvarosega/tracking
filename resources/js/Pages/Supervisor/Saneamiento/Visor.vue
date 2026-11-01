@@ -2121,7 +2121,7 @@
             <tfoot class="bg-slate-100/95 text-slate-800 font-mono text-[11px] font-bold border-t-2 border-slate-300 sticky bottom-0 z-10 shadow-md">
               <tr>
                 <td colspan="5" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
-                  TOTALES ({{ clientesConCambioFiltrados.length }} clis):
+                  TOTALES ({{ totalClientesUnicosMatrizInferior }} clis):
                 </td>
                 <td
                   v-for="p in periodosVisibles"
@@ -3132,9 +3132,12 @@ const balanceRtmPorRuta = computed(() => {
 
   const esOrig = (modoPrincipal.value === 'visualizacion' && subModoVisualizacion.value === 'original');
 
+  // Control para no duplicar conteo ni ventas de un mismo cliente en una misma ruta
+  const clientesContabilizadosPorRuta = new Map();
+
   clientes.value.forEach(c => {
-    // En Base Original usamos ruta_original y dia_original
-    // En Con Cambios usamos ruta y dia_norm efectivos
+    // En Base Original usamos ruta_original y dia_original (de plan ruteo)
+    // En Con Cambios usamos ruta y dia_norm efectivos (propuestas de la tabla de modificados)
     const rKey = normalizarRutaClave(esOrig ? (c.ruta_original || c.ruta) : (c.ruta || c.ruta_original)) || 'SIN RUTA';
     const diaClave = normalizarDiaClave(esOrig ? (c.dia_original || c.dia_norm) : c.dia_norm);
 
@@ -3160,23 +3163,39 @@ const balanceRtmPorRuta = computed(() => {
 
     const item = mapRutas.get(rKey);
     const diaKey = diaClave || 'SIN DIA';
+    // Carga de visitas por día
     item.dias[diaKey] = (item.dias[diaKey] || 0) + 1;
 
-    // En el total por ruta, solo se debe contar los clientes de lunes a sábado
+    // En el total por ruta y ventas históricas, solo se debe contar los clientes de lunes a sábado
+    // y cada cliente único se contabiliza UNA SOLA VEZ para evitar duplicar montos
     if (DIAS_LUNES_A_SABADO.includes(diaClave)) {
-      item.total++;
-      if (c.tiene_gps) item.con_gps++;
-      periodosHistoricos.value.forEach(p => {
-        const monto = getVentaClientePeriodo(c, p.periodo);
-        item.ventas_por_periodo[p.periodo] = (item.ventas_por_periodo[p.periodo] || 0) + monto;
-      });
-      const p0 = periodosHistoricos.value[0]?.periodo;
-      const p1 = periodosHistoricos.value[1]?.periodo;
-      const p2 = periodosHistoricos.value[2]?.periodo;
-      item.venta_mes_actual = p0 ? (item.ventas_por_periodo[p0] || 0) : (Number(c.venta_mes_actual) || 0);
-      item.venta_mes_anterior = p1 ? (item.ventas_por_periodo[p1] || 0) : (Number(c.venta_mes_anterior) || 0);
-      item.venta_mes_anterior_2 = p2 ? (item.ventas_por_periodo[p2] || 0) : (Number(c.venta_mes_anterior_2) || 0);
+      if (!clientesContabilizadosPorRuta.has(rKey)) {
+        clientesContabilizadosPorRuta.set(rKey, new Set());
+      }
+      const setCids = clientesContabilizadosPorRuta.get(rKey);
+      const cid = c.cliente_id || c.id;
+
+      if (!setCids.has(cid)) {
+        setCids.add(cid);
+        item.total++;
+        if (c.tiene_gps) item.con_gps++;
+
+        periodosHistoricos.value.forEach(p => {
+          const monto = getVentaClientePeriodo(c, p.periodo);
+          item.ventas_por_periodo[p.periodo] = (item.ventas_por_periodo[p.periodo] || 0) + monto;
+        });
+      }
     }
+  });
+
+  const p0 = periodosHistoricos.value[0]?.periodo;
+  const p1 = periodosHistoricos.value[1]?.periodo;
+  const p2 = periodosHistoricos.value[2]?.periodo;
+
+  mapRutas.forEach(item => {
+    item.venta_mes_actual = p0 ? (item.ventas_por_periodo[p0] || 0) : 0;
+    item.venta_mes_anterior = p1 ? (item.ventas_por_periodo[p1] || 0) : 0;
+    item.venta_mes_anterior_2 = p2 ? (item.ventas_por_periodo[p2] || 0) : 0;
   });
 
   return Array.from(mapRutas.values()).sort((a, b) => b.total - a.total);
@@ -3632,14 +3651,23 @@ const clientesConCambioFiltrados = computed(() => {
   });
 });
 
+const totalClientesUnicosMatrizInferior = computed(() => {
+  return new Set(clientesConCambioFiltrados.value.map(c => c.cliente_id || c.id)).size;
+});
+
 const totalesMatrizInferiorPorPeriodo = computed(() => {
   const lista = clientesConCambioFiltrados.value;
   const tot = {};
   periodosHistoricos.value.forEach(p => {
     tot[p.periodo] = 0;
   });
+  const cidsVistos = new Set();
   for (let i = 0; i < lista.length; i++) {
     const c = lista[i];
+    const cid = c.cliente_id || c.id;
+    if (cidsVistos.has(cid)) continue;
+    cidsVistos.add(cid);
+
     periodosHistoricos.value.forEach(p => {
       tot[p.periodo] += getVentaClientePeriodo(c, p.periodo);
     });
@@ -3682,25 +3710,35 @@ async function cambiarRutaDirecta(c, nuevaRuta) {
   const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
   const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
 
+  const cidTarget = c.cliente_id || c.id;
+
   // Optimistic update
+  clientes.value.forEach(cl => {
+    if ((cl.cliente_id && String(cl.cliente_id) === String(cidTarget)) || (cl.id && String(cl.id) === String(c.id))) {
+      if (vuelveAOriginal) {
+        cl.ruta = cl.ruta_original || rutaDestino;
+        cl.ruta_propuesta = null;
+        cl.dia_propuesto = null;
+        cl.tiene_cambio = false;
+        cl.tiene_propuesta = false;
+        cl.propuesta_id = null;
+        cl.propuesta_estado = null;
+      } else {
+        cl.ruta = rutaDestino;
+        cl.ruta_propuesta = rutaDestino;
+        cl.tiene_cambio = true;
+        cl.tiene_propuesta = true;
+        cl.propuesta_estado = 'PENDIENTE';
+      }
+    }
+  });
+
   if (vuelveAOriginal) {
-    c.ruta = c.ruta_original || rutaDestino;
-    c.ruta_propuesta = null;
-    c.dia_propuesto = null;
-    c.tiene_cambio = false;
-    c.tiene_propuesta = false;
-    c.propuesta_id = null;
-    c.propuesta_estado = null;
     if (teniaPropuesta && kpis.value) {
       if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
       if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
     }
   } else {
-    c.ruta = rutaDestino;
-    c.ruta_propuesta = rutaDestino;
-    c.tiene_cambio = true;
-    c.tiene_propuesta = true;
-    c.propuesta_estado = 'PENDIENTE';
     if (!teniaPropuesta && kpis.value) {
       if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
       if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
@@ -3756,26 +3794,36 @@ async function cambiarDiaDirecto(c, nuevoDia) {
   const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
   const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
 
+  const cidTarget = c.cliente_id || c.id;
+
   // Optimistic update
+  clientes.value.forEach(cl => {
+    if ((cl.cliente_id && String(cl.cliente_id) === String(cidTarget)) || (cl.id && String(cl.id) === String(c.id))) {
+      if (vuelveAOriginal) {
+        cl.dia_norm = cl.dia_original || nuevoDia;
+        cl.ruta = cl.ruta_original || cl.ruta;
+        cl.ruta_propuesta = null;
+        cl.dia_propuesto = null;
+        cl.tiene_cambio = false;
+        cl.tiene_propuesta = false;
+        cl.propuesta_id = null;
+        cl.propuesta_estado = null;
+      } else {
+        cl.dia_norm = nuevoDia;
+        cl.dia_propuesto = nuevoDia;
+        cl.tiene_cambio = true;
+        cl.tiene_propuesta = true;
+        cl.propuesta_estado = 'PENDIENTE';
+      }
+    }
+  });
+
   if (vuelveAOriginal) {
-    c.dia_norm = c.dia_original || nuevoDia;
-    c.ruta = c.ruta_original || c.ruta;
-    c.ruta_propuesta = null;
-    c.dia_propuesto = null;
-    c.tiene_cambio = false;
-    c.tiene_propuesta = false;
-    c.propuesta_id = null;
-    c.propuesta_estado = null;
     if (teniaPropuesta && kpis.value) {
       if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
       if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
     }
   } else {
-    c.dia_norm = nuevoDia;
-    c.dia_propuesto = nuevoDia;
-    c.tiene_cambio = true;
-    c.tiene_propuesta = true;
-    c.propuesta_estado = 'PENDIENTE';
     if (!teniaPropuesta && kpis.value) {
       if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
       if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
@@ -5285,51 +5333,62 @@ function confirmarAjusteRtm() {
   }
 
   // 3. Aplicar actualización optimista local al cliente en memoria para respuesta instantánea
-  const idx = clientes.value.findIndex(cl =>
-    (cl.cliente_id && cl.cliente_id === clienteIdAfectado) ||
-    (cl.id && cl.id === clienteIdAfectado)
-  );
-  if (idx !== -1) {
-    const c = clientes.value[idx];
-    const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
-    const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+  const matchIndices = [];
+  clientes.value.forEach((cl, i) => {
+    if ((cl.cliente_id && String(cl.cliente_id) === String(clienteIdAfectado)) ||
+        (cl.id && String(cl.id) === String(clienteIdAfectado))) {
+      matchIndices.push(i);
+    }
+  });
+
+  if (matchIndices.length > 0) {
+    const cFirst = clientes.value[matchIndices[0]];
+    const rutaOrig = normalizarRutaClave(cFirst.ruta_original || cFirst.ruta);
+    const diaOrig = normalizarDiaClave(cFirst.dia_original || cFirst.dia_norm);
     const rutaProp = normalizarRutaClave(payload.ruta_propuesta);
     const diaProp = normalizarDiaClave(payload.dia_propuesto);
     const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
 
-    const estadoNuevo = payload.activar_cliente ? 'Activo' : c.estado;
-    const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : cFirst.estado;
+    const teniaPropuesta = Boolean(cFirst.tiene_propuesta || cFirst.tiene_cambio);
+
+    matchIndices.forEach(idx => {
+      const c = clientes.value[idx];
+      if (vuelveAOriginal) {
+        clientes.value[idx] = {
+          ...c,
+          ruta: c.ruta_original || payload.ruta_propuesta,
+          dia_norm: c.dia_original || payload.dia_propuesto,
+          ruta_propuesta: null,
+          dia_propuesto: null,
+          estado: estadoNuevo,
+          tiene_cambio: false,
+          tiene_propuesta: false,
+          propuesta_id: null,
+          propuesta_estado: null,
+          observaciones_propuesta: null,
+        };
+      } else {
+        clientes.value[idx] = {
+          ...c,
+          ruta: payload.ruta_propuesta,
+          dia_norm: payload.dia_propuesto,
+          ruta_propuesta: payload.ruta_propuesta,
+          dia_propuesto: payload.dia_propuesto,
+          estado: estadoNuevo,
+          tiene_cambio: true,
+          tiene_propuesta: true,
+          propuesta_estado: 'PENDIENTE',
+        };
+      }
+    });
 
     if (vuelveAOriginal) {
-      clientes.value[idx] = {
-        ...c,
-        ruta: c.ruta_original || payload.ruta_propuesta,
-        dia_norm: c.dia_original || payload.dia_propuesto,
-        ruta_propuesta: null,
-        dia_propuesto: null,
-        estado: estadoNuevo,
-        tiene_cambio: false,
-        tiene_propuesta: false,
-        propuesta_id: null,
-        propuesta_estado: null,
-        observaciones_propuesta: null,
-      };
       if (teniaPropuesta && kpis.value) {
         if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
         if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
       }
     } else {
-      clientes.value[idx] = {
-        ...c,
-        ruta: payload.ruta_propuesta,
-        dia_norm: payload.dia_propuesto,
-        ruta_propuesta: payload.ruta_propuesta,
-        dia_propuesto: payload.dia_propuesto,
-        estado: estadoNuevo,
-        tiene_cambio: true,
-        tiene_propuesta: true,
-        propuesta_estado: 'PENDIENTE',
-      };
       if (!teniaPropuesta && kpis.value) {
         if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
         if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
@@ -5345,7 +5404,7 @@ function confirmarAjusteRtm() {
       }
     }
     if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteIdAfectado)) {
-      clienteSeleccionado.value = { ...clientes.value[idx] };
+      clienteSeleccionado.value = { ...clientes.value[matchIndices[0]] };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
@@ -5627,51 +5686,62 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
   }
 
   // 2. Actualización optimista local en memoria
-  const idx = clientes.value.findIndex(cl =>
-    (cl.cliente_id && cl.cliente_id === clienteId) ||
-    (cl.id && cl.id === domId)
-  );
-  if (idx !== -1) {
-    const c = clientes.value[idx];
-    const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
-    const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+  const matchIndices = [];
+  clientes.value.forEach((cl, i) => {
+    if ((cl.cliente_id && String(cl.cliente_id) === String(clienteId)) ||
+        (cl.id && String(cl.id) === String(domId))) {
+      matchIndices.push(i);
+    }
+  });
+
+  if (matchIndices.length > 0) {
+    const cFirst = clientes.value[matchIndices[0]];
+    const rutaOrig = normalizarRutaClave(cFirst.ruta_original || cFirst.ruta);
+    const diaOrig = normalizarDiaClave(cFirst.dia_original || cFirst.dia_norm);
     const rutaProp = normalizarRutaClave(payload.ruta_propuesta);
     const diaProp = normalizarDiaClave(payload.dia_propuesto);
     const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
 
-    const estadoNuevo = payload.activar_cliente ? 'Activo' : c.estado;
-    const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : cFirst.estado;
+    const teniaPropuesta = Boolean(cFirst.tiene_propuesta || cFirst.tiene_cambio);
+
+    matchIndices.forEach(idx => {
+      const c = clientes.value[idx];
+      if (vuelveAOriginal) {
+        clientes.value[idx] = {
+          ...c,
+          ruta: c.ruta_original || payload.ruta_propuesta,
+          dia_norm: c.dia_original || payload.dia_propuesto,
+          ruta_propuesta: null,
+          dia_propuesto: null,
+          estado: estadoNuevo,
+          tiene_cambio: false,
+          tiene_propuesta: false,
+          propuesta_id: null,
+          propuesta_estado: null,
+          observaciones_propuesta: null,
+        };
+      } else {
+        clientes.value[idx] = {
+          ...c,
+          ruta: payload.ruta_propuesta,
+          dia_norm: payload.dia_propuesto,
+          ruta_propuesta: payload.ruta_propuesta,
+          dia_propuesto: payload.dia_propuesto,
+          estado: estadoNuevo,
+          tiene_cambio: true,
+          tiene_propuesta: true,
+          propuesta_estado: 'PENDIENTE',
+        };
+      }
+    });
 
     if (vuelveAOriginal) {
-      clientes.value[idx] = {
-        ...c,
-        ruta: c.ruta_original || payload.ruta_propuesta,
-        dia_norm: c.dia_original || payload.dia_propuesto,
-        ruta_propuesta: null,
-        dia_propuesto: null,
-        estado: estadoNuevo,
-        tiene_cambio: false,
-        tiene_propuesta: false,
-        propuesta_id: null,
-        propuesta_estado: null,
-        observaciones_propuesta: null,
-      };
       if (teniaPropuesta && kpis.value) {
         if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
         if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
       }
     } else {
-      clientes.value[idx] = {
-        ...c,
-        ruta: payload.ruta_propuesta,
-        dia_norm: payload.dia_propuesto,
-        ruta_propuesta: payload.ruta_propuesta,
-        dia_propuesto: payload.dia_propuesto,
-        estado: estadoNuevo,
-        tiene_cambio: true,
-        tiene_propuesta: true,
-        propuesta_estado: 'PENDIENTE',
-      };
       if (!teniaPropuesta && kpis.value) {
         if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
         if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
@@ -5687,7 +5757,7 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
       }
     }
     if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteId)) {
-      clienteSeleccionado.value = { ...clientes.value[idx] };
+      clienteSeleccionado.value = { ...clientes.value[matchIndices[0]] };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);

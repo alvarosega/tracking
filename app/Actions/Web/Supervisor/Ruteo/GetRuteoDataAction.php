@@ -251,7 +251,12 @@ class GetRuteoDataAction
         $mesAnteriorPeriodo = $periodosHistoricos[1]['periodo'] ?? $mesActualPeriodo;
         $mesAnterior2Periodo = $periodosHistoricos[2]['periodo'] ?? $mesActualPeriodo;
 
-        $cidsTodos = $clientesRaw->pluck('cliente_id')->filter()->unique()->values()->all();
+        $cidsTodos = $clientesRaw->pluck('cliente_id')
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
         $ventasMap = [];
 
         if (!empty($cidsTodos)) {
@@ -259,10 +264,12 @@ class GetRuteoDataAction
                 foreach (array_chunk($cidsTodos, 1000) as $chunkIds) {
                     $ventasRows = DB::connection('supervisor')->table('fact_ventas')
                         ->whereIn('cliente_id', $chunkIds)
+                        ->where('cliente_id', '>', 0)
                         ->whereBetween('fecha_norm', [$inicioHistorico, $finHistorico])
+                        ->where('monto_final', '>', 0)
                         ->where(function ($q) {
                             $q->whereNull('revertida')
-                              ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
+                              ->orWhereNotIn(DB::raw("LOWER(TRIM(revertida))"), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes', 'verdadero']);
                         })
                         ->select([
                             'cliente_id',

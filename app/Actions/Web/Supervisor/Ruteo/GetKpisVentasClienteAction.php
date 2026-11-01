@@ -34,10 +34,12 @@ class GetKpisVentasClienteAction
 
         $ventas = $conn->table('fact_ventas')
             ->where('cliente_id', (int) $clienteId)
+            ->where('cliente_id', '>', 0)
             ->whereBetween('fecha_norm', [$inicioHistorico, $finMesActual])
+            ->where('monto_final', '>', 0)
             ->where(function ($q) {
                 $q->whereNull('revertida')
-                  ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
+                  ->orWhereNotIn(DB::raw("LOWER(TRIM(revertida))"), ['si', 'sí', 'true', '1', 'anulada', 'revertida', 'yes', 'verdadero']);
             })
             ->select([
                 DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as periodo"),
