@@ -98,14 +98,43 @@
             </svg>
           </button>
 
-          <!-- Filtro Dropdown: Rutas -->
+          <!-- Filtro Dropdown: Rutas (Puntos) -->
           <button
             type="button"
-            @click.stop="toggleMenu('rutas', $event)"
+            @click.stop="toggleMenu('puntos_rutas', $event)"
             class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+            :class="{ 'bg-slate-200 font-semibold border-slate-300': filtroRutas.length > 0 }"
           >
             <span class="text-slate-500 font-normal">Rutas:</span>
-            <span class="font-bold text-slate-900">{{ labelRutas }}</span>
+            <span class="font-bold text-slate-900">{{ labelRutasPuntos }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Filtro Dropdown: Frontera Ruta (Móvil) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('fronteras_rutas', $event)"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+            :class="{ 'bg-slate-200 font-semibold border-slate-300': filtroFronterasRutas.length > 0 }"
+          >
+            <span class="text-slate-500 font-normal">F. Ruta:</span>
+            <span class="font-bold text-slate-900">{{ labelFronterasRutas }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Filtro Dropdown: Frontera Día (Móvil) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('fronteras_dias', $event)"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+            :class="{ 'bg-slate-200 font-semibold border-slate-300': filtroFronterasDias.length > 0 }"
+          >
+            <span class="text-slate-500 font-normal">F. Día:</span>
+            <span class="font-bold text-slate-900">{{ labelFronterasDias }}</span>
             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
@@ -2296,12 +2325,18 @@ const conteoPuntosPorRuta = computed(() => {
   return mapCounts;
 });
 
-// Rutas completas disponibles (incluye todo el catálogo para que los filtros de rutas y fronteras sean 100% independientes)
+// Rutas completas disponibles (afectadas por el canal seleccionado cuando está activo)
 const rutasDisponiblesParaFronteras = computed(() => {
   const mapRutas = new Map();
+  const setCanales = new Set((filtroCanales.value || []).map(c => String(c).trim().toUpperCase()).filter(Boolean));
+  const canalFiltroActivo = setCanales.size > 0;
 
-  // 1. Incluir TODAS las rutas del catálogo
+  // 1. Incluir rutas del catálogo filtradas por canal si hay filtro activo
   (props.catalogo_rutas || []).forEach(r => {
+    const canalRuta = String(r.canal || '').trim().toUpperCase();
+    if (canalFiltroActivo && !setCanales.has(canalRuta)) {
+      return;
+    }
     const rKey = normalizarRutaClave(r.ruta);
     if (!rKey) return;
     mapRutas.set(rKey, {
@@ -2313,12 +2348,14 @@ const rutasDisponiblesParaFronteras = computed(() => {
     });
   });
 
-  // 2. Incorporar rutas adicionales que pudieran venir en clientes o fronteras
+  // 2. Incorporar rutas adicionales que pudieran venir en clientes o fronteras (si corresponden al canal activo)
   (clientes.value || []).forEach(c => {
     if (c.ruta) {
       const rKey = normalizarRutaClave(c.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const info = (props.catalogo_rutas || []).find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const canalRuta = String(c.canal || (info ? info.canal : '')).trim().toUpperCase();
+        if (canalFiltroActivo && canalRuta && !setCanales.has(canalRuta)) return;
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -2334,7 +2371,9 @@ const rutasDisponiblesParaFronteras = computed(() => {
     if (fr.ruta) {
       const rKey = normalizarRutaClave(fr.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const info = (props.catalogo_rutas || []).find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const canalRuta = String(fr.canal || (info ? info.canal : '')).trim().toUpperCase();
+        if (canalFiltroActivo && canalRuta && !setCanales.has(canalRuta)) return;
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -2350,7 +2389,9 @@ const rutasDisponiblesParaFronteras = computed(() => {
     if (fd.ruta) {
       const rKey = normalizarRutaClave(fd.ruta);
       if (!mapRutas.has(rKey)) {
-        const info = props.catalogo_rutas.find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const info = (props.catalogo_rutas || []).find(cr => normalizarRutaClave(cr.ruta) === rKey);
+        const canalRuta = String(fd.canal || (info ? info.canal : '')).trim().toUpperCase();
+        if (canalFiltroActivo && canalRuta && !setCanales.has(canalRuta)) return;
         mapRutas.set(rKey, {
           ruta: rKey,
           nombre: formatRuta(rKey),
@@ -3039,9 +3080,10 @@ function toggleMenu(nombre, e) {
   menuAbierto.value = nombre;
 }
 
-// Filtros: solo actualizan estado, NO autoejecutan consulta
+// Filtros: actualizan las rutas disponibles según el canal seleccionado y sincronizan los filtros
 function onCanalesChange() {
-  // Los filtros son 100% independientes: no alterar las selecciones de rutas de puntos ni de fronteras
+  sincronizarFiltrosConRutasDisponibles(true);
+  renderizarEnMapa(true);
 }
 
 function seleccionarTodosCanales() {
@@ -4070,11 +4112,12 @@ function escapeHtml(str) {
 }
 
 function getRutasParaSelectorPropuesta() {
-  let lista = props.catalogo_rutas;
+  let lista = props.catalogo_rutas || [];
 
   // Filtrar por canales seleccionados si los hay, o permitir todas las rutas del catálogo
   if (filtroCanales.value.length > 0) {
-    lista = lista.filter(r => filtroCanales.value.includes(r.canal));
+    const setCanales = new Set(filtroCanales.value.map(c => String(c).trim().toUpperCase()));
+    lista = lista.filter(r => setCanales.has(String(r.canal || '').trim().toUpperCase()));
   }
 
   return lista;

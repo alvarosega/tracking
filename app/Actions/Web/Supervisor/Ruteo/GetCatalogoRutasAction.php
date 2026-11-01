@@ -14,14 +14,23 @@ class GetCatalogoRutasAction
      */
     public function execute(): array
     {
-        $catalogo = Ruta::query()
-            ->select('ruta', 'canal', 'vendedor')
+        $catalogoRaw = Ruta::query()
+            ->whereNotNull('ruta')
+            ->select(['ruta', 'canal', 'vendedor'])
             ->distinct()
             ->orderBy('ruta')
             ->get();
 
+        $catalogo = $catalogoRaw->map(function ($r) {
+            return [
+                'ruta' => trim((string) $r->ruta),
+                'canal' => trim((string) $r->canal),
+                'vendedor' => trim((string) $r->vendedor),
+            ];
+        })->filter(fn($r) => !empty($r['ruta']))->values();
+
         $canales = $catalogo->pluck('canal')
-            ->filter()
+            ->filter(fn($c) => !empty($c))
             ->unique()
             ->values()
             ->toArray();

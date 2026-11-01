@@ -32,24 +32,82 @@ class GetRuteoDataAction
         bool $soloActivos = true,
         string $modoVista = 'original'
     ): array {
-        if (empty($rutas) && empty($canales)) {
+        $canalesClean = array_values(array_unique(array_filter(array_map(fn($c) => trim((string) $c), $canales))));
+
+        if (empty($rutas) && empty($canalesClean)) {
             // Si no se especificaron rutas ni canales, obtener todas las rutas disponibles en dim_rutas
             $rutas = Ruta::query()
+                ->whereNotNull('ruta')
                 ->pluck('ruta')
+                ->map(fn($r) => trim((string) $r))
                 ->filter()
                 ->unique()
+                ->values()
                 ->toArray();
-        } elseif (empty($rutas) && !empty($canales)) {
+        } elseif (empty($rutas) && !empty($canalesClean)) {
             $rutas = Ruta::query()
-                ->whereIn('canal', $canales)
+                ->whereNotNull('ruta')
+                ->where(function ($q) use ($canalesClean) {
+                    $q->whereIn('canal', $canalesClean);
+                    foreach ($canalesClean as $c) {
+                        $q->orWhereRaw('TRIM(canal) = ?', [$c])
+                          ->orWhereRaw('LOWER(TRIM(canal)) = ?', [strtolower($c)]);
+                    }
+                })
                 ->pluck('ruta')
+                ->map(fn($r) => trim((string) $r))
                 ->filter()
                 ->unique()
+                ->values()
                 ->toArray();
+
+            // Respaldo adicional si dim_rutas no arrojó rutas pero pan_ruteo pudiera contenerlas
+            if (empty($rutas)) {
+                try {
+                    $rutas = PanRuteo::query()
+                        ->whereNotNull('ruta')
+                        ->where(function ($q) use ($canalesClean) {
+                            $q->whereIn('canal', $canalesClean);
+                            foreach ($canalesClean as $c) {
+                                $q->orWhereRaw('TRIM(canal) = ?', [$c])
+                                  ->orWhereRaw('LOWER(TRIM(canal)) = ?', [strtolower($c)]);
+                            }
+                        })
+                        ->pluck('ruta')
+                        ->map(fn($r) => trim((string) $r))
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->toArray();
+                } catch (\Throwable $e) {
+                    // Ignorar si pan_ruteo no contiene la columna canal
+                }
+            }
         }
 
         $rutasUpper = array_values(array_unique(array_map(fn($r) => strtoupper(trim((string) $r)), $rutas)));
-        $rutasVariantes = array_values(array_unique(array_merge($rutas, $rutasUpper)));
+        $rutasVariantes = array_values(array_unique(array_filter(array_merge(
+            $rutas,
+            $rutasUpper,
+            array_map('strtolower', $rutasUpper)
+        ))));
+
+        if (empty($rutasVariantes)) {
+            return [
+                'clientes' => [],
+                'fronteras_rutas' => [],
+                'fronteras_dias' => [],
+                'kpis' => [
+                    'total' => 0,
+                    'activos' => 0,
+                    'inactivos' => 0,
+                    'con_gps' => 0,
+                    'sin_gps' => 0,
+                    'con_cambios' => 0,
+                    'total_propuestas' => 0,
+                ],
+            ];
+        }
 
         // 1. Consultar propuestas activas de auditoria_saneamiento_propuestas
         $propuestasRows = DB::connection('supervisor')
