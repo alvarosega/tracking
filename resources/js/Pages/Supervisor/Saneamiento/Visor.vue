@@ -3766,12 +3766,12 @@ async function descartarPropuesta(c) {
 
     if (res.data?.status === 'ok') {
       mostrarToast('Propuesta descartada exitosamente.');
+      clienteActivoId.value = null;
       if (map) {
         map.closePopup();
       }
       if (modalAjusteRtm.value.show && modalAjusteRtm.value.cliente && (modalAjusteRtm.value.cliente.propuesta_id === c.propuesta_id || modalAjusteRtm.value.cliente.id === c.id)) {
         cerrarModalAjusteRtm();
-        clienteActivoId.value = null;
       }
       cargarDatos(true);
     } else {
@@ -3955,8 +3955,9 @@ async function cargarDatos(mantenerVista = false) {
     // Sincronizar filtros de rutas con las rutas resultantes
     sincronizarFiltrosConRutasDisponibles();
 
-    if (modalAjusteRtm.value.show) {
-      // Si el usuario abrió otro modal y está haciendo cambios, no perturbar el mapa ni la vista
+    const popupActivoEnMapa = Boolean(map && map._popup && map.hasLayer(map._popup));
+    if (modalAjusteRtm.value.show || popupActivoEnMapa) {
+      // Si el usuario abrió otro modal o tiene un popup activo en el mapa, no interrumpir ni mutar su interacción activa
       mapaPendienteDeRenderizar = true;
     } else {
       renderizarEnMapa(mantenerVista);
@@ -4023,6 +4024,7 @@ async function activarClienteDirecto(clienteOrId) {
   activandoClienteId.value = clienteId;
 
   // Cerrar modal y popup de mapa inmediatamente para evitar interferencias
+  clienteActivoId.value = null;
   if (modalAjusteRtm.value.show && String(modalAjusteRtm.value.cliente?.cliente_id || modalAjusteRtm.value.cliente?.id) === String(clienteId)) {
     cerrarModalAjusteRtm();
   }
@@ -5169,8 +5171,10 @@ function cerrarModalAjusteRtm() {
   modalAjusteRtm.value.show = false;
   modalAjusteRtm.value.cliente = null;
   guardandoRtm.value = false;
+  clienteActivoId.value = null;
 
-  if (mapaPendienteDeRenderizar) {
+  const popupActivoEnMapa = Boolean(map && map._popup && map.hasLayer(map._popup));
+  if (mapaPendienteDeRenderizar && !popupActivoEnMapa) {
     mapaPendienteDeRenderizar = false;
     renderizarEnMapa(true);
   }
@@ -5190,8 +5194,9 @@ function confirmarAjusteRtm() {
   };
   const clienteIdAfectado = payload.cliente_id;
 
-  // 2. Cerrar el modal INMEDIATAMENTE al presionar Guardar (sin esperar la petición de red)
+  // 2. Cerrar el modal y popup INMEDIATAMENTE al presionar Guardar (sin esperar la petición de red)
   cerrarModalAjusteRtm();
+  clienteActivoId.value = null;
   if (map) {
     map.closePopup();
   }
@@ -5219,6 +5224,17 @@ function confirmarAjusteRtm() {
       if (typeof kpis.value.activos === 'number') {
         kpis.value.activos++;
       }
+    }
+    if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteIdAfectado)) {
+      clienteSeleccionado.value = {
+        ...clienteSeleccionado.value,
+        ruta: payload.ruta_propuesta,
+        dia_norm: payload.dia_propuesto,
+        estado: estadoNuevo,
+        tiene_cambio: true,
+        tiene_propuesta: true,
+        propuesta_estado: 'PENDIENTE',
+      };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
@@ -5493,7 +5509,8 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
     activar_cliente: activarCliente,
   };
 
-  // 1. Cerrar popup inmediatamente
+  // 1. Cerrar popup inmediatamente y desvincular cliente activo para que no se reabra
+  clienteActivoId.value = null;
   if (map) {
     map.closePopup();
   }
@@ -5521,6 +5538,17 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
       if (typeof kpis.value.activos === 'number') {
         kpis.value.activos++;
       }
+    }
+    if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteId)) {
+      clienteSeleccionado.value = {
+        ...clienteSeleccionado.value,
+        ruta: payload.ruta_propuesta,
+        dia_norm: payload.dia_propuesto,
+        estado: estadoNuevo,
+        tiene_cambio: true,
+        tiene_propuesta: true,
+        propuesta_estado: 'PENDIENTE',
+      };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
@@ -5619,6 +5647,17 @@ function initMap() {
     }
   });
 
+  map.on('popupclose', () => {
+    const popupAunAbierto = Boolean(map && map._popup && map.hasLayer(map._popup));
+    if (!popupAunAbierto && !modalAjusteRtm.value.show) {
+      clienteActivoId.value = null;
+    }
+    if (!popupAunAbierto && mapaPendienteDeRenderizar && !modalAjusteRtm.value.show) {
+      mapaPendienteDeRenderizar = false;
+      renderizarEnMapa(true);
+    }
+  });
+
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 250);
@@ -5643,7 +5682,8 @@ function renderizarEnMapa(mantenerVista = false) {
 
   const centroActual = mantenerVista ? map.getCenter() : null;
   const zoomActual = mantenerVista ? map.getZoom() : null;
-  const popupAbiertoId = (mantenerVista && map._popup && clienteActivoId.value && !modalAjusteRtm.value.show) ? clienteActivoId.value : null;
+  const popupActivoEnMapa = Boolean(map && map._popup && map.hasLayer(map._popup));
+  const popupAbiertoId = (mantenerVista && popupActivoEnMapa && clienteActivoId.value && !modalAjusteRtm.value.show) ? clienteActivoId.value : null;
 
   markersLayer.clearLayers();
   fronterasRutasLayer.clearLayers();
