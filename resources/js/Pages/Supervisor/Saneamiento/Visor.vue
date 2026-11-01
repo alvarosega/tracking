@@ -582,8 +582,8 @@
               class="h-7 px-2.5 bg-white border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-500 cursor-pointer"
             >
               <option value="">-- Seleccionar ruta a ajustar --</option>
-              <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
-                {{ formatRuta(r.ruta) }} ({{ r.canal }})
+              <option v-for="r in rutasDisponiblesParaFronteras" :key="r.ruta" :value="r.ruta">
+                {{ formatRuta(r.ruta) }} {{ r.canal ? `(${r.canal})` : '' }}
               </option>
             </select>
 
@@ -2180,6 +2180,7 @@ const filtroFronterasDias = ref([]);
 const busquedaFronteraRuta = ref('');
 const busquedaFronteraDia = ref('');
 const soloActivos = ref(true);
+const filtrosRutasInicializados = ref(false);
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
 const tabLateral = ref('lista'); // 'lista' | 'balance'
@@ -2291,12 +2292,12 @@ const conteoPuntosPorRuta = computed(() => {
   return mapCounts;
 });
 
-// Rutas completas disponibles para el canal o canales seleccionados (incluye todas las rutas del catálogo, no solo las que tienen puntos)
+// Rutas completas disponibles (incluye todo el catálogo para que los filtros de rutas y fronteras sean 100% independientes)
 const rutasDisponiblesParaFronteras = computed(() => {
   const mapRutas = new Map();
 
-  // 1. Incluir primero TODAS las rutas del catálogo de los canales seleccionados (o todas si no hay filtro de canal)
-  rutasDisponibles.value.forEach(r => {
+  // 1. Incluir TODAS las rutas del catálogo
+  (props.catalogo_rutas || []).forEach(r => {
     const rKey = (r.ruta || '').trim().toUpperCase();
     if (!rKey) return;
     mapRutas.set(rKey, {
@@ -2308,63 +2309,51 @@ const rutasDisponiblesParaFronteras = computed(() => {
     });
   });
 
-  // 2. Incorporar rutas que pudieran venir en clientes o fronteras pertenecientes a los canales activos
-  const setCanales = new Set(filtroCanales.value);
-  const canalFiltroActivo = setCanales.size > 0;
-
-  clientes.value.forEach(c => {
+  // 2. Incorporar rutas adicionales que pudieran venir en clientes o fronteras
+  (clientes.value || []).forEach(c => {
     if (c.ruta) {
       const rKey = c.ruta.trim().toUpperCase();
       if (!mapRutas.has(rKey)) {
         const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
-        const canalRuta = info ? info.canal : '';
-        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: canalRuta,
-            vendedor: info ? info.vendedor : '',
-            color: getRutaColor(rKey),
-          });
-        }
+        mapRutas.set(rKey, {
+          ruta: rKey,
+          nombre: formatRuta(rKey),
+          canal: c.canal || (info ? info.canal : ''),
+          vendedor: info ? info.vendedor : '',
+          color: getRutaColor(rKey),
+        });
       }
     }
   });
 
-  fronterasRutas.value.forEach(fr => {
+  (fronterasRutas.value || []).forEach(fr => {
     if (fr.ruta) {
       const rKey = fr.ruta.trim().toUpperCase();
       if (!mapRutas.has(rKey)) {
         const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
-        const canalRuta = fr.canal || (info ? info.canal : '');
-        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: canalRuta,
-            vendedor: info ? info.vendedor : '',
-            color: getRutaColor(rKey),
-          });
-        }
+        mapRutas.set(rKey, {
+          ruta: rKey,
+          nombre: formatRuta(rKey),
+          canal: fr.canal || (info ? info.canal : ''),
+          vendedor: info ? info.vendedor : '',
+          color: getRutaColor(rKey),
+        });
       }
     }
   });
 
-  fronterasDias.value.forEach(fd => {
+  (fronterasDias.value || []).forEach(fd => {
     if (fd.ruta) {
       const rKey = fd.ruta.trim().toUpperCase();
       if (!mapRutas.has(rKey)) {
         const info = props.catalogo_rutas.find(cr => (cr.ruta || '').trim().toUpperCase() === rKey);
-        const canalRuta = info ? info.canal : '';
-        if (!canalFiltroActivo || setCanales.has(canalRuta)) {
-          mapRutas.set(rKey, {
-            ruta: rKey,
-            nombre: formatRuta(rKey),
-            canal: canalRuta,
-            vendedor: info ? info.vendedor : '',
-            color: getRutaColor(rKey),
-          });
-        }
+        mapRutas.set(rKey, {
+          ruta: rKey,
+          nombre: formatRuta(rKey),
+          canal: fd.canal || (info ? info.canal : ''),
+          vendedor: info ? info.vendedor : '',
+          color: getRutaColor(rKey),
+        });
       }
     }
   });
@@ -3019,10 +3008,7 @@ function toggleMenu(nombre, e) {
 
 // Filtros: solo actualizan estado, NO autoejecutan consulta
 function onCanalesChange() {
-  const validRutas = new Set(rutasDisponibles.value.map(r => (r.ruta || '').trim().toUpperCase()));
-  filtroRutas.value = filtroRutas.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
-  filtroFronterasRutas.value = filtroFronterasRutas.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
-  filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validRutas.has((r || '').trim().toUpperCase()));
+  // Los filtros son 100% independientes: no alterar las selecciones de rutas de puntos ni de fronteras
 }
 
 function seleccionarTodosCanales() {
@@ -3036,11 +3022,13 @@ function limpiarCanales() {
 }
 
 function seleccionarTodasRutas() {
-  filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
+  filtroRutas.value = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+  renderizarEnMapa(true);
 }
 
 function limpiarRutas() {
   filtroRutas.value = [];
+  renderizarEnMapa(true);
 }
 
 function toggleDia(diaKey) {
@@ -3050,6 +3038,7 @@ function toggleDia(diaKey) {
   } else {
     filtroDias.value.push(diaKey);
   }
+  renderizarEnMapa(true);
 }
 
 function toggleTodosDias() {
@@ -3058,6 +3047,7 @@ function toggleTodosDias() {
   } else {
     filtroDias.value = diasSemana.map(d => d.key);
   }
+  renderizarEnMapa(true);
 }
 
 // CONSULTA PRINCIPAL A BACKEND (Ejecutada por Botón Consultar)
@@ -3078,7 +3068,7 @@ async function cargarDatos(mantenerVista = false) {
     const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
     const res = await axios.post(route('supervisor.saneamiento.visor.data'), {
       canales: filtroCanales.value,
-      rutas: (mantenerVista && filtroRutas.value.length > 0) ? filtroRutas.value : [],
+      rutas: [],
       dias: filtroDias.value,
       ver_frontera_rutas: true,
       ver_frontera_dias: true,
@@ -3127,35 +3117,13 @@ async function cargarDatos(mantenerVista = false) {
 
     registerRutasCatalogo(clientes.value.map(c => c.ruta));
 
-    // Inicializar o sincronizar filtros por ruta de puntos y fronteras con todas las rutas del canal o canales seleccionados
-    const todasRutasCanalKeys = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
-    const validRutasCanalSet = new Set(todasRutasCanalKeys);
-
-    if (!mantenerVista || filtroRutas.value.length === 0) {
-      filtroRutas.value = [...todasRutasCanalKeys];
-    } else {
-      filtroRutas.value = filtroRutas.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
-    }
-
-    if (!mantenerVista || filtroFronterasRutas.value.length === 0) {
-      filtroFronterasRutas.value = [...todasRutasCanalKeys];
-    } else {
-      filtroFronterasRutas.value = filtroFronterasRutas.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
-    }
-
-    if (!mantenerVista || filtroFronterasDias.value.length === 0) {
-      filtroFronterasDias.value = [...todasRutasCanalKeys];
-    } else {
-      filtroFronterasDias.value = filtroFronterasDias.value.filter(r => validRutasCanalSet.has(r.toUpperCase()));
-    }
-
-    // Ajustar automáticamente el modo de color óptimo solo si no es recarga por cambio
-    if (!mantenerVista) {
-      if (filtroRutas.value.length === 1) {
-        modoColor.value = 'dia';
-      } else if (filtroRutas.value.length > 1) {
-        modoColor.value = 'ruta';
-      }
+    // Solo inicializar rutas en la primera carga si los filtros aún no tienen selección
+    if (!filtrosRutasInicializados.value) {
+      const todasRutasCanalKeys = rutasDisponiblesParaFronteras.value.map(r => r.ruta);
+      if (filtroRutas.value.length === 0) filtroRutas.value = [...todasRutasCanalKeys];
+      if (filtroFronterasRutas.value.length === 0) filtroFronterasRutas.value = [...todasRutasCanalKeys];
+      if (filtroFronterasDias.value.length === 0) filtroFronterasDias.value = [...todasRutasCanalKeys];
+      filtrosRutasInicializados.value = true;
     }
 
     renderizarEnMapa(mantenerVista);
@@ -3245,9 +3213,13 @@ function obtenerGeometriasVecinasParaSnapping() {
   const vertices = [];
   const segmentos = [];
 
+  // Solo considerar rutas que están VISIBLES en el mapa (activadas en filtroFronterasRutas)
+  const setRutasVisibles = new Set((filtroFronterasRutas.value || []).map(r => r.toUpperCase()));
+
   (fronterasRutas.value || []).forEach(fr => {
     const rKey = (fr.ruta || '').trim().toUpperCase();
     if (!rKey || rKey === rutaActual) return;
+    if (setRutasVisibles.size > 0 && !setRutasVisibles.has(rKey)) return;
     if (!fr.geojson) return;
 
     const anillos = extraerPuntosDeGeoJSON(fr.geojson);
@@ -3293,7 +3265,7 @@ function proyectarPuntoEnSegmentoPixel(p, a, b) {
 
   if (lenSq === 0) {
     const dist = Math.hypot(p.x - a.x, p.y - a.y);
-    return { x: a.x, y: a.y, distPx: dist };
+    return { x: a.x, y: a.y, distPx: dist, t: 0 };
   }
 
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
@@ -3301,26 +3273,33 @@ function proyectarPuntoEnSegmentoPixel(p, a, b) {
   const projY = a.y + t * dy;
   const dist = Math.hypot(p.x - projX, p.y - projY);
 
-  return { x: projX, y: projY, distPx: dist };
+  return { x: projX, y: projY, distPx: dist, t };
 }
 
-const SNAP_VERTEX_TOLERANCE_PX = 20;
-const SNAP_EDGE_TOLERANCE_PX = 14;
+const SNAP_VERTEX_TOLERANCE_PX = 9; // Adhesión estricta: solo cuando el cursor está muy cerca del vértice (9px)
+const SNAP_EDGE_TOLERANCE_PX = 5;   // Adhesión estricta: solo cuando el cursor está prácticamente sobre la línea (5px)
 
 function detectarSnappingProximidad(latlng) {
   if (!map || !snapProximidadActivado.value) {
     return { snapped: false, latlng: latlng };
   }
 
-  const pMousePx = map.latLngToLayerPoint(latlng);
   const { vertices, segmentos } = geometriasVecinasCache;
+  if (vertices.length === 0 && segmentos.length === 0) {
+    return { snapped: false, latlng: latlng };
+  }
+
+  const pMousePx = map.latLngToLayerPoint(latlng);
+  const mapBounds = map.getBounds().pad(0.08);
 
   let mejorSnap = null;
   let menorDistanciaPx = Infinity;
 
-  // 1. Prioridad: Vértices de rutas vecinas (Snap exacto a nodo)
+  // 1. Prioridad: Vértices de rutas vecinas VISIBLES (Snap exacto a nodo)
   for (let i = 0; i < vertices.length; i++) {
     const v = vertices[i];
+    if (!mapBounds.contains([v.lat, v.lng])) continue;
+
     const vPx = map.latLngToLayerPoint([v.lat, v.lng]);
     const distPx = Math.hypot(pMousePx.x - vPx.x, pMousePx.y - vPx.y);
 
@@ -3341,13 +3320,25 @@ function detectarSnappingProximidad(latlng) {
     return mejorSnap;
   }
 
-  // 2. Segunda prioridad: Bordes / Aristas de rutas vecinas (Snap a la línea divisoria)
+  // 2. Segunda prioridad: Bordes / Aristas de rutas vecinas VISIBLES (Snap a la línea divisoria)
   for (let i = 0; i < segmentos.length; i++) {
     const seg = segmentos[i];
+    const minLat = Math.min(seg.p1.lat, seg.p2.lat);
+    const maxLat = Math.max(seg.p1.lat, seg.p2.lat);
+    const minLng = Math.min(seg.p1.lng, seg.p2.lng);
+    const maxLng = Math.max(seg.p1.lng, seg.p2.lng);
+
+    if (latlng.lat < minLat - 0.015 || latlng.lat > maxLat + 0.015 ||
+        latlng.lng < minLng - 0.015 || latlng.lng > maxLng + 0.015) {
+      continue;
+    }
+
     const aPx = map.latLngToLayerPoint([seg.p1.lat, seg.p1.lng]);
     const bPx = map.latLngToLayerPoint([seg.p2.lat, seg.p2.lng]);
 
     const projResult = proyectarPuntoEnSegmentoPixel(pMousePx, aPx, bPx);
+    if (projResult.t < 0.03 || projResult.t > 0.97) continue;
+
     if (projResult.distPx <= SNAP_EDGE_TOLERANCE_PX && projResult.distPx < menorDistanciaPx) {
       menorDistanciaPx = projResult.distPx;
       const snappedLatLng = map.layerPointToLatLng(L.point(projResult.x, projResult.y));
@@ -3372,22 +3363,26 @@ function detectarSnappingProximidad(latlng) {
 function mostrarIndicadorSnap(snapResult) {
   if (!map || !snapResult.snapped) return;
 
-  textoSnapActivo.value = `Imán: Adherido a ${snapResult.etiqueta}`;
+  const nuevaEtiqueta = `Imán: Adherido a ${snapResult.etiqueta}`;
+  if (textoSnapActivo.value !== nuevaEtiqueta) {
+    textoSnapActivo.value = nuevaEtiqueta;
+  }
+
   const colorSnap = snapResult.tipo === 'vertice' ? '#10B981' : '#06B6D4';
 
   if (!markerIndicadorSnap) {
     markerIndicadorSnap = L.circleMarker(snapResult.latlng, {
-      radius: snapResult.tipo === 'vertice' ? 8 : 6,
+      radius: snapResult.tipo === 'vertice' ? 6 : 5,
       color: '#064E3B',
       fillColor: colorSnap,
       fillOpacity: 0.95,
-      weight: 2.5,
+      weight: 2,
       interactive: false,
     }).addTo(map);
   } else {
     markerIndicadorSnap.setLatLng(snapResult.latlng);
     markerIndicadorSnap.setStyle({
-      radius: snapResult.tipo === 'vertice' ? 8 : 6,
+      radius: snapResult.tipo === 'vertice' ? 6 : 5,
       fillColor: colorSnap,
     });
     if (!map.hasLayer(markerIndicadorSnap)) {
@@ -3397,7 +3392,9 @@ function mostrarIndicadorSnap(snapResult) {
 }
 
 function ocultarIndicadorSnap() {
-  textoSnapActivo.value = '';
+  if (textoSnapActivo.value !== '') {
+    textoSnapActivo.value = '';
+  }
   if (markerIndicadorSnap && map && map.hasLayer(markerIndicadorSnap)) {
     map.removeLayer(markerIndicadorSnap);
   }
@@ -4051,14 +4048,9 @@ function escapeHtml(str) {
 function getRutasParaSelectorPropuesta() {
   let lista = props.catalogo_rutas;
 
-  // 1. Filtrar primero por canales seleccionados
+  // Filtrar por canales seleccionados si los hay, o permitir todas las rutas del catálogo
   if (filtroCanales.value.length > 0) {
     lista = lista.filter(r => filtroCanales.value.includes(r.canal));
-  }
-
-  // 2. Si hay rutas específicas seleccionadas en el filtro de rutas, limitar estrictamente a ellas
-  if (filtroRutas.value.length > 0) {
-    lista = lista.filter(r => filtroRutas.value.includes(r.ruta));
   }
 
   return lista;
@@ -4425,13 +4417,19 @@ function renderizarEnMapa(mantenerVista = false) {
     });
   }
 
-  // Marcadores de Clientes (Filtrados dinámicamente por el selector de rutas/puntos)
+  // Marcadores de Clientes (Filtrados dinámicamente por el selector de rutas/puntos y días de visita)
   const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => r.toUpperCase()));
+  const setDiasVisitaPermitidos = (filtroDias.value.length > 0 && filtroDias.value.length < diasSemana.length)
+    ? new Set(filtroDias.value.map(d => normalizarDiaClave(d)))
+    : null;
 
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
       const rutaCliente = (c.ruta || '').trim().toUpperCase();
       if (!setRutasPuntosPermitidas.has(rutaCliente)) {
+        return;
+      }
+      if (setDiasVisitaPermitidos && !setDiasVisitaPermitidos.has(normalizarDiaClave(c.dia_norm))) {
         return;
       }
 
@@ -4617,6 +4615,10 @@ function renderizarEnMapa(mantenerVista = false) {
     if (m) {
       m.openPopup();
     }
+  }
+
+  if (editandoVertices.value) {
+    actualizarCacheGeometriasVecinas();
   }
 }
 
