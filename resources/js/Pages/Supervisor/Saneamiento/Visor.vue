@@ -2071,7 +2071,7 @@
         <div
           v-if="modalAjusteRtm.show"
           class="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
-          @click.self="modalAjusteRtm.show = false"
+          @click.self="cerrarModalAjusteRtm"
         >
           <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150">
             <!-- Header Modal con Datos del Cliente -->
@@ -2135,7 +2135,7 @@
 
               <button
                 type="button"
-                @click="modalAjusteRtm.show = false"
+                @click="cerrarModalAjusteRtm"
                 class="text-slate-400 hover:text-slate-600 font-bold text-lg leading-none p-1 rounded-md hover:bg-slate-100 cursor-pointer transition-colors"
                 title="Cerrar modal"
               >
@@ -2346,7 +2346,7 @@
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    @click="modalAjusteRtm.show = false"
+                    @click="cerrarModalAjusteRtm"
                     class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold cursor-pointer transition-colors"
                   >
                     Cancelar
@@ -3575,7 +3575,11 @@ async function descartarPropuesta(c) {
       if (map) {
         map.closePopup();
       }
-      await cargarDatos(true);
+      if (modalAjusteRtm.value.show && modalAjusteRtm.value.cliente && (modalAjusteRtm.value.cliente.propuesta_id === c.propuesta_id || modalAjusteRtm.value.cliente.id === c.id)) {
+        cerrarModalAjusteRtm();
+      }
+      clienteActivoId.value = null;
+      cargarDatos(true);
     } else {
       alert('No se pudo descartar la propuesta.');
     }
@@ -3663,9 +3667,12 @@ function toggleTodosDias() {
 }
 
 // CONSULTA PRINCIPAL A BACKEND (Ejecutada por Botón Consultar)
+let cargarDatosRequestId = 0;
+
 async function cargarDatos(mantenerVista = false) {
   menuAbierto.value = null;
 
+  const currentReqId = ++cargarDatosRequestId;
   cargando.value = true;
   try {
     const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
@@ -3686,6 +3693,11 @@ async function cargarDatos(mantenerVista = false) {
       modo_vista: modoVistaConsulta,
     });
 
+    if (currentReqId !== cargarDatosRequestId) {
+      // Ignorar peticiones desfasadas
+      return;
+    }
+
     clientes.value = res.data.clientes || [];
     fronterasRutas.value = res.data.fronteras_rutas || [];
     fronterasDias.value = res.data.fronteras_dias || [];
@@ -3700,13 +3712,7 @@ async function cargarDatos(mantenerVista = false) {
       }
     }
 
-    // Mantener sincronizado el cliente del modal si está abierto para que no se cierre ni pierda datos
-    if (modalAjusteRtm.value.show && modalAjusteRtm.value.cliente) {
-      const cAct = clientes.value.find(cl => cl.id === modalAjusteRtm.value.cliente.id || cl.cliente_id === modalAjusteRtm.value.cliente.cliente_id);
-      if (cAct) {
-        modalAjusteRtm.value.cliente = cAct;
-      }
-    }
+    // Modal abierto permanece inmutable: no sobreescribir el cliente ni el formulario de edición activa
 
     // Cachear métricas de ventas precargadas para acceso instantáneo
     clientes.value.forEach(c => {
@@ -3759,7 +3765,9 @@ async function cargarDatos(mantenerVista = false) {
   } catch (error) {
     console.error('Error al consultar datos de ruteo:', error);
   } finally {
-    cargando.value = false;
+    if (currentReqId === cargarDatosRequestId) {
+      cargando.value = false;
+    }
   }
 }
 
@@ -3784,7 +3792,7 @@ async function ejecutarReasignacionMasiva() {
       formReasignacionMasiva.value.ruta_propuesta = '';
       formReasignacionMasiva.value.dia_propuesto = '';
       formReasignacionMasiva.value.observaciones = '';
-      await cargarDatos(true);
+      cargarDatos(true);
     } else {
       alert(res.data?.message || 'Error al procesar la reasignación.');
     }
@@ -4657,31 +4665,42 @@ async function obtenerKpisVentasCliente(clienteId) {
   return null;
 }
 
-async function cargarKpisVentasCliente(clienteId) {
+let currentModalSession = 0;
+
+async function cargarKpisVentasCliente(clienteId, sessionId = null) {
   if (!clienteId) {
-    kpisVentasCliente.value = null;
+    if (sessionId === null || sessionId === currentModalSession) {
+      kpisVentasCliente.value = null;
+    }
     return;
   }
 
   if (kpisVentasCache.has(clienteId)) {
-    kpisVentasCliente.value = kpisVentasCache.get(clienteId);
+    if (sessionId === null || sessionId === currentModalSession) {
+      kpisVentasCliente.value = kpisVentasCache.get(clienteId);
+    }
     return;
   }
 
   cargandoKpisVentas.value = true;
-  kpisVentasCliente.value = null;
+  if (sessionId === null || sessionId === currentModalSession) {
+    kpisVentasCliente.value = null;
+  }
 
   try {
     const data = await obtenerKpisVentasCliente(clienteId);
-    if (data) {
+    if (data && (sessionId === null || sessionId === currentModalSession)) {
       kpisVentasCliente.value = data;
     }
   } finally {
-    cargandoKpisVentas.value = false;
+    if (sessionId === null || sessionId === currentModalSession) {
+      cargandoKpisVentas.value = false;
+    }
   }
 }
 
 async function actualizarKpisEnPopup(c) {
+  if (modalAjusteRtm.value.show) return;
   const container = document.getElementById(`rtm-kpis-content-${c.id}`);
   if (!container) return;
 
@@ -4723,35 +4742,47 @@ async function actualizarKpisEnPopup(c) {
   }).join('');
 }
 
-async function cargarVisitasCliente(clienteId) {
+async function cargarVisitasCliente(clienteId, sessionId = null) {
   if (!clienteId) {
-    visitasCliente.value = [];
+    if (sessionId === null || sessionId === currentModalSession) {
+      visitasCliente.value = [];
+    }
     return;
   }
   cargandoVisitas.value = true;
-  visitasCliente.value = [];
+  if (sessionId === null || sessionId === currentModalSession) {
+    visitasCliente.value = [];
+  }
   try {
     const url = typeof route === 'function'
       ? route('supervisor.visitas.fotos', { clienteId })
       : `/supervisor/visitas/fotos/${clienteId}`;
     const res = await axios.post(url, {}, { timeout: 10000 });
-    visitasCliente.value = res.data?.visitas || [];
+    if (sessionId === null || sessionId === currentModalSession) {
+      visitasCliente.value = res.data?.visitas || [];
+    }
   } catch (error) {
     console.warn('No se pudieron cargar visitas del cliente:', error.message);
-    visitasCliente.value = [];
+    if (sessionId === null || sessionId === currentModalSession) {
+      visitasCliente.value = [];
+    }
   } finally {
-    cargandoVisitas.value = false;
+    if (sessionId === null || sessionId === currentModalSession) {
+      cargandoVisitas.value = false;
+    }
   }
 }
 
 function abrirModalPuntoCliente(c) {
   if (!c) return;
+  const sessionId = ++currentModalSession;
+
   clienteActivoId.value = c.id;
   clienteSeleccionado.value = c;
 
   modalAjusteRtm.value = {
     show: true,
-    cliente: c,
+    cliente: { ...c },
     tabActivo: 'rtm',
   };
 
@@ -4767,12 +4798,17 @@ function abrirModalPuntoCliente(c) {
     map.panTo([c.latitud, c.longitud], { animate: true, duration: 0.5 });
   }
 
-  cargarVisitasCliente(c.cliente_id);
-  cargarKpisVentasCliente(c.cliente_id);
+  cargarVisitasCliente(c.cliente_id, sessionId);
+  cargarKpisVentasCliente(c.cliente_id, sessionId);
 }
 
 const abrirModalAjusteRtm = abrirModalPuntoCliente;
 const abrirExpedienteCliente = abrirModalPuntoCliente;
+
+function cerrarModalAjusteRtm() {
+  modalAjusteRtm.value.show = false;
+  modalAjusteRtm.value.cliente = null;
+}
 
 async function confirmarAjusteRtm() {
   if (!formRtm.value.ruta_propuesta) return;
@@ -4787,17 +4823,14 @@ async function confirmarAjusteRtm() {
 
     if (res.data?.success) {
       mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
-      // Actualizar datos del cliente en el modal sin forzar su cierre
-      if (modalAjusteRtm.value.cliente) {
-        modalAjusteRtm.value.cliente = {
-          ...modalAjusteRtm.value.cliente,
-          ruta: formRtm.value.ruta_propuesta,
-          dia_norm: formRtm.value.dia_propuesto,
-          tiene_cambio: true,
-          tiene_propuesta: true,
-        };
+      // Cerrar modal inmediatamente tras confirmar el cambio
+      cerrarModalAjusteRtm();
+      if (map) {
+        map.closePopup();
       }
-      await cargarDatos(true);
+      clienteActivoId.value = null;
+      // Actualizar datos en segundo plano sin bloquear ni alterar nuevos modales
+      cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
     }
@@ -5046,7 +5079,14 @@ async function guardarPropuestaRtmDesdePopup(clienteId, domId) {
 
     if (res.data?.success) {
       mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente.');
-      await cargarDatos(true);
+      if (map) {
+        map.closePopup();
+      }
+      if (modalAjusteRtm.value.show && (modalAjusteRtm.value.cliente?.cliente_id === clienteId || modalAjusteRtm.value.cliente?.id === domId)) {
+        cerrarModalAjusteRtm();
+      }
+      clienteActivoId.value = null;
+      cargarDatos(true);
     } else {
       alert(res.data?.message || 'No se pudo guardar la propuesta.');
       if (btn) {
@@ -5160,7 +5200,7 @@ function renderizarEnMapa(mantenerVista = false) {
 
   const centroActual = mantenerVista ? map.getCenter() : null;
   const zoomActual = mantenerVista ? map.getZoom() : null;
-  const popupAbiertoId = (mantenerVista && map._popup && clienteActivoId.value) ? clienteActivoId.value : null;
+  const popupAbiertoId = (mantenerVista && map._popup && clienteActivoId.value && !modalAjusteRtm.value.show) ? clienteActivoId.value : null;
 
   markersLayer.clearLayers();
   fronterasRutasLayer.clearLayers();
@@ -5342,6 +5382,7 @@ function renderizarEnMapa(mantenerVista = false) {
         });
 
         marker.on('popupopen', () => {
+          if (modalAjusteRtm.value.show) return;
           clienteSeleccionado.value = c;
           clienteActivoId.value = c.id;
           actualizarKpisEnPopup(c);
