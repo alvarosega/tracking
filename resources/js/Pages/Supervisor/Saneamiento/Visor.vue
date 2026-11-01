@@ -2197,7 +2197,11 @@
           class="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
           @click.self="cerrarModalAjusteRtm"
         >
-          <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150">
+          <div
+            id="modal-ajuste-rtm-dialog"
+            tabindex="-1"
+            class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150 outline-none"
+          >
             <!-- Header Modal con Datos del Cliente -->
             <div class="px-3.5 sm:px-5 py-3 sm:py-3.5 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-2.5 shrink-0">
               <div class="min-w-0 flex-1">
@@ -2518,10 +2522,12 @@
                   <button
                     type="submit"
                     :disabled="guardandoRtm"
+                    title="Confirmar ajuste RTM (Presiona Enter)"
                     class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     <span v-if="guardandoRtm" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                     <span>{{ guardandoRtm ? 'Guardando Ajuste...' : 'Confirmar Ajuste RTM' }}</span>
+                    <span class="hidden sm:inline-block text-[10px] bg-slate-800 text-slate-300 px-1 py-0.2 rounded border border-slate-700 font-mono ml-0.5">Enter</span>
                   </button>
                 </div>
               </form>
@@ -5147,6 +5153,11 @@ function abrirModalPuntoCliente(c) {
 
   cargarVisitasCliente(c.cliente_id, sessionId);
   cargarKpisVentasCliente(c.cliente_id, sessionId);
+
+  nextTick(() => {
+    const el = document.getElementById('modal-ajuste-rtm-dialog');
+    if (el) el.focus();
+  });
 }
 
 const abrirModalAjusteRtm = abrirModalPuntoCliente;
@@ -5410,21 +5421,21 @@ function generarPopupHtmlRtm(c) {
       <div style="display: flex; flex-direction: column; gap: 5px;">
         <div>
           <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nueva Ruta (Filtrada):</label>
-          <select id="rtm-popup-ruta-${c.id}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
+          <select id="rtm-popup-ruta-${c.id}" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__guardarPropuestaRtmDesdePopup('${c.cliente_id || c.id}','${c.id}');}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
             ${rutasOptions}
           </select>
         </div>
 
         <div>
           <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Nuevo Día de Visita:</label>
-          <select id="rtm-popup-dia-${c.id}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
+          <select id="rtm-popup-dia-${c.id}" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__guardarPropuestaRtmDesdePopup('${c.cliente_id || c.id}','${c.id}');}" style="width: 100%; height: 26px; padding: 0 6px; font-size: 11px; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; outline: none; cursor: pointer;">
             ${diasOptions}
           </select>
         </div>
 
         <div>
           <label style="display: block; font-size: 10px; font-weight: 600; color: #334155; margin-bottom: 2px;">Observación:</label>
-          <input id="rtm-popup-obs-${c.id}" type="text" placeholder="Rebalanceo RTM..." style="width: 100%; height: 24px; padding: 0 6px; font-size: 10.5px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; box-sizing: border-box; outline: none;" />
+          <input id="rtm-popup-obs-${c.id}" type="text" placeholder="Rebalanceo RTM..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.__guardarPropuestaRtmDesdePopup('${c.cliente_id || c.id}','${c.id}');}" style="width: 100%; height: 24px; padding: 0 6px; font-size: 10.5px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; box-sizing: border-box; outline: none;" />
         </div>
 
         ${esInactivo ? `
@@ -5442,7 +5453,7 @@ function generarPopupHtmlRtm(c) {
           onmouseover="this.style.backgroundColor='#1e293b'"
           onmouseout="this.style.backgroundColor='#0f172a'"
         >
-          Guardar Propuesta
+          Guardar Propuesta (Enter)
         </button>
 
         ${c.propuesta_id ? `
@@ -5931,9 +5942,55 @@ if (typeof window !== 'undefined') {
   };
 }
 
+function manejarKeydownGlobal(e) {
+  // Manejo de tecla Escape para cerrar modal o lightbox
+  if (e.key === 'Escape') {
+    if (modalAjusteRtm.value.show) {
+      e.preventDefault();
+      cerrarModalAjusteRtm();
+      return;
+    }
+    if (fotoLightbox.value.show) {
+      e.preventDefault();
+      fotoLightbox.value.show = false;
+      return;
+    }
+  }
+
+  // Manejo de tecla Enter para Guardar Propuesta en Modal RTM
+  if (e.key === 'Enter') {
+    if (modalAjusteRtm.value.show) {
+      const activeEl = document.activeElement;
+      const tag = activeEl?.tagName?.toLowerCase();
+
+      // Permitir salto de línea si se encuentra en un textarea
+      if (tag === 'textarea') return;
+
+      // Si el foco está explícitamente en un botón de cancelar o cerrar, permitir la acción por defecto
+      if (tag === 'button') {
+        const txt = (activeEl.textContent || '').trim().toLowerCase();
+        if (txt === 'cancelar' || txt === 'cerrar') {
+          return;
+        }
+      }
+
+      // Si estamos en la pestaña RTM, confirmar y guardar propuesta inmediatamente
+      if (modalAjusteRtm.value.tabActivo === 'rtm') {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmarAjusteRtm();
+      }
+    }
+  }
+}
+
 onMounted(() => {
   registerRutasCatalogo(props.catalogo_rutas);
   sincronizarFiltrosConRutasDisponibles(true);
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', manejarKeydownGlobal);
+  }
 
   if (typeof window !== 'undefined' && window.localStorage) {
     const savedH = localStorage.getItem('visor_alto_tabla_rtm');
@@ -5955,6 +6012,7 @@ onUnmounted(() => {
   ocultarIndicadorSnap();
   markerIndicadorSnap = null;
   if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', manejarKeydownGlobal);
     delete window.__abrirExpedienteCliente;
     delete window.__abrirModalAjusteRtm;
     delete window.__guardarPropuestaRtmDesdePopup;
