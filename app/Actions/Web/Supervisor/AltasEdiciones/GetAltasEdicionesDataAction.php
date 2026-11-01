@@ -137,26 +137,19 @@ class GetAltasEdicionesDataAction
         $clientesOriginales = [];
 
         if (!empty($clienteIds)) {
-            $clientesOriginales = DB::connection('supervisor')->table('pan_ruteo')
+            $panRows = DB::connection('supervisor')->table('pan_ruteo')
                 ->whereIn('cliente_id', $clienteIds)
-                ->select([
-                    'cliente_id',
-                    DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm) as cliente_orig"),
-                    'tipo_negocio as tipo_negocio_orig',
-                    'direccion as direccion_orig',
-                    'referencia as referencia_orig',
-                    'telefono as telefono_orig',
-                    'celular as celular_orig',
-                    'contacto as contacto_orig',
-                    'nit as nit_orig',
-                    'nombre_factura as nombre_factura_orig',
-                    DB::raw("COALESCE(territorio, zona_venta) as zona_orig"),
-                    DB::raw("COALESCE(precio, '') as lista_precios_orig"),
-                    'latitud as latitud_orig',
-                    'longitud as longitud_orig',
-                ])
-                ->get()
-                ->keyBy('cliente_id');
+                ->get();
+
+            // Indexar por "cliente_id_ruta" y fallback por "cliente_id"
+            foreach ($panRows as $pr) {
+                $cid = (int) $pr->cliente_id;
+                $rutaClave = strtoupper(trim((string) ($pr->ruta ?? '')));
+                $clientesOriginales["{$cid}_{$rutaClave}"] = $pr;
+                if (!isset($clientesOriginales[(string) $cid])) {
+                    $clientesOriginales[(string) $cid] = $pr;
+                }
+            }
         }
 
         // 5. Mapear datos con cálculo de desplazamiento si hubo cambio de coordenadas
@@ -185,13 +178,15 @@ class GetAltasEdicionesDataAction
             $lng = (float) $r->longitud;
             $tieneGps = GeoSpatialService::isValidCoordinates($lat, $lng);
 
-            // Datos originales si es edición
-            $orig = ($r->cliente_id && isset($clientesOriginales[$r->cliente_id]))
-                ? $clientesOriginales[$r->cliente_id]
+            // Datos originales si es edición (priorizando coincidencia por ruta)
+            $cidStr = (string) $r->cliente_id;
+            $rutaClave = strtoupper(trim((string) ($r->ruta ?? '')));
+            $orig = $r->cliente_id
+                ? ($clientesOriginales["{$cidStr}_{$rutaClave}"] ?? $clientesOriginales[$cidStr] ?? null)
                 : null;
 
-            $latOrig = $orig ? (float) $orig->latitud_orig : null;
-            $lngOrig = $orig ? (float) $orig->longitud_orig : null;
+            $latOrig = ($orig && isset($orig->latitud) && is_numeric($orig->latitud)) ? (float) $orig->latitud : null;
+            $lngOrig = ($orig && isset($orig->longitud) && is_numeric($orig->longitud)) ? (float) $orig->longitud : null;
             $tieneGpsOrig = GeoSpatialService::isValidCoordinates($latOrig, $lngOrig);
 
             $distanciaMetros = null;
@@ -240,19 +235,42 @@ class GetAltasEdicionesDataAction
                 // Datos de la base original (para ediciones)
                 'es_edicion' => !empty($orig),
                 'original' => $orig ? [
-                    'cliente' => $orig->cliente_orig,
-                    'tipo_negocio' => $orig->tipo_negocio_orig,
-                    'nombre_factura' => $orig->nombre_factura_orig ?? null,
-                    'nit' => $orig->nit_orig,
-                    'contacto' => $orig->contacto_orig,
-                    'telefono' => $orig->telefono_orig,
-                    'celular' => $orig->celular_orig,
-                    'direccion' => $orig->direccion_orig,
-                    'referencia' => $orig->referencia_orig,
-                    'zona' => $orig->zona_orig ?? null,
-                    'lista_precios' => $orig->lista_precios_orig ?? null,
+                    'cliente_id' => $orig->cliente_id ?? $r->cliente_id,
+                    'nodo_id' => $orig->nodo_id ?? null,
+                    'nodo' => $orig->nodo ?? null,
+                    'cliente' => !empty($orig->cliente) ? $orig->cliente : ($orig->cliente_norm ?? null),
+                    'tipo_negocio' => $orig->tipo_negocio ?? null,
+                    'vendedor' => $orig->vendedor ?? null,
+                    'cod_vendedor' => $orig->cod_vendedor ?? null,
+                    'nombre_factura' => $orig->nombre_factura ?? null,
+                    'nit' => $orig->nit ?? null,
+                    'contacto' => $orig->contacto ?? null,
+                    'ci' => $orig->ci ?? null,
+                    'telefono' => $orig->telefono ?? null,
+                    'celular' => $orig->celular ?? null,
+                    'direccion' => $orig->direccion ?? null,
+                    'nro' => $orig->nro ?? null,
+                    'referencia' => $orig->referencia ?? null,
+                    'territorio' => $orig->territorio ?? null,
+                    'zona_venta' => $orig->zona_venta ?? null,
+                    'zona' => $orig->territorio ?: ($orig->zona_venta ?? null),
+                    'mercado' => $orig->mercado ?? null,
+                    'lista_precios' => $orig->precio ?? null,
+                    'precio' => $orig->precio ?? null,
+                    'cluster_t' => $orig->cluster_t ?? null,
+                    'cluster_c' => $orig->cluster_c ?? null,
+                    'ruta' => $orig->ruta ?? null,
+                    'dia' => $orig->dia ?? null,
+                    'dia_norm' => $orig->dia_norm ?? null,
+                    'secuencia_venta' => $orig->secuencia_venta ?? null,
+                    'secuencia_distribuidor' => $orig->secuencia_distribuidor ?? null,
+                    'tipo_pago' => $orig->tipo_pago ?? null,
+                    'dias_credito' => $orig->dias_credito ?? null,
+                    'limite' => $orig->limite ?? null,
                     'latitud' => $tieneGpsOrig ? $latOrig : null,
                     'longitud' => $tieneGpsOrig ? $lngOrig : null,
+                    'intensidad' => $orig->intensidad ?? null,
+                    'estado' => $orig->estado ?? 'Activo',
                 ] : null,
                 'distancia_desplazamiento_m' => $distanciaMetros,
             ];

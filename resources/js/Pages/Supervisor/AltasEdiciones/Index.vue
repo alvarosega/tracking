@@ -68,12 +68,30 @@
           </button>
         </div>
 
-        <!-- Indicador de Carga, Control Móvil y Badges -->
+        <!-- Indicador de Carga, Control Móvil, Descarga Excel y Badges -->
         <div class="flex items-center gap-2 text-xs font-mono shrink-0">
           <span v-if="cargando" class="text-[11px] text-[#6E6E73] hidden sm:flex items-center gap-1 animate-pulse">
             <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
             Consultando solicitudes...
           </span>
+
+          <!-- Botón Descargar Excel de Ediciones Pendientes Comparadas con pan_ruteo -->
+          <button
+            type="button"
+            @click="exportarEdicionesExcel"
+            :disabled="cargando || conteoEdicionesPendientes === 0"
+            class="h-7 px-2.5 bg-[#248A3D] hover:bg-[#1E7433] active:bg-[#185E29] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+            :title="conteoEdicionesPendientes > 0 ? `Descargar ${conteoEdicionesPendientes} cliente(s) con edición pendiente comparados y actualizados con pan_ruteo` : 'No hay clientes con ediciones pendientes en la selección actual'"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="hidden sm:inline">Descargar Excel</span>
+            <span class="sm:hidden">Excel</span>
+            <span v-if="conteoEdicionesPendientes > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+              {{ conteoEdicionesPendientes }}
+            </span>
+          </button>
 
           <div class="flex md:hidden items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
             <button
@@ -1251,6 +1269,26 @@
           </div>
         </div>
       </Teleport>
+
+      <!-- Toast de Notificaciones -->
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="transform translate-y-2 opacity-0"
+        enter-to-class="transform translate-y-0 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="transform translate-y-0 opacity-100"
+        leave-to-class="transform translate-y-2 opacity-0"
+      >
+        <div
+          v-if="toastMensaje"
+          class="fixed bottom-6 right-6 z-[99999] bg-[#1D1D1F] text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 border border-white/10"
+        >
+          <svg class="w-4 h-4 text-[#248A3D] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ toastMensaje }}</span>
+        </div>
+      </Transition>
     </div>
   </SupervisorLayout>
 </template>
@@ -1361,6 +1399,14 @@ const lightboxUrl = ref(null);
 const cambiandoEstadoId = ref(null);
 const estadoEnProceso = ref(null);
 const mensajeEstado = ref(null);
+const toastMensaje = ref('');
+
+function mostrarToast(msg) {
+  toastMensaje.value = msg;
+  setTimeout(() => {
+    toastMensaje.value = '';
+  }, 4500);
+}
 
 const cargandoCercanos = ref(false);
 const datosCercanos = ref(null);
@@ -1441,6 +1487,262 @@ const registrosFiltrados = computed(() => {
     (r.nit && String(r.nit).includes(q))
   );
 });
+
+// Ediciones Pendientes para exportación comparada contra pan_ruteo
+const edicionesPendientes = computed(() => {
+  let lista = registrosFiltrados.value.filter(r => {
+    const tipo = (r.tipo_registro || '').toUpperCase();
+    const estado = (r.estado_revision || '').toUpperCase();
+    return tipo.includes('EDIC') && estado === 'PENDIENTE';
+  });
+
+  if (lista.length === 0 && !busquedaTexto.value.trim()) {
+    lista = registros.value.filter(r => {
+      const tipo = (r.tipo_registro || '').toUpperCase();
+      const estado = (r.estado_revision || '').toUpperCase();
+      return tipo.includes('EDIC') && estado === 'PENDIENTE';
+    });
+  }
+
+  return lista;
+});
+
+const conteoEdicionesPendientes = computed(() => edicionesPendientes.value.length);
+
+function descargarArchivoExcelCsv(rows, nombreArchivo) {
+  // UTF-8 BOM (\uFEFF) para compatibilidad con caracteres latinos en Excel
+  // Directiva sep=;\r\n para apertura nativa de columnas delimitadas por punto y coma
+  const BOM = '\uFEFF';
+  const SEP = 'sep=;\r\n';
+  const csvBody = rows
+    .map(row =>
+      row
+        .map(val => {
+          if (val === null || val === undefined) return '""';
+          const str = String(val).replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
+          return `"${str}"`;
+        })
+        .join(';')
+    )
+    .join('\r\n');
+
+  const blob = new Blob([BOM + SEP + csvBody], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', nombreArchivo);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportarEdicionesExcel() {
+  const lista = edicionesPendientes.value;
+
+  if (lista.length === 0) {
+    alert('No se encontraron clientes con ediciones pendientes para descargar.');
+    return;
+  }
+
+  const headers = [
+    'Código Cliente',
+    'Nodo ID',
+    'Nodo',
+    'Cliente (Actualizado)',
+    'Vendedor',
+    'Código Vendedor',
+    'Tipo Negocio (Actualizado)',
+    'Territorio / Zona (Actualizado)',
+    'Mercado',
+    'Zona Venta (Actualizada)',
+    'Lista Precios / Precio (Actualizado)',
+    'Cluster T',
+    'Cluster C',
+    'Ruta (Actualizada)',
+    'Día Visita',
+    'Día Visita Normalizado',
+    'Secuencia Venta',
+    'Secuencia Distribuidor',
+    'Contacto (Actualizado)',
+    'CI',
+    'Teléfono (Actualizado)',
+    'Celular (Actualizado)',
+    'Dirección (Actualizada)',
+    'Nro',
+    'Referencia (Actualizada)',
+    'Razón Social Factura (Actualizada)',
+    'NIT (Actualizado)',
+    'Tipo Pago',
+    'Días Crédito',
+    'Límite Crédito',
+    'Latitud (Actualizada)',
+    'Longitud (Actualizada)',
+    'Estado Cliente',
+    'ID Solicitud Edición',
+    'Estado Revisión',
+    'Campos Modificados',
+    'Total Campos Modificados',
+    'Desplazamiento GPS (m)',
+    'Fecha Solicitud',
+    'Usuario Solicitante',
+  ];
+
+  const rows = [headers];
+
+  lista.forEach(r => {
+    const orig = r.original || {};
+    const cambios = [];
+
+    // 1. Cliente
+    let clienteFinal = orig.cliente || r.cliente || '';
+    if (r.cliente && isDiferente(orig.cliente, r.cliente)) {
+      clienteFinal = r.cliente;
+      cambios.push('Cliente');
+    }
+
+    // 2. Tipo de Negocio
+    let tipoNegocioFinal = orig.tipo_negocio || r.tipo_negocio || '';
+    if (r.tipo_negocio && isDiferente(orig.tipo_negocio, r.tipo_negocio)) {
+      tipoNegocioFinal = r.tipo_negocio;
+      cambios.push('Tipo Negocio');
+    }
+
+    // 3. Dirección
+    let direccionFinal = orig.direccion || r.direccion || '';
+    if (r.direccion && isDiferente(orig.direccion, r.direccion)) {
+      direccionFinal = r.direccion;
+      cambios.push('Dirección');
+    }
+
+    // 4. Referencia
+    let referenciaFinal = orig.referencia || r.referencia || '';
+    if (r.referencia && isDiferente(orig.referencia, r.referencia)) {
+      referenciaFinal = r.referencia;
+      cambios.push('Referencia');
+    }
+
+    // 5. Contacto
+    let contactoFinal = orig.contacto || r.contacto || '';
+    if (r.contacto && isDiferente(orig.contacto, r.contacto)) {
+      contactoFinal = r.contacto;
+      cambios.push('Contacto');
+    }
+
+    // 6. Teléfono
+    let telefonoFinal = orig.telefono || r.telefono || '';
+    if (r.telefono && isDiferente(orig.telefono, r.telefono)) {
+      telefonoFinal = r.telefono;
+      cambios.push('Teléfono');
+    }
+
+    // 7. Celular
+    let celularFinal = orig.celular || r.celular || '';
+    if (r.celular && isDiferente(orig.celular, r.celular)) {
+      celularFinal = r.celular;
+      cambios.push('Celular');
+    }
+
+    // 8. Razón Social Factura (Nombre Factura)
+    let nombreFacturaFinal = orig.nombre_factura || r.nombre_factura || '';
+    if (r.nombre_factura && isDiferente(orig.nombre_factura, r.nombre_factura)) {
+      nombreFacturaFinal = r.nombre_factura;
+      cambios.push('Nombre Factura');
+    }
+
+    // 9. NIT
+    let nitFinal = orig.nit || r.nit || '';
+    if (r.nit && isDiferente(orig.nit, r.nit)) {
+      nitFinal = r.nit;
+      cambios.push('NIT');
+    }
+
+    // 10. Zona / Territorio
+    let territorioFinal = orig.territorio || orig.zona || r.zona || '';
+    let zonaVentaFinal = orig.zona_venta || orig.zona || r.zona || '';
+    if (r.zona && isDiferente(orig.zona, r.zona)) {
+      territorioFinal = r.zona;
+      zonaVentaFinal = r.zona;
+      cambios.push('Zona/Territorio');
+    }
+
+    // 11. Lista de Precios
+    let precioFinal = orig.precio || orig.lista_precios || r.lista_precios || '';
+    if (r.lista_precios && isDiferente(orig.lista_precios, r.lista_precios)) {
+      precioFinal = r.lista_precios;
+      cambios.push('Lista Precios');
+    }
+
+    // 12. Ruta
+    let rutaFinal = orig.ruta || r.ruta || '';
+    if (r.ruta && isDiferente(orig.ruta, r.ruta)) {
+      rutaFinal = r.ruta;
+      cambios.push('Ruta');
+    }
+
+    // 13. GPS Latitud y Longitud
+    let latitudFinal = (orig.latitud !== null && orig.latitud !== undefined && orig.latitud !== '') ? orig.latitud : (r.latitud ?? '');
+    let longitudFinal = (orig.longitud !== null && orig.longitud !== undefined && orig.longitud !== '') ? orig.longitud : (r.longitud ?? '');
+    if (r.tiene_gps && r.latitud && r.longitud) {
+      if (orig.latitud === null || orig.latitud === undefined || isDiferente(orig.latitud, r.latitud) || isDiferente(orig.longitud, r.longitud)) {
+        latitudFinal = r.latitud;
+        longitudFinal = r.longitud;
+        cambios.push('Coordenadas GPS');
+      }
+    }
+
+    const row = [
+      r.cliente_id || orig.cliente_id || '',
+      orig.nodo_id ?? '',
+      orig.nodo ?? '',
+      clienteFinal,
+      orig.vendedor || r.vendedor || '',
+      orig.cod_vendedor ?? '',
+      tipoNegocioFinal,
+      territorioFinal,
+      orig.mercado ?? '',
+      zonaVentaFinal,
+      precioFinal,
+      orig.cluster_t ?? '',
+      orig.cluster_c ?? '',
+      rutaFinal,
+      orig.dia ?? '',
+      orig.dia_norm ?? '',
+      orig.secuencia_venta ?? '',
+      orig.secuencia_distribuidor ?? '',
+      contactoFinal,
+      orig.ci ?? '',
+      telefonoFinal,
+      celularFinal,
+      direccionFinal,
+      orig.nro ?? '',
+      referenciaFinal,
+      nombreFacturaFinal,
+      nitFinal,
+      orig.tipo_pago ?? '',
+      orig.dias_credito ?? '',
+      orig.limite ?? '',
+      latitudFinal,
+      longitudFinal,
+      orig.estado || 'Activo',
+      r.id,
+      r.estado_revision || 'PENDIENTE',
+      cambios.length > 0 ? cambios.join(', ') : 'Sin cambios detectados',
+      cambios.length,
+      r.distancia_desplazamiento_m !== null && r.distancia_desplazamiento_m !== undefined ? `${r.distancia_desplazamiento_m} m` : 'Sin cambio',
+      r.fecha_registro || '',
+      r.usuario || '',
+    ];
+
+    rows.push(row);
+  });
+
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const nombreArchivo = `ediciones_pendientes_ruteo_${fechaHoy}.csv`;
+
+  descargarArchivoExcelCsv(rows, nombreArchivo);
+  mostrarToast(`Se descargaron ${lista.length} cliente(s) con edición comparados y actualizados con pan_ruteo.`);
+}
 
 function toggleMenu(nombre, event) {
   if (menuAbierto.value === nombre) {
