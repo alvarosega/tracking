@@ -22,6 +22,17 @@ if (typeof document !== 'undefined') {
         }
         return config;
     });
+
+    window.axios.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response && error.response.status === 419) {
+                // Si la sesión expiró o el token CSRF está desfasado, recargar para refrescar sesión limpia
+                window.location.reload();
+            }
+            return Promise.reject(error);
+        }
+    );
 }
 
 const activeZiggy = typeof window !== 'undefined' && window.Ziggy ? window.Ziggy : Ziggy;

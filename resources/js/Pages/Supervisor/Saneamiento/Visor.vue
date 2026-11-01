@@ -592,6 +592,101 @@
             </label>
           </div>
         </div>
+
+        <!-- Menú Desplegable: Selector de Meses Históricos (Mes Actual y 10 Meses Atrás) -->
+        <div
+          v-if="menuAbierto === 'meses_historicos'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-72 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 z-[99999] text-xs font-sans"
+        >
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+              <span class="font-bold text-slate-800 text-xs">Meses Históricos</span>
+            </div>
+            <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+              {{ mesesHistoricosSeleccionados.length }} sel.
+            </span>
+          </div>
+
+          <!-- Botones de Acción Rápida: Todos | Últimos 3M | Solo Actual -->
+          <div class="grid grid-cols-3 gap-1 mb-2">
+            <button
+              type="button"
+              @click="seleccionarPreajusteMeses('todos')"
+              class="py-1 px-1.5 rounded text-[10.5px] font-semibold text-center transition-colors cursor-pointer border"
+              :class="mesesHistoricosSeleccionados.length === periodosHistoricos.length ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
+            >
+              Todos ({{ periodosHistoricos.length }})
+            </button>
+            <button
+              type="button"
+              @click="seleccionarPreajusteMeses('ultimos_3')"
+              class="py-1 px-1.5 rounded text-[10.5px] font-semibold text-center transition-colors cursor-pointer border"
+              :class="esPreajusteUltimos3 ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
+            >
+              Últimos 3M
+            </button>
+            <button
+              type="button"
+              @click="seleccionarPreajusteMeses('actual')"
+              class="py-1 px-1.5 rounded text-[10.5px] font-semibold text-center transition-colors cursor-pointer border"
+              :class="mesesHistoricosSeleccionados.length === 1 && mesesHistoricosSeleccionados[0] === periodosHistoricos[0]?.periodo ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
+            >
+              Solo Actual
+            </button>
+          </div>
+
+          <!-- Lista de Meses con Checkboxes (11 meses del actual a 10 meses atrás) -->
+          <div class="max-h-56 overflow-y-auto space-y-0.5 custom-scroll pr-1">
+            <label
+              v-for="p in periodosHistoricos"
+              :key="p.periodo"
+              class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer select-none transition-colors"
+              :class="mesesHistoricosSeleccionados.includes(p.periodo) ? 'bg-sky-50/50' : ''"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <input
+                  type="checkbox"
+                  :value="p.periodo"
+                  :checked="mesesHistoricosSeleccionados.includes(p.periodo)"
+                  @change="toggleMesPeriodo(p.periodo)"
+                  class="rounded border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
+                />
+                <span
+                  class="truncate text-xs"
+                  :class="p.es_actual ? 'font-bold text-sky-900' : (mesesHistoricosSeleccionados.includes(p.periodo) ? 'font-semibold text-slate-900' : 'text-slate-700')"
+                >
+                  {{ p.nombre }}
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span v-if="p.es_actual" class="px-1 py-0.2 rounded text-[9px] font-mono font-bold bg-sky-100 text-sky-800">
+                  Actual
+                </span>
+                <span class="text-[10px] font-mono text-slate-400">
+                  {{ p.corto }}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div class="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-[10px] text-slate-500 font-mono">
+              Actualiza Balance y Matriz
+            </span>
+            <button
+              type="button"
+              @click="menuAbierto = null"
+              class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            >
+              Listo
+            </button>
+          </div>
+        </div>
       </Teleport>
 
       <!-- BARRA DE HERRAMIENTAS: AJUSTE RTM (FRONTERAS TERRITORIALES) -->
@@ -618,26 +713,14 @@
 
             <!-- Valores acumulados de los meses seleccionados para la ruta en ajuste -->
             <div
-              v-if="rutaParaAjustarFrontera && balanceRutaSeleccionada && mesesHistoricosSeleccionados.length > 0"
+              v-if="rutaParaAjustarFrontera && balanceRutaSeleccionada && periodosVisibles.length > 0"
               class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10.5px] shadow-2xs select-none"
             >
               <span class="text-slate-700 font-bold">{{ balanceRutaSeleccionada.total }} clis</span>
-              <template v-if="mesesHistoricosSeleccionados.includes('mes_actual')">
+              <template v-for="p in periodosVisibles" :key="p.periodo">
                 <span class="text-slate-300">|</span>
-                <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
-                  <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_actual) }}
-                </span>
-              </template>
-              <template v-if="mesesHistoricosSeleccionados.includes('mes_anterior')">
-                <span class="text-slate-300">|</span>
-                <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
-                  <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior) }}
-                </span>
-              </template>
-              <template v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')">
-                <span class="text-slate-300">|</span>
-                <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
-                  <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior_2) }}
+                <span :title="p.nombre">
+                  <b :class="p.es_actual ? 'text-sky-700' : 'text-slate-600'">{{ p.corto }}:</b> {{ formatMonto(getVentaRutaPeriodo(balanceRutaSeleccionada, p.periodo)) }}
                 </span>
               </template>
             </div>
@@ -782,30 +865,21 @@
 
               <!-- Filtro al lado de Balance RTM para seleccionar los meses históricos -->
               <div class="flex items-center gap-1.5 shrink-0">
-                <div class="flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/80 text-[10px] font-mono select-none" title="Seleccionar meses históricos a visualizar">
-                  <button
-                    type="button"
-                    @click="seleccionarTodosMesesHistoricos"
-                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
-                    :class="mesesHistoricosSeleccionados.length === 3 ? 'bg-slate-900 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
-                    title="Alternar todos / mes actual"
-                  >
-                    Todos
-                  </button>
-                  <button
-                    v-for="m in opcionesMesesHistoricos"
-                    :key="m.key"
-                    type="button"
-                    @click="toggleMesHistorico(m.key)"
-                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
-                    :class="mesesHistoricosSeleccionados.includes(m.key)
-                      ? (m.key === 'mes_actual' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'bg-slate-800 text-white font-bold shadow-2xs')
-                      : 'text-slate-500 hover:text-slate-800'"
-                    :title="m.titulo"
-                  >
-                    {{ m.corto }}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  @click.stop="toggleMenu('meses_historicos', $event)"
+                  class="h-7 px-2 bg-white hover:bg-slate-100 border rounded-lg text-[10.5px] font-mono font-bold text-slate-800 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none"
+                  :class="menuAbierto === 'meses_historicos' ? 'border-sky-500 bg-sky-50/50 text-sky-900' : 'border-slate-300'"
+                  title="Seleccionar meses históricos a visualizar (del actual a 10 meses atrás)"
+                >
+                  <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                  <span>Meses ({{ mesesHistoricosSeleccionados.length }})</span>
+                  <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
 
                 <span class="text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-800 shrink-0">
                   {{ balanceRtmPorRuta.length }}
@@ -837,37 +911,33 @@
 
                 <!-- Valores acumulados de los meses seleccionados por ruta -->
                 <div
-                  v-if="mesesHistoricosSeleccionados.length > 0"
+                  v-if="periodosVisibles.length > 0"
                   class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
                   :class="{
-                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
-                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
-                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                    'grid-cols-1': periodosVisibles.length === 1,
+                    'grid-cols-2': periodosVisibles.length === 2,
+                    'grid-cols-3': periodosVisibles.length >= 3,
                   }"
                 >
                   <div
-                    v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
-                    class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5"
-                    :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')"
+                    v-for="p in periodosVisibles"
+                    :key="p.periodo"
+                    class="border rounded px-1.5 py-0.5"
+                    :class="p.es_actual ? 'bg-sky-50/70 border-sky-200/80' : 'bg-slate-100/70 border-slate-200'"
+                    :title="p.nombre"
                   >
-                    <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
-                    <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
-                  </div>
-                  <div
-                    v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
-                    class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
-                    :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')"
-                  >
-                    <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
-                    <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
-                  </div>
-                  <div
-                    v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
-                    class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
-                    :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')"
-                  >
-                    <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
-                    <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
+                    <div
+                      class="text-[8px] font-semibold truncate"
+                      :class="p.es_actual ? 'text-sky-700' : 'text-slate-600'"
+                    >
+                      {{ p.corto }}
+                    </div>
+                    <div
+                      class="font-bold truncate"
+                      :class="p.es_actual ? 'text-slate-900' : 'text-slate-800'"
+                    >
+                      {{ formatMonto(getVentaRutaPeriodo(b, p.periodo)) }}
+                    </div>
                   </div>
                 </div>
 
@@ -920,30 +990,21 @@
               <!-- Filtro al lado de Balance RTM para seleccionar los meses históricos en modo visualización -->
               <div v-if="tabLateral === 'balance'" class="px-3 py-1.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs font-mono">
                 <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Meses Visibles:</span>
-                <div class="flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/80 text-[10px] font-mono select-none" title="Seleccionar meses históricos a visualizar">
-                  <button
-                    type="button"
-                    @click="seleccionarTodosMesesHistoricos"
-                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
-                    :class="mesesHistoricosSeleccionados.length === 3 ? 'bg-slate-900 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
-                    title="Alternar todos / mes actual"
-                  >
-                    Todos
-                  </button>
-                  <button
-                    v-for="m in opcionesMesesHistoricos"
-                    :key="m.key"
-                    type="button"
-                    @click="toggleMesHistorico(m.key)"
-                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
-                    :class="mesesHistoricosSeleccionados.includes(m.key)
-                      ? (m.key === 'mes_actual' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'bg-slate-800 text-white font-bold shadow-2xs')
-                      : 'text-slate-500 hover:text-slate-800'"
-                    :title="m.titulo"
-                  >
-                    {{ m.corto }}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  @click.stop="toggleMenu('meses_historicos', $event)"
+                  class="h-6 px-2 bg-white hover:bg-slate-100 border rounded-md text-[10.5px] font-mono font-bold text-slate-800 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none"
+                  :class="menuAbierto === 'meses_historicos' ? 'border-sky-500 bg-sky-50/50 text-sky-900' : 'border-slate-300'"
+                  title="Seleccionar meses históricos a visualizar (del actual a 10 meses atrás)"
+                >
+                  <svg class="w-3 h-3 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                  <span>{{ mesesHistoricosSeleccionados.length }} seleccionados</span>
+                  <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
               </div>
 
               <!-- Vista 1A: Listado de Clientes Filtrables -->
@@ -1031,18 +1092,16 @@
                     </div>
 
                     <!-- Valores de fact_ventas de los meses seleccionados por cliente -->
-                    <div v-if="mesesHistoricosSeleccionados.length > 0" class="flex items-center justify-between mt-1 pt-1 border-t border-slate-100 text-[9.5px] font-mono text-slate-600">
-                      <span v-if="mesesHistoricosSeleccionados.includes('mes_actual')" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
-                        <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(c.venta_mes_actual || 0) }}
-                      </span>
-                      <span v-if="mesesHistoricosSeleccionados.includes('mes_actual') && mesesHistoricosSeleccionados.includes('mes_anterior')">•</span>
-                      <span v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
-                        <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(c.venta_mes_anterior || 0) }}
-                      </span>
-                      <span v-if="(mesesHistoricosSeleccionados.includes('mes_actual') || mesesHistoricosSeleccionados.includes('mes_anterior')) && mesesHistoricosSeleccionados.includes('mes_anterior_2')">•</span>
-                      <span v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
-                        <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(c.venta_mes_anterior_2 || 0) }}
-                      </span>
+                    <div
+                      v-if="periodosVisibles.length > 0"
+                      class="flex items-center gap-1.5 flex-wrap mt-1 pt-1 border-t border-slate-100 text-[9.5px] font-mono text-slate-600"
+                    >
+                      <template v-for="(p, pIdx) in periodosVisibles" :key="p.periodo">
+                        <span v-if="pIdx > 0" class="text-slate-300">•</span>
+                        <span :title="p.nombre">
+                          <b :class="p.es_actual ? 'text-sky-700' : 'text-slate-500'">{{ p.corto }}:</b> {{ formatMonto(getVentaClientePeriodo(c, p.periodo)) }}
+                        </span>
+                      </template>
                     </div>
                   </div>
                 </div>
@@ -1073,37 +1132,33 @@
 
                     <!-- Valores acumulados de los meses seleccionados por ruta -->
                     <div
-                      v-if="mesesHistoricosSeleccionados.length > 0"
+                      v-if="periodosVisibles.length > 0"
                       class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
                       :class="{
-                        'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
-                        'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
-                        'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                        'grid-cols-1': periodosVisibles.length === 1,
+                        'grid-cols-2': periodosVisibles.length === 2,
+                        'grid-cols-3': periodosVisibles.length >= 3,
                       }"
                     >
                       <div
-                        v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
-                        class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5"
-                        :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')"
+                        v-for="p in periodosVisibles"
+                        :key="p.periodo"
+                        class="border rounded px-1.5 py-0.5"
+                        :class="p.es_actual ? 'bg-sky-50/70 border-sky-200/80' : 'bg-slate-100/70 border-slate-200'"
+                        :title="p.nombre"
                       >
-                        <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
-                        <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
-                      </div>
-                      <div
-                        v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
-                        class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
-                        :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')"
-                      >
-                        <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
-                        <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
-                      </div>
-                      <div
-                        v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
-                        class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
-                        :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')"
-                      >
-                        <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
-                        <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
+                        <div
+                          class="text-[8px] font-semibold truncate"
+                          :class="p.es_actual ? 'text-sky-700' : 'text-slate-600'"
+                        >
+                          {{ p.corto }}
+                        </div>
+                        <div
+                          class="font-bold truncate"
+                          :class="p.es_actual ? 'text-slate-900' : 'text-slate-800'"
+                        >
+                          {{ formatMonto(getVentaRutaPeriodo(b, p.periodo)) }}
+                        </div>
                       </div>
                     </div>
 
@@ -1208,59 +1263,42 @@
                   v-else-if="kpisVentasCliente"
                   class="grid gap-1.5"
                   :class="{
-                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
-                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
-                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                    'grid-cols-1': periodosVisibles.length === 1,
+                    'grid-cols-2': periodosVisibles.length === 2,
+                    'grid-cols-3': periodosVisibles.length >= 3,
                   }"
                 >
-                  <!-- Mes Actual -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                  <div
+                    v-for="p in periodosVisibles"
+                    :key="p.periodo"
+                    class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1"
+                  >
                     <div class="flex items-center justify-between text-[8.5px] font-mono">
-                      <span class="font-bold text-[#0071E3] uppercase">Act.</span>
-                      <span class="font-bold text-[#0071E3] truncate max-w-[45px]" :title="kpisVentasCliente.mes_actual?.nombre">
-                        {{ kpisVentasCliente.mes_actual?.nombre }}
+                      <span
+                        class="font-bold uppercase"
+                        :class="p.es_actual ? 'text-[#0071E3]' : 'text-slate-600'"
+                      >
+                        {{ p.corto }}
+                      </span>
+                      <span
+                        class="truncate max-w-[55px]"
+                        :class="p.es_actual ? 'font-bold text-[#0071E3]' : 'font-medium text-slate-500'"
+                        :title="p.nombre"
+                      >
+                        {{ p.nombre }}
                       </span>
                     </div>
-                    <div class="text-[10px] font-bold font-mono text-slate-900 leading-tight">
-                      {{ formatMonto(kpisVentasCliente.mes_actual?.monto_acumulado) }}
+                    <div
+                      class="text-[10px] font-bold font-mono leading-tight"
+                      :class="p.es_actual ? 'text-slate-900' : 'text-slate-700'"
+                    >
+                      {{ formatMonto(getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.monto_acumulado ?? getVentaClientePeriodo(clienteSeleccionado, p.periodo)) }}
                     </div>
                     <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
                       <span class="text-slate-400">Frec:</span>
-                      <span class="font-bold">{{ kpisVentasCliente.mes_actual?.frecuencia_compra ?? 0 }}</span>
-                    </div>
-                  </div>
-
-                  <!-- Mes Anterior -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
-                    <div class="flex items-center justify-between text-[8.5px] font-mono">
-                      <span class="font-bold text-slate-600 uppercase">Ant.</span>
-                      <span class="font-bold text-slate-600 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior?.nombre">
-                        {{ kpisVentasCliente.mes_anterior?.nombre }}
+                      <span class="font-bold">
+                        {{ getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.frecuencia_compra ?? getFrecuenciaClientePeriodo(clienteSeleccionado, p.periodo) }}
                       </span>
-                    </div>
-                    <div class="text-[10px] font-bold font-mono text-slate-700 leading-tight">
-                      {{ formatMonto(kpisVentasCliente.mes_anterior?.monto_acumulado) }}
-                    </div>
-                    <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
-                      <span class="text-slate-400">Frec:</span>
-                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior?.frecuencia_compra ?? 0 }}</span>
-                    </div>
-                  </div>
-
-                  <!-- Mes Ante-anterior (M-2) -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
-                    <div class="flex items-center justify-between text-[8.5px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase">Ant-2</span>
-                      <span class="font-bold text-slate-500 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
-                        {{ kpisVentasCliente.mes_anterior_2?.nombre }}
-                      </span>
-                    </div>
-                    <div class="text-[10px] font-bold font-mono text-slate-700 leading-tight">
-                      {{ formatMonto(kpisVentasCliente.mes_anterior_2?.monto_acumulado) }}
-                    </div>
-                    <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
-                      <span class="text-slate-400">Frec:</span>
-                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior_2?.frecuencia_compra ?? 0 }}</span>
                     </div>
                   </div>
                 </div>
@@ -1682,58 +1720,27 @@
                     </span>
                   </div>
                 </th>
-                <!-- Columnas de Históricos de Cliente -->
+                <!-- Columnas de Históricos de Cliente (Dinámicas según meses seleccionados) -->
                 <th
-                  v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
-                  @click="ordenarPor('venta_mes_actual')"
-                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-sky-50/50 border-l border-slate-200 cursor-pointer hover:bg-sky-100/60 transition-colors"
-                  title="Clic para ordenar por Ventas acumuladas Mes Actual"
+                  v-for="p in periodosVisibles"
+                  :key="p.periodo"
+                  @click="ordenarPor('venta_periodo_' + p.periodo)"
+                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap cursor-pointer transition-colors"
+                  :class="p.es_actual ? 'bg-sky-50/50 border-l border-slate-200 hover:bg-sky-100/60' : 'bg-slate-100/50 hover:bg-slate-200/60'"
+                  :title="'Clic para ordenar por Ventas ' + p.nombre"
                 >
                   <div class="inline-flex items-center justify-end gap-1 w-full">
                     <div>
-                      <div>Acum. Mes Act.</div>
-                      <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
-                        ({{ periodosHistoricos.mes_actual.corto }})
+                      <div>Acum. {{ p.corto }}</div>
+                      <div class="text-[8.5px] font-normal capitalize" :class="p.es_actual ? 'text-sky-600' : 'text-slate-500'">
+                        ({{ p.periodo }})
                       </div>
                     </div>
-                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_actual' ? 'text-sky-900 font-bold' : 'text-slate-300'">
-                      {{ columnaOrden === 'venta_mes_actual' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
-                    </span>
-                  </div>
-                </th>
-                <th
-                  v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
-                  @click="ordenarPor('venta_mes_anterior')"
-                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
-                  title="Clic para ordenar por Ventas acumuladas Mes Anterior"
-                >
-                  <div class="inline-flex items-center justify-end gap-1 w-full">
-                    <div>
-                      <div>Acum. Mes Ant.</div>
-                      <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
-                        ({{ periodosHistoricos.mes_anterior.corto }})
-                      </div>
-                    </div>
-                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_anterior' ? 'text-slate-900 font-bold' : 'text-slate-300'">
-                      {{ columnaOrden === 'venta_mes_anterior' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
-                    </span>
-                  </div>
-                </th>
-                <th
-                  v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
-                  @click="ordenarPor('venta_mes_anterior_2')"
-                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
-                  title="Clic para ordenar por Ventas acumuladas Mes Ante-anterior (M-2)"
-                >
-                  <div class="inline-flex items-center justify-end gap-1 w-full">
-                    <div>
-                      <div>Acum. Ant.-2</div>
-                      <div v-if="periodosHistoricos?.mes_anterior_2?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
-                        ({{ periodosHistoricos.mes_anterior_2.corto }})
-                      </div>
-                    </div>
-                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_anterior_2' ? 'text-slate-900 font-bold' : 'text-slate-300'">
-                      {{ columnaOrden === 'venta_mes_anterior_2' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    <span
+                      class="text-[9px]"
+                      :class="columnaOrden === ('venta_periodo_' + p.periodo) ? (p.es_actual ? 'text-sky-900 font-bold' : 'text-slate-900 font-bold') : 'text-slate-300'"
+                    >
+                      {{ columnaOrden === ('venta_periodo_' + p.periodo) ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
                     </span>
                   </div>
                 </th>
@@ -1744,9 +1751,9 @@
                 >
                   <div class="inline-flex items-center justify-center gap-1 w-full">
                     <div>
-                      <div>Frec. Mes Act.</div>
-                      <div v-if="periodosHistoricos?.mes_actual?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
-                        ({{ periodosHistoricos.mes_actual.corto }})
+                      <div>Frec. Act.</div>
+                      <div v-if="periodosHistoricos[0]?.corto" class="text-[8.5px] font-normal text-sky-600 capitalize">
+                        ({{ periodosHistoricos[0].corto }})
                       </div>
                     </div>
                     <span class="text-[9px]" :class="columnaOrden === 'frecuencia_mes_actual' ? 'text-sky-900 font-bold' : 'text-slate-300'">
@@ -1761,9 +1768,9 @@
                 >
                   <div class="inline-flex items-center justify-center gap-1 w-full">
                     <div>
-                      <div>Frec. Mes Ant.</div>
-                      <div v-if="periodosHistoricos?.mes_anterior?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
-                        ({{ periodosHistoricos.mes_anterior.corto }})
+                      <div>Frec. Ant.</div>
+                      <div v-if="periodosHistoricos[1]?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                        ({{ periodosHistoricos[1].corto }})
                       </div>
                     </div>
                     <span class="text-[9px]" :class="columnaOrden === 'frecuencia_mes_anterior' ? 'text-slate-900 font-bold' : 'text-slate-300'">
@@ -1860,33 +1867,18 @@
                   </div>
                 </td>
 
-                <!-- 1. Acumulado Mes Actual -->
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-sky-50/20 border-l border-slate-100">
+                <!-- Acumulados de Ventas por Períodos Seleccionados -->
+                <td
+                  v-for="p in periodosVisibles"
+                  :key="p.periodo"
+                  class="py-2 px-3 text-right font-mono whitespace-nowrap"
+                  :class="p.es_actual ? 'bg-sky-50/20 border-l border-slate-100' : 'bg-slate-50/30'"
+                >
                   <span
                     class="font-semibold text-xs"
-                    :class="(c.venta_mes_actual || 0) > 0 ? 'text-slate-900' : 'text-slate-300'"
+                    :class="getVentaClientePeriodo(c, p.periodo) > 0 ? (p.es_actual ? 'text-slate-900' : 'text-slate-700') : 'text-slate-300'"
                   >
-                    {{ formatMonto(c.venta_mes_actual || 0) }}
-                  </span>
-                </td>
-
-                <!-- 2. Acumulado Mes Anterior -->
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
-                  <span
-                    class="font-semibold text-xs"
-                    :class="(c.venta_mes_anterior || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
-                  >
-                    {{ formatMonto(c.venta_mes_anterior || 0) }}
-                  </span>
-                </td>
-
-                <!-- 3. Acumulado Mes Ante-anterior (M-2) -->
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
-                  <span
-                    class="font-semibold text-xs"
-                    :class="(c.venta_mes_anterior_2 || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
-                  >
-                    {{ formatMonto(c.venta_mes_anterior_2 || 0) }}
+                    {{ formatMonto(getVentaClientePeriodo(c, p.periodo)) }}
                   </span>
                 </td>
 
@@ -1975,14 +1967,13 @@
                 <td colspan="4" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
                   TOTALES ({{ clientesConCambioFiltrados.length }} clis):
                 </td>
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="py-2 px-3 text-right whitespace-nowrap bg-sky-100/70 text-slate-900 border-l border-slate-200">
-                  {{ formatMonto(totalesMatrizInferior.venta_mes_actual) }}
-                </td>
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
-                  {{ formatMonto(totalesMatrizInferior.venta_mes_anterior) }}
-                </td>
-                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
-                  {{ formatMonto(totalesMatrizInferior.venta_mes_anterior_2) }}
+                <td
+                  v-for="p in periodosVisibles"
+                  :key="p.periodo"
+                  class="py-2 px-3 text-right whitespace-nowrap"
+                  :class="p.es_actual ? 'bg-sky-100/70 text-slate-900 border-l border-slate-200' : 'bg-slate-200/70 text-slate-800'"
+                >
+                  {{ formatMonto(totalesMatrizInferiorPorPeriodo[p.periodo] || 0) }}
                 </td>
                 <td colspan="5" class="py-2 px-3"></td>
               </tr>
@@ -2109,7 +2100,7 @@
                     </span>
                   </div>
                   <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
-                    {{ mesesHistoricosSeleccionados.length }} Mes{{ mesesHistoricosSeleccionados.length > 1 ? 'es' : '' }} Visibles
+                    {{ periodosVisibles.length }} Mes{{ periodosVisibles.length > 1 ? 'es' : '' }} Visibles
                   </span>
                 </div>
 
@@ -2119,78 +2110,52 @@
                   <span>Consultando fact_ventas...</span>
                 </div>
 
-                <!-- Grilla Mes Actual vs Mes Anterior vs Mes Ante-anterior -->
+                <!-- Grilla de Meses Históricos Seleccionados -->
                 <div
                   v-else-if="kpisVentasCliente"
                   class="grid gap-2.5"
                   :class="{
-                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
-                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
-                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                    'grid-cols-1': periodosVisibles.length === 1,
+                    'grid-cols-2': periodosVisibles.length === 2,
+                    'grid-cols-3': periodosVisibles.length >= 3,
                   }"
                 >
-                  <!-- Mes Actual -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                  <div
+                    v-for="p in periodosVisibles"
+                    :key="p.periodo"
+                    class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1"
+                  >
                     <div class="flex items-center justify-between text-[10px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Actual</span>
-                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-sky-50 text-[#0071E3] border border-sky-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_actual?.nombre">
-                        {{ kpisVentasCliente.mes_actual?.nombre }}
+                      <span
+                        class="font-bold uppercase tracking-wide truncate max-w-[85px]"
+                        :class="p.es_actual ? 'text-sky-700' : 'text-slate-500'"
+                        :title="p.nombre"
+                      >
+                        {{ p.nombre }}
+                      </span>
+                      <span
+                        class="text-[8.5px] font-bold px-1 py-0.2 rounded font-mono truncate"
+                        :class="p.es_actual ? 'bg-sky-50 text-[#0071E3] border border-sky-200' : 'bg-slate-100 text-slate-600 border border-slate-200'"
+                      >
+                        {{ p.corto }}
                       </span>
                     </div>
                     <div>
                       <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
-                      <div class="text-xs font-bold font-mono text-slate-900 leading-tight">
-                        {{ formatMonto(kpisVentasCliente.mes_actual?.monto_acumulado) }}
+                      <div
+                        class="text-xs font-bold font-mono leading-tight"
+                        :class="p.es_actual ? 'text-slate-900' : 'text-slate-700'"
+                      >
+                        {{ formatMonto(getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.monto_acumulado ?? getVentaClientePeriodo(modalAjusteRtm.cliente, p.periodo)) }}
                       </div>
                     </div>
                     <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
                       <span class="text-slate-500">Frec:</span>
-                      <span class="font-bold text-slate-800">
-                        {{ kpisVentasCliente.mes_actual?.frecuencia_compra || 0 }} comp
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Mes Anterior -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                    <div class="flex items-center justify-between text-[10px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Ant.</span>
-                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior?.nombre">
-                        {{ kpisVentasCliente.mes_anterior?.nombre }}
-                      </span>
-                    </div>
-                    <div>
-                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
-                      <div class="text-xs font-bold font-mono text-slate-700 leading-tight">
-                        {{ formatMonto(kpisVentasCliente.mes_anterior?.monto_acumulado) }}
-                      </div>
-                    </div>
-                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
-                      <span class="text-slate-500">Frec:</span>
-                      <span class="font-bold text-slate-700">
-                        {{ kpisVentasCliente.mes_anterior?.frecuencia_compra || 0 }} comp
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Mes Ante-anterior (M-2) -->
-                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                    <div class="flex items-center justify-between text-[10px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase tracking-wide">Ant.-2</span>
-                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
-                        {{ kpisVentasCliente.mes_anterior_2?.nombre }}
-                      </span>
-                    </div>
-                    <div>
-                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
-                      <div class="text-xs font-bold font-mono text-slate-700 leading-tight">
-                        {{ formatMonto(kpisVentasCliente.mes_anterior_2?.monto_acumulado) }}
-                      </div>
-                    </div>
-                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
-                      <span class="text-slate-500">Frec:</span>
-                      <span class="font-bold text-slate-700">
-                        {{ kpisVentasCliente.mes_anterior_2?.frecuencia_compra || 0 }} comp
+                      <span
+                        class="font-bold"
+                        :class="p.es_actual ? 'text-slate-800' : 'text-slate-700'"
+                      >
+                        {{ getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.frecuencia_compra ?? getFrecuenciaClientePeriodo(modalAjusteRtm.cliente, p.periodo) }} comp
                       </span>
                     </div>
                   </div>
@@ -2869,6 +2834,7 @@ const balanceRtmPorRuta = computed(() => {
         canal: rutaInfo ? rutaInfo.canal : 'General',
         total: 0,
         con_gps: 0,
+        ventas_por_periodo: {},
         venta_mes_actual: 0,
         venta_mes_anterior: 0,
         venta_mes_anterior_2: 0,
@@ -2897,6 +2863,7 @@ const balanceRtmPorRuta = computed(() => {
         canal: rutaInfo ? rutaInfo.canal : 'General',
         total: 0,
         con_gps: 0,
+        ventas_por_periodo: {},
         venta_mes_actual: 0,
         venta_mes_anterior: 0,
         venta_mes_anterior_2: 0,
@@ -2912,9 +2879,16 @@ const balanceRtmPorRuta = computed(() => {
     if (DIAS_LUNES_A_SABADO.includes(diaClave)) {
       item.total++;
       if (c.tiene_gps) item.con_gps++;
-      item.venta_mes_actual += (Number(c.venta_mes_actual) || 0);
-      item.venta_mes_anterior += (Number(c.venta_mes_anterior) || 0);
-      item.venta_mes_anterior_2 += (Number(c.venta_mes_anterior_2) || 0);
+      periodosHistoricos.value.forEach(p => {
+        const monto = getVentaClientePeriodo(c, p.periodo);
+        item.ventas_por_periodo[p.periodo] = (item.ventas_por_periodo[p.periodo] || 0) + monto;
+      });
+      const p0 = periodosHistoricos.value[0]?.periodo;
+      const p1 = periodosHistoricos.value[1]?.periodo;
+      const p2 = periodosHistoricos.value[2]?.periodo;
+      item.venta_mes_actual = p0 ? (item.ventas_por_periodo[p0] || 0) : (Number(c.venta_mes_actual) || 0);
+      item.venta_mes_anterior = p1 ? (item.ventas_por_periodo[p1] || 0) : (Number(c.venta_mes_anterior) || 0);
+      item.venta_mes_anterior_2 = p2 ? (item.ventas_por_periodo[p2] || 0) : (Number(c.venta_mes_anterior_2) || 0);
     }
   });
 
@@ -3106,50 +3080,137 @@ function iniciarArrastreTactilAltoTabla(e) {
   window.addEventListener('touchend', onTouchEnd);
 }
 
-const periodosHistoricos = ref({
-  mes_actual: { nombre: 'Mes Actual', corto: 'Mes Act.' },
-  mes_anterior: { nombre: 'Mes Anterior', corto: 'Mes Ant.' },
-  mes_anterior_2: { nombre: 'Mes Anterior 2', corto: 'Ant.-2' },
+function generarPeriodosHistoricosFallback() {
+  const mesesEspanol = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const mesesCorto = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const ahora = new Date();
+  const res = [];
+  for (let i = 0; i <= 10; i++) {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const periodo = `${yyyy}-${mm}`;
+    const mIdx = d.getMonth();
+    const yy = String(yyyy).slice(-2);
+    res.push({
+      periodo: periodo,
+      nombre: `${mesesEspanol[mIdx]} ${yyyy}`,
+      corto: `${mesesCorto[mIdx]} ${yy}`,
+      es_actual: i === 0,
+      offset: i,
+    });
+  }
+  return res;
+}
+
+const periodosHistoricos = ref(generarPeriodosHistoricosFallback());
+
+// Filtro de meses históricos seleccionados (por defecto los últimos 3 meses: actual y 2 anteriores)
+const mesesHistoricosSeleccionados = ref(
+  periodosHistoricos.value.slice(0, 3).map(p => p.periodo)
+);
+
+const periodosVisibles = computed(() => {
+  return periodosHistoricos.value.filter(p => mesesHistoricosSeleccionados.value.includes(p.periodo));
 });
 
-// Configuración de filtro de meses históricos visibles al lado de Balance RTM
-const mesesHistoricosSeleccionados = ref(['mes_actual', 'mes_anterior', 'mes_anterior_2']);
+const esPreajusteUltimos3 = computed(() => {
+  if (mesesHistoricosSeleccionados.value.length !== 3) return false;
+  const p3 = periodosHistoricos.value.slice(0, 3).map(p => p.periodo);
+  return p3.every(p => mesesHistoricosSeleccionados.value.includes(p));
+});
 
-const opcionesMesesHistoricos = computed(() => [
-  {
-    key: 'mes_actual',
-    corto: periodosHistoricos.value?.mes_actual?.corto || 'Act.',
-    nombre: periodosHistoricos.value?.mes_actual?.nombre || 'Mes Actual',
-    titulo: `Mes Actual (${periodosHistoricos.value?.mes_actual?.nombre || ''})`,
-  },
-  {
-    key: 'mes_anterior',
-    corto: periodosHistoricos.value?.mes_anterior?.corto || 'Ant.',
-    nombre: periodosHistoricos.value?.mes_anterior?.nombre || 'Mes Anterior',
-    titulo: `Mes Anterior (${periodosHistoricos.value?.mes_anterior?.nombre || ''})`,
-  },
-  {
-    key: 'mes_anterior_2',
-    corto: periodosHistoricos.value?.mes_anterior_2?.corto || 'Ant.-2',
-    nombre: periodosHistoricos.value?.mes_anterior_2?.nombre || 'Mes Ante-anterior',
-    titulo: `Mes Ante-anterior (${periodosHistoricos.value?.mes_anterior_2?.nombre || ''})`,
-  },
-]);
-
-function toggleMesHistorico(key) {
-  if (mesesHistoricosSeleccionados.value.includes(key)) {
-    if (mesesHistoricosSeleccionados.value.length === 1) return; // Evitar dejar 0 meses seleccionados
-    mesesHistoricosSeleccionados.value = mesesHistoricosSeleccionados.value.filter(k => k !== key);
-  } else {
-    mesesHistoricosSeleccionados.value.push(key);
+function seleccionarPreajusteMeses(tipo) {
+  if (tipo === 'todos') {
+    mesesHistoricosSeleccionados.value = periodosHistoricos.value.map(p => p.periodo);
+  } else if (tipo === 'ultimos_3') {
+    mesesHistoricosSeleccionados.value = periodosHistoricos.value.slice(0, 3).map(p => p.periodo);
+  } else if (tipo === 'actual') {
+    if (periodosHistoricos.value.length > 0) {
+      mesesHistoricosSeleccionados.value = [periodosHistoricos.value[0].periodo];
+    }
   }
 }
 
-function seleccionarTodosMesesHistoricos() {
-  if (mesesHistoricosSeleccionados.value.length === 3) {
-    mesesHistoricosSeleccionados.value = ['mes_actual'];
+function toggleMesPeriodo(periodo) {
+  if (mesesHistoricosSeleccionados.value.includes(periodo)) {
+    if (mesesHistoricosSeleccionados.value.length === 1) return; // Evitar dejar 0 meses seleccionados
+    mesesHistoricosSeleccionados.value = mesesHistoricosSeleccionados.value.filter(p => p !== periodo);
   } else {
-    mesesHistoricosSeleccionados.value = ['mes_actual', 'mes_anterior', 'mes_anterior_2'];
+    mesesHistoricosSeleccionados.value = [...mesesHistoricosSeleccionados.value, periodo];
+  }
+}
+
+// Helpers para obtención dinámica de ventas y frecuencias históricas
+function getVentaClientePeriodo(c, periodo) {
+  if (!c || !periodo) return 0;
+  if (c.ventas_historicas && c.ventas_historicas[periodo] !== undefined) {
+    return Number(c.ventas_historicas[periodo].monto) || 0;
+  }
+  const idx = periodosHistoricos.value.findIndex(p => p.periodo === periodo);
+  if (idx === 0 && c.venta_mes_actual !== undefined) return Number(c.venta_mes_actual) || 0;
+  if (idx === 1 && c.venta_mes_anterior !== undefined) return Number(c.venta_mes_anterior) || 0;
+  if (idx === 2 && c.venta_mes_anterior_2 !== undefined) return Number(c.venta_mes_anterior_2) || 0;
+  return 0;
+}
+
+function getFrecuenciaClientePeriodo(c, periodo) {
+  if (!c || !periodo) return 0;
+  if (c.ventas_historicas && c.ventas_historicas[periodo] !== undefined) {
+    return Number(c.ventas_historicas[periodo].frecuencia) || 0;
+  }
+  const idx = periodosHistoricos.value.findIndex(p => p.periodo === periodo);
+  if (idx === 0 && c.frecuencia_mes_actual !== undefined) return Number(c.frecuencia_mes_actual) || 0;
+  if (idx === 1 && c.frecuencia_mes_anterior !== undefined) return Number(c.frecuencia_mes_anterior) || 0;
+  if (idx === 2 && c.frecuencia_mes_anterior_2 !== undefined) return Number(c.frecuencia_mes_anterior_2) || 0;
+  return 0;
+}
+
+function getVentaRutaPeriodo(b, periodo) {
+  if (!b || !periodo) return 0;
+  if (b.ventas_por_periodo && b.ventas_por_periodo[periodo] !== undefined) {
+    return Number(b.ventas_por_periodo[periodo]) || 0;
+  }
+  const idx = periodosHistoricos.value.findIndex(p => p.periodo === periodo);
+  if (idx === 0 && b.venta_mes_actual !== undefined) return Number(b.venta_mes_actual) || 0;
+  if (idx === 1 && b.venta_mes_anterior !== undefined) return Number(b.venta_mes_anterior) || 0;
+  if (idx === 2 && b.venta_mes_anterior_2 !== undefined) return Number(b.venta_mes_anterior_2) || 0;
+  return 0;
+}
+
+function getKpisPeriodoCliente(kpiObj, periodo) {
+  if (!kpiObj || !periodo) return null;
+  if (kpiObj.periodos && kpiObj.periodos[periodo]) {
+    return kpiObj.periodos[periodo];
+  }
+  const p0 = periodosHistoricos.value[0]?.periodo;
+  const p1 = periodosHistoricos.value[1]?.periodo;
+  const p2 = periodosHistoricos.value[2]?.periodo;
+  if (periodo === p0 && kpiObj.mes_actual) return kpiObj.mes_actual;
+  if (periodo === p1 && kpiObj.mes_anterior) return kpiObj.mes_anterior;
+  if (periodo === p2 && kpiObj.mes_anterior_2) return kpiObj.mes_anterior_2;
+  return null;
+}
+
+// Compatibilidad con funciones previas
+const opcionesMesesHistoricos = computed(() => {
+  return periodosHistoricos.value.slice(0, 3).map((p) => ({
+    key: p.periodo,
+    corto: p.corto,
+    nombre: p.nombre,
+    titulo: p.nombre,
+  }));
+});
+
+function toggleMesHistorico(key) {
+  toggleMesPeriodo(key);
+}
+
+function seleccionarTodosMesesHistoricos() {
+  if (mesesHistoricosSeleccionados.value.length === periodosHistoricos.value.length) {
+    seleccionarPreajusteMeses('actual');
+  } else {
+    seleccionarPreajusteMeses('todos');
   }
 }
 
@@ -3172,7 +3233,7 @@ function ordenarPor(col) {
     direccionOrden.value = direccionOrden.value === 'asc' ? 'desc' : 'asc';
   } else {
     columnaOrden.value = col;
-    if (['venta_mes_actual', 'venta_mes_anterior', 'venta_mes_anterior_2', 'frecuencia_mes_actual', 'frecuencia_mes_anterior', 'frecuencia_mes_anterior_2'].includes(col)) {
+    if (col.startsWith('venta_periodo_') || ['venta_mes_actual', 'venta_mes_anterior', 'venta_mes_anterior_2', 'frecuencia_mes_actual', 'frecuencia_mes_anterior', 'frecuencia_mes_anterior_2'].includes(col)) {
       direccionOrden.value = 'desc';
     } else {
       direccionOrden.value = 'asc';
@@ -3198,6 +3259,13 @@ const clientesConCambioFiltrados = computed(() => {
 
   return [...res].sort((a, b) => {
     let valA, valB;
+
+    if (col.startsWith('venta_periodo_')) {
+      const pKey = col.replace('venta_periodo_', '');
+      valA = getVentaClientePeriodo(a, pKey);
+      valB = getVentaClientePeriodo(b, pKey);
+      return (valA - valB) * dir;
+    }
 
     switch (col) {
       case 'cliente_id':
@@ -3277,20 +3345,29 @@ const clientesConCambioFiltrados = computed(() => {
   });
 });
 
-const totalesMatrizInferior = computed(() => {
+const totalesMatrizInferiorPorPeriodo = computed(() => {
   const lista = clientesConCambioFiltrados.value;
-  let tAct = 0;
-  let tAnt = 0;
-  let tAnt2 = 0;
+  const tot = {};
+  periodosHistoricos.value.forEach(p => {
+    tot[p.periodo] = 0;
+  });
   for (let i = 0; i < lista.length; i++) {
-    tAct += (Number(lista[i].venta_mes_actual) || 0);
-    tAnt += (Number(lista[i].venta_mes_anterior) || 0);
-    tAnt2 += (Number(lista[i].venta_mes_anterior_2) || 0);
+    const c = lista[i];
+    periodosHistoricos.value.forEach(p => {
+      tot[p.periodo] += getVentaClientePeriodo(c, p.periodo);
+    });
   }
+  return tot;
+});
+
+const totalesMatrizInferior = computed(() => {
+  const p0 = periodosHistoricos.value[0]?.periodo;
+  const p1 = periodosHistoricos.value[1]?.periodo;
+  const p2 = periodosHistoricos.value[2]?.periodo;
   return {
-    venta_mes_actual: tAct,
-    venta_mes_anterior: tAnt,
-    venta_mes_anterior_2: tAnt2,
+    venta_mes_actual: p0 ? (totalesMatrizInferiorPorPeriodo.value[p0] || 0) : 0,
+    venta_mes_anterior: p1 ? (totalesMatrizInferiorPorPeriodo.value[p1] || 0) : 0,
+    venta_mes_anterior_2: p2 ? (totalesMatrizInferiorPorPeriodo.value[p2] || 0) : 0,
   };
 });
 
@@ -3438,9 +3515,11 @@ function toggleMenu(nombre, e) {
     return;
   }
   const rect = e.currentTarget.getBoundingClientRect();
+  const menuWidth = (nombre === 'meses_historicos') ? 288 : 260;
+  const left = Math.max(10, Math.min(rect.left, window.innerWidth - menuWidth - 10));
   posicionMenu.value = {
     top: rect.bottom + 6,
-    left: Math.min(rect.left, window.innerWidth - 270),
+    left: left,
   };
   menuAbierto.value = nombre;
 }
@@ -3517,8 +3596,14 @@ async function cargarDatos(mantenerVista = false) {
     fronterasRutas.value = res.data.fronteras_rutas || [];
     fronterasDias.value = res.data.fronteras_dias || [];
     kpis.value = res.data.kpis || { total: 0, con_gps: 0, sin_gps: 0, con_cambios: 0, total_propuestas: 0 };
-    if (res.data.periodos_historicos) {
+    if (res.data.periodos_historicos && Array.isArray(res.data.periodos_historicos)) {
       periodosHistoricos.value = res.data.periodos_historicos;
+      // Verificar si mesesHistoricosSeleccionados contiene períodos válidos devueltos
+      const clavesValidas = new Set(res.data.periodos_historicos.map(p => p.periodo));
+      const tieneClavesValidas = mesesHistoricosSeleccionados.value.some(k => clavesValidas.has(k));
+      if (!tieneClavesValidas) {
+        mesesHistoricosSeleccionados.value = res.data.periodos_historicos.slice(0, 3).map(p => p.periodo);
+      }
     }
 
     // Mantener sincronizado el cliente del modal si está abierto para que no se cierre ni pierda datos
@@ -3531,26 +3616,38 @@ async function cargarDatos(mantenerVista = false) {
 
     // Cachear métricas de ventas precargadas para acceso instantáneo
     clientes.value.forEach(c => {
-      if (c.cliente_id && c.venta_mes_actual !== undefined) {
+      if (c.cliente_id && (c.venta_mes_actual !== undefined || c.ventas_historicas)) {
+        const periodosObj = {};
+        if (c.ventas_historicas) {
+          Object.entries(c.ventas_historicas).forEach(([pKey, vData]) => {
+            periodosObj[pKey] = {
+              periodo: pKey,
+              monto_acumulado: Number(vData.monto) || 0,
+              frecuencia_compra: Number(vData.frecuencia) || 0,
+              dias_compra: 0,
+            };
+          });
+        }
         kpisVentasCache.set(c.cliente_id, {
           cliente_id: c.cliente_id,
+          periodos: periodosObj,
           mes_actual: {
-            periodo: periodosHistoricos.value.mes_actual?.periodo,
-            nombre: periodosHistoricos.value.mes_actual?.nombre || 'Mes Actual',
+            periodo: periodosHistoricos.value[0]?.periodo,
+            nombre: periodosHistoricos.value[0]?.nombre || 'Mes Actual',
             monto_acumulado: c.venta_mes_actual || 0,
             frecuencia_compra: c.frecuencia_mes_actual || 0,
             dias_compra: 0,
           },
           mes_anterior: {
-            periodo: periodosHistoricos.value.mes_anterior?.periodo,
-            nombre: periodosHistoricos.value.mes_anterior?.nombre || 'Mes Anterior',
+            periodo: periodosHistoricos.value[1]?.periodo,
+            nombre: periodosHistoricos.value[1]?.nombre || 'Mes Anterior',
             monto_acumulado: c.venta_mes_anterior || 0,
             frecuencia_compra: c.frecuencia_mes_anterior || 0,
             dias_compra: 0,
           },
           mes_anterior_2: {
-            periodo: periodosHistoricos.value.mes_anterior_2?.periodo,
-            nombre: periodosHistoricos.value.mes_anterior_2?.nombre || 'Mes Anterior 2',
+            periodo: periodosHistoricos.value[2]?.periodo,
+            nombre: periodosHistoricos.value[2]?.nombre || 'Mes Anterior 2',
             monto_acumulado: c.venta_mes_anterior_2 || 0,
             frecuencia_compra: c.frecuencia_mes_anterior_2 || 0,
             dias_compra: 0,
@@ -4409,26 +4506,38 @@ async function obtenerKpisVentasCliente(clienteId) {
 
   // Verificar si ya viene precargado en clientes
   const cli = clientes.value.find(c => c.cliente_id == clienteId);
-  if (cli && cli.venta_mes_actual !== undefined) {
+  if (cli && (cli.venta_mes_actual !== undefined || cli.ventas_historicas)) {
+    const periodosObj = {};
+    if (cli.ventas_historicas) {
+      Object.entries(cli.ventas_historicas).forEach(([pKey, vData]) => {
+        periodosObj[pKey] = {
+          periodo: pKey,
+          monto_acumulado: Number(vData.monto) || 0,
+          frecuencia_compra: Number(vData.frecuencia) || 0,
+          dias_compra: 0,
+        };
+      });
+    }
     const kpiObj = {
       cliente_id: clienteId,
+      periodos: periodosObj,
       mes_actual: {
-        periodo: periodosHistoricos.value.mes_actual?.periodo,
-        nombre: periodosHistoricos.value.mes_actual?.nombre || 'Mes Actual',
+        periodo: periodosHistoricos.value[0]?.periodo,
+        nombre: periodosHistoricos.value[0]?.nombre || 'Mes Actual',
         monto_acumulado: cli.venta_mes_actual || 0,
         frecuencia_compra: cli.frecuencia_mes_actual || 0,
         dias_compra: 0,
       },
       mes_anterior: {
-        periodo: periodosHistoricos.value.mes_anterior?.periodo,
-        nombre: periodosHistoricos.value.mes_anterior?.nombre || 'Mes Anterior',
+        periodo: periodosHistoricos.value[1]?.periodo,
+        nombre: periodosHistoricos.value[1]?.nombre || 'Mes Anterior',
         monto_acumulado: cli.venta_mes_anterior || 0,
         frecuencia_compra: cli.frecuencia_mes_anterior || 0,
         dias_compra: 0,
       },
       mes_anterior_2: {
-        periodo: periodosHistoricos.value.mes_anterior_2?.periodo,
-        nombre: periodosHistoricos.value.mes_anterior_2?.nombre || 'Mes Anterior 2',
+        periodo: periodosHistoricos.value[2]?.periodo,
+        nombre: periodosHistoricos.value[2]?.nombre || 'Mes Anterior 2',
         monto_acumulado: cli.venta_mes_anterior_2 || 0,
         frecuencia_compra: cli.frecuencia_mes_anterior_2 || 0,
         dias_compra: 0,
@@ -4486,62 +4595,38 @@ async function actualizarKpisEnPopup(c) {
   const el = document.getElementById(`rtm-kpis-content-${c.id}`);
   if (!el) return;
 
-  const actVisible = mesesHistoricosSeleccionados.value.includes('mes_actual');
-  const antVisible = mesesHistoricosSeleccionados.value.includes('mes_anterior');
-  const ant2Visible = mesesHistoricosSeleccionados.value.includes('mes_anterior_2');
-  const numMesesVisibles = (actVisible ? 1 : 0) + (antVisible ? 1 : 0) + (ant2Visible ? 1 : 0) || 1;
+  const numMesesVisibles = Math.min(periodosVisibles.value.length, 3) || 1;
   el.style.gridTemplateColumns = `repeat(${numMesesVisibles}, 1fr)`;
 
-  if (data && data.mes_actual) {
-    const actM = formatMonto(data.mes_actual.monto_acumulado);
-    const antM = formatMonto(data.mes_anterior ? data.mes_anterior.monto_acumulado : 0);
-    const ant2M = formatMonto(data.mes_anterior_2 ? data.mes_anterior_2.monto_acumulado : 0);
-
-    el.innerHTML = `
-      ${actVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
-          <span>Actual</span>
-          <span style="font-size: 7px;">${data.mes_actual.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
-        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #0F172A;">${data.mes_actual.frecuencia_compra ?? 0}</b>
-          ${data.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_actual.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
-      ${antVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
-          <span>Mes Ant.</span>
-          <span style="font-size: 7px;">${data.mes_anterior?.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #334155; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
-        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #334155;">${data.mes_anterior?.frecuencia_compra ?? 0}</b>
-          ${data.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
-      ${ant2Visible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
-          <span>Ant. -2</span>
-          <span style="font-size: 7px;">${data.mes_anterior_2?.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #475569; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${ant2M}</div>
-        <div style="color: #64748B; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #475569;">${data.mes_anterior_2?.frecuencia_compra ?? 0}</b>
-          ${data.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior_2.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
-    `;
-  } else {
+  if (periodosVisibles.value.length === 0) {
     el.innerHTML = `
       <div style="grid-column: span ${numMesesVisibles}; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
-        Sin compras en fact_ventas
+        Sin meses seleccionados
       </div>
     `;
+    return;
   }
+
+  el.innerHTML = periodosVisibles.value.map(p => {
+    const kpiP = getKpisPeriodoCliente(data, p.periodo);
+    const monto = kpiP ? formatMonto(kpiP.monto_acumulado) : formatMonto(getVentaClientePeriodo(c, p.periodo));
+    const frec = kpiP ? (kpiP.frecuencia_compra ?? 0) : getFrecuenciaClientePeriodo(c, p.periodo);
+    const dias = kpiP?.dias_compra || 0;
+    const isAct = p.es_actual;
+    return `
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid ${isAct ? '#BAE6FD' : '#E2E8F0'};">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: ${isAct ? '#0284C7' : '#475569'}; font-weight: 700;">
+          <span>${escapeHtml(p.corto)}</span>
+          <span style="font-size: 7px; color: #94A3B8;">${escapeHtml(p.periodo)}</span>
+        </div>
+        <div style="font-weight: 700; color: ${isAct ? '#0F172A' : '#334155'}; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${monto}</div>
+        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #0F172A;">${frec}</b>
+          ${dias > 0 ? `<span style="color: #94A3B8;">(${dias}d)</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 async function cargarVisitasCliente(clienteId) {
@@ -4703,75 +4788,47 @@ function generarPopupHtmlRtm(c) {
   const tieneCambio = Boolean(c.tiene_cambio);
 
   const cachedKpis = kpisVentasCache.get(c.cliente_id);
-  const actVisible = mesesHistoricosSeleccionados.value.includes('mes_actual');
-  const antVisible = mesesHistoricosSeleccionados.value.includes('mes_anterior');
-  const ant2Visible = mesesHistoricosSeleccionados.value.includes('mes_anterior_2');
-  const numMesesVisibles = (actVisible ? 1 : 0) + (antVisible ? 1 : 0) + (ant2Visible ? 1 : 0) || 1;
+  const numMesesVisibles = Math.min(periodosVisibles.value.length, 3) || 1;
 
   let kpisHtml = '';
-  if (cachedKpis && cachedKpis.mes_actual) {
-    const actM = formatMonto(cachedKpis.mes_actual.monto_acumulado);
-    const antM = formatMonto(cachedKpis.mes_anterior ? cachedKpis.mes_anterior.monto_acumulado : 0);
-    const ant2M = formatMonto(cachedKpis.mes_anterior_2 ? cachedKpis.mes_anterior_2.monto_acumulado : 0);
+  if (periodosVisibles.value.length === 0) {
     kpisHtml = `
-      ${actVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
-          <span>Actual</span>
-          <span style="font-size: 7px;">${cachedKpis.mes_actual.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
-        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #0F172A;">${cachedKpis.mes_actual.frecuencia_compra ?? 0}</b>
-          ${cachedKpis.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_actual.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
-      ${antVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
-          <span>Mes Ant.</span>
-          <span style="font-size: 7px;">${cachedKpis.mes_anterior?.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #334155; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
-        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #334155;">${cachedKpis.mes_anterior?.frecuencia_compra ?? 0}</b>
-          ${cachedKpis.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
-      ${ant2Visible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
-          <span>Ant. -2</span>
-          <span style="font-size: 7px;">${cachedKpis.mes_anterior_2?.nombre || ''}</span>
-        </div>
-        <div style="font-weight: 700; color: #475569; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${ant2M}</div>
-        <div style="color: #64748B; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #475569;">${cachedKpis.mes_anterior_2?.frecuencia_compra ?? 0}</b>
-          ${cachedKpis.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior_2.dias_compra}d)</span>` : ''}
-        </div>
-      </div>` : ''}
+      <div style="grid-column: span ${numMesesVisibles}; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
+        Sin meses seleccionados
+      </div>
     `;
+  } else if (cachedKpis) {
+    kpisHtml = periodosVisibles.value.map(p => {
+      const kpiP = getKpisPeriodoCliente(cachedKpis, p.periodo);
+      const monto = kpiP ? formatMonto(kpiP.monto_acumulado) : formatMonto(getVentaClientePeriodo(c, p.periodo));
+      const frec = kpiP ? (kpiP.frecuencia_compra ?? 0) : getFrecuenciaClientePeriodo(c, p.periodo);
+      const dias = kpiP?.dias_compra || 0;
+      const isAct = p.es_actual;
+      return `
+        <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid ${isAct ? '#BAE6FD' : '#E2E8F0'};">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: ${isAct ? '#0284C7' : '#475569'}; font-weight: 700;">
+            <span>${escapeHtml(p.corto)}</span>
+            <span style="font-size: 7px; color: #94A3B8;">${escapeHtml(p.periodo)}</span>
+          </div>
+          <div style="font-weight: 700; color: ${isAct ? '#0F172A' : '#334155'}; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${monto}</div>
+          <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+            Frec: <b style="color: #0F172A;">${frec}</b>
+            ${dias > 0 ? `<span style="color: #94A3B8;">(${dias}d)</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   } else {
-    kpisHtml = `
-      ${actVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="color: #64748B; font-size: 8px;">Actual</div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 9px; margin-top: 1px;">Cargando...</div>
-        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>` : ''}
-      ${antVisible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="color: #64748B; font-size: 8px;">Mes Ant.</div>
-        <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
-        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>` : ''}
-      ${ant2Visible ? `
-      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="color: #64748B; font-size: 8px;">Ant. -2</div>
-        <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
-        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>` : ''}
-    `;
+    kpisHtml = periodosVisibles.value.map(p => {
+      const isAct = p.es_actual;
+      return `
+        <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+          <div style="color: ${isAct ? '#0284C7' : '#64748B'}; font-size: 8px; font-weight: 700;">${escapeHtml(p.corto)}</div>
+          <div style="font-weight: 700; color: #0F172A; font-size: 9px; margin-top: 1px;">${formatMonto(getVentaClientePeriodo(c, p.periodo))}</div>
+          <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: ${getFrecuenciaClientePeriodo(c, p.periodo)}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   return `

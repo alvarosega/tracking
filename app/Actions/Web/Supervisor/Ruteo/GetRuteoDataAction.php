@@ -202,12 +202,9 @@ class GetRuteoDataAction
             // Silenciar si fact_ventas falla temporalmente
         }
 
-        $mesActualPeriodo = $now->format('Y-m');
-        $mesAnteriorPeriodo = $now->copy()->subMonth()->format('Y-m');
-        $mesAnterior2Periodo = $now->copy()->subMonths(2)->format('Y-m');
-
-        $inicioMesAnterior2 = $now->copy()->subMonths(2)->startOfMonth()->toDateString();
-        $finMesActual = $now->copy()->endOfMonth()->toDateString();
+        $baseDate = $now->copy()->startOfMonth();
+        $inicioHistorico = $baseDate->copy()->subMonths(10)->toDateString();
+        $finHistorico = $now->copy()->endOfMonth()->toDateString();
 
         $mesesEspanol = [
             '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
@@ -220,15 +217,24 @@ class GetRuteoDataAction
             '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Dic',
         ];
 
-        $nombreMesActual = ($mesesEspanol[$now->format('m')] ?? 'Mes Actual') . ' ' . $now->format('Y');
-        $mesAntObj = $now->copy()->subMonth();
-        $nombreMesAnterior = ($mesesEspanol[$mesAntObj->format('m')] ?? 'Mes Anterior') . ' ' . $mesAntObj->format('Y');
-        $mesAnt2Obj = $now->copy()->subMonths(2);
-        $nombreMesAnterior2 = ($mesesEspanol[$mesAnt2Obj->format('m')] ?? 'Mes Anterior 2') . ' ' . $mesAnt2Obj->format('Y');
+        // 11 Meses históricos exactos (Mes actual y 10 meses atrás) sin desbordamiento de fecha
+        $periodosHistoricos = [];
+        for ($i = 0; $i <= 10; $i++) {
+            $dt = $baseDate->copy()->subMonths($i);
+            $pKey = $dt->format('Y-m');
+            $mNum = $dt->format('m');
+            $periodosHistoricos[] = [
+                'periodo' => $pKey,
+                'nombre' => ($mesesEspanol[$mNum] ?? 'Mes') . ' ' . $dt->format('Y'),
+                'corto' => ($mesesCorto[$mNum] ?? '') . ' ' . $dt->format('y'),
+                'es_actual' => ($i === 0),
+                'offset' => $i,
+            ];
+        }
 
-        $cortoMesActual = ($mesesCorto[$now->format('m')] ?? 'Act.') . ' ' . $now->format('y');
-        $cortoMesAnterior = ($mesesCorto[$mesAntObj->format('m')] ?? 'Ant.') . ' ' . $mesAntObj->format('y');
-        $cortoMesAnterior2 = ($mesesCorto[$mesAnt2Obj->format('m')] ?? 'Ant.-2') . ' ' . $mesAnt2Obj->format('y');
+        $mesActualPeriodo = $periodosHistoricos[0]['periodo'];
+        $mesAnteriorPeriodo = $periodosHistoricos[1]['periodo'] ?? $mesActualPeriodo;
+        $mesAnterior2Periodo = $periodosHistoricos[2]['periodo'] ?? $mesActualPeriodo;
 
         $cidsTodos = $clientesRaw->pluck('cliente_id')->filter()->unique()->values()->all();
         $ventasMap = [];
@@ -238,7 +244,7 @@ class GetRuteoDataAction
                 foreach (array_chunk($cidsTodos, 1000) as $chunkIds) {
                     $ventasRows = DB::connection('supervisor')->table('fact_ventas')
                         ->whereIn('cliente_id', $chunkIds)
-                        ->whereBetween('fecha_norm', [$inicioMesAnterior2, $finMesActual])
+                        ->whereBetween('fecha_norm', [$inicioHistorico, $finHistorico])
                         ->where(function ($q) {
                             $q->whereNull('revertida')
                               ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
@@ -368,13 +374,14 @@ class GetRuteoDataAction
                 'estado' => $c->estado ?? 'Activo',
                 'tiene_gps' => $tieneGps,
 
-                // Métricas históricas de ventas (fact_ventas)
-                'venta_mes_actual' => (float) ($vActual['monto'] ?? 0.0),
-                'venta_mes_anterior' => (float) ($vAnterior['monto'] ?? 0.0),
-                'venta_mes_anterior_2' => (float) ($vAnterior2['monto'] ?? 0.0),
-                'frecuencia_mes_actual' => (int) ($vActual['frecuencia'] ?? 0),
-                'frecuencia_mes_anterior' => (int) ($vAnterior['frecuencia'] ?? 0),
-                'frecuencia_mes_anterior_2' => (int) ($vAnterior2['frecuencia'] ?? 0),
+                // Ventas históricas agrupadas por periodo 'YYYY-MM' (últimos 11 meses)
+                'ventas_historicas' => $ventasMap[$cid] ?? [],
+                'venta_mes_actual' => (float) ($ventasMap[$cid][$mesActualPeriodo]['monto'] ?? 0.0),
+                'venta_mes_anterior' => (float) ($ventasMap[$cid][$mesAnteriorPeriodo]['monto'] ?? 0.0),
+                'venta_mes_anterior_2' => (float) ($ventasMap[$cid][$mesAnterior2Periodo]['monto'] ?? 0.0),
+                'frecuencia_mes_actual' => (int) ($ventasMap[$cid][$mesActualPeriodo]['frecuencia'] ?? 0),
+                'frecuencia_mes_anterior' => (int) ($ventasMap[$cid][$mesAnteriorPeriodo]['frecuencia'] ?? 0),
+                'frecuencia_mes_anterior_2' => (int) ($ventasMap[$cid][$mesAnterior2Periodo]['frecuencia'] ?? 0),
             ];
         }
 
@@ -429,22 +436,11 @@ class GetRuteoDataAction
             'fronteras_rutas' => $fronterasRutas,
             'fronteras_dias' => $fronterasDias,
             'kpis' => $kpis,
-            'periodos_historicos' => [
-                'mes_actual' => [
-                    'periodo' => $mesActualPeriodo,
-                    'nombre' => $nombreMesActual,
-                    'corto' => $cortoMesActual,
-                ],
-                'mes_anterior' => [
-                    'periodo' => $mesAnteriorPeriodo,
-                    'nombre' => $nombreMesAnterior,
-                    'corto' => $cortoMesAnterior,
-                ],
-                'mes_anterior_2' => [
-                    'periodo' => $mesAnterior2Periodo,
-                    'nombre' => $nombreMesAnterior2,
-                    'corto' => $cortoMesAnterior2,
-                ],
+            'periodos_historicos' => $periodosHistoricos,
+            'periodos_historicos_map' => [
+                'mes_actual' => $periodosHistoricos[0] ?? null,
+                'mes_anterior' => $periodosHistoricos[1] ?? null,
+                'mes_anterior_2' => $periodosHistoricos[2] ?? null,
             ],
         ];
     }

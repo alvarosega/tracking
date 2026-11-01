@@ -28,16 +28,13 @@ class GetKpisVentasClienteAction
             // Silenciar si fact_ventas falla temporalmente
         }
 
-        $mesActualPeriodo = $now->format('Y-m');
-        $mesAnteriorPeriodo = $now->copy()->subMonth()->format('Y-m');
-        $mesAnterior2Periodo = $now->copy()->subMonths(2)->format('Y-m');
-
-        $inicioMesAnterior2 = $now->copy()->subMonths(2)->startOfMonth()->toDateString();
+        $baseDate = $now->copy()->startOfMonth();
+        $inicioHistorico = $baseDate->copy()->subMonths(10)->toDateString();
         $finMesActual = $now->copy()->endOfMonth()->toDateString();
 
         $ventas = $conn->table('fact_ventas')
             ->where('cliente_id', (int) $clienteId)
-            ->whereBetween('fecha_norm', [$inicioMesAnterior2, $finMesActual])
+            ->whereBetween('fecha_norm', [$inicioHistorico, $finMesActual])
             ->where(function ($q) {
                 $q->whereNull('revertida')
                   ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
@@ -52,31 +49,44 @@ class GetKpisVentasClienteAction
             ->get()
             ->keyBy('periodo');
 
-        $actual = $ventas->get($mesActualPeriodo);
-        $anterior = $ventas->get($mesAnteriorPeriodo);
-        $anterior2 = $ventas->get($mesAnterior2Periodo);
-
         $mesesEspanol = [
             '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
             '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto',
             '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre',
         ];
+        $mesesCorto = [
+            '01' => 'Ene', '02' => 'Feb', '03' => 'Mar', '04' => 'Abr',
+            '05' => 'May', '06' => 'Jun', '07' => 'Jul', '08' => 'Ago',
+            '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Dic',
+        ];
 
-        $nombreMesActual = ($mesesEspanol[$now->format('m')] ?? 'Mes Actual') . ' ' . $now->format('Y');
-        $mesAntObj = $now->copy()->subMonth();
-        $nombreMesAnterior = ($mesesEspanol[$mesAntObj->format('m')] ?? 'Mes Anterior') . ' ' . $mesAntObj->format('Y');
-        $mesAnt2Obj = $now->copy()->subMonths(2);
-        $nombreMesAnterior2 = ($mesesEspanol[$mesAnt2Obj->format('m')] ?? 'Mes Anterior 2') . ' ' . $mesAnt2Obj->format('Y');
+        $periodos = [];
+        $periodosLista = [];
+        for ($i = 0; $i <= 10; $i++) {
+            $dt = $baseDate->copy()->subMonths($i);
+            $pKey = $dt->format('Y-m');
+            $mNum = $dt->format('m');
+            $v = $ventas->get($pKey);
 
-        $montoActual = round((float) ($actual->monto_acumulado ?? 0.0), 2);
-        $montoAnterior = round((float) ($anterior->monto_acumulado ?? 0.0), 2);
-        $montoAnterior2 = round((float) ($anterior2->monto_acumulado ?? 0.0), 2);
-        $frecActual = (int) ($actual->frecuencia_compra ?? 0);
-        $frecAnterior = (int) ($anterior->frecuencia_compra ?? 0);
-        $frecAnterior2 = (int) ($anterior2->frecuencia_compra ?? 0);
-        $diasActual = (int) ($actual->dias_compra ?? 0);
-        $diasAnterior = (int) ($anterior->dias_compra ?? 0);
-        $diasAnterior2 = (int) ($anterior2->dias_compra ?? 0);
+            $item = [
+                'periodo' => $pKey,
+                'nombre' => ($mesesEspanol[$mNum] ?? 'Mes') . ' ' . $dt->format('Y'),
+                'corto' => ($mesesCorto[$mNum] ?? '') . ' ' . $dt->format('y'),
+                'monto_acumulado' => round((float) ($v->monto_acumulado ?? 0.0), 2),
+                'frecuencia_compra' => (int) ($v->frecuencia_compra ?? 0),
+                'dias_compra' => (int) ($v->dias_compra ?? 0),
+                'es_actual' => ($i === 0),
+                'offset' => $i,
+            ];
+
+            $periodos[$pKey] = $item;
+            $periodosLista[] = $item;
+        }
+
+        $montoActual = $periodosLista[0]['monto_acumulado'];
+        $montoAnterior = $periodosLista[1]['monto_acumulado'] ?? 0.0;
+        $frecActual = $periodosLista[0]['frecuencia_compra'];
+        $frecAnterior = $periodosLista[1]['frecuencia_compra'] ?? 0;
 
         // Variaciones porcentuales
         $varMonto = null;
@@ -91,27 +101,11 @@ class GetKpisVentasClienteAction
 
         return [
             'cliente_id' => (int) $clienteId,
-            'mes_actual' => [
-                'periodo' => $mesActualPeriodo,
-                'nombre' => $nombreMesActual,
-                'monto_acumulado' => $montoActual,
-                'frecuencia_compra' => $frecActual,
-                'dias_compra' => $diasActual,
-            ],
-            'mes_anterior' => [
-                'periodo' => $mesAnteriorPeriodo,
-                'nombre' => $nombreMesAnterior,
-                'monto_acumulado' => $montoAnterior,
-                'frecuencia_compra' => $frecAnterior,
-                'dias_compra' => $diasAnterior,
-            ],
-            'mes_anterior_2' => [
-                'periodo' => $mesAnterior2Periodo,
-                'nombre' => $nombreMesAnterior2,
-                'monto_acumulado' => $montoAnterior2,
-                'frecuencia_compra' => $frecAnterior2,
-                'dias_compra' => $diasAnterior2,
-            ],
+            'periodos' => $periodos,
+            'periodos_lista' => $periodosLista,
+            'mes_actual' => $periodosLista[0],
+            'mes_anterior' => $periodosLista[1] ?? null,
+            'mes_anterior_2' => $periodosLista[2] ?? null,
             'variacion' => [
                 'monto_pct' => $varMonto,
                 'frecuencia_pct' => $varFrec,
