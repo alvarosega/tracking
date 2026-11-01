@@ -86,11 +86,40 @@
         </div>
       </div>
 
+      <!-- Selector de Vista Móvil (< lg) -->
+      <div class="flex lg:hidden items-center justify-center p-1 bg-slate-100 rounded-xl mb-3 border border-slate-200 select-none">
+        <button
+          type="button"
+          @click="vistaMovil = 'tabla'"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'tabla' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+          <span>Tabla ({{ clientesFiltrados.length }})</span>
+        </button>
+        <button
+          type="button"
+          @click="vistaMovil = 'detalle'"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'detalle' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+          <span>Detalle</span>
+        </button>
+      </div>
+
       <!-- Contenedor Principal: Tabla de Clientes y Detalle Lateral -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         <!-- Tabla de Clientes (2 columnas) -->
-        <div class="lg:col-span-2 relative glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[550px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="relative glass-panel rounded-card shadow-subtle flex-col overflow-hidden min-h-[440px] sm:min-h-[550px] border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'tabla' ? 'flex lg:col-span-2' : 'hidden lg:flex lg:col-span-2'"
+        >
           <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
             <span class="font-bold text-[12px] text-ink">Registro de Clientes Auditados</span>
             <div class="flex items-center gap-2">
@@ -98,7 +127,7 @@
                 v-model="filtroTexto"
                 type="text"
                 placeholder="Buscar por nombre o ID..."
-                class="text-[10px] bg-neutral-100 rounded-[8px] px-2.5 py-1 focus:outline-none font-medium border border-neutral-200 w-48 font-mono"
+                class="text-[10px] bg-neutral-100 rounded-[8px] px-2.5 py-1 focus:outline-none font-medium border border-neutral-200 w-36 sm:w-48 font-mono"
               />
               <span class="text-[10px] font-mono text-ink-secondary">{{ clientesFiltrados.length }} registros</span>
             </div>
@@ -126,7 +155,7 @@
                 <tr
                   v-for="cli in clientesFiltrados"
                   :key="cli.cliente_id"
-                  @click="seleccionarCliente(cli)"
+                  @click="seleccionarCliente(cli, true)"
                   class="hover:bg-neutral-50/80 cursor-pointer transition-colors"
                   :class="clienteSeleccionado?.cliente_id === cli.cliente_id ? 'bg-blue-50/70 font-semibold' : ''"
                 >
@@ -172,9 +201,22 @@
         </div>
 
         <!-- Detalle y Mapa Miniatura (1 columna) -->
-        <div class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[550px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="glass-panel rounded-card shadow-subtle flex-col overflow-hidden min-h-[440px] sm:min-h-[550px] border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'detalle' ? 'flex' : 'hidden lg:flex'"
+        >
           <div class="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
-            <span class="font-bold text-[11px] text-ink">Inspección de Cliente</span>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="vistaMovil === 'detalle'"
+                type="button"
+                @click="vistaMovil = 'tabla'"
+                class="lg:hidden text-xs text-sky-600 hover:text-sky-700 font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                ← Lista
+              </button>
+              <span class="font-bold text-[11px] text-ink">Inspección de Cliente</span>
+            </div>
             <span v-if="clienteSeleccionado" class="text-[10px] font-mono text-ink-secondary">ID #{{ clienteSeleccionado.cliente_id }}</span>
           </div>
 
@@ -288,6 +330,7 @@ const props = defineProps({
 })
 
 const cargando = ref(false)
+const vistaMovil = ref('tabla')
 const canalSeleccionado = ref('TDB')
 const filtroAnomalia = ref('TODOS')
 const filtroTexto = ref('')
@@ -373,8 +416,11 @@ async function consultarCalidad() {
   }
 }
 
-function seleccionarCliente(cli) {
+function seleccionarCliente(cli, desdeClickManual = false) {
   clienteSeleccionado.value = cli
+  if (desdeClickManual) {
+    vistaMovil.value = 'detalle'
+  }
   nextTick(() => {
     actualizarMiniMapa(cli)
   })

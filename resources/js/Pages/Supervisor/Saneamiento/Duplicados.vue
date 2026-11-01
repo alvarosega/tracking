@@ -68,11 +68,40 @@
         </div>
       </div>
 
+      <!-- Selector de Vista Móvil (< lg) -->
+      <div class="flex lg:hidden items-center justify-center p-1 bg-slate-100 rounded-xl mb-3 border border-slate-200 select-none">
+        <button
+          type="button"
+          @click="setVistaMovil('mapa')"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+          </svg>
+          <span>Mapa</span>
+        </button>
+        <button
+          type="button"
+          @click="setVistaMovil('grupos')"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'grupos' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          <span>Grupos ({{ clusters.length }})</span>
+        </button>
+      </div>
+
       <!-- Contenedor Principal: Mapa y Lista de Grupos -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         <!-- Mapa (2 columnas) -->
-        <div class="lg:col-span-2 relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[580px] flex flex-col border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[440px] sm:min-h-[580px] flex-col border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'mapa' ? 'flex lg:col-span-2' : 'hidden lg:flex lg:col-span-2'"
+        >
           <div class="px-4 py-2 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2 bg-white/80 shrink-0">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
@@ -114,11 +143,14 @@
             </div>
           </div>
 
-          <div id="mapaDuplicados" class="flex-1 w-full min-h-[520px] h-[520px] relative z-0"></div>
+          <div id="mapaDuplicados" class="flex-1 w-full min-h-[380px] sm:min-h-[520px] h-[50vh] sm:h-[520px] relative z-0"></div>
         </div>
 
         <!-- Panel Lateral de Grupos (1 columna) -->
-        <div class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[580px] max-h-[600px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="glass-panel rounded-card shadow-subtle flex-col overflow-hidden min-h-[440px] sm:min-h-[580px] max-h-[600px] border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'grupos' ? 'flex' : 'hidden lg:flex'"
+        >
           <div class="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
             <span class="font-bold text-[11px] text-ink">Colisiones Detectadas</span>
             <span class="text-[10px] font-mono text-ink-secondary">{{ clusters.length }} grupos</span>
@@ -343,12 +375,22 @@ const props = defineProps({
 })
 
 const cargando = ref(false)
+const vistaMovil = ref('mapa')
 const canalSeleccionado = ref('TDB')
 const radioMetros = ref(20)
 const clusters = ref([])
 const propuestasPendientes = ref([])
 const grupoSeleccionadoId = ref(null)
 const busquedaTabla = ref('')
+
+function setVistaMovil(v) {
+  vistaMovil.value = v
+  if (v === 'mapa') {
+    nextTick(() => {
+      if (map) map.invalidateSize()
+    })
+  }
+}
 
 const modalFotosVisible = ref(false)
 const clienteSeleccionadoFotos = ref(null)
@@ -581,6 +623,7 @@ function renderizarClustersEnMapa() {
 
 function enfocarGrupoEnMapa(grupo) {
   grupoSeleccionadoId.value = grupo.cluster_id
+  setVistaMovil('mapa')
   if (!map || !grupo.clientes || grupo.clientes.length === 0) return
 
   const bounds = []
@@ -593,7 +636,12 @@ function enfocarGrupoEnMapa(grupo) {
   })
 
   if (bounds.length > 0) {
-    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
+    nextTick(() => {
+      if (map) {
+        map.invalidateSize()
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
+      }
+    })
   }
 }
 

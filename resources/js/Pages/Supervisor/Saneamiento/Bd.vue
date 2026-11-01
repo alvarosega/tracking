@@ -158,14 +158,14 @@
         <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
           <div class="flex items-center gap-2">
             <span class="font-bold text-[12px] text-ink">Matriz de Rutas & Diagnóstico por Jornada</span>
-            <span class="text-[10px] font-mono text-[#86868B]">
+            <span class="text-[10px] font-mono text-[#86868B] hidden sm:inline">
               Haz clic en cualquier ruta para filtrar los clientes en la tabla inferior
             </span>
           </div>
           <span class="text-[10px] font-mono text-ink-secondary">{{ matrizRutas.length }} rutas</span>
         </div>
 
-        <div class="overflow-x-auto custom-scroll max-h-80">
+        <div class="overflow-x-auto no-scrollbar scroll-touch touch-pan-x custom-scroll max-h-80">
           <table class="w-full text-left text-[11px]">
             <thead class="sticky top-0 bg-neutral-50/95 backdrop-blur-sm text-ink-secondary uppercase text-[9px] font-mono tracking-wider border-b border-neutral-200 z-10">
               <tr>
@@ -249,7 +249,7 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto custom-scroll max-h-[500px]">
+        <div class="overflow-x-auto no-scrollbar scroll-touch touch-pan-x custom-scroll max-h-[500px]">
           <table class="w-full text-left text-[11px]">
             <thead class="sticky top-0 bg-neutral-50/95 backdrop-blur-sm text-ink-secondary uppercase text-[9px] font-mono tracking-wider border-b border-neutral-200 z-10">
               <tr>

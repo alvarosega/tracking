@@ -111,11 +111,40 @@
         </div>
       </div>
 
+      <!-- Selector de Vista Móvil (< lg) -->
+      <div class="flex lg:hidden items-center justify-center p-1 bg-slate-100 rounded-xl mb-3 border border-slate-200 select-none">
+        <button
+          type="button"
+          @click="setVistaMovil('mapa')"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+          </svg>
+          <span>Mapa</span>
+        </button>
+        <button
+          type="button"
+          @click="setVistaMovil('panel')"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          :class="vistaMovil === 'panel' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          <span>Jornadas ({{ clientesRuta.length }})</span>
+        </button>
+      </div>
+
       <!-- Contenedor Principal: Mapa y Panel Lateral -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         <!-- Mapa (2 columnas) -->
-        <div class="lg:col-span-2 relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[580px] flex flex-col border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="relative glass-panel rounded-card overflow-hidden shadow-subtle min-h-[440px] sm:min-h-[580px] flex-col border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'mapa' ? 'flex lg:col-span-2' : 'hidden lg:flex lg:col-span-2'"
+        >
           <div class="px-4 py-2.5 border-b border-neutral-100 flex items-center justify-between bg-white/80">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -143,7 +172,7 @@
             </div>
           </div>
 
-          <div id="mapaDias" class="flex-1 w-full min-h-[500px] relative z-0"></div>
+          <div id="mapaDias" class="flex-1 w-full min-h-[380px] sm:min-h-[500px] h-[50vh] sm:h-[500px] relative z-0"></div>
 
           <!-- Leyenda de Días -->
           <div class="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-neutral-200/80 rounded-card shadow-float px-3 py-2 text-[10px] z-20 space-y-1 max-w-[280px]">
@@ -160,7 +189,10 @@
         </div>
 
         <!-- Panel Lateral (1 columna) -->
-        <div class="glass-panel rounded-card shadow-subtle flex flex-col overflow-hidden min-h-[580px] border border-black/[0.06] bg-white/70 backdrop-blur-md">
+        <div
+          class="glass-panel rounded-card shadow-subtle flex-col overflow-hidden min-h-[440px] sm:min-h-[580px] border border-black/[0.06] bg-white/70 backdrop-blur-md"
+          :class="vistaMovil === 'panel' ? 'flex' : 'hidden lg:flex'"
+        >
           <div class="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-white/80 shrink-0">
             <span class="font-bold text-[11px] text-ink">Distribución de PDVs por Jornada</span>
             <span class="text-[10px] font-mono text-ink-secondary">{{ clientesRuta.length }} clientes</span>
@@ -191,7 +223,10 @@
             <!-- Alerta Multi-Día si existe -->
             <div v-if="clientesMultidia.length > 0" class="p-2.5 rounded-card bg-rose-50 border border-rose-200 text-rose-900 space-y-1.5">
               <div class="flex items-center gap-1.5 font-bold text-[11px] text-rose-700">
-                <span>⚠️ {{ clientesMultidia.length }} Clientes con Visitas Múltiples</span>
+                <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <span>{{ clientesMultidia.length }} Clientes con Visitas Múltiples</span>
               </div>
               <p class="text-[10px] text-rose-600">
                 Clientes asignados a 2 o más días en la misma semana. Se recomienda consolidar la frecuencia.
@@ -251,10 +286,13 @@
                       <button
                         type="button"
                         @click="abrirModalFotos(cli)"
-                        class="px-1 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-ink rounded font-bold border border-neutral-200"
-                        title="Fotos"
+                        class="p-1 bg-neutral-100 hover:bg-neutral-200 text-ink rounded font-bold border border-neutral-200 flex items-center justify-center cursor-pointer"
+                        title="Ver fotos"
                       >
-                        📷
+                        <svg class="w-3.5 h-3.5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -362,7 +400,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -396,6 +434,16 @@ function getColorDia(dia) {
 }
 
 const cargando = ref(false)
+const vistaMovil = ref('mapa')
+
+function setVistaMovil(v) {
+  vistaMovil.value = v
+  if (v === 'mapa') {
+    nextTick(() => {
+      if (map) map.invalidateSize()
+    })
+  }
+}
 const canalSeleccionado = ref('TDB')
 const rutaSeleccionada = ref('')
 const bufferMetros = ref(35)

@@ -41,23 +41,23 @@
           </div>
 
           <!-- Acciones Masivas -->
-          <div class="flex items-center gap-2 sm:ml-auto">
+          <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:ml-auto">
             <button
               type="button"
               @click="aprobarSeleccionados"
               :disabled="seleccionados.length === 0"
-              class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[10px] font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
+              class="flex-1 sm:flex-initial text-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[10px] font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
             >
-              Aprobar seleccionados ({{ seleccionados.length }})
+              Aprobar ({{ seleccionados.length }})
             </button>
 
             <button
               type="button"
               @click="descartarSeleccionados"
               :disabled="seleccionados.length === 0"
-              class="px-3.5 py-1.5 bg-[#C9342C] hover:bg-[#B3261E] text-white rounded-[10px] font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
+              class="flex-1 sm:flex-initial text-center px-3.5 py-1.5 bg-[#C9342C] hover:bg-[#B3261E] text-white rounded-[10px] font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
             >
-              Descartar seleccionados ({{ seleccionados.length }})
+              Descartar ({{ seleccionados.length }})
             </button>
           </div>
 
@@ -73,7 +73,7 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto custom-scroll max-h-[calc(100vh-280px)] min-h-[400px]">
+        <div class="overflow-x-auto no-scrollbar scroll-touch touch-pan-x custom-scroll max-h-[calc(100vh-280px)] min-h-[400px]">
           <table class="w-full text-left text-[11px]">
             <thead class="sticky top-0 bg-neutral-50/95 backdrop-blur-sm text-ink-secondary uppercase text-[9px] font-mono tracking-wider border-b border-neutral-200 z-10">
               <tr>

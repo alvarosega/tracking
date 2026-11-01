@@ -10,7 +10,7 @@
         <Link
           v-if="hasAuditoriaAccess"
           :href="firstAuditoriaRoute"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
+          class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0"
           :class="currentSection === 'auditoria'
             ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
             : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]'"
@@ -18,7 +18,8 @@
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
           </svg>
-          <span>Auditoría de Ruteo</span>
+          <span class="hidden sm:inline">Auditoría de Ruteo</span>
+          <span class="sm:hidden">Auditoría</span>
           <span
             class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold"
             :class="currentSection === 'auditoria' ? 'bg-white/25 text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
@@ -31,7 +32,7 @@
         <Link
           v-if="hasSaneamientoAccess"
           :href="firstSaneamientoRoute"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer"
+          class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0"
           :class="currentSection === 'saneamiento'
             ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
             : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]'"
@@ -39,7 +40,8 @@
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689A1.125 1.125 0 003 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
           </svg>
-          <span>Saneamiento Padrón</span>
+          <span class="hidden sm:inline">Saneamiento Padrón</span>
+          <span class="sm:hidden">Saneamiento</span>
           <span
             class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold"
             :class="currentSection === 'saneamiento' ? 'bg-white/25 text-white' : 'bg-black/[0.06] text-[#6E6E73]'"
@@ -57,14 +59,14 @@
     <!-- NIVEL 2: PESTAÑAS DEL SUBMÓDULO ACTIVO -->
     <div
       v-if="currentTabsList.length > 0"
-      class="apple-glass-card rounded-[14px] p-1.5 overflow-x-auto no-scrollbar scroll-touch border border-white/70 shadow-2xs"
+      class="apple-glass-card rounded-[14px] p-1 sm:p-1.5 overflow-x-auto no-scrollbar scroll-touch touch-pan-x border border-white/70 shadow-2xs"
     >
       <div class="flex items-center gap-1 min-w-max">
         <Link
           v-for="tab in currentTabsList"
           :key="tab.id"
           :href="route(tab.route)"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[11px] font-semibold transition-all duration-150 cursor-pointer"
+          class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[9px] text-[11px] font-semibold transition-all duration-150 cursor-pointer shrink-0 whitespace-nowrap"
           :class="activeTab === tab.id
             ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
             : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]'"
