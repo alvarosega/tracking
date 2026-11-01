@@ -616,6 +616,26 @@
               </option>
             </select>
 
+            <!-- 3 Valores acumulados de los últimos 3 meses para la ruta en ajuste -->
+            <div
+              v-if="rutaParaAjustarFrontera && balanceRutaSeleccionada"
+              class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10.5px] shadow-2xs select-none"
+            >
+              <span class="text-slate-700 font-bold">{{ balanceRutaSeleccionada.total }} clis</span>
+              <span class="text-slate-300">|</span>
+              <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_actual) }}
+              </span>
+              <span class="text-slate-300">|</span>
+              <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior) }}
+              </span>
+              <span class="text-slate-300">|</span>
+              <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior_2) }}
+              </span>
+            </div>
+
             <template v-if="rutaParaAjustarFrontera">
               <button
                 v-if="!editandoVertices"
@@ -780,6 +800,22 @@
                   </span>
                 </div>
 
+                <!-- 3 Valores acumulados de los últimos 3 meses por ruta -->
+                <div class="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]">
+                  <div class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                    <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
+                    <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
+                  </div>
+                  <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                    <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
+                    <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
+                  </div>
+                  <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                    <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
+                    <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
+                  </div>
+                </div>
+
                 <!-- Distribución por Jornadas de Visita -->
                 <div class="pt-1.5 border-t border-slate-200">
                   <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
@@ -909,6 +945,21 @@
                       <span>•</span>
                       <span>ID: {{ c.cliente_id }}</span>
                     </div>
+
+                    <!-- 3 Valores de fact_ventas al lado / debajo de la ruta por cliente -->
+                    <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-100 text-[9.5px] font-mono text-slate-600">
+                      <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                        <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(c.venta_mes_actual || 0) }}
+                      </span>
+                      <span>•</span>
+                      <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                        <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(c.venta_mes_anterior || 0) }}
+                      </span>
+                      <span>•</span>
+                      <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                        <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(c.venta_mes_anterior_2 || 0) }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -934,6 +985,22 @@
                       <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
                         {{ b.total }} clientes
                       </span>
+                    </div>
+
+                    <!-- 3 Valores acumulados de los últimos 3 meses por ruta -->
+                    <div class="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]">
+                      <div class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                        <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
+                        <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
+                      </div>
+                      <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                        <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
+                        <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
+                      </div>
+                      <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                        <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
+                        <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
+                      </div>
                     </div>
 
                     <!-- Distribución por Jornadas de Visita -->
@@ -1022,7 +1089,7 @@
                     <span>Compras fact_ventas</span>
                   </span>
                   <span v-if="kpisVentasCliente" class="text-[9px] text-slate-400 font-normal">
-                    2 Meses
+                    3 Meses
                   </span>
                 </div>
 
@@ -1033,44 +1100,61 @@
                 </div>
 
                 <!-- Grilla Resumen -->
-                <div v-else-if="kpisVentasCliente" class="grid grid-cols-2 gap-1.5">
+                <div v-else-if="kpisVentasCliente" class="grid grid-cols-3 gap-1.5">
                   <!-- Mes Actual -->
                   <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
-                    <div class="flex items-center justify-between text-[9px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase">Mes Act.</span>
-                      <span class="font-bold text-[#0071E3] truncate max-w-[70px]" :title="kpisVentasCliente.mes_actual.nombre">
-                        {{ kpisVentasCliente.mes_actual.nombre }}
+                    <div class="flex items-center justify-between text-[8.5px] font-mono">
+                      <span class="font-bold text-[#0071E3] uppercase">Act.</span>
+                      <span class="font-bold text-[#0071E3] truncate max-w-[45px]" :title="kpisVentasCliente.mes_actual?.nombre">
+                        {{ kpisVentasCliente.mes_actual?.nombre }}
                       </span>
                     </div>
-                    <div class="text-[11px] font-bold font-mono text-slate-900 leading-tight">
-                      {{ formatMonto(kpisVentasCliente.mes_actual.monto_acumulado) }}
+                    <div class="text-[10px] font-bold font-mono text-slate-900 leading-tight">
+                      {{ formatMonto(kpisVentasCliente.mes_actual?.monto_acumulado) }}
                     </div>
-                    <div class="text-[9px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
                       <span class="text-slate-400">Frec:</span>
-                      <span class="font-bold">{{ kpisVentasCliente.mes_actual.frecuencia_compra }} comp</span>
+                      <span class="font-bold">{{ kpisVentasCliente.mes_actual?.frecuencia_compra ?? 0 }}</span>
                     </div>
                   </div>
 
                   <!-- Mes Anterior -->
                   <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
-                    <div class="flex items-center justify-between text-[9px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase">Mes Ant.</span>
-                      <span class="font-bold text-slate-600 truncate max-w-[70px]" :title="kpisVentasCliente.mes_anterior.nombre">
-                        {{ kpisVentasCliente.mes_anterior.nombre }}
+                    <div class="flex items-center justify-between text-[8.5px] font-mono">
+                      <span class="font-bold text-slate-600 uppercase">Ant.</span>
+                      <span class="font-bold text-slate-600 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior?.nombre">
+                        {{ kpisVentasCliente.mes_anterior?.nombre }}
                       </span>
                     </div>
-                    <div class="text-[11px] font-bold font-mono text-slate-700 leading-tight">
-                      {{ formatMonto(kpisVentasCliente.mes_anterior.monto_acumulado) }}
+                    <div class="text-[10px] font-bold font-mono text-slate-700 leading-tight">
+                      {{ formatMonto(kpisVentasCliente.mes_anterior?.monto_acumulado) }}
                     </div>
-                    <div class="text-[9px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
                       <span class="text-slate-400">Frec:</span>
-                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior.frecuencia_compra }} comp</span>
+                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior?.frecuencia_compra ?? 0 }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Mes Ante-anterior (M-2) -->
+                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                    <div class="flex items-center justify-between text-[8.5px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase">Ant-2</span>
+                      <span class="font-bold text-slate-500 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
+                        {{ kpisVentasCliente.mes_anterior_2?.nombre }}
+                      </span>
+                    </div>
+                    <div class="text-[10px] font-bold font-mono text-slate-700 leading-tight">
+                      {{ formatMonto(kpisVentasCliente.mes_anterior_2?.monto_acumulado) }}
+                    </div>
+                    <div class="text-[8.5px] font-mono text-slate-600 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                      <span class="text-slate-400">Frec:</span>
+                      <span class="font-bold">{{ kpisVentasCliente.mes_anterior_2?.frecuencia_compra ?? 0 }}</span>
                     </div>
                   </div>
                 </div>
 
                 <div v-else class="py-1 text-center text-[10px] text-slate-400 font-mono">
-                  Sin ventas registradas en los últimos 2 meses.
+                  Sin ventas registradas en los últimos 3 meses.
                 </div>
               </div>
 
@@ -1522,6 +1606,23 @@
                   </div>
                 </th>
                 <th
+                  @click="ordenarPor('venta_mes_anterior_2')"
+                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
+                  title="Clic para ordenar por Ventas acumuladas Mes Ante-anterior (M-2)"
+                >
+                  <div class="inline-flex items-center justify-end gap-1 w-full">
+                    <div>
+                      <div>Acum. Ant.-2</div>
+                      <div v-if="periodosHistoricos?.mes_anterior_2?.corto" class="text-[8.5px] font-normal text-slate-500 capitalize">
+                        ({{ periodosHistoricos.mes_anterior_2.corto }})
+                      </div>
+                    </div>
+                    <span class="text-[9px]" :class="columnaOrden === 'venta_mes_anterior_2' ? 'text-slate-900 font-bold' : 'text-slate-300'">
+                      {{ columnaOrden === 'venta_mes_anterior_2' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
+                <th
                   @click="ordenarPor('frecuencia_mes_actual')"
                   class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-sky-50/50 cursor-pointer hover:bg-sky-100/60 transition-colors"
                   title="Clic para ordenar por Frecuencia Mes Actual"
@@ -1664,6 +1765,16 @@
                   </span>
                 </td>
 
+                <!-- 3. Acumulado Mes Ante-anterior (M-2) -->
+                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
+                  <span
+                    class="font-semibold text-xs"
+                    :class="(c.venta_mes_anterior_2 || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
+                  >
+                    {{ formatMonto(c.venta_mes_anterior_2 || 0) }}
+                  </span>
+                </td>
+
                 <!-- 3. Frecuencia de Compra Mes Actual -->
                 <td class="py-2 px-3 text-center font-mono whitespace-nowrap bg-sky-50/20">
                   <span
@@ -1744,6 +1855,23 @@
                 </td>
               </tr>
             </tbody>
+            <tfoot class="bg-slate-100/95 text-slate-800 font-mono text-[11px] font-bold border-t-2 border-slate-300 sticky bottom-0 z-10 shadow-md">
+              <tr>
+                <td colspan="4" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
+                  TOTALES ({{ clientesConCambioFiltrados.length }} clis):
+                </td>
+                <td class="py-2 px-3 text-right whitespace-nowrap bg-sky-100/70 text-slate-900 border-l border-slate-200">
+                  {{ formatMonto(totalesMatrizInferior.venta_mes_actual) }}
+                </td>
+                <td class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
+                  {{ formatMonto(totalesMatrizInferior.venta_mes_anterior) }}
+                </td>
+                <td class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
+                  {{ formatMonto(totalesMatrizInferior.venta_mes_anterior_2) }}
+                </td>
+                <td colspan="5" class="py-2 px-3"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -1866,7 +1994,7 @@
                     </span>
                   </div>
                   <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
-                    Últimos 2 Meses
+                    Últimos 3 Meses
                   </span>
                 </div>
 
@@ -1876,54 +2004,70 @@
                   <span>Consultando fact_ventas...</span>
                 </div>
 
-                <!-- Grilla Mes Actual vs Mes Anterior -->
-                <div v-else-if="kpisVentasCliente" class="grid grid-cols-2 gap-3">
+                <!-- Grilla Mes Actual vs Mes Anterior vs Mes Ante-anterior -->
+                <div v-else-if="kpisVentasCliente" class="grid grid-cols-3 gap-2.5">
                   <!-- Mes Actual -->
-                  <div class="p-3 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
                     <div class="flex items-center justify-between text-[10px] font-mono">
                       <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Actual</span>
-                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-50 text-[#0071E3] border border-sky-200 font-mono">
-                        {{ kpisVentasCliente.mes_actual.nombre }}
+                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-sky-50 text-[#0071E3] border border-sky-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_actual?.nombre">
+                        {{ kpisVentasCliente.mes_actual?.nombre }}
                       </span>
                     </div>
                     <div>
-                      <div class="text-[10px] text-slate-500 font-mono">Monto Acumulado:</div>
-                      <div class="text-sm font-bold font-mono text-slate-900 leading-tight">
-                        {{ formatMonto(kpisVentasCliente.mes_actual.monto_acumulado) }}
+                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
+                      <div class="text-xs font-bold font-mono text-slate-900 leading-tight">
+                        {{ formatMonto(kpisVentasCliente.mes_actual?.monto_acumulado) }}
                       </div>
                     </div>
-                    <div class="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
-                      <span class="text-slate-500">Frecuencia Compra:</span>
+                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
+                      <span class="text-slate-500">Frec:</span>
                       <span class="font-bold text-slate-800">
-                        {{ kpisVentasCliente.mes_actual.frecuencia_compra }} compras
-                        <span v-if="kpisVentasCliente.mes_actual.dias_compra > 0" class="text-slate-400 font-normal">
-                          ({{ kpisVentasCliente.mes_actual.dias_compra }}d)
-                        </span>
+                        {{ kpisVentasCliente.mes_actual?.frecuencia_compra || 0 }} comp
                       </span>
                     </div>
                   </div>
 
                   <!-- Mes Anterior -->
-                  <div class="p-3 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
                     <div class="flex items-center justify-between text-[10px] font-mono">
-                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Anterior</span>
-                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">
-                        {{ kpisVentasCliente.mes_anterior.nombre }}
+                      <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Ant.</span>
+                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior?.nombre">
+                        {{ kpisVentasCliente.mes_anterior?.nombre }}
                       </span>
                     </div>
                     <div>
-                      <div class="text-[10px] text-slate-500 font-mono">Monto Acumulado:</div>
-                      <div class="text-sm font-bold font-mono text-slate-700 leading-tight">
-                        {{ formatMonto(kpisVentasCliente.mes_anterior.monto_acumulado) }}
+                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
+                      <div class="text-xs font-bold font-mono text-slate-700 leading-tight">
+                        {{ formatMonto(kpisVentasCliente.mes_anterior?.monto_acumulado) }}
                       </div>
                     </div>
-                    <div class="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
-                      <span class="text-slate-500">Frecuencia Compra:</span>
+                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
+                      <span class="text-slate-500">Frec:</span>
                       <span class="font-bold text-slate-700">
-                        {{ kpisVentasCliente.mes_anterior.frecuencia_compra }} compras
-                        <span v-if="kpisVentasCliente.mes_anterior.dias_compra > 0" class="text-slate-400 font-normal">
-                          ({{ kpisVentasCliente.mes_anterior.dias_compra }}d)
-                        </span>
+                        {{ kpisVentasCliente.mes_anterior?.frecuencia_compra || 0 }} comp
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Mes Ante-anterior (M-2) -->
+                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                    <div class="flex items-center justify-between text-[10px] font-mono">
+                      <span class="font-bold text-slate-500 uppercase tracking-wide">Ant.-2</span>
+                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
+                        {{ kpisVentasCliente.mes_anterior_2?.nombre }}
+                      </span>
+                    </div>
+                    <div>
+                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
+                      <div class="text-xs font-bold font-mono text-slate-700 leading-tight">
+                        {{ formatMonto(kpisVentasCliente.mes_anterior_2?.monto_acumulado) }}
+                      </div>
+                    </div>
+                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
+                      <span class="text-slate-500">Frec:</span>
+                      <span class="font-bold text-slate-700">
+                        {{ kpisVentasCliente.mes_anterior_2?.frecuencia_compra || 0 }} comp
                       </span>
                     </div>
                   </div>
@@ -2602,6 +2746,9 @@ const balanceRtmPorRuta = computed(() => {
         canal: rutaInfo ? rutaInfo.canal : 'General',
         total: 0,
         con_gps: 0,
+        venta_mes_actual: 0,
+        venta_mes_anterior: 0,
+        venta_mes_anterior_2: 0,
         dias: {},
       });
     });
@@ -2627,6 +2774,9 @@ const balanceRtmPorRuta = computed(() => {
         canal: rutaInfo ? rutaInfo.canal : 'General',
         total: 0,
         con_gps: 0,
+        venta_mes_actual: 0,
+        venta_mes_anterior: 0,
+        venta_mes_anterior_2: 0,
         dias: {},
       });
     }
@@ -2639,10 +2789,20 @@ const balanceRtmPorRuta = computed(() => {
     if (DIAS_LUNES_A_SABADO.includes(diaClave)) {
       item.total++;
       if (c.tiene_gps) item.con_gps++;
+      item.venta_mes_actual += (Number(c.venta_mes_actual) || 0);
+      item.venta_mes_anterior += (Number(c.venta_mes_anterior) || 0);
+      item.venta_mes_anterior_2 += (Number(c.venta_mes_anterior_2) || 0);
     }
   });
 
   return Array.from(mapRutas.values()).sort((a, b) => b.total - a.total);
+});
+
+// Balance específico de la ruta seleccionada en Ajuste RTM
+const balanceRutaSeleccionada = computed(() => {
+  if (!rutaParaAjustarFrontera.value) return null;
+  const rKey = normalizarRutaClave(rutaParaAjustarFrontera.value);
+  return balanceRtmPorRuta.value.find(b => normalizarRutaClave(b.ruta) === rKey) || null;
 });
 
 // Determina si solo hay una ruta seleccionada o cargada en el mapa
@@ -2826,6 +2986,7 @@ function iniciarArrastreTactilAltoTabla(e) {
 const periodosHistoricos = ref({
   mes_actual: { nombre: 'Mes Actual', corto: 'Mes Act.' },
   mes_anterior: { nombre: 'Mes Anterior', corto: 'Mes Ant.' },
+  mes_anterior_2: { nombre: 'Mes Anterior 2', corto: 'Ant.-2' },
 });
 
 const clientesConCambio = computed(() => {
@@ -2847,7 +3008,7 @@ function ordenarPor(col) {
     direccionOrden.value = direccionOrden.value === 'asc' ? 'desc' : 'asc';
   } else {
     columnaOrden.value = col;
-    if (['venta_mes_actual', 'venta_mes_anterior', 'frecuencia_mes_actual', 'frecuencia_mes_anterior'].includes(col)) {
+    if (['venta_mes_actual', 'venta_mes_anterior', 'venta_mes_anterior_2', 'frecuencia_mes_actual', 'frecuencia_mes_anterior', 'frecuencia_mes_anterior_2'].includes(col)) {
       direccionOrden.value = 'desc';
     } else {
       direccionOrden.value = 'asc';
@@ -2907,6 +3068,11 @@ const clientesConCambioFiltrados = computed(() => {
         valB = Number(b.venta_mes_anterior) || 0;
         return (valA - valB) * dir;
 
+      case 'venta_mes_anterior_2':
+        valA = Number(a.venta_mes_anterior_2) || 0;
+        valB = Number(b.venta_mes_anterior_2) || 0;
+        return (valA - valB) * dir;
+
       case 'frecuencia_mes_actual':
         valA = Number(a.frecuencia_mes_actual) || 0;
         valB = Number(b.frecuencia_mes_actual) || 0;
@@ -2915,6 +3081,11 @@ const clientesConCambioFiltrados = computed(() => {
       case 'frecuencia_mes_anterior':
         valA = Number(a.frecuencia_mes_anterior) || 0;
         valB = Number(b.frecuencia_mes_anterior) || 0;
+        return (valA - valB) * dir;
+
+      case 'frecuencia_mes_anterior_2':
+        valA = Number(a.frecuencia_mes_anterior_2) || 0;
+        valB = Number(b.frecuencia_mes_anterior_2) || 0;
         return (valA - valB) * dir;
 
       case 'tipo_ajuste': {
@@ -2940,6 +3111,23 @@ const clientesConCambioFiltrados = computed(() => {
         return 0;
     }
   });
+});
+
+const totalesMatrizInferior = computed(() => {
+  const lista = clientesConCambioFiltrados.value;
+  let tAct = 0;
+  let tAnt = 0;
+  let tAnt2 = 0;
+  for (let i = 0; i < lista.length; i++) {
+    tAct += (Number(lista[i].venta_mes_actual) || 0);
+    tAnt += (Number(lista[i].venta_mes_anterior) || 0);
+    tAnt2 += (Number(lista[i].venta_mes_anterior_2) || 0);
+  }
+  return {
+    venta_mes_actual: tAct,
+    venta_mes_anterior: tAnt,
+    venta_mes_anterior_2: tAnt2,
+  };
 });
 
 // Edición directa en la matriz inferior de Ajuste RTM (desplegables directos)
@@ -3194,6 +3382,13 @@ async function cargarDatos(mantenerVista = false) {
             nombre: periodosHistoricos.value.mes_anterior?.nombre || 'Mes Anterior',
             monto_acumulado: c.venta_mes_anterior || 0,
             frecuencia_compra: c.frecuencia_mes_anterior || 0,
+            dias_compra: 0,
+          },
+          mes_anterior_2: {
+            periodo: periodosHistoricos.value.mes_anterior_2?.periodo,
+            nombre: periodosHistoricos.value.mes_anterior_2?.nombre || 'Mes Anterior 2',
+            monto_acumulado: c.venta_mes_anterior_2 || 0,
+            frecuencia_compra: c.frecuencia_mes_anterior_2 || 0,
             dias_compra: 0,
           },
         });
@@ -4067,6 +4262,13 @@ async function obtenerKpisVentasCliente(clienteId) {
         frecuencia_compra: cli.frecuencia_mes_anterior || 0,
         dias_compra: 0,
       },
+      mes_anterior_2: {
+        periodo: periodosHistoricos.value.mes_anterior_2?.periodo,
+        nombre: periodosHistoricos.value.mes_anterior_2?.nombre || 'Mes Anterior 2',
+        monto_acumulado: cli.venta_mes_anterior_2 || 0,
+        frecuencia_compra: cli.frecuencia_mes_anterior_2 || 0,
+        dias_compra: 0,
+      },
     };
     kpisVentasCache.set(clienteId, kpiObj);
     return kpiObj;
@@ -4122,35 +4324,47 @@ async function actualizarKpisEnPopup(c) {
 
   if (data && data.mes_actual) {
     const actM = formatMonto(data.mes_actual.monto_acumulado);
-    const antM = formatMonto(data.mes_anterior.monto_acumulado);
+    const antM = formatMonto(data.mes_anterior ? data.mes_anterior.monto_acumulado : 0);
+    const ant2M = formatMonto(data.mes_anterior_2 ? data.mes_anterior_2.monto_acumulado : 0);
 
     el.innerHTML = `
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #BAE6FD;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #0284C7; font-weight: 700;">
-          <span>Mes Actual</span>
-          <span style="font-size: 7.5px;">${data.mes_actual.nombre}</span>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
+          <span>Actual</span>
+          <span style="font-size: 7px;">${data.mes_actual.nombre || ''}</span>
         </div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
-        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #0F172A;">${data.mes_actual.frecuencia_compra}</b> comp
+        <div style="font-weight: 700; color: #0F172A; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
+        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #0F172A;">${data.mes_actual.frecuencia_compra ?? 0}</b>
           ${data.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_actual.dias_compra}d)</span>` : ''}
         </div>
       </div>
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #475569; font-weight: 700;">
-          <span>Mes Anterior</span>
-          <span style="font-size: 7.5px;">${data.mes_anterior.nombre}</span>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
+          <span>Mes Ant.</span>
+          <span style="font-size: 7px;">${data.mes_anterior?.nombre || ''}</span>
         </div>
-        <div style="font-weight: 700; color: #334155; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
-        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #334155;">${data.mes_anterior.frecuencia_compra}</b> comp
-          ${data.mes_anterior.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior.dias_compra}d)</span>` : ''}
+        <div style="font-weight: 700; color: #334155; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
+        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #334155;">${data.mes_anterior?.frecuencia_compra ?? 0}</b>
+          ${data.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
+          <span>Ant. -2</span>
+          <span style="font-size: 7px;">${data.mes_anterior_2?.nombre || ''}</span>
+        </div>
+        <div style="font-weight: 700; color: #475569; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${ant2M}</div>
+        <div style="color: #64748B; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #475569;">${data.mes_anterior_2?.frecuencia_compra ?? 0}</b>
+          ${data.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior_2.dias_compra}d)</span>` : ''}
         </div>
       </div>
     `;
   } else {
     el.innerHTML = `
-      <div style="grid-column: span 2; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
+      <div style="grid-column: span 3; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
         Sin compras en fact_ventas
       </div>
     `;
@@ -4319,48 +4533,65 @@ function generarPopupHtmlRtm(c) {
   let kpisHtml = '';
   if (cachedKpis && cachedKpis.mes_actual) {
     const actM = formatMonto(cachedKpis.mes_actual.monto_acumulado);
-    const antM = formatMonto(cachedKpis.mes_anterior.monto_acumulado);
+    const antM = formatMonto(cachedKpis.mes_anterior ? cachedKpis.mes_anterior.monto_acumulado : 0);
+    const ant2M = formatMonto(cachedKpis.mes_anterior_2 ? cachedKpis.mes_anterior_2.monto_acumulado : 0);
     kpisHtml = `
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #BAE6FD;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #0284C7; font-weight: 700;">
-          <span>Mes Actual</span>
-          <span style="font-size: 7.5px;">${cachedKpis.mes_actual.nombre}</span>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
+          <span>Actual</span>
+          <span style="font-size: 7px;">${cachedKpis.mes_actual.nombre || ''}</span>
         </div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
-        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #0F172A;">${cachedKpis.mes_actual.frecuencia_compra}</b> comp
+        <div style="font-weight: 700; color: #0F172A; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${actM}</div>
+        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #0F172A;">${cachedKpis.mes_actual.frecuencia_compra ?? 0}</b>
           ${cachedKpis.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_actual.dias_compra}d)</span>` : ''}
         </div>
       </div>
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #475569; font-weight: 700;">
-          <span>Mes Anterior</span>
-          <span style="font-size: 7.5px;">${cachedKpis.mes_anterior.nombre}</span>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
+          <span>Mes Ant.</span>
+          <span style="font-size: 7px;">${cachedKpis.mes_anterior?.nombre || ''}</span>
         </div>
-        <div style="font-weight: 700; color: #334155; font-size: 10.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
-        <div style="color: #475569; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
-          Frec: <b style="color: #334155;">${cachedKpis.mes_anterior.frecuencia_compra}</b> comp
-          ${cachedKpis.mes_anterior.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior.dias_compra}d)</span>` : ''}
+        <div style="font-weight: 700; color: #334155; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${antM}</div>
+        <div style="color: #475569; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #334155;">${cachedKpis.mes_anterior?.frecuencia_compra ?? 0}</b>
+          ${cachedKpis.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior.dias_compra}d)</span>` : ''}
+        </div>
+      </div>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
+          <span>Ant. -2</span>
+          <span style="font-size: 7px;">${cachedKpis.mes_anterior_2?.nombre || ''}</span>
+        </div>
+        <div style="font-weight: 700; color: #475569; font-size: 9.5px; line-height: 1.1; margin-top: 1px;">${ant2M}</div>
+        <div style="color: #64748B; font-size: 8px; margin-top: 2px; border-top: 1px solid #F1F5F9; padding-top: 1px;">
+          Frec: <b style="color: #475569;">${cachedKpis.mes_anterior_2?.frecuencia_compra ?? 0}</b>
+          ${cachedKpis.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior_2.dias_compra}d)</span>` : ''}
         </div>
       </div>
     `;
   } else {
     kpisHtml = `
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="color: #64748B; font-size: 8.5px;">Mes Actual</div>
-        <div style="font-weight: 700; color: #0F172A; font-size: 10px; margin-top: 1px;">Cargando...</div>
-        <div style="color: #64748B; font-size: 8.5px; margin-top: 2px;">Frec: --</div>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="color: #64748B; font-size: 8px;">Actual</div>
+        <div style="font-weight: 700; color: #0F172A; font-size: 9px; margin-top: 1px;">Cargando...</div>
+        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
       </div>
-      <div style="background: #ffffff; padding: 4px 5px; border-radius: 4px; border: 1px solid #E2E8F0;">
-        <div style="color: #64748B; font-size: 8.5px;">Mes Anterior</div>
-        <div style="font-weight: 700; color: #475569; font-size: 10px; margin-top: 1px;">Cargando...</div>
-        <div style="color: #64748B; font-size: 8.5px; margin-top: 2px;">Frec: --</div>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="color: #64748B; font-size: 8px;">Mes Ant.</div>
+        <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
+        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
+      </div>
+      <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
+        <div style="color: #64748B; font-size: 8px;">Ant. -2</div>
+        <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
+        <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
       </div>
     `;
   }
 
   return `
-    <div style="min-width: 250px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
+    <div style="min-width: 275px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
         <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25;">${escapeHtml(c.nombre)}</div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
@@ -4383,13 +4614,16 @@ function generarPopupHtmlRtm(c) {
         ` : ''}
       </div>
 
-      <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
+      <!-- MÉTRICAS DE COMPRA FACT_VENTAS (ÚLTIMOS 3 MESES ACUMULADOS) -->
       <div id="rtm-kpis-${c.id}" style="margin: 4px 0 6px 0; padding: 5px 6px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-family: monospace; font-size: 10px;">
         <div style="color: #64748B; font-size: 8.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
           <span style="color: #0F172A;">COMPORTAMIENTO COMPRA (fact_ventas)</span>
-          <span style="font-size: 8px; color: #64748B;">2 Meses</span>
+          <span style="font-size: 8px; color: #64748B;">3 Meses</span>
         </div>
-        <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+        <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5px;">
+          ${kpisHtml}
+        </div>
+      </div>
           ${kpisHtml}
         </div>
       </div>

@@ -204,7 +204,9 @@ class GetRuteoDataAction
 
         $mesActualPeriodo = $now->format('Y-m');
         $mesAnteriorPeriodo = $now->copy()->subMonth()->format('Y-m');
-        $inicioMesAnterior = $now->copy()->subMonth()->startOfMonth()->toDateString();
+        $mesAnterior2Periodo = $now->copy()->subMonths(2)->format('Y-m');
+
+        $inicioMesAnterior2 = $now->copy()->subMonths(2)->startOfMonth()->toDateString();
         $finMesActual = $now->copy()->endOfMonth()->toDateString();
 
         $mesesEspanol = [
@@ -221,9 +223,12 @@ class GetRuteoDataAction
         $nombreMesActual = ($mesesEspanol[$now->format('m')] ?? 'Mes Actual') . ' ' . $now->format('Y');
         $mesAntObj = $now->copy()->subMonth();
         $nombreMesAnterior = ($mesesEspanol[$mesAntObj->format('m')] ?? 'Mes Anterior') . ' ' . $mesAntObj->format('Y');
+        $mesAnt2Obj = $now->copy()->subMonths(2);
+        $nombreMesAnterior2 = ($mesesEspanol[$mesAnt2Obj->format('m')] ?? 'Mes Anterior 2') . ' ' . $mesAnt2Obj->format('Y');
 
         $cortoMesActual = ($mesesCorto[$now->format('m')] ?? 'Act.') . ' ' . $now->format('y');
         $cortoMesAnterior = ($mesesCorto[$mesAntObj->format('m')] ?? 'Ant.') . ' ' . $mesAntObj->format('y');
+        $cortoMesAnterior2 = ($mesesCorto[$mesAnt2Obj->format('m')] ?? 'Ant.-2') . ' ' . $mesAnt2Obj->format('y');
 
         $cidsTodos = $clientesRaw->pluck('cliente_id')->filter()->unique()->values()->all();
         $ventasMap = [];
@@ -233,7 +238,7 @@ class GetRuteoDataAction
                 foreach (array_chunk($cidsTodos, 1000) as $chunkIds) {
                     $ventasRows = DB::connection('supervisor')->table('fact_ventas')
                         ->whereIn('cliente_id', $chunkIds)
-                        ->whereBetween('fecha_norm', [$inicioMesAnterior, $finMesActual])
+                        ->whereBetween('fecha_norm', [$inicioMesAnterior2, $finMesActual])
                         ->where(function ($q) {
                             $q->whereNull('revertida')
                               ->orWhereRaw("LOWER(TRIM(revertida)) != 'si'");
@@ -279,6 +284,7 @@ class GetRuteoDataAction
 
             $vActual = $ventasMap[$cid][$mesActualPeriodo] ?? ['monto' => 0.0, 'frecuencia' => 0];
             $vAnterior = $ventasMap[$cid][$mesAnteriorPeriodo] ?? ['monto' => 0.0, 'frecuencia' => 0];
+            $vAnterior2 = $ventasMap[$cid][$mesAnterior2Periodo] ?? ['monto' => 0.0, 'frecuencia' => 0];
 
             $rutaOriginal = strtoupper(trim((string)$c->ruta));
             $diaOriginal = strtoupper(trim((string)$c->dia_norm));
@@ -365,8 +371,10 @@ class GetRuteoDataAction
                 // Métricas históricas de ventas (fact_ventas)
                 'venta_mes_actual' => (float) ($vActual['monto'] ?? 0.0),
                 'venta_mes_anterior' => (float) ($vAnterior['monto'] ?? 0.0),
+                'venta_mes_anterior_2' => (float) ($vAnterior2['monto'] ?? 0.0),
                 'frecuencia_mes_actual' => (int) ($vActual['frecuencia'] ?? 0),
                 'frecuencia_mes_anterior' => (int) ($vAnterior['frecuencia'] ?? 0),
+                'frecuencia_mes_anterior_2' => (int) ($vAnterior2['frecuencia'] ?? 0),
             ];
         }
 
@@ -431,6 +439,11 @@ class GetRuteoDataAction
                     'periodo' => $mesAnteriorPeriodo,
                     'nombre' => $nombreMesAnterior,
                     'corto' => $cortoMesAnterior,
+                ],
+                'mes_anterior_2' => [
+                    'periodo' => $mesAnterior2Periodo,
+                    'nombre' => $nombreMesAnterior2,
+                    'corto' => $cortoMesAnterior2,
                 ],
             ],
         ];
