@@ -1660,6 +1660,24 @@
               class="h-6 px-2 text-[11px] bg-white border border-slate-300 rounded font-mono placeholder:text-slate-400 focus:outline-none"
             />
 
+            <!-- Botón Descargar Excel de Propuestas Pendientes -->
+            <button
+              v-if="tablaCambiosVisible"
+              type="button"
+              @click="exportarPropuestasExcel(false)"
+              :disabled="conteoPropuestasPendientes === 0"
+              class="h-6 px-2.5 rounded text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-700 hover:bg-emerald-800 text-white border border-emerald-800 shrink-0"
+              :title="conteoPropuestasPendientes > 0 ? `Descargar ${conteoPropuestasPendientes} propuesta(s) pendiente(s) en Excel` : 'No hay propuestas pendientes para descargar'"
+            >
+              <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <span>Descargar Excel</span>
+              <span v-if="conteoPropuestasPendientes > 0" class="px-1 rounded bg-emerald-900/60 text-[9.5px] font-mono">
+                {{ conteoPropuestasPendientes }}
+              </span>
+            </button>
+
             <!-- Botones de Tamaño Predeterminado (Normal / Medio / Grande / Max) -->
             <div v-if="tablaCambiosVisible" class="hidden sm:flex items-center bg-slate-200/90 p-0.5 rounded-md font-mono text-[10px]">
               <button
@@ -2173,6 +2191,19 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
               <span>{{ activandoMasivo ? 'Activando...' : 'Activar Seleccionados' }}</span>
+            </button>
+
+            <!-- Botón Exportar Seleccionados a Excel -->
+            <button
+              type="button"
+              @click="exportarPropuestasExcel(true)"
+              class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Descargar los clientes seleccionados en formato Excel (.csv)"
+            >
+              <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <span>Exportar Excel ({{ clientesSeleccionadosIds.length }})</span>
             </button>
 
             <!-- Botón Limpiar Selección -->
@@ -3685,6 +3716,159 @@ const totalesMatrizInferior = computed(() => {
     venta_mes_anterior_2: p2 ? (totalesMatrizInferiorPorPeriodo.value[p2] || 0) : 0,
   };
 });
+
+// Clientes con propuestas pendientes deduplicados para descarga en Excel
+const clientesPendientesDeduplicados = computed(() => {
+  const map = new Map();
+  clientes.value.forEach(c => {
+    const esPendiente = Boolean(c.tiene_propuesta) ||
+                        Boolean(c.tiene_cambio) ||
+                        (c.propuesta_estado && c.propuesta_estado.toUpperCase() === 'PENDIENTE');
+    if (esPendiente) {
+      const cid = c.cliente_id || c.id;
+      if (!map.has(cid)) {
+        map.set(cid, c);
+      }
+    }
+  });
+  return Array.from(map.values());
+});
+
+const conteoPropuestasPendientes = computed(() => {
+  return clientesPendientesDeduplicados.value.length;
+});
+
+function descargarArchivoExcelCsv(rows, nombreArchivo) {
+  // UTF-8 BOM (\uFEFF) para compatibilidad directa con acentos en Excel
+  // Directiva sep=;\r\n para forzar a Excel a abrir columnas con punto y coma sin importar configuración regional
+  const BOM = '\uFEFF';
+  const SEP = 'sep=;\r\n';
+  const csvBody = rows
+    .map(row =>
+      row
+        .map(val => {
+          if (val === null || val === undefined) return '""';
+          const str = String(val).replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
+          return `"${str}"`;
+        })
+        .join(';')
+    )
+    .join('\r\n');
+
+  const blob = new Blob([BOM + SEP + csvBody], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', nombreArchivo);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportarPropuestasExcel(soloSeleccionados = false) {
+  let lista = [];
+
+  if (soloSeleccionados && clientesSeleccionadosIds.value.length > 0) {
+    const selSet = new Set(clientesSeleccionadosIds.value.map(String));
+    const mapa = new Map();
+    clientes.value.forEach(c => {
+      const cid = String(c.cliente_id || c.id);
+      if (selSet.has(cid) && !mapa.has(cid)) {
+        mapa.set(cid, c);
+      }
+    });
+    lista = Array.from(mapa.values());
+  } else {
+    // Si hay búsqueda activa en la matriz y estamos en la vista de cambios, respetar el filtro
+    if (busquedaTablaCambios.value.trim() && filtroMatrizInferior.value === 'cambios') {
+      const mapa = new Map();
+      clientesConCambioFiltrados.value.forEach(c => {
+        const cid = c.cliente_id || c.id;
+        if (!mapa.has(cid)) {
+          mapa.set(cid, c);
+        }
+      });
+      lista = Array.from(mapa.values());
+    } else {
+      lista = clientesPendientesDeduplicados.value;
+    }
+  }
+
+  if (lista.length === 0) {
+    alert('No hay propuestas pendientes para exportar en la selección actual.');
+    return;
+  }
+
+  const periodos = periodosVisibles.value;
+  const headers = [
+    'ID Cliente',
+    'Cliente',
+    'Ruta Original',
+    'Día Visita Original',
+    'Ruta Propuesta',
+    'Día Visita Propuesto',
+    'Tipo Ajuste',
+    'Estado Propuesta',
+    'Observaciones',
+    'Fecha Registro',
+    'Estado Cliente',
+    'Tipo Negocio',
+    'Dirección',
+    'Celular',
+    'Tiene GPS',
+    'Latitud',
+    'Longitud',
+    ...periodos.map(p => `Venta ${p.nombre} (Bs)`),
+  ];
+
+  const rows = [headers];
+
+  lista.forEach(c => {
+    const rutaOrig = c.ruta_original || c.ruta || '';
+    const diaOrig = c.dia_original || c.dia_norm || '';
+    const rutaProp = c.ruta_propuesta || c.ruta || '';
+    const diaProp = c.dia_propuesto || c.dia_norm || '';
+
+    let tipoAjuste = c.propuesta_tipo || 'AJUSTE RTM';
+    const cambioRuta = normalizarRutaClave(rutaOrig) !== normalizarRutaClave(rutaProp);
+    const cambioDia = normalizarDiaClave(diaOrig) !== normalizarDiaClave(diaProp);
+    if (cambioRuta && cambioDia) tipoAjuste = 'CAMBIO DE RUTA Y DÍA';
+    else if (cambioRuta) tipoAjuste = 'CAMBIO DE RUTA';
+    else if (cambioDia) tipoAjuste = 'CAMBIO DE DÍA';
+
+    const row = [
+      c.cliente_id || c.id || '',
+      c.nombre || '',
+      rutaOrig,
+      diaOrig,
+      rutaProp,
+      diaProp,
+      tipoAjuste,
+      c.propuesta_estado || (c.tiene_propuesta || c.tiene_cambio ? 'PENDIENTE' : 'SIN CAMBIO'),
+      c.observaciones_propuesta || '',
+      c.propuesta_fecha || '',
+      c.estado || 'Activo',
+      c.tipo_negocio || '',
+      c.direccion || '',
+      c.celular || '',
+      c.tiene_gps ? 'SI' : 'NO',
+      c.latitud || '',
+      c.longitud || '',
+      ...periodos.map(p => getVentaClientePeriodo(c, p.periodo)),
+    ];
+
+    rows.push(row);
+  });
+
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const nombreArchivo = soloSeleccionados
+    ? `clientes_seleccionados_rtm_${fechaHoy}.csv`
+    : `propuestas_pendientes_rtm_${fechaHoy}.csv`;
+
+  descargarArchivoExcelCsv(rows, nombreArchivo);
+  mostrarToast(`Se descargaron ${lista.length} registro(s) en Excel exitosamente.`);
+}
 
 // Edición directa en la matriz inferior de Ajuste RTM (desplegables directos)
 const guardandoFilaId = ref(null);
