@@ -3493,6 +3493,9 @@ function distanciaPuntoASegmento(px, py, x1, y1, x2, y2) {
 
 function limpiarMarkersVertices() {
   ocultarIndicadorSnap();
+  if (map) {
+    map.closePopup();
+  }
 
   markersVertices.forEach(m => {
     if (map) map.removeLayer(m);
@@ -3518,15 +3521,64 @@ function cancelarEdicionVertices() {
   renderizarEnMapa(true);
 }
 
+function sanitizarCoordsPoligono(rawCoords) {
+  if (!Array.isArray(rawCoords) || rawCoords.length < 3) return [];
+
+  const limpios = [];
+  for (let i = 0; i < rawCoords.length; i++) {
+    const pt = rawCoords[i];
+    if (!pt || pt.length < 2) continue;
+    const lat = Number(pt[0]);
+    const lng = Number(pt[1]);
+    if (isNaN(lat) || isNaN(lng)) continue;
+
+    // Verificar si es idéntico o prácticamente idéntico al punto anterior (< 2 metros / 0.00002 deg)
+    if (limpios.length > 0) {
+      const prev = limpios[limpios.length - 1];
+      const dLat = Math.abs(lat - prev[0]);
+      const dLng = Math.abs(lng - prev[1]);
+      if (dLat < 0.00002 && dLng < 0.00002) {
+        continue;
+      }
+    }
+    limpios.push([lat, lng]);
+  }
+
+  // Eliminar el punto de cierre duplicado al final si coincide con el primer punto (estándar GeoJSON)
+  while (limpios.length > 2) {
+    const primer = limpios[0];
+    const ultimo = limpios[limpios.length - 1];
+    const dLat = Math.abs(primer[0] - ultimo[0]);
+    const dLng = Math.abs(primer[1] - ultimo[1]);
+    if (dLat < 0.00002 && dLng < 0.00002) {
+      limpios.pop();
+    } else {
+      break;
+    }
+  }
+
+  return limpios;
+}
+
 function activarEdicionVertices() {
   if (!rutaParaAjustarFrontera.value) return;
   limpiarMarkersVertices();
 
   const fr = fronterasRutas.value.find(f => f.ruta.toUpperCase() === rutaParaAjustarFrontera.value.toUpperCase());
   if (fr && fr.geojson) {
-    // GeoJSON almacena [lng, lat]
-    const coordsGeo = fr.geojson.coordinates?.[0] || [];
-    coordsPoligonoEnEdicion.value = coordsGeo.map(pt => [Number(pt[1]), Number(pt[0])]);
+    const anillos = extraerPuntosDeGeoJSON(fr.geojson);
+    if (anillos.length > 0) {
+      // Tomar el anillo con mayor cantidad de puntos (anillo exterior principal)
+      let mejorAnillo = anillos[0];
+      for (let i = 1; i < anillos.length; i++) {
+        if (anillos[i].length > mejorAnillo.length) {
+          mejorAnillo = anillos[i];
+        }
+      }
+      coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(mejorAnillo);
+    } else {
+      coordsPoligonoEnEdicion.value = [];
+    }
   } else {
     generarConvexHullRuta();
     return;
@@ -3560,7 +3612,7 @@ function generarConvexHullRuta() {
     return;
   }
 
-  coordsPoligonoEnEdicion.value = hull;
+  coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(hull);
   actualizarCacheGeometriasVecinas();
   editandoVertices.value = true;
   crearCapaEdicionPoligono(true);
@@ -3595,6 +3647,7 @@ function calcularConvexHull(puntos) {
 }
 
 function agregarVerticeEnCoordenada(clickLat, clickLng) {
+  coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(coordsPoligonoEnEdicion.value);
   const coords = coordsPoligonoEnEdicion.value;
   if (coords.length < 3) return;
 
@@ -3606,6 +3659,16 @@ function agregarVerticeEnCoordenada(clickLat, clickLng) {
     if (snap.snapped) {
       targetLat = snap.latlng.lat;
       targetLng = snap.latlng.lng;
+    }
+  }
+
+  // Prevenir agregar si ya existe un vértice muy cercano (< 0.00005 deg ~ 5m)
+  for (let i = 0; i < coords.length; i++) {
+    const dLat = Math.abs(coords[i][0] - targetLat);
+    const dLng = Math.abs(coords[i][1] - targetLng);
+    if (dLat < 0.00005 && dLng < 0.00005) {
+      mostrarToast('Ya existe un vértice en esa posición.');
+      return;
     }
   }
 
@@ -3623,6 +3686,7 @@ function agregarVerticeEnCoordenada(clickLat, clickLng) {
   }
 
   coordsPoligonoEnEdicion.value.splice(mejorIndice, 0, [targetLat, targetLng]);
+  coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(coordsPoligonoEnEdicion.value);
   mostrarToast(`Vértice agregado en la línea (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
   crearCapaEdicionPoligono(false);
 }
@@ -3635,17 +3699,31 @@ function eliminarVertice(idx) {
   if (map) {
     map.closePopup();
   }
-  coordsPoligonoEnEdicion.value.splice(idx, 1);
+  const nuevasCoords = [...coordsPoligonoEnEdicion.value];
+  nuevasCoords.splice(idx, 1);
+  const limpias = sanitizarCoordsPoligono(nuevasCoords);
+
+  if (limpias.length < 3) {
+    alert('No se puede eliminar el vértice porque dejaría el polígono con menos de 3 vértices.');
+    return;
+  }
+
+  coordsPoligonoEnEdicion.value = limpias;
   mostrarToast(`Vértice #${idx + 1} eliminado (${coordsPoligonoEnEdicion.value.length} vértices restantes).`);
   crearCapaEdicionPoligono(false);
 }
 
 function crearCapaEdicionPoligono(centrar = false) {
-  if (!map || coordsPoligonoEnEdicion.value.length < 3) return;
+  if (!map) return;
+
+  // Sanitizar coordenadas para asegurar que no haya duplicados ni puntos de cierre redundantes
+  coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(coordsPoligonoEnEdicion.value);
+  const coords = coordsPoligonoEnEdicion.value;
+  if (coords.length < 3) return;
 
   limpiarMarkersVertices();
 
-  poligonoEnEdicion = L.polygon(coordsPoligonoEnEdicion.value, {
+  poligonoEnEdicion = L.polygon(coords, {
     color: '#0F172A',
     weight: 3.5,
     dashArray: '5, 5',
@@ -3663,9 +3741,65 @@ function crearCapaEdicionPoligono(centrar = false) {
     map.fitBounds(poligonoEnEdicion.getBounds(), { padding: [40, 40] });
   }
 
-  const coords = coordsPoligonoEnEdicion.value;
+  // 1. Crear PRIMERO los puntos intermedios (+) en cada segmento (quedan debajo en el DOM)
+  for (let i = 0; i < coords.length; i++) {
+    const pt1 = coords[i];
+    const pt2 = coords[(i + 1) % coords.length];
+    const dLat = pt1[0] - pt2[0];
+    const dLng = pt1[1] - pt2[1];
+    const distDeg = Math.sqrt(dLat * dLat + dLng * dLng);
 
-  // 1. Crear marcadores interactivos en cada vértice principal
+    // Omitir punto intermedio si el segmento es menor a ~8 metros para no estorbar los vértices reales
+    if (distDeg < 0.00008) {
+      continue;
+    }
+
+    const midLat = (pt1[0] + pt2[0]) / 2;
+    const midLng = (pt1[1] + pt2[1]) / 2;
+    const insertIdx = i + 1;
+
+    const midMarker = L.circleMarker([midLat, midLng], {
+      radius: 4.5,
+      color: '#0284C7',
+      fillColor: '#38BDF8',
+      fillOpacity: 0.85,
+      weight: 1.5,
+    }).addTo(map);
+
+    midMarker.bindTooltip(`
+      <div style="font-family: inherit; font-size: 10px; text-align: center;">
+        <b style="color: #0284C7;">+ Agregar Vértice</b><br>
+        <span style="color: #64748B;">Clic para insertar punto</span>
+      </div>
+    `, { direction: 'top', offset: [0, -4] });
+
+    midMarker.on('click', function (e) {
+      L.DomEvent.stop(e);
+      let targetLat = midLat;
+      let targetLng = midLng;
+
+      if (snapProximidadActivado.value) {
+        const snap = detectarSnappingProximidad(L.latLng(midLat, midLng));
+        if (snap.snapped) {
+          targetLat = snap.latlng.lat;
+          targetLng = snap.latlng.lng;
+        }
+      }
+
+      coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [targetLat, targetLng]);
+      coordsPoligonoEnEdicion.value = sanitizarCoordsPoligono(coordsPoligonoEnEdicion.value);
+      mostrarToast(`Vértice agregado (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
+      crearCapaEdicionPoligono(false);
+    });
+
+    midMarker.on('contextmenu', function (e) {
+      L.DomEvent.stop(e);
+    });
+
+    markersPuntosIntermedios.push(midMarker);
+  }
+
+  // 2. Crear SEGUNDO los vértices interactivos principales (quedan POR ENCIMA en el DOM)
   coords.forEach((pt, idx) => {
     const marker = L.circleMarker(pt, {
       radius: 7,
@@ -3675,13 +3809,40 @@ function crearCapaEdicionPoligono(centrar = false) {
       weight: 2.5,
     }).addTo(map);
 
+    if (typeof marker.bringToFront === 'function') {
+      marker.bringToFront();
+    }
+
     marker.bindTooltip(`
       <div style="font-family: inherit; font-size: 11px; text-align: center;">
         <b>Vértice #${idx + 1}</b><br>
         <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover</span><br>
-        <span style="font-size: 9.5px; color: #DC2626; font-weight: bold;">Clic derecho o doble clic para eliminar</span>
+        <span style="font-size: 9.5px; color: #DC2626; font-weight: bold;">Clic para opciones o clic derecho para eliminar</span>
       </div>
     `, { direction: 'top', offset: [0, -8] });
+
+    // Popup para eliminar con clic/toque directo
+    const popupContainer = document.createElement('div');
+    popupContainer.style.cssText = 'text-align: center; font-family: inherit; padding: 3px; min-width: 105px;';
+    popupContainer.innerHTML = `
+      <div style="font-weight: 700; font-size: 11px; margin-bottom: 5px; color: #0F172A;">Vértice #${idx + 1}</div>
+      <button type="button" class="btn-eliminar-vtx-popup" style="background-color: #EF4444; color: #FFFFFF; font-size: 10.5px; font-weight: 600; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">
+        Eliminar Vértice
+      </button>
+    `;
+    const btnEliminar = popupContainer.querySelector('.btn-eliminar-vtx-popup');
+    if (btnEliminar) {
+      btnEliminar.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        eliminarVertice(idx);
+      });
+    }
+
+    marker.bindPopup(popupContainer, {
+      closeButton: true,
+      autoPan: false,
+      offset: [0, -6],
+    });
 
     // Eliminar con clic derecho
     marker.on('contextmenu', function (e) {
@@ -3704,6 +3865,9 @@ function crearCapaEdicionPoligono(centrar = false) {
       }
       map.dragging.disable();
       marker.closeTooltip();
+      map.closePopup();
+
+      let haArrastrado = false;
 
       // Desactivar temporalmente interacción en puntos intermedios mientras se arrastra
       markersPuntosIntermedios.forEach(m => {
@@ -3715,6 +3879,7 @@ function crearCapaEdicionPoligono(centrar = false) {
         if (moveEvent.preventDefault) {
           moveEvent.preventDefault();
         }
+        haArrastrado = true;
         const rawLatLng = map.mouseEventToLatLng(moveEvent);
         let finalLatLng = rawLatLng;
 
@@ -3745,7 +3910,9 @@ function crearCapaEdicionPoligono(centrar = false) {
         window.removeEventListener('mouseup', onMouseUp);
         map.dragging.enable();
         ocultarIndicadorSnap();
-        crearCapaEdicionPoligono(false);
+        if (haArrastrado) {
+          crearCapaEdicionPoligono(false);
+        }
       }
 
       window.addEventListener('mousemove', onMouseMove);
@@ -3760,6 +3927,9 @@ function crearCapaEdicionPoligono(centrar = false) {
       }
       map.dragging.disable();
       marker.closeTooltip();
+      map.closePopup();
+
+      let haArrastradoTouch = false;
 
       markersPuntosIntermedios.forEach(m => {
         const el = m.getElement?.();
@@ -3771,6 +3941,7 @@ function crearCapaEdicionPoligono(centrar = false) {
         if (moveEvent.cancelable) {
           moveEvent.preventDefault();
         }
+        haArrastradoTouch = true;
         const rawLatLng = map.mouseEventToLatLng(moveEvent.touches[0]);
         let finalLatLng = rawLatLng;
 
@@ -3798,7 +3969,9 @@ function crearCapaEdicionPoligono(centrar = false) {
         window.removeEventListener('touchend', onTouchEnd);
         map.dragging.enable();
         ocultarIndicadorSnap();
-        crearCapaEdicionPoligono(false);
+        if (haArrastradoTouch) {
+          crearCapaEdicionPoligono(false);
+        }
       }
 
       window.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -3807,57 +3980,16 @@ function crearCapaEdicionPoligono(centrar = false) {
 
     markersVertices.push(marker);
   });
-
-  // 2. Crear puntos intermedios (+) en cada segmento para agregar nuevos vértices
-  for (let i = 0; i < coords.length; i++) {
-    const pt1 = coords[i];
-    const pt2 = coords[(i + 1) % coords.length];
-    const midLat = (pt1[0] + pt2[0]) / 2;
-    const midLng = (pt1[1] + pt2[1]) / 2;
-    const insertIdx = i + 1;
-
-    const midMarker = L.circleMarker([midLat, midLng], {
-      radius: 4.5,
-      color: '#0284C7',
-      fillColor: '#38BDF8',
-      fillOpacity: 0.9,
-      weight: 1.5,
-    }).addTo(map);
-
-    midMarker.bindTooltip(`
-      <div style="font-family: inherit; font-size: 10px; text-align: center;">
-        <b style="color: #0284C7;">+ Agregar Vértice</b><br>
-        <span style="color: #64748B;">Clic o arrastra aquí</span>
-      </div>
-    `, { direction: 'top', offset: [0, -4] });
-
-    midMarker.on('click', function (e) {
-      L.DomEvent.stop(e);
-      coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [midLat, midLng]);
-      mostrarToast(`Vértice agregado (${coordsPoligonoEnEdicion.value.length} vértices en total).`);
-      crearCapaEdicionPoligono(false);
-    });
-
-    midMarker.on('mousedown', function (e) {
-      if (e.originalEvent && e.originalEvent.button !== 0) return;
-      L.DomEvent.stop(e);
-      if (e.originalEvent) {
-        e.originalEvent.preventDefault();
-      }
-      coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [midLat, midLng]);
-      crearCapaEdicionPoligono(false);
-      const nuevoMarker = markersVertices[insertIdx];
-      if (nuevoMarker) {
-        nuevoMarker.fire('mousedown', e);
-      }
-    });
-
-    markersPuntosIntermedios.push(midMarker);
-  }
 }
 
 async function guardarFronteraRtm() {
-  if (!rutaParaAjustarFrontera.value || coordsPoligonoEnEdicion.value.length < 3) return;
+  if (!rutaParaAjustarFrontera.value) return;
+  const coordsFinales = sanitizarCoordsPoligono(coordsPoligonoEnEdicion.value);
+  if (coordsFinales.length < 3) {
+    alert('El polígono debe tener al menos 3 vértices válidos.');
+    return;
+  }
+  coordsPoligonoEnEdicion.value = coordsFinales;
   guardandoFrontera.value = true;
 
   try {
@@ -3867,7 +3999,7 @@ async function guardarFronteraRtm() {
 
     const res = await axios.post(url, {
       ruta: rutaParaAjustarFrontera.value,
-      coordenadas: coordsPoligonoEnEdicion.value,
+      coordenadas: coordsFinales,
     });
 
     if (res.data?.status === 'ok' || res.data?.frontera_id) {
