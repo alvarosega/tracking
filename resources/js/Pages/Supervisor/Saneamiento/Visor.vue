@@ -3674,6 +3674,47 @@ async function cambiarRutaDirecta(c, nuevaRuta) {
   if (!rutaDestino || rutaDestino === rutaActual) return;
 
   guardandoFilaId.value = c.id;
+
+  const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
+  const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+  const rutaProp = normalizarRutaClave(rutaDestino);
+  const diaProp = normalizarDiaClave(c.dia_norm);
+  const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
+  const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+
+  // Optimistic update
+  if (vuelveAOriginal) {
+    c.ruta = c.ruta_original || rutaDestino;
+    c.ruta_propuesta = null;
+    c.dia_propuesto = null;
+    c.tiene_cambio = false;
+    c.tiene_propuesta = false;
+    c.propuesta_id = null;
+    c.propuesta_estado = null;
+    if (teniaPropuesta && kpis.value) {
+      if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
+      if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
+    }
+  } else {
+    c.ruta = rutaDestino;
+    c.ruta_propuesta = rutaDestino;
+    c.tiene_cambio = true;
+    c.tiene_propuesta = true;
+    c.propuesta_estado = 'PENDIENTE';
+    if (!teniaPropuesta && kpis.value) {
+      if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
+      if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
+    }
+  }
+
+  if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(c.cliente_id || c.id)) {
+    clienteSeleccionado.value = { ...c };
+  }
+
+  if (!modalAjusteRtm.value.show) {
+    renderizarEnMapa(true);
+  }
+
   try {
     const url = typeof route === 'function'
       ? route('supervisor.saneamiento.visor.ajustar-rtm')
@@ -3707,6 +3748,48 @@ async function cambiarDiaDirecto(c, nuevoDia) {
   if (!diaClaveDestino || diaClaveDestino === diaClaveActual) return;
 
   guardandoFilaId.value = c.id;
+
+  const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
+  const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+  const rutaProp = normalizarRutaClave(c.ruta);
+  const diaProp = normalizarDiaClave(nuevoDia);
+  const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
+  const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+
+  // Optimistic update
+  if (vuelveAOriginal) {
+    c.dia_norm = c.dia_original || nuevoDia;
+    c.ruta = c.ruta_original || c.ruta;
+    c.ruta_propuesta = null;
+    c.dia_propuesto = null;
+    c.tiene_cambio = false;
+    c.tiene_propuesta = false;
+    c.propuesta_id = null;
+    c.propuesta_estado = null;
+    if (teniaPropuesta && kpis.value) {
+      if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
+      if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
+    }
+  } else {
+    c.dia_norm = nuevoDia;
+    c.dia_propuesto = nuevoDia;
+    c.tiene_cambio = true;
+    c.tiene_propuesta = true;
+    c.propuesta_estado = 'PENDIENTE';
+    if (!teniaPropuesta && kpis.value) {
+      if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
+      if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
+    }
+  }
+
+  if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(c.cliente_id || c.id)) {
+    clienteSeleccionado.value = { ...c };
+  }
+
+  if (!modalAjusteRtm.value.show) {
+    renderizarEnMapa(true);
+  }
+
   try {
     const url = typeof route === 'function'
       ? route('supervisor.saneamiento.visor.ajustar-rtm')
@@ -5207,16 +5290,52 @@ function confirmarAjusteRtm() {
     (cl.id && cl.id === clienteIdAfectado)
   );
   if (idx !== -1) {
-    const estadoNuevo = payload.activar_cliente ? 'Activo' : clientes.value[idx].estado;
-    clientes.value[idx] = {
-      ...clientes.value[idx],
-      ruta: payload.ruta_propuesta,
-      dia_norm: payload.dia_propuesto,
-      estado: estadoNuevo,
-      tiene_cambio: true,
-      tiene_propuesta: true,
-      propuesta_estado: 'PENDIENTE',
-    };
+    const c = clientes.value[idx];
+    const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
+    const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+    const rutaProp = normalizarRutaClave(payload.ruta_propuesta);
+    const diaProp = normalizarDiaClave(payload.dia_propuesto);
+    const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
+
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : c.estado;
+    const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+
+    if (vuelveAOriginal) {
+      clientes.value[idx] = {
+        ...c,
+        ruta: c.ruta_original || payload.ruta_propuesta,
+        dia_norm: c.dia_original || payload.dia_propuesto,
+        ruta_propuesta: null,
+        dia_propuesto: null,
+        estado: estadoNuevo,
+        tiene_cambio: false,
+        tiene_propuesta: false,
+        propuesta_id: null,
+        propuesta_estado: null,
+        observaciones_propuesta: null,
+      };
+      if (teniaPropuesta && kpis.value) {
+        if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
+        if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
+      }
+    } else {
+      clientes.value[idx] = {
+        ...c,
+        ruta: payload.ruta_propuesta,
+        dia_norm: payload.dia_propuesto,
+        ruta_propuesta: payload.ruta_propuesta,
+        dia_propuesto: payload.dia_propuesto,
+        estado: estadoNuevo,
+        tiene_cambio: true,
+        tiene_propuesta: true,
+        propuesta_estado: 'PENDIENTE',
+      };
+      if (!teniaPropuesta && kpis.value) {
+        if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
+        if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
+      }
+    }
+
     if (payload.activar_cliente && kpis.value) {
       if (kpis.value.inactivos && kpis.value.inactivos > 0) {
         kpis.value.inactivos--;
@@ -5226,15 +5345,7 @@ function confirmarAjusteRtm() {
       }
     }
     if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteIdAfectado)) {
-      clienteSeleccionado.value = {
-        ...clienteSeleccionado.value,
-        ruta: payload.ruta_propuesta,
-        dia_norm: payload.dia_propuesto,
-        estado: estadoNuevo,
-        tiene_cambio: true,
-        tiene_propuesta: true,
-        propuesta_estado: 'PENDIENTE',
-      };
+      clienteSeleccionado.value = { ...clientes.value[idx] };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
@@ -5521,16 +5632,52 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
     (cl.id && cl.id === domId)
   );
   if (idx !== -1) {
-    const estadoNuevo = payload.activar_cliente ? 'Activo' : clientes.value[idx].estado;
-    clientes.value[idx] = {
-      ...clientes.value[idx],
-      ruta: payload.ruta_propuesta,
-      dia_norm: payload.dia_propuesto,
-      estado: estadoNuevo,
-      tiene_cambio: true,
-      tiene_propuesta: true,
-      propuesta_estado: 'PENDIENTE',
-    };
+    const c = clientes.value[idx];
+    const rutaOrig = normalizarRutaClave(c.ruta_original || c.ruta);
+    const diaOrig = normalizarDiaClave(c.dia_original || c.dia_norm);
+    const rutaProp = normalizarRutaClave(payload.ruta_propuesta);
+    const diaProp = normalizarDiaClave(payload.dia_propuesto);
+    const vuelveAOriginal = (rutaProp === rutaOrig && diaProp === diaOrig);
+
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : c.estado;
+    const teniaPropuesta = Boolean(c.tiene_propuesta || c.tiene_cambio);
+
+    if (vuelveAOriginal) {
+      clientes.value[idx] = {
+        ...c,
+        ruta: c.ruta_original || payload.ruta_propuesta,
+        dia_norm: c.dia_original || payload.dia_propuesto,
+        ruta_propuesta: null,
+        dia_propuesto: null,
+        estado: estadoNuevo,
+        tiene_cambio: false,
+        tiene_propuesta: false,
+        propuesta_id: null,
+        propuesta_estado: null,
+        observaciones_propuesta: null,
+      };
+      if (teniaPropuesta && kpis.value) {
+        if (kpis.value.con_cambios && kpis.value.con_cambios > 0) kpis.value.con_cambios--;
+        if (kpis.value.total_propuestas && kpis.value.total_propuestas > 0) kpis.value.total_propuestas--;
+      }
+    } else {
+      clientes.value[idx] = {
+        ...c,
+        ruta: payload.ruta_propuesta,
+        dia_norm: payload.dia_propuesto,
+        ruta_propuesta: payload.ruta_propuesta,
+        dia_propuesto: payload.dia_propuesto,
+        estado: estadoNuevo,
+        tiene_cambio: true,
+        tiene_propuesta: true,
+        propuesta_estado: 'PENDIENTE',
+      };
+      if (!teniaPropuesta && kpis.value) {
+        if (typeof kpis.value.con_cambios === 'number') kpis.value.con_cambios++;
+        if (typeof kpis.value.total_propuestas === 'number') kpis.value.total_propuestas++;
+      }
+    }
+
     if (payload.activar_cliente && kpis.value) {
       if (kpis.value.inactivos && kpis.value.inactivos > 0) {
         kpis.value.inactivos--;
@@ -5540,15 +5687,7 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
       }
     }
     if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteId)) {
-      clienteSeleccionado.value = {
-        ...clienteSeleccionado.value,
-        ruta: payload.ruta_propuesta,
-        dia_norm: payload.dia_propuesto,
-        estado: estadoNuevo,
-        tiene_cambio: true,
-        tiene_propuesta: true,
-        propuesta_estado: 'PENDIENTE',
-      };
+      clienteSeleccionado.value = { ...clientes.value[idx] };
     }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);

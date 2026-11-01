@@ -35,6 +35,7 @@ use App\Http\Requests\Web\Ruteo\GetVentasClienteRequest;
 use App\Models\Supervisor\PanRuteo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -137,44 +138,95 @@ class SupervisorSaneamientoController extends Controller
             PanRuteo::query()->whereIn('cliente_id', $ids)->update(['estado' => 'Activo']);
         }
 
+        $cleanDia = function (?string $dia): string {
+            if (!$dia) return '';
+            $clean = str_replace(
+                ['á', 'é', 'í', 'ó', 'ú', 'Á', 'É', 'Í', 'Ó', 'Ú'],
+                ['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'],
+                $dia
+            );
+            return strtoupper(trim($clean));
+        };
+
+        $conn = DB::connection('supervisor');
         $propuestasRegistradas = [];
+        $propuestasDescartadas = [];
 
         foreach ($clientes as $cliente) {
             $cid = (int) $cliente->cliente_id;
-            $rutaActual = (string) ($cliente->ruta ?? '');
+            $rutaActual = strtoupper(trim((string) ($cliente->ruta ?? '')));
             $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
+            $diaDestino = $diaPropuesto ?: $diaActual;
 
-            $propId = $propuestaAction->execute([
-                'tipo_hallazgo' => $activarCliente ? 'ACTIVACION_Y_AJUSTE_RTM' : 'AJUSTE_RTM',
-                'cliente_id_origen' => $cid,
-                'cliente_nombre' => $cliente->cliente,
-                'ruta_actual' => $rutaActual,
-                'dia_actual' => $diaActual,
-                'ruta_propuesta' => $rutaPropuesta,
-                'dia_propuesto' => $diaPropuesto ?: $diaActual,
-                'accion_propuesta' => $activarCliente ? 'REASIGNAR_Y_ACTIVAR' : 'REASIGNAR_RTM',
-                'observaciones' => $observaciones . ($activarCliente ? ' [Reactivado a Activo]' : ''),
-                'estado' => 'PENDIENTE',
-            ]);
+            $esMismaRuta = ($rutaPropuesta === $rutaActual);
+            $esMismoDia = ($cleanDia($diaDestino) === $cleanDia($diaActual));
 
-            $propuestasRegistradas[] = [
-                'cliente_id' => $cid,
-                'propuesta_id' => $propId,
-                'ruta_anterior' => $rutaActual,
-                'ruta_nueva' => $rutaPropuesta,
-                'dia_anterior' => $diaActual,
-                'dia_nuevo' => $diaPropuesto ?: $diaActual,
-                'activado' => $activarCliente,
-            ];
+            if ($esMismaRuta && $esMismoDia) {
+                // El cliente vuelve a su ruta y día originales de pan_ruteo:
+                // Descartar propuestas pendientes o aplicadas previas para este cliente
+                $afectadas = $conn->table('auditoria_saneamiento_propuestas')
+                    ->where('cliente_id_origen', $cid)
+                    ->whereIn('estado', ['PENDIENTE', 'APLICADO'])
+                    ->update([
+                        'estado' => 'DESCARTADO',
+                        'observaciones' => DB::raw("CONCAT(COALESCE(observaciones, ''), ' [Descartado automáticamente al volver al estado original]')"),
+                    ]);
+
+                $propuestasDescartadas[] = [
+                    'cliente_id' => $cid,
+                    'ruta_original' => $rutaActual,
+                    'dia_original' => $diaActual,
+                    'descartado' => true,
+                    'propuestas_afectadas' => $afectadas,
+                    'activado' => $activarCliente,
+                ];
+            } else {
+                $propId = $propuestaAction->execute([
+                    'tipo_hallazgo' => $activarCliente ? 'ACTIVACION_Y_AJUSTE_RTM' : 'AJUSTE_RTM',
+                    'cliente_id_origen' => $cid,
+                    'cliente_nombre' => $cliente->cliente,
+                    'ruta_actual' => $rutaActual,
+                    'dia_actual' => $diaActual,
+                    'ruta_propuesta' => $rutaPropuesta,
+                    'dia_propuesto' => $diaDestino,
+                    'accion_propuesta' => $activarCliente ? 'REASIGNAR_Y_ACTIVAR' : 'REASIGNAR_RTM',
+                    'observaciones' => $observaciones . ($activarCliente ? ' [Reactivado a Activo]' : ''),
+                    'estado' => 'PENDIENTE',
+                ]);
+
+                $propuestasRegistradas[] = [
+                    'cliente_id' => $cid,
+                    'propuesta_id' => $propId,
+                    'ruta_anterior' => $rutaActual,
+                    'ruta_nueva' => $rutaPropuesta,
+                    'dia_anterior' => $diaActual,
+                    'dia_nuevo' => $diaDestino,
+                    'activado' => $activarCliente,
+                ];
+            }
+        }
+
+        $totalAfectados = count($propuestasRegistradas) + count($propuestasDescartadas);
+
+        if (count($propuestasDescartadas) > 0 && count($propuestasRegistradas) === 0) {
+            $msg = count($propuestasDescartadas) === 1
+                ? "El cliente {$ids[0]} volvió a su ruta y día originales ({$clientes[0]->ruta} - {$clientes[0]->dia_norm}). Se descartó la propuesta de ajuste" . ($activarCliente ? " y se reactivó a estado Activo." : ".")
+                : "Se descartaron las propuestas para " . count($propuestasDescartadas) . " cliente(s) al volver a su configuración original" . ($activarCliente ? " y se reactivaron a estado Activo." : ".");
+        } elseif (count($propuestasRegistradas) > 0 && count($propuestasDescartadas) === 0) {
+            $msg = count($propuestasRegistradas) === 1
+                ? "Propuesta RTM registrada para el cliente {$ids[0]}: Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . ($activarCliente ? " y reactivado a estado Activo." : ".")
+                : "Se registraron " . count($propuestasRegistradas) . " propuestas RTM para la Ruta {$rutaPropuesta}" . ($activarCliente ? " y reactivados a estado Activo." : ".");
+        } else {
+            $msg = "Se procesaron {$totalAfectados} clientes: " . count($propuestasRegistradas) . " propuesta(s) registrada(s) y " . count($propuestasDescartadas) . " propuesta(s) descartada(s) al volver al estado original.";
         }
 
         return response()->json([
             'success' => true,
-            'message' => count($propuestasRegistradas) === 1
-                ? "Propuesta RTM registrada para el cliente {$ids[0]}: Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . ($activarCliente ? " y reactivado a estado Activo." : ".")
-                : "Se registraron " . count($propuestasRegistradas) . " propuestas RTM para la Ruta {$rutaPropuesta}" . ($activarCliente ? " y reactivados a estado Activo." : "."),
-            'total_afectados' => count($propuestasRegistradas),
+            'message' => $msg,
+            'total_afectados' => $totalAfectados,
             'propuestas' => $propuestasRegistradas,
+            'descartadas' => $propuestasDescartadas,
+            'revertido_a_original' => (count($propuestasRegistradas) === 0 && count($propuestasDescartadas) > 0),
         ]);
     }
 

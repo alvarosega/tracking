@@ -319,18 +319,27 @@ class GetRuteoDataAction
             } else {
                 // MODO CON CAMBIOS:
                 // Se proyectan las propuestas sobre la base de pan_ruteo
+                $cleanDia = fn($s) => strtoupper(trim(str_replace(['á','é','í','ó','ú','Á','É','Í','Ó','Ú'], ['a','e','i','o','u','A','E','I','O','U'], (string)$s)));
+
                 $rutaEfectiva = ($tienePropuesta && !empty($prop->ruta_propuesta))
                     ? strtoupper(trim((string)$prop->ruta_propuesta))
                     : $rutaOriginal;
                 $diaEfectivo = ($tienePropuesta && !empty($prop->dia_propuesto))
                     ? strtoupper(trim((string)$prop->dia_propuesto))
                     : $diaOriginal;
-                $tieneCambio = $tienePropuesta;
+
+                // Si la propuesta coincide exactamente con la base original, se descarta el cambio
+                if ($tienePropuesta && $rutaEfectiva === $rutaOriginal && $cleanDia($diaEfectivo) === $cleanDia($diaOriginal)) {
+                    $tieneCambio = false;
+                    $tienePropuesta = false;
+                    $prop = null;
+                } else {
+                    $tieneCambio = $tienePropuesta;
+                }
 
                 // Filtrado por días en modo cambios:
                 // Se incluye si el día efectivo coincide, O si el día original coincidía (para poder observar el cambio de jornada)
                 if (!empty($diasMerge)) {
-                    $cleanDia = fn($s) => strtoupper(trim(str_replace(['á','é','í','ó','ú','Á','É','Í','Ó','Ú'], ['a','e','i','o','u','A','E','I','O','U'], (string)$s)));
                     $normEfectivo = $cleanDia($diaEfectivo);
                     $normOriginal = $cleanDia($diaOriginal);
                     $diasNormalizados = array_map($cleanDia, $diasMerge);
