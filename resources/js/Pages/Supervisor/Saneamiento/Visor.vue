@@ -640,9 +640,8 @@
               </button>
 
               <template v-if="editandoVertices">
-                <span class="text-[11px] font-mono text-slate-700 bg-white px-2.5 py-0.5 rounded border border-slate-300 flex items-center gap-1.5 shadow-2xs">
-                  <span class="font-bold text-sky-700">{{ coordsPoligonoEnEdicion.length }} vértices:</span>
-                  <span class="hidden lg:inline text-slate-500">Arrastra puntos blancos • Clic en puntos intermedios (+) o en la línea para agregar • Clic derecho o doble clic para eliminar</span>
+                <span class="text-[11px] font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-300 flex items-center gap-1 shadow-2xs">
+                  <span class="font-bold text-sky-700">{{ coordsPoligonoEnEdicion.length }} pts</span>
                 </span>
 
                 <button
@@ -670,13 +669,8 @@
                     <path d="M4 8h5" />
                     <path d="M15 8h5" />
                   </svg>
-                  <span>{{ snapProximidadActivado ? 'Imán Proximidad: ON' : 'Imán: OFF' }}</span>
+                  <span>{{ snapProximidadActivado ? 'Imán: ON' : 'Imán: OFF' }}</span>
                 </button>
-
-                <span v-if="textoSnapActivo" class="text-xs font-semibold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2.5 py-1 rounded-md shadow-2xs flex items-center gap-1 animate-pulse">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>{{ textoSnapActivo }}</span>
-                </span>
 
                 <button
                   type="button"
@@ -685,7 +679,7 @@
                   class="h-7 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-md text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <span v-if="guardandoFrontera" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar Frontera' }}</span>
+                  <span>{{ guardandoFrontera ? 'Guardando...' : 'Guardar' }}</span>
                 </button>
 
                 <button
@@ -1174,6 +1168,25 @@
         >
           <!-- Lienzo Leaflet -->
           <div id="map-visor" class="absolute inset-0 w-full h-full z-10"></div>
+
+          <!-- Indicador Flotante de Imán de Proximidad sobre el Mapa (Cero desplazamiento de pantalla) -->
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 -translate-y-2 scale-95"
+            enter-to-class="opacity-100 translate-y-0 scale-100"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 translate-y-0 scale-100"
+            leave-to-class="opacity-0 -translate-y-2 scale-95"
+          >
+            <div
+              v-if="textoSnapActivo"
+              class="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none select-none flex items-center gap-2 px-3.5 py-1.5 bg-slate-900/90 text-white border border-emerald-400 rounded-full shadow-2xl text-xs font-semibold backdrop-blur-md"
+            >
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 -ml-4.5"></span>
+              <span class="tracking-wide">{{ textoSnapActivo }}</span>
+            </div>
+          </Transition>
 
           <!-- Selector de Capas de Mapa Base -->
           <div class="absolute top-3 left-3 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
@@ -3665,23 +3678,10 @@ function crearCapaEdicionPoligono(centrar = false) {
     marker.bindTooltip(`
       <div style="font-family: inherit; font-size: 11px; text-align: center;">
         <b>Vértice #${idx + 1}</b><br>
-        <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover (Imán activo)</span><br>
+        <span style="font-size: 9.5px; color: #475569;">Arrastrar para mover</span><br>
         <span style="font-size: 9.5px; color: #DC2626; font-weight: bold;">Clic derecho o doble clic para eliminar</span>
       </div>
-    `, { direction: 'top', offset: [0, -6] });
-
-    marker.bindPopup(`
-      <div style="font-family: inherit; font-size: 11px; text-align: center; padding: 4px;">
-        <div style="font-weight: bold; margin-bottom: 5px;">Vértice #${idx + 1}</div>
-        <button
-          type="button"
-          onclick="window.__eliminarVerticePoligono(${idx})"
-          style="background-color: #EF4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;"
-        >
-          Eliminar vértice
-        </button>
-      </div>
-    `, { offset: [0, -6] });
+    `, { direction: 'top', offset: [0, -8] });
 
     // Eliminar con clic derecho
     marker.on('contextmenu', function (e) {
@@ -3698,10 +3698,23 @@ function crearCapaEdicionPoligono(centrar = false) {
     // Arrastre con mouse en PC con soporte de imán de proximidad (Snapping)
     marker.on('mousedown', function (e) {
       if (e.originalEvent && e.originalEvent.button !== 0) return;
-      L.DomEvent.stopPropagation(e);
+      L.DomEvent.stop(e);
+      if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+      }
       map.dragging.disable();
+      marker.closeTooltip();
+
+      // Desactivar temporalmente interacción en puntos intermedios mientras se arrastra
+      markersPuntosIntermedios.forEach(m => {
+        const el = m.getElement?.();
+        if (el) el.style.pointerEvents = 'none';
+      });
 
       function onMouseMove(moveEvent) {
+        if (moveEvent.preventDefault) {
+          moveEvent.preventDefault();
+        }
         const rawLatLng = map.mouseEventToLatLng(moveEvent);
         let finalLatLng = rawLatLng;
 
@@ -3724,7 +3737,10 @@ function crearCapaEdicionPoligono(centrar = false) {
         }
       }
 
-      function onMouseUp() {
+      function onMouseUp(upEvent) {
+        if (upEvent && upEvent.preventDefault) {
+          upEvent.preventDefault();
+        }
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
         map.dragging.enable();
@@ -3738,11 +3754,23 @@ function crearCapaEdicionPoligono(centrar = false) {
 
     // Soporte táctil móvil para arrastre con snapping
     marker.on('touchstart', function (e) {
-      L.DomEvent.stopPropagation(e);
+      L.DomEvent.stop(e);
+      if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+      }
       map.dragging.disable();
+      marker.closeTooltip();
+
+      markersPuntosIntermedios.forEach(m => {
+        const el = m.getElement?.();
+        if (el) el.style.pointerEvents = 'none';
+      });
 
       function onTouchMove(moveEvent) {
         if (!moveEvent.touches || moveEvent.touches.length !== 1) return;
+        if (moveEvent.cancelable) {
+          moveEvent.preventDefault();
+        }
         const rawLatLng = map.mouseEventToLatLng(moveEvent.touches[0]);
         let finalLatLng = rawLatLng;
 
@@ -3773,7 +3801,7 @@ function crearCapaEdicionPoligono(centrar = false) {
         crearCapaEdicionPoligono(false);
       }
 
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
       window.addEventListener('touchend', onTouchEnd);
     });
 
@@ -3812,7 +3840,10 @@ function crearCapaEdicionPoligono(centrar = false) {
 
     midMarker.on('mousedown', function (e) {
       if (e.originalEvent && e.originalEvent.button !== 0) return;
-      L.DomEvent.stopPropagation(e);
+      L.DomEvent.stop(e);
+      if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+      }
       coordsPoligonoEnEdicion.value.splice(insertIdx, 0, [midLat, midLng]);
       crearCapaEdicionPoligono(false);
       const nuevoMarker = markersVertices[insertIdx];
