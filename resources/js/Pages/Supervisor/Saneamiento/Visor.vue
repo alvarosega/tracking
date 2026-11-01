@@ -616,24 +616,30 @@
               </option>
             </select>
 
-            <!-- 3 Valores acumulados de los últimos 3 meses para la ruta en ajuste -->
+            <!-- Valores acumulados de los meses seleccionados para la ruta en ajuste -->
             <div
-              v-if="rutaParaAjustarFrontera && balanceRutaSeleccionada"
+              v-if="rutaParaAjustarFrontera && balanceRutaSeleccionada && mesesHistoricosSeleccionados.length > 0"
               class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10.5px] shadow-2xs select-none"
             >
               <span class="text-slate-700 font-bold">{{ balanceRutaSeleccionada.total }} clis</span>
-              <span class="text-slate-300">|</span>
-              <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
-                <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_actual) }}
-              </span>
-              <span class="text-slate-300">|</span>
-              <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
-                <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior) }}
-              </span>
-              <span class="text-slate-300">|</span>
-              <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
-                <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior_2) }}
-              </span>
+              <template v-if="mesesHistoricosSeleccionados.includes('mes_actual')">
+                <span class="text-slate-300">|</span>
+                <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                  <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_actual) }}
+                </span>
+              </template>
+              <template v-if="mesesHistoricosSeleccionados.includes('mes_anterior')">
+                <span class="text-slate-300">|</span>
+                <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                  <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior) }}
+                </span>
+              </template>
+              <template v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')">
+                <span class="text-slate-300">|</span>
+                <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                  <b class="text-slate-600">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(balanceRutaSeleccionada.venta_mes_anterior_2) }}
+                </span>
+              </template>
             </div>
 
             <template v-if="rutaParaAjustarFrontera">
@@ -768,14 +774,43 @@
         >
           <!-- CASO 1: EN MODO AJUSTE RTM, SOLO SE VE EL BALANCE RTM (SIN CLIENTES) -->
           <template v-if="modoPrincipal === 'ajuste_rtm'">
-            <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-              <div>
-                <h3 class="text-xs font-bold text-slate-800 tracking-wider uppercase font-mono">Balance RTM</h3>
-                <p class="text-[11px] text-slate-500 mt-0.5">Distribución de clientes por ruta y jornada</p>
+            <div class="p-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
+              <div class="min-w-0">
+                <h3 class="text-xs font-bold text-slate-800 tracking-wider uppercase font-mono truncate">Balance RTM</h3>
+                <p class="text-[10px] text-slate-500 truncate">Distribución por ruta y jornada</p>
               </div>
-              <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
-                {{ balanceRtmPorRuta.length }} rutas
-              </span>
+
+              <!-- Filtro al lado de Balance RTM para seleccionar los meses históricos -->
+              <div class="flex items-center gap-1.5 shrink-0">
+                <div class="flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/80 text-[10px] font-mono select-none" title="Seleccionar meses históricos a visualizar">
+                  <button
+                    type="button"
+                    @click="seleccionarTodosMesesHistoricos"
+                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
+                    :class="mesesHistoricosSeleccionados.length === 3 ? 'bg-slate-900 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                    title="Alternar todos / mes actual"
+                  >
+                    Todos
+                  </button>
+                  <button
+                    v-for="m in opcionesMesesHistoricos"
+                    :key="m.key"
+                    type="button"
+                    @click="toggleMesHistorico(m.key)"
+                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
+                    :class="mesesHistoricosSeleccionados.includes(m.key)
+                      ? (m.key === 'mes_actual' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'bg-slate-800 text-white font-bold shadow-2xs')
+                      : 'text-slate-500 hover:text-slate-800'"
+                    :title="m.titulo"
+                  >
+                    {{ m.corto }}
+                  </button>
+                </div>
+
+                <span class="text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-800 shrink-0">
+                  {{ balanceRtmPorRuta.length }}
+                </span>
+              </div>
             </div>
 
             <!-- Cuerpo de Balance RTM -->
@@ -800,17 +835,37 @@
                   </span>
                 </div>
 
-                <!-- 3 Valores acumulados de los últimos 3 meses por ruta -->
-                <div class="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]">
-                  <div class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                <!-- Valores acumulados de los meses seleccionados por ruta -->
+                <div
+                  v-if="mesesHistoricosSeleccionados.length > 0"
+                  class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
+                  :class="{
+                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
+                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
+                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                  }"
+                >
+                  <div
+                    v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
+                    class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5"
+                    :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')"
+                  >
                     <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
                     <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
                   </div>
-                  <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                  <div
+                    v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
+                    class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
+                    :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')"
+                  >
                     <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
                     <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
                   </div>
-                  <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                  <div
+                    v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
+                    class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
+                    :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')"
+                  >
                     <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
                     <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
                   </div>
@@ -858,6 +913,35 @@
                     :class="tabLateral === 'balance' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
                   >
                     Balance RTM
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filtro al lado de Balance RTM para seleccionar los meses históricos en modo visualización -->
+              <div v-if="tabLateral === 'balance'" class="px-3 py-1.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs font-mono">
+                <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Meses Visibles:</span>
+                <div class="flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/80 text-[10px] font-mono select-none" title="Seleccionar meses históricos a visualizar">
+                  <button
+                    type="button"
+                    @click="seleccionarTodosMesesHistoricos"
+                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
+                    :class="mesesHistoricosSeleccionados.length === 3 ? 'bg-slate-900 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                    title="Alternar todos / mes actual"
+                  >
+                    Todos
+                  </button>
+                  <button
+                    v-for="m in opcionesMesesHistoricos"
+                    :key="m.key"
+                    type="button"
+                    @click="toggleMesHistorico(m.key)"
+                    class="px-1.5 py-0.5 rounded font-semibold transition-all cursor-pointer"
+                    :class="mesesHistoricosSeleccionados.includes(m.key)
+                      ? (m.key === 'mes_actual' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'bg-slate-800 text-white font-bold shadow-2xs')
+                      : 'text-slate-500 hover:text-slate-800'"
+                    :title="m.titulo"
+                  >
+                    {{ m.corto }}
                   </button>
                 </div>
               </div>
@@ -946,17 +1030,17 @@
                       <span>ID: {{ c.cliente_id }}</span>
                     </div>
 
-                    <!-- 3 Valores de fact_ventas al lado / debajo de la ruta por cliente -->
-                    <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-100 text-[9.5px] font-mono text-slate-600">
-                      <span :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                    <!-- Valores de fact_ventas de los meses seleccionados por cliente -->
+                    <div v-if="mesesHistoricosSeleccionados.length > 0" class="flex items-center justify-between mt-1 pt-1 border-t border-slate-100 text-[9.5px] font-mono text-slate-600">
+                      <span v-if="mesesHistoricosSeleccionados.includes('mes_actual')" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
                         <b class="text-sky-700">{{ periodosHistoricos?.mes_actual?.corto || 'Act' }}:</b> {{ formatMonto(c.venta_mes_actual || 0) }}
                       </span>
-                      <span>•</span>
-                      <span :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                      <span v-if="mesesHistoricosSeleccionados.includes('mes_actual') && mesesHistoricosSeleccionados.includes('mes_anterior')">•</span>
+                      <span v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
                         <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior?.corto || 'Ant' }}:</b> {{ formatMonto(c.venta_mes_anterior || 0) }}
                       </span>
-                      <span>•</span>
-                      <span :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                      <span v-if="(mesesHistoricosSeleccionados.includes('mes_actual') || mesesHistoricosSeleccionados.includes('mes_anterior')) && mesesHistoricosSeleccionados.includes('mes_anterior_2')">•</span>
+                      <span v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
                         <b class="text-slate-500">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant-2' }}:</b> {{ formatMonto(c.venta_mes_anterior_2 || 0) }}
                       </span>
                     </div>
@@ -987,17 +1071,37 @@
                       </span>
                     </div>
 
-                    <!-- 3 Valores acumulados de los últimos 3 meses por ruta -->
-                    <div class="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]">
-                      <div class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5" :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')">
+                    <!-- Valores acumulados de los meses seleccionados por ruta -->
+                    <div
+                      v-if="mesesHistoricosSeleccionados.length > 0"
+                      class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
+                      :class="{
+                        'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
+                        'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
+                        'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                      }"
+                    >
+                      <div
+                        v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
+                        class="bg-sky-50/70 border border-sky-200/80 rounded px-1.5 py-0.5"
+                        :title="'Mes Actual: ' + (periodosHistoricos?.mes_actual?.nombre || '')"
+                      >
                         <div class="text-[8px] text-sky-700 font-semibold truncate">{{ periodosHistoricos?.mes_actual?.corto || 'Mes Act.' }}</div>
                         <div class="font-bold text-slate-900 truncate">{{ formatMonto(b.venta_mes_actual) }}</div>
                       </div>
-                      <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')">
+                      <div
+                        v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
+                        class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
+                        :title="'Mes Anterior: ' + (periodosHistoricos?.mes_anterior?.nombre || '')"
+                      >
                         <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior?.corto || 'Mes Ant.' }}</div>
                         <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior) }}</div>
                       </div>
-                      <div class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5" :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')">
+                      <div
+                        v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
+                        class="bg-slate-100/70 border border-slate-200 rounded px-1.5 py-0.5"
+                        :title="'Mes Anterior 2: ' + (periodosHistoricos?.mes_anterior_2?.nombre || '')"
+                      >
                         <div class="text-[8px] text-slate-600 font-semibold truncate">{{ periodosHistoricos?.mes_anterior_2?.corto || 'Ant.-2' }}</div>
                         <div class="font-bold text-slate-800 truncate">{{ formatMonto(b.venta_mes_anterior_2) }}</div>
                       </div>
@@ -1089,7 +1193,7 @@
                     <span>Compras fact_ventas</span>
                   </span>
                   <span v-if="kpisVentasCliente" class="text-[9px] text-slate-400 font-normal">
-                    3 Meses
+                    {{ mesesHistoricosSeleccionados.length }} Mes{{ mesesHistoricosSeleccionados.length > 1 ? 'es' : '' }}
                   </span>
                 </div>
 
@@ -1100,9 +1204,17 @@
                 </div>
 
                 <!-- Grilla Resumen -->
-                <div v-else-if="kpisVentasCliente" class="grid grid-cols-3 gap-1.5">
+                <div
+                  v-else-if="kpisVentasCliente"
+                  class="grid gap-1.5"
+                  :class="{
+                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
+                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
+                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                  }"
+                >
                   <!-- Mes Actual -->
-                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
                     <div class="flex items-center justify-between text-[8.5px] font-mono">
                       <span class="font-bold text-[#0071E3] uppercase">Act.</span>
                       <span class="font-bold text-[#0071E3] truncate max-w-[45px]" :title="kpisVentasCliente.mes_actual?.nombre">
@@ -1119,7 +1231,7 @@
                   </div>
 
                   <!-- Mes Anterior -->
-                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
                     <div class="flex items-center justify-between text-[8.5px] font-mono">
                       <span class="font-bold text-slate-600 uppercase">Ant.</span>
                       <span class="font-bold text-slate-600 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior?.nombre">
@@ -1136,7 +1248,7 @@
                   </div>
 
                   <!-- Mes Ante-anterior (M-2) -->
-                  <div class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="p-2 rounded-lg bg-white border border-slate-200/90 space-y-1">
                     <div class="flex items-center justify-between text-[8.5px] font-mono">
                       <span class="font-bold text-slate-500 uppercase">Ant-2</span>
                       <span class="font-bold text-slate-500 truncate max-w-[45px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
@@ -1154,7 +1266,7 @@
                 </div>
 
                 <div v-else class="py-1 text-center text-[10px] text-slate-400 font-mono">
-                  Sin ventas registradas en los últimos 3 meses.
+                  Sin ventas registradas en el período seleccionado.
                 </div>
               </div>
 
@@ -1570,8 +1682,9 @@
                     </span>
                   </div>
                 </th>
-                <!-- 4 Columnas de Históricos de Cliente -->
+                <!-- Columnas de Históricos de Cliente -->
                 <th
+                  v-if="mesesHistoricosSeleccionados.includes('mes_actual')"
                   @click="ordenarPor('venta_mes_actual')"
                   class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-sky-50/50 border-l border-slate-200 cursor-pointer hover:bg-sky-100/60 transition-colors"
                   title="Clic para ordenar por Ventas acumuladas Mes Actual"
@@ -1589,6 +1702,7 @@
                   </div>
                 </th>
                 <th
+                  v-if="mesesHistoricosSeleccionados.includes('mes_anterior')"
                   @click="ordenarPor('venta_mes_anterior')"
                   class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
                   title="Clic para ordenar por Ventas acumuladas Mes Anterior"
@@ -1606,6 +1720,7 @@
                   </div>
                 </th>
                 <th
+                  v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')"
                   @click="ordenarPor('venta_mes_anterior_2')"
                   class="py-1.5 px-3 font-bold text-right whitespace-nowrap bg-slate-100/50 cursor-pointer hover:bg-slate-200/60 transition-colors"
                   title="Clic para ordenar por Ventas acumuladas Mes Ante-anterior (M-2)"
@@ -1746,7 +1861,7 @@
                 </td>
 
                 <!-- 1. Acumulado Mes Actual -->
-                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-sky-50/20 border-l border-slate-100">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-sky-50/20 border-l border-slate-100">
                   <span
                     class="font-semibold text-xs"
                     :class="(c.venta_mes_actual || 0) > 0 ? 'text-slate-900' : 'text-slate-300'"
@@ -1756,7 +1871,7 @@
                 </td>
 
                 <!-- 2. Acumulado Mes Anterior -->
-                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
                   <span
                     class="font-semibold text-xs"
                     :class="(c.venta_mes_anterior || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
@@ -1766,7 +1881,7 @@
                 </td>
 
                 <!-- 3. Acumulado Mes Ante-anterior (M-2) -->
-                <td class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="py-2 px-3 text-right font-mono whitespace-nowrap bg-slate-50/30">
                   <span
                     class="font-semibold text-xs"
                     :class="(c.venta_mes_anterior_2 || 0) > 0 ? 'text-slate-700' : 'text-slate-300'"
@@ -1860,13 +1975,13 @@
                 <td colspan="4" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
                   TOTALES ({{ clientesConCambioFiltrados.length }} clis):
                 </td>
-                <td class="py-2 px-3 text-right whitespace-nowrap bg-sky-100/70 text-slate-900 border-l border-slate-200">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="py-2 px-3 text-right whitespace-nowrap bg-sky-100/70 text-slate-900 border-l border-slate-200">
                   {{ formatMonto(totalesMatrizInferior.venta_mes_actual) }}
                 </td>
-                <td class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
                   {{ formatMonto(totalesMatrizInferior.venta_mes_anterior) }}
                 </td>
-                <td class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
+                <td v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="py-2 px-3 text-right whitespace-nowrap bg-slate-200/70 text-slate-800">
                   {{ formatMonto(totalesMatrizInferior.venta_mes_anterior_2) }}
                 </td>
                 <td colspan="5" class="py-2 px-3"></td>
@@ -1994,7 +2109,7 @@
                     </span>
                   </div>
                   <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
-                    Últimos 3 Meses
+                    {{ mesesHistoricosSeleccionados.length }} Mes{{ mesesHistoricosSeleccionados.length > 1 ? 'es' : '' }} Visibles
                   </span>
                 </div>
 
@@ -2005,9 +2120,17 @@
                 </div>
 
                 <!-- Grilla Mes Actual vs Mes Anterior vs Mes Ante-anterior -->
-                <div v-else-if="kpisVentasCliente" class="grid grid-cols-3 gap-2.5">
+                <div
+                  v-else-if="kpisVentasCliente"
+                  class="grid gap-2.5"
+                  :class="{
+                    'grid-cols-1': mesesHistoricosSeleccionados.length === 1,
+                    'grid-cols-2': mesesHistoricosSeleccionados.length === 2,
+                    'grid-cols-3': mesesHistoricosSeleccionados.length >= 3,
+                  }"
+                >
                   <!-- Mes Actual -->
-                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_actual')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
                     <div class="flex items-center justify-between text-[10px] font-mono">
                       <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Actual</span>
                       <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-sky-50 text-[#0071E3] border border-sky-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_actual?.nombre">
@@ -2029,7 +2152,7 @@
                   </div>
 
                   <!-- Mes Anterior -->
-                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
                     <div class="flex items-center justify-between text-[10px] font-mono">
                       <span class="font-bold text-slate-500 uppercase tracking-wide">Mes Ant.</span>
                       <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior?.nombre">
@@ -2051,7 +2174,7 @@
                   </div>
 
                   <!-- Mes Ante-anterior (M-2) -->
-                  <div class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                  <div v-if="mesesHistoricosSeleccionados.includes('mes_anterior_2')" class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1">
                     <div class="flex items-center justify-between text-[10px] font-mono">
                       <span class="font-bold text-slate-500 uppercase tracking-wide">Ant.-2</span>
                       <span class="text-[8.5px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono truncate max-w-[75px]" :title="kpisVentasCliente.mes_anterior_2?.nombre">
@@ -2988,6 +3111,47 @@ const periodosHistoricos = ref({
   mes_anterior: { nombre: 'Mes Anterior', corto: 'Mes Ant.' },
   mes_anterior_2: { nombre: 'Mes Anterior 2', corto: 'Ant.-2' },
 });
+
+// Configuración de filtro de meses históricos visibles al lado de Balance RTM
+const mesesHistoricosSeleccionados = ref(['mes_actual', 'mes_anterior', 'mes_anterior_2']);
+
+const opcionesMesesHistoricos = computed(() => [
+  {
+    key: 'mes_actual',
+    corto: periodosHistoricos.value?.mes_actual?.corto || 'Act.',
+    nombre: periodosHistoricos.value?.mes_actual?.nombre || 'Mes Actual',
+    titulo: `Mes Actual (${periodosHistoricos.value?.mes_actual?.nombre || ''})`,
+  },
+  {
+    key: 'mes_anterior',
+    corto: periodosHistoricos.value?.mes_anterior?.corto || 'Ant.',
+    nombre: periodosHistoricos.value?.mes_anterior?.nombre || 'Mes Anterior',
+    titulo: `Mes Anterior (${periodosHistoricos.value?.mes_anterior?.nombre || ''})`,
+  },
+  {
+    key: 'mes_anterior_2',
+    corto: periodosHistoricos.value?.mes_anterior_2?.corto || 'Ant.-2',
+    nombre: periodosHistoricos.value?.mes_anterior_2?.nombre || 'Mes Ante-anterior',
+    titulo: `Mes Ante-anterior (${periodosHistoricos.value?.mes_anterior_2?.nombre || ''})`,
+  },
+]);
+
+function toggleMesHistorico(key) {
+  if (mesesHistoricosSeleccionados.value.includes(key)) {
+    if (mesesHistoricosSeleccionados.value.length === 1) return; // Evitar dejar 0 meses seleccionados
+    mesesHistoricosSeleccionados.value = mesesHistoricosSeleccionados.value.filter(k => k !== key);
+  } else {
+    mesesHistoricosSeleccionados.value.push(key);
+  }
+}
+
+function seleccionarTodosMesesHistoricos() {
+  if (mesesHistoricosSeleccionados.value.length === 3) {
+    mesesHistoricosSeleccionados.value = ['mes_actual'];
+  } else {
+    mesesHistoricosSeleccionados.value = ['mes_actual', 'mes_anterior', 'mes_anterior_2'];
+  }
+}
 
 const clientesConCambio = computed(() => {
   return clientes.value.filter(c => Boolean(c.tiene_cambio) || Boolean(c.tiene_propuesta));
@@ -4322,12 +4486,19 @@ async function actualizarKpisEnPopup(c) {
   const el = document.getElementById(`rtm-kpis-content-${c.id}`);
   if (!el) return;
 
+  const actVisible = mesesHistoricosSeleccionados.value.includes('mes_actual');
+  const antVisible = mesesHistoricosSeleccionados.value.includes('mes_anterior');
+  const ant2Visible = mesesHistoricosSeleccionados.value.includes('mes_anterior_2');
+  const numMesesVisibles = (actVisible ? 1 : 0) + (antVisible ? 1 : 0) + (ant2Visible ? 1 : 0) || 1;
+  el.style.gridTemplateColumns = `repeat(${numMesesVisibles}, 1fr)`;
+
   if (data && data.mes_actual) {
     const actM = formatMonto(data.mes_actual.monto_acumulado);
     const antM = formatMonto(data.mes_anterior ? data.mes_anterior.monto_acumulado : 0);
     const ant2M = formatMonto(data.mes_anterior_2 ? data.mes_anterior_2.monto_acumulado : 0);
 
     el.innerHTML = `
+      ${actVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
           <span>Actual</span>
@@ -4338,7 +4509,8 @@ async function actualizarKpisEnPopup(c) {
           Frec: <b style="color: #0F172A;">${data.mes_actual.frecuencia_compra ?? 0}</b>
           ${data.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_actual.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
+      ${antVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
           <span>Mes Ant.</span>
@@ -4349,7 +4521,8 @@ async function actualizarKpisEnPopup(c) {
           Frec: <b style="color: #334155;">${data.mes_anterior?.frecuencia_compra ?? 0}</b>
           ${data.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
+      ${ant2Visible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
           <span>Ant. -2</span>
@@ -4360,11 +4533,11 @@ async function actualizarKpisEnPopup(c) {
           Frec: <b style="color: #475569;">${data.mes_anterior_2?.frecuencia_compra ?? 0}</b>
           ${data.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${data.mes_anterior_2.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
     `;
   } else {
     el.innerHTML = `
-      <div style="grid-column: span 3; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
+      <div style="grid-column: span ${numMesesVisibles}; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
         Sin compras en fact_ventas
       </div>
     `;
@@ -4530,12 +4703,18 @@ function generarPopupHtmlRtm(c) {
   const tieneCambio = Boolean(c.tiene_cambio);
 
   const cachedKpis = kpisVentasCache.get(c.cliente_id);
+  const actVisible = mesesHistoricosSeleccionados.value.includes('mes_actual');
+  const antVisible = mesesHistoricosSeleccionados.value.includes('mes_anterior');
+  const ant2Visible = mesesHistoricosSeleccionados.value.includes('mes_anterior_2');
+  const numMesesVisibles = (actVisible ? 1 : 0) + (antVisible ? 1 : 0) + (ant2Visible ? 1 : 0) || 1;
+
   let kpisHtml = '';
   if (cachedKpis && cachedKpis.mes_actual) {
     const actM = formatMonto(cachedKpis.mes_actual.monto_acumulado);
     const antM = formatMonto(cachedKpis.mes_anterior ? cachedKpis.mes_anterior.monto_acumulado : 0);
     const ant2M = formatMonto(cachedKpis.mes_anterior_2 ? cachedKpis.mes_anterior_2.monto_acumulado : 0);
     kpisHtml = `
+      ${actVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #BAE6FD;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #0284C7; font-weight: 700;">
           <span>Actual</span>
@@ -4546,7 +4725,8 @@ function generarPopupHtmlRtm(c) {
           Frec: <b style="color: #0F172A;">${cachedKpis.mes_actual.frecuencia_compra ?? 0}</b>
           ${cachedKpis.mes_actual.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_actual.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
+      ${antVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #475569; font-weight: 700;">
           <span>Mes Ant.</span>
@@ -4557,7 +4737,8 @@ function generarPopupHtmlRtm(c) {
           Frec: <b style="color: #334155;">${cachedKpis.mes_anterior?.frecuencia_compra ?? 0}</b>
           ${cachedKpis.mes_anterior?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
+      ${ant2Visible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748B; font-weight: 700;">
           <span>Ant. -2</span>
@@ -4568,25 +4749,28 @@ function generarPopupHtmlRtm(c) {
           Frec: <b style="color: #475569;">${cachedKpis.mes_anterior_2?.frecuencia_compra ?? 0}</b>
           ${cachedKpis.mes_anterior_2?.dias_compra > 0 ? `<span style="color: #94A3B8;">(${cachedKpis.mes_anterior_2.dias_compra}d)</span>` : ''}
         </div>
-      </div>
+      </div>` : ''}
     `;
   } else {
     kpisHtml = `
+      ${actVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="color: #64748B; font-size: 8px;">Actual</div>
         <div style="font-weight: 700; color: #0F172A; font-size: 9px; margin-top: 1px;">Cargando...</div>
         <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>
+      </div>` : ''}
+      ${antVisible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="color: #64748B; font-size: 8px;">Mes Ant.</div>
         <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
         <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>
+      </div>` : ''}
+      ${ant2Visible ? `
       <div style="background: #ffffff; padding: 3px 4px; border-radius: 4px; border: 1px solid #E2E8F0;">
         <div style="color: #64748B; font-size: 8px;">Ant. -2</div>
         <div style="font-weight: 700; color: #475569; font-size: 9px; margin-top: 1px;">Cargando...</div>
         <div style="color: #64748B; font-size: 8px; margin-top: 2px;">Frec: --</div>
-      </div>
+      </div>` : ''}
     `;
   }
 
@@ -4614,16 +4798,13 @@ function generarPopupHtmlRtm(c) {
         ` : ''}
       </div>
 
-      <!-- MÉTRICAS DE COMPRA FACT_VENTAS (ÚLTIMOS 3 MESES ACUMULADOS) -->
+      <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MESES HISTÓRICOS SELECCIONADOS) -->
       <div id="rtm-kpis-${c.id}" style="margin: 4px 0 6px 0; padding: 5px 6px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-family: monospace; font-size: 10px;">
         <div style="color: #64748B; font-size: 8.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
           <span style="color: #0F172A;">COMPORTAMIENTO COMPRA (fact_ventas)</span>
-          <span style="font-size: 8px; color: #64748B;">3 Meses</span>
+          <span style="font-size: 8px; color: #64748B;">${numMesesVisibles} Mes${numMesesVisibles > 1 ? 'es' : ''}</span>
         </div>
-        <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5px;">
-          ${kpisHtml}
-        </div>
-      </div>
+        <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: repeat(${numMesesVisibles}, 1fr); gap: 3.5px;">
           ${kpisHtml}
         </div>
       </div>
