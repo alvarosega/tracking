@@ -21,6 +21,7 @@ class GetRuteoDataAction
      * @param bool $verFronteraDias
      * @param bool $soloActivos
      * @param string $modoVista 'original' | 'cambios'
+     * @param string $estadoCliente 'activos' | 'inactivos' | 'todos'
      * @return array{clientes: array, fronteras_rutas: array, fronteras_dias: array, kpis: array}
      */
     public function execute(
@@ -30,7 +31,8 @@ class GetRuteoDataAction
         bool $verFronteraRutas = false,
         bool $verFronteraDias = false,
         bool $soloActivos = true,
-        string $modoVista = 'original'
+        string $modoVista = 'original',
+        string $estadoCliente = ''
     ): array {
         $canalesClean = array_values(array_unique(array_filter(array_map(fn($c) => trim((string) $c), $canales))));
 
@@ -154,10 +156,23 @@ class GetRuteoDataAction
             });
         }
 
-        if ($soloActivos) {
+        // Normalizar filtro de estado ('activos' | 'inactivos' | 'todos')
+        $estadoTarget = strtolower(trim($estadoCliente));
+        if (!in_array($estadoTarget, ['activos', 'inactivos', 'todos'], true)) {
+            $estadoTarget = $soloActivos ? 'activos' : 'todos';
+        }
+
+        if ($estadoTarget === 'activos') {
             $queryClientes->where(function ($q) {
                 $q->where('estado', 'Activo')
-                  ->orWhereNull('estado');
+                  ->orWhereNull('estado')
+                  ->orWhere('estado', '');
+            });
+        } elseif ($estadoTarget === 'inactivos') {
+            $queryClientes->where(function ($q) {
+                $q->whereNotNull('estado')
+                  ->where('estado', '!=', '')
+                  ->whereRaw("LOWER(TRIM(estado)) != 'activo'");
             });
         }
 

@@ -39,7 +39,9 @@ class SupervisorRuteoController extends Controller
             dias: $request->dias(),
             verFronteraRutas: $request->verFronteraRutas(),
             verFronteraDias: $request->verFronteraDias(),
-            soloActivos: $request->soloActivos()
+            soloActivos: $request->soloActivos(),
+            modoVista: $request->modoVista(),
+            estadoCliente: $request->estadoCliente()
         );
 
         return response()->json($resultado);

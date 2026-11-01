@@ -170,24 +170,46 @@
             <span>{{ cargando ? 'Cargando...' : 'Consultar' }}</span>
           </button>
 
-          <!-- Toggle: Solo Activos vs Todos -->
-          <button
-            type="button"
-            @click="soloActivos = !soloActivos"
-            class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border cursor-pointer select-none shrink-0"
-            :class="soloActivos
-              ? 'bg-slate-200 text-slate-900 border-slate-400 font-semibold'
-              : 'bg-slate-100 text-slate-700 border-slate-300'"
-          >
-            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-slate-700' : 'bg-slate-400'"></span>
-            <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
-          </button>
+          <!-- Filtro de Estado Móvil: [ Activos | Inactivos | Todos ] -->
+          <div class="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0 text-xs font-medium select-none shadow-2xs">
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('activos')"
+              class="px-2 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1"
+              :class="filtroEstadoCliente === 'activos' ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-slate-600'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Activos</span>
+            </button>
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('inactivos')"
+              class="px-2 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1"
+              :class="filtroEstadoCliente === 'inactivos' ? 'bg-white text-rose-700 shadow-2xs font-bold' : 'text-slate-600'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              <span>Inactivos</span>
+            </button>
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('todos')"
+              class="px-2 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1"
+              :class="filtroEstadoCliente === 'todos' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              <span>Todos</span>
+            </button>
+          </div>
 
           <!-- KPIs Móvil resumidos -->
           <div class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md flex items-center gap-1.5 text-[11px] font-mono text-slate-800 shrink-0">
             <span class="font-semibold">{{ kpis.total }} total</span>
             <span class="text-slate-400">•</span>
             <span class="font-semibold text-slate-700">{{ kpis.con_gps }} GPS</span>
+            <template v-if="kpis.inactivos > 0">
+              <span class="text-slate-400">•</span>
+              <span @click="setFiltroEstadoCliente('inactivos')" class="font-bold text-rose-700 cursor-pointer underline decoration-rose-300">{{ kpis.inactivos }} inactivos</span>
+            </template>
             <template v-if="kpis.con_cambios > 0">
               <span class="text-slate-400">•</span>
               <span class="font-bold text-slate-900">{{ kpis.con_cambios }} cambios</span>
@@ -333,19 +355,39 @@
             </button>
           </div>
 
-          <!-- Toggle: Solo Activos vs Todos -->
-          <button
-            type="button"
-            @click="soloActivos = !soloActivos"
-            class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer select-none shadow-2xs shrink-0"
-            :class="soloActivos
-              ? 'bg-slate-200 text-slate-900 border-slate-300 hover:bg-slate-300'
-              : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'"
-            :title="soloActivos ? 'Mostrando únicamente clientes Activos. Clic para incluir inactivos.' : 'Mostrando todos los clientes (activos e inactivos). Clic para filtrar solo activos.'"
-          >
-            <span class="w-2 h-2 rounded-full" :class="soloActivos ? 'bg-slate-700' : 'bg-slate-400'"></span>
-            <span>{{ soloActivos ? 'Solo Activos' : 'Todos' }}</span>
-          </button>
+          <!-- Filtro de Estado: [ Activos | Inactivos | Todos ] -->
+          <div class="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0 text-xs font-semibold select-none shadow-2xs">
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('activos')"
+              class="px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="filtroEstadoCliente === 'activos' ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+              title="Mostrar únicamente clientes Activos"
+            >
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Activos</span>
+            </button>
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('inactivos')"
+              class="px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="filtroEstadoCliente === 'inactivos' ? 'bg-white text-rose-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+              title="Mostrar únicamente clientes Inactivos"
+            >
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span>Inactivos</span>
+            </button>
+            <button
+              type="button"
+              @click="setFiltroEstadoCliente('todos')"
+              class="px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="filtroEstadoCliente === 'todos' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+              title="Mostrar todos los clientes (activos e inactivos)"
+            >
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span>Todos</span>
+            </button>
+          </div>
 
           <!-- Filtros Dinámicos GIS: Puntos (Rutas), Frontera Ruta y Frontera Día -->
           <div class="hidden lg:flex items-center space-x-2 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
@@ -406,6 +448,16 @@
           <div class="flex px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
             <span class="font-semibold tabular-nums">{{ kpis.con_gps }} GPS</span>
+          </div>
+
+          <div
+            v-if="kpis.inactivos > 0"
+            @click="setFiltroEstadoCliente('inactivos')"
+            class="flex px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-md items-center gap-1.5 font-bold cursor-pointer hover:bg-rose-100 transition-colors shadow-2xs"
+            title="Clic para ver únicamente clientes inactivos"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span class="tabular-nums">{{ kpis.inactivos }} Inactivos</span>
           </div>
 
           <div v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
@@ -1068,6 +1120,12 @@
                       </div>
 
                       <div class="flex items-center gap-1 shrink-0">
+                        <span
+                          v-if="(c.estado || '').toLowerCase() === 'inactivo'"
+                          class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
+                        >
+                          Inactivo
+                        </span>
                         <span
                           class="text-[9px] font-mono px-1.5 py-0.2 rounded border"
                           :class="c.tiene_gps ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-50 text-slate-500 border-slate-200'"
@@ -1830,7 +1888,15 @@
                   {{ c.cliente_id }}
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap">
-                  <div class="font-semibold text-slate-900 text-xs">{{ c.nombre }}</div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-semibold text-slate-900 text-xs">{{ c.nombre }}</span>
+                    <span
+                      v-if="(c.estado || '').toLowerCase() === 'inactivo'"
+                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
+                    >
+                      Inactivo
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 truncate max-w-xs">{{ c.direccion || 'Sin dirección' }}</div>
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap font-mono text-xs">
@@ -2473,7 +2539,19 @@ const filtroFronterasRutas = ref([]);
 const filtroFronterasDias = ref([]);
 const busquedaFronteraRuta = ref('');
 const busquedaFronteraDia = ref('');
-const soloActivos = ref(true);
+const filtroEstadoCliente = ref('activos'); // 'activos' | 'inactivos' | 'todos'
+const soloActivos = computed({
+  get: () => filtroEstadoCliente.value === 'activos',
+  set: (val) => {
+    filtroEstadoCliente.value = val ? 'activos' : 'todos';
+  }
+});
+
+function setFiltroEstadoCliente(nuevoEstado) {
+  if (filtroEstadoCliente.value === nuevoEstado) return;
+  filtroEstadoCliente.value = nuevoEstado;
+  cargarDatos();
+}
 const cargando = ref(false);
 const vistaMovil = ref('mapa');
 const tabLateral = ref('lista'); // 'lista' | 'balance'
@@ -3603,7 +3681,8 @@ async function cargarDatos(mantenerVista = false) {
       dias: [], // Traer todos los días para permitir filtrado reactivo e independiente en Leaflet
       ver_frontera_rutas: true,
       ver_frontera_dias: true,
-      solo_activos: soloActivos.value,
+      solo_activos: filtroEstadoCliente.value === 'activos',
+      estado_cliente: filtroEstadoCliente.value,
       modo_vista: modoVistaConsulta,
     });
 
@@ -4849,7 +4928,10 @@ function generarPopupHtmlRtm(c) {
   return `
     <div style="min-width: 275px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
-        <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25;">${escapeHtml(c.nombre)}</div>
+        <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+          <span>${escapeHtml(c.nombre)}</span>
+          <span style="font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; background: ${(c.estado || '').toLowerCase() === 'activo' ? '#ECFDF5; color: #047857;' : '#FFE4E6; color: #BE123C;'}">${escapeHtml(c.estado || 'Activo')}</span>
+        </div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
         <div style="font-family: monospace; font-size: 10px; color: #475569; margin-top: 3px;">
           ID: ${c.cliente_id} • Actual: <b>${escapeHtml(formatRuta(rutaOrig))}</b> (${escapeHtml(diaOrig || 'S/D')})
@@ -5167,6 +5249,7 @@ function renderizarEnMapa(mantenerVista = false) {
       else if (cambioRuta) etiquetaCambio = 'CAMBIO DE RUTA';
       else if (cambioDia) etiquetaCambio = 'CAMBIO DE DÍA';
 
+      const esInactivo = (c.estado || '').toLowerCase() !== 'activo' && Boolean(c.estado);
       let markerColor, markerBorder, markerWeight, markerDashArray, markerRadius;
 
       if (esModoAjusteRtm) {
@@ -5174,18 +5257,18 @@ function renderizarEnMapa(mantenerVista = false) {
         if (tieneUnaSolaRutaMarcada.value) {
           // Si solo tenemos una ruta marcada: se ven solo los colores del DÍA de visita
           markerColor = getDiaColor(diaEfectivo);
-          markerBorder = tieneCambio ? '#0F172A' : '#FFFFFF';
-          markerWeight = tieneCambio ? 3 : 1.5;
-          markerDashArray = tieneCambio ? '3, 3' : null;
-          markerRadius = tieneCambio ? 7 : 6;
+          markerBorder = tieneCambio ? '#0F172A' : (esInactivo ? '#E11D48' : '#FFFFFF');
+          markerWeight = (tieneCambio || esInactivo) ? 3 : 1.5;
+          markerDashArray = tieneCambio ? '3, 3' : (esInactivo ? '2, 2' : null);
+          markerRadius = (tieneCambio || esInactivo) ? 7 : 6;
         } else {
           // Si hay múltiples rutas marcadas:
           // Relleno: Color definido para la RUTA (efectiva)
-          // Borde: Color definido para el DÍA de visita (efectivo)
+          // Borde: Color definido para el DÍA de visita (efectivo) o rojo si es inactivo
           markerColor = getRutaColor(rutaEfectiva);
-          markerBorder = getDiaColor(diaEfectivo);
-          markerWeight = tieneCambio ? 3.5 : 2;
-          markerDashArray = tieneCambio ? '3, 3' : null;
+          markerBorder = esInactivo ? '#E11D48' : getDiaColor(diaEfectivo);
+          markerWeight = tieneCambio ? 3.5 : (esInactivo ? 3 : 2);
+          markerDashArray = tieneCambio ? '3, 3' : (esInactivo ? '2, 2' : null);
           markerRadius = tieneCambio ? 7 : 6;
         }
       } else {
@@ -5195,6 +5278,11 @@ function renderizarEnMapa(mantenerVista = false) {
           markerBorder = '#0F172A';
           markerWeight = 2.5;
           markerDashArray = '3, 3';
+          markerRadius = 6.5;
+        } else if (esInactivo) {
+          markerBorder = '#E11D48';
+          markerWeight = 2.5;
+          markerDashArray = '2, 2';
           markerRadius = 6.5;
         } else {
           markerBorder = '#FFFFFF';
@@ -5262,7 +5350,10 @@ function renderizarEnMapa(mantenerVista = false) {
 
         marker.bindTooltip(`
           <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
-            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
+            <div style="font-weight: 700; color: #0F172A; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span>${escapeHtml(c.nombre)}</span>
+              ${esInactivo ? '<span style="background: #FFE4E6; color: #BE123C; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;">INACTIVO</span>' : ''}
+            </div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
               <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>
@@ -5283,7 +5374,10 @@ function renderizarEnMapa(mantenerVista = false) {
         // En modo Visualización:
         marker.bindTooltip(`
           <div style="font-family: inherit; font-size: 11px; line-height: 1.35; padding: 2px;">
-            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(c.nombre)}</div>
+            <div style="font-weight: 700; color: #0F172A; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span>${escapeHtml(c.nombre)}</span>
+              ${esInactivo ? '<span style="background: #FFE4E6; color: #BE123C; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;">INACTIVO</span>' : ''}
+            </div>
             <div style="color: #64748B; font-size: 10px; margin-bottom: 2px;" class="truncate">${escapeHtml(c.direccion || 'Sin dirección registrada')}</div>
             <div style="display: flex; align-items: center; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 3px;">
               <span style="font-weight: bold; color: ${getRutaColor(c.ruta)};">${formatRuta(c.ruta)}</span>

@@ -31,6 +31,7 @@ class GetRuteoDataRequest extends FormRequest
             'ver_frontera_rutas' => ['nullable', 'boolean'],
             'ver_frontera_dias' => ['nullable', 'boolean'],
             'solo_activos' => ['nullable', 'boolean'],
+            'estado_cliente' => ['nullable', 'string', 'in:activos,inactivos,todos'],
             'modo_vista' => ['nullable', 'string', 'in:original,cambios'],
         ];
     }
@@ -68,6 +69,20 @@ class GetRuteoDataRequest extends FormRequest
     public function soloActivos(): bool
     {
         return (bool) $this->input('solo_activos', true);
+    }
+
+    public function estadoCliente(): string
+    {
+        $val = strtolower(trim((string) $this->input('estado_cliente', '')));
+        if (in_array($val, ['activos', 'inactivos', 'todos'], true)) {
+            return $val;
+        }
+
+        if ($this->has('solo_activos')) {
+            return $this->boolean('solo_activos') ? 'activos' : 'todos';
+        }
+
+        return 'activos';
     }
 }
 
