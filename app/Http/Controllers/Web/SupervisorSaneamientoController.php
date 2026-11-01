@@ -122,6 +122,7 @@ class SupervisorSaneamientoController extends Controller
         $rutaPropuesta = strtoupper(trim((string) $request->input('ruta_propuesta')));
         $diaPropuesto = strtoupper(trim((string) $request->input('dia_propuesto', '')));
         $observaciones = (string) ($request->input('observaciones') ?: 'Ajuste dinámico RTM desde Visor y Fronteras');
+        $activarCliente = $request->boolean('activar_cliente');
 
         $clientes = PanRuteo::query()->whereIn('cliente_id', $ids)->get();
         if ($clientes->isEmpty()) {
@@ -129,6 +130,11 @@ class SupervisorSaneamientoController extends Controller
                 'success' => false,
                 'message' => 'Los clientes indicados no fueron encontrados en el padrón.',
             ], 404);
+        }
+
+        // Si se solicitó activación simultánea, actualizar estado en pan_ruteo
+        if ($activarCliente) {
+            PanRuteo::query()->whereIn('cliente_id', $ids)->update(['estado' => 'Activo']);
         }
 
         $propuestasRegistradas = [];
@@ -139,15 +145,15 @@ class SupervisorSaneamientoController extends Controller
             $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
 
             $propId = $propuestaAction->execute([
-                'tipo_hallazgo' => 'AJUSTE_RTM',
+                'tipo_hallazgo' => $activarCliente ? 'ACTIVACION_Y_AJUSTE_RTM' : 'AJUSTE_RTM',
                 'cliente_id_origen' => $cid,
                 'cliente_nombre' => $cliente->cliente,
                 'ruta_actual' => $rutaActual,
                 'dia_actual' => $diaActual,
                 'ruta_propuesta' => $rutaPropuesta,
                 'dia_propuesto' => $diaPropuesto ?: $diaActual,
-                'accion_propuesta' => 'REASIGNAR_RTM',
-                'observaciones' => $observaciones,
+                'accion_propuesta' => $activarCliente ? 'REASIGNAR_Y_ACTIVAR' : 'REASIGNAR_RTM',
+                'observaciones' => $observaciones . ($activarCliente ? ' [Reactivado a Activo]' : ''),
                 'estado' => 'PENDIENTE',
             ]);
 
@@ -158,16 +164,91 @@ class SupervisorSaneamientoController extends Controller
                 'ruta_nueva' => $rutaPropuesta,
                 'dia_anterior' => $diaActual,
                 'dia_nuevo' => $diaPropuesto ?: $diaActual,
+                'activado' => $activarCliente,
             ];
         }
 
         return response()->json([
             'success' => true,
             'message' => count($propuestasRegistradas) === 1
-                ? "Propuesta RTM registrada para el cliente {$ids[0]}: Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . "."
-                : "Se registraron " . count($propuestasRegistradas) . " propuestas RTM para la Ruta {$rutaPropuesta}.",
+                ? "Propuesta RTM registrada para el cliente {$ids[0]}: Ruta {$rutaPropuesta}" . ($diaPropuesto ? " ({$diaPropuesto})" : "") . ($activarCliente ? " y reactivado a estado Activo." : ".")
+                : "Se registraron " . count($propuestasRegistradas) . " propuestas RTM para la Ruta {$rutaPropuesta}" . ($activarCliente ? " y reactivados a estado Activo." : "."),
             'total_afectados' => count($propuestasRegistradas),
             'propuestas' => $propuestasRegistradas,
+        ]);
+    }
+
+    /**
+     * Reactiva uno o múltiples clientes marcándolos como 'Activo' y registrando la auditoría correspondiente.
+     */
+    public function activarCliente(Request $request, SavePropuestaAction $propuestaAction): JsonResponse
+    {
+        $request->validate([
+            'cliente_id' => ['nullable'],
+            'cliente_ids' => ['nullable', 'array'],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $ids = [];
+        if ($request->filled('cliente_id')) {
+            $ids[] = (int) $request->input('cliente_id');
+        }
+        if ($request->filled('cliente_ids')) {
+            foreach ((array) $request->input('cliente_ids') as $cid) {
+                if ((int) $cid > 0) {
+                    $ids[] = (int) $cid;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+
+        if (empty($ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se especificaron clientes para activar.',
+            ], 422);
+        }
+
+        $observaciones = (string) ($request->input('observaciones') ?: 'Activación directa de cliente desde Visor territorial');
+
+        $clientes = PanRuteo::query()->whereIn('cliente_id', $ids)->get();
+        if ($clientes->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Los clientes indicados no fueron encontrados en el padrón.',
+            ], 404);
+        }
+
+        // 1. Actualizar estado a 'Activo' en pan_ruteo
+        PanRuteo::query()->whereIn('cliente_id', $ids)->update(['estado' => 'Activo']);
+
+        // 2. Registrar auditoría de activación
+        foreach ($clientes as $cliente) {
+            $cid = (int) $cliente->cliente_id;
+            $rutaActual = (string) ($cliente->ruta ?? '');
+            $diaActual = (string) ($cliente->dia_norm ?? 'SIN DIA');
+
+            $propuestaAction->execute([
+                'tipo_hallazgo' => 'ACTIVACION_CLIENTE',
+                'cliente_id_origen' => $cid,
+                'cliente_nombre' => $cliente->cliente,
+                'ruta_actual' => $rutaActual,
+                'dia_actual' => $diaActual,
+                'ruta_propuesta' => $rutaActual,
+                'dia_propuesto' => $diaActual,
+                'accion_propuesta' => 'ACTIVAR_CLIENTE',
+                'observaciones' => $observaciones,
+                'estado' => 'APLICADO',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($ids) === 1
+                ? "Cliente {$ids[0]} reactivado a estado Activo exitosamente."
+                : count($ids) . " clientes reactivados a estado Activo exitosamente.",
+            'total_activados' => count($ids),
+            'cliente_ids' => $ids,
         ]);
     }
 

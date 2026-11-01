@@ -1076,8 +1076,16 @@
 
               <!-- Vista 1A: Listado de Clientes Filtrables -->
               <template v-if="tabLateral === 'lista'">
-                <!-- Buscador de Clientes -->
+                <!-- Buscador de Clientes y Selección -->
                 <div class="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center space-x-2">
+                  <div class="flex items-center pl-1" title="Seleccionar / deseleccionar todos los clientes filtrados">
+                    <input
+                      type="checkbox"
+                      :checked="todosClientesFiltradosSeleccionados"
+                      @change="toggleSeleccionarTodosClientes"
+                      class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                    />
+                  </div>
                   <div class="relative flex-1">
                     <input
                       v-model="busquedaCliente"
@@ -1111,6 +1119,13 @@
                   >
                     <div class="flex items-start justify-between gap-2">
                       <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          :value="c.cliente_id || c.id"
+                          v-model="clientesSeleccionadosIds"
+                          @click.stop
+                          class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5 shrink-0"
+                        />
                         <span
                           @click="abrirExpedienteCliente(c)"
                           class="text-xs font-semibold text-slate-900 group-hover:text-slate-700 transition-colors line-clamp-1 cursor-pointer flex-1"
@@ -1120,6 +1135,16 @@
                       </div>
 
                       <div class="flex items-center gap-1 shrink-0">
+                        <button
+                          v-if="(c.estado || '').toLowerCase() === 'inactivo'"
+                          type="button"
+                          @click.stop="activarClienteDirecto(c)"
+                          :disabled="activandoClienteId === (c.cliente_id || c.id)"
+                          class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                          title="Reactivar a Activo inmediatamente"
+                        >
+                          {{ activandoClienteId === (c.cliente_id || c.id) ? '...' : 'Activar' }}
+                        </button>
                         <span
                           v-if="(c.estado || '').toLowerCase() === 'inactivo'"
                           class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
@@ -1285,15 +1310,23 @@
                   <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.nombre }}</h3>
                   <p class="text-[11px] text-slate-500 mt-0.5">{{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}</p>
                 </div>
-                <span
-                  class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shrink-0 shadow-2xs"
-                  :style="{ backgroundColor: getRutaColor(clienteSeleccionado.ruta) }"
-                >
-                  {{ formatRuta(clienteSeleccionado.ruta) }}
-                </span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <span
+                    class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase"
+                    :class="(clienteSeleccionado.estado || '').toLowerCase() === 'activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'"
+                  >
+                    {{ clienteSeleccionado.estado || 'Activo' }}
+                  </span>
+                  <span
+                    class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shadow-2xs"
+                    :style="{ backgroundColor: getRutaColor(clienteSeleccionado.ruta) }"
+                  >
+                    {{ formatRuta(clienteSeleccionado.ruta) }}
+                  </span>
+                </div>
               </div>
 
-              <!-- Tarjeta de RTM Actual y Botón de Ajuste Dinámico -->
+              <!-- Tarjeta de RTM Actual y Botones de Ajuste / Activación -->
               <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
                 <div class="flex items-center justify-between font-mono text-[11px]">
                   <span>Ruta: <b :style="{ color: getRutaColor(clienteSeleccionado.ruta) }">{{ formatRuta(clienteSeleccionado.ruta) }}</b></span>
@@ -1308,6 +1341,20 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                   </svg>
                   <span>Ajustar RTM (Reasignar Ruta / Día)</span>
+                </button>
+                <button
+                  v-if="(clienteSeleccionado.estado || '').toLowerCase() !== 'activo'"
+                  type="button"
+                  @click="activarClienteDirecto(clienteSeleccionado)"
+                  :disabled="activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id)"
+                  class="w-full py-1.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Reactivar cliente a estado Activo inmediatamente"
+                >
+                  <span v-if="activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id)" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>{{ activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id) ? 'Activando...' : 'Activar Cliente' }}</span>
                 </button>
               </div>
 
@@ -1745,6 +1792,15 @@
           <table v-else class="w-full text-left text-xs border-collapse">
             <thead class="bg-slate-50 text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 z-10 select-none">
               <tr>
+                <th class="py-1.5 px-2.5 w-8 text-center">
+                  <input
+                    type="checkbox"
+                    :checked="todosClientesTablaSeleccionados"
+                    @change="toggleSeleccionarTodosClientesTabla"
+                    class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                    title="Seleccionar / deseleccionar todos los clientes de la tabla"
+                  />
+                </th>
                 <th
                   @click="ordenarPor('cliente_id')"
                   class="py-1.5 px-3 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
@@ -1883,7 +1939,16 @@
                 v-for="c in clientesConCambioFiltrados"
                 :key="c.id"
                 class="hover:bg-slate-50/80 transition-colors"
+                :class="clientesSeleccionadosIds.includes(c.cliente_id || c.id) ? 'bg-sky-50/40' : ''"
               >
+                <td class="py-2 px-2.5 text-center whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    :value="c.cliente_id || c.id"
+                    v-model="clientesSeleccionadosIds"
+                    class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                  />
+                </td>
                 <td class="py-2 px-3 font-mono text-slate-500 text-[11px] whitespace-nowrap">
                   {{ c.cliente_id }}
                 </td>
@@ -2032,6 +2097,16 @@
                     Ver en mapa
                   </button>
                   <button
+                    v-if="(c.estado || '').toLowerCase() !== 'activo'"
+                    type="button"
+                    @click="activarClienteDirecto(c)"
+                    :disabled="activandoClienteId === (c.cliente_id || c.id)"
+                    class="px-2 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded transition-colors cursor-pointer disabled:opacity-50"
+                    title="Reactivar cliente a estado Activo"
+                  >
+                    {{ activandoClienteId === (c.cliente_id || c.id) ? 'Activando...' : 'Activar' }}
+                  </button>
+                  <button
                     v-if="c.propuesta_id"
                     type="button"
                     @click="descartarPropuesta(c)"
@@ -2045,7 +2120,7 @@
             </tbody>
             <tfoot class="bg-slate-100/95 text-slate-800 font-mono text-[11px] font-bold border-t-2 border-slate-300 sticky bottom-0 z-10 shadow-md">
               <tr>
-                <td colspan="4" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
+                <td colspan="5" class="py-2 px-3 text-right uppercase tracking-wider text-slate-600">
                   TOTALES ({{ clientesConCambioFiltrados.length }} clis):
                 </td>
                 <td
@@ -2062,6 +2137,55 @@
           </table>
         </div>
       </div>
+
+      <!-- ========================================== -->
+      <!-- BARRA FLOTANTE DE ACCIONES EN LOTE         -->
+      <!-- ========================================== -->
+      <Teleport to="body">
+        <div
+          v-if="clientesSeleccionadosIds.length > 0"
+          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99990] bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700/80 px-4 py-2.5 flex items-center gap-3 flex-wrap max-w-[95vw] animate-in fade-in slide-in-from-bottom-2 duration-150"
+        >
+          <div class="flex items-center gap-2 font-mono text-xs">
+            <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+            <span class="font-bold">{{ clientesSeleccionadosIds.length }} seleccionados</span>
+            <span
+              v-if="clientesInactivosSeleccionadosCount > 0"
+              class="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.2 rounded border border-rose-500/30 font-semibold"
+            >
+              {{ clientesInactivosSeleccionadosCount }} inactivos
+            </span>
+          </div>
+
+          <div class="h-4 w-px bg-slate-700 hidden sm:block"></div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Botón Activar Seleccionados -->
+            <button
+              type="button"
+              @click="ejecutarActivacionMasiva"
+              :disabled="activandoMasivo"
+              class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Reactivar los clientes seleccionados a estado Activo"
+            >
+              <span v-if="activandoMasivo" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              <span>{{ activandoMasivo ? 'Activando...' : 'Activar Seleccionados' }}</span>
+            </button>
+
+            <!-- Botón Limpiar Selección -->
+            <button
+              type="button"
+              @click="clientesSeleccionadosIds = []"
+              class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- ========================================== -->
       <!-- MODAL PARA AJUSTAR RTM DE UN CLIENTE       -->
@@ -2090,6 +2214,20 @@
                   >
                     {{ modalAjusteRtm.cliente?.estado || 'Activo' }}
                   </span>
+                  <button
+                    v-if="(modalAjusteRtm.cliente?.estado || '').toLowerCase() !== 'activo'"
+                    type="button"
+                    @click="activarClienteDirecto(modalAjusteRtm.cliente)"
+                    :disabled="activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id)"
+                    class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                    title="Reactivar cliente a estado Activo inmediatamente"
+                  >
+                    <span v-if="activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id)" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span>{{ activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id) ? 'Activando...' : 'Activar Cliente' }}</span>
+                  </button>
                   <span class="text-[11px] text-slate-500 font-mono">
                     ID: {{ modalAjusteRtm.cliente?.cliente_id }}
                   </span>
@@ -2333,11 +2471,36 @@
                     />
                   </div>
 
+                  <!-- Toggle para Activar Cliente si es Inactivo -->
+                  <div
+                    v-if="(modalAjusteRtm.cliente?.estado || '').toLowerCase() !== 'activo'"
+                    class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between gap-2"
+                  >
+                    <div class="text-[11px] text-emerald-950">
+                      <span class="font-bold flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        Activar cliente al guardar ajuste:
+                      </span>
+                      <p class="text-[10.5px] text-emerald-700 mt-0.5">
+                        El cliente pasará inmediatamente a estado <b>Activo</b> en el padrón.
+                      </p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        v-model="formRtm.activar_cliente"
+                        class="w-4 h-4 rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
                   <!-- Nota Informativa de Propuesta Saneamiento -->
                   <div class="p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-[11px] text-slate-800 select-none">
                     <span class="font-bold">Registro de Auditoría:</span>
                     <p class="text-slate-600 text-[10.5px] mt-0.5 leading-relaxed">
-                      Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. La base inmutable de <code>pan_ruteo</code> no es alterada.
+                      Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. Si se activó el cliente, su estado se actualiza a Activo en <code>pan_ruteo</code>.
                     </p>
                   </div>
                 </div>
@@ -2518,8 +2681,17 @@ const subModoVisualizacion = ref('original');
 // subHerramientaRtm: 'fronteras' (mover polígonos) | 'reasignacion' (reasignar rutas/días de clientes)
 const subHerramientaRtm = ref('fronteras');
 
-// Selección múltiple para reasignación en lote (Modo Ajuste RTM)
+// Selección múltiple para reasignación en lote y activación (Modo Ajuste RTM y Matriz)
 const clientesSeleccionadosIds = ref([]);
+const activandoClienteId = ref(null);
+const activandoMasivo = ref(false);
+
+const clientesInactivosSeleccionadosCount = computed(() => {
+  if (clientesSeleccionadosIds.value.length === 0) return 0;
+  const idsSet = new Set(clientesSeleccionadosIds.value.map(String));
+  return clientes.value.filter(c => idsSet.has(String(c.cliente_id || c.id)) && (c.estado || '').toLowerCase() !== 'activo').length;
+});
+
 const formReasignacionMasiva = ref({
   ruta_propuesta: '',
   dia_propuesto: '',
@@ -2888,6 +3060,22 @@ function toggleSeleccionarTodosClientes() {
   } else {
     const nuevosIds = new Set(clientesSeleccionadosIds.value);
     clientesFiltradosLista.value.forEach(c => nuevosIds.add(c.cliente_id || c.id));
+    clientesSeleccionadosIds.value = Array.from(nuevosIds);
+  }
+}
+
+const todosClientesTablaSeleccionados = computed(() => {
+  if (clientesConCambioFiltrados.value.length === 0) return false;
+  return clientesConCambioFiltrados.value.every(c => clientesSeleccionadosIds.value.includes(c.cliente_id || c.id));
+});
+
+function toggleSeleccionarTodosClientesTabla() {
+  if (todosClientesTablaSeleccionados.value) {
+    const idsDesmarcar = new Set(clientesConCambioFiltrados.value.map(c => c.cliente_id || c.id));
+    clientesSeleccionadosIds.value = clientesSeleccionadosIds.value.filter(id => !idsDesmarcar.has(id));
+  } else {
+    const nuevosIds = new Set(clientesSeleccionadosIds.value);
+    clientesConCambioFiltrados.value.forEach(c => nuevosIds.add(c.cliente_id || c.id));
     clientesSeleccionadosIds.value = Array.from(nuevosIds);
   }
 }
@@ -3806,6 +3994,141 @@ async function ejecutarReasignacionMasiva() {
     alert('Error al reasignar: ' + (err.response?.data?.message || err.message));
   } finally {
     guardandoReasignacionMasiva.value = false;
+  }
+}
+
+async function activarClienteDirecto(clienteOrId) {
+  const clienteId = typeof clienteOrId === 'object' && clienteOrId !== null
+    ? (clienteOrId.cliente_id || clienteOrId.id)
+    : clienteOrId;
+
+  if (!clienteId) return;
+
+  const clienteObj = typeof clienteOrId === 'object' && clienteOrId !== null
+    ? clienteOrId
+    : clientes.value.find(c => String(c.cliente_id || c.id) === String(clienteId));
+
+  const nombreCliente = clienteObj?.nombre || `ID ${clienteId}`;
+
+  if (!confirm(`¿Deseas reactivar al cliente "${nombreCliente}" a estado Activo?`)) {
+    return;
+  }
+
+  activandoClienteId.value = clienteId;
+
+  // Cerrar modal y popup de mapa inmediatamente para evitar interferencias
+  if (modalAjusteRtm.value.show && String(modalAjusteRtm.value.cliente?.cliente_id || modalAjusteRtm.value.cliente?.id) === String(clienteId)) {
+    cerrarModalAjusteRtm();
+  }
+  if (map) {
+    map.closePopup();
+  }
+
+  // Optimistic update local
+  const idx = clientes.value.findIndex(c => String(c.cliente_id || c.id) === String(clienteId));
+  if (idx !== -1) {
+    clientes.value[idx] = {
+      ...clientes.value[idx],
+      estado: 'Activo',
+    };
+  }
+  if (clienteSeleccionado.value && String(clienteSeleccionado.value.cliente_id || clienteSeleccionado.value.id) === String(clienteId)) {
+    clienteSeleccionado.value.estado = 'Activo';
+  }
+
+  // Ajustar KPIs optimistas
+  if (kpis.value) {
+    if (kpis.value.inactivos && kpis.value.inactivos > 0) {
+      kpis.value.inactivos--;
+    }
+    if (typeof kpis.value.activos === 'number') {
+      kpis.value.activos++;
+    }
+  }
+
+  renderizarEnMapa(true);
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.activar-cliente')
+      : '/supervisor/saneamiento/visor/activar-cliente';
+
+    const res = await axios.post(url, {
+      cliente_id: clienteId,
+      observaciones: 'Activación directa desde Visor territorial',
+    });
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || `Cliente ${clienteId} reactivado exitosamente.`);
+      await cargarDatos(true);
+    } else {
+      alert(res.data?.message || 'Error al reactivar cliente.');
+    }
+  } catch (err) {
+    console.error('Error al activar cliente:', err);
+    alert('Error al reactivar cliente: ' + (err.response?.data?.message || err.message));
+  } finally {
+    activandoClienteId.value = null;
+  }
+}
+
+async function ejecutarActivacionMasiva() {
+  if (clientesSeleccionadosIds.value.length === 0) return;
+
+  const count = clientesSeleccionadosIds.value.length;
+  if (!confirm(`¿Deseas reactivar a estado Activo a los ${count} clientes seleccionados?`)) {
+    return;
+  }
+
+  activandoMasivo.value = true;
+  const idsParaActivar = [...clientesSeleccionadosIds.value];
+
+  // Optimistic update local
+  const idsSet = new Set(idsParaActivar.map(String));
+  let reactivadosCount = 0;
+  clientes.value = clientes.value.map(c => {
+    if (idsSet.has(String(c.cliente_id || c.id))) {
+      if ((c.estado || '').toLowerCase() !== 'activo') {
+        reactivadosCount++;
+      }
+      return { ...c, estado: 'Activo' };
+    }
+    return c;
+  });
+
+  if (kpis.value) {
+    if (kpis.value.inactivos) {
+      kpis.value.inactivos = Math.max(0, kpis.value.inactivos - reactivadosCount);
+    }
+    if (typeof kpis.value.activos === 'number') {
+      kpis.value.activos += reactivadosCount;
+    }
+  }
+
+  renderizarEnMapa(true);
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.visor.activar-cliente')
+      : '/supervisor/saneamiento/visor/activar-cliente';
+
+    const res = await axios.post(url, {
+      cliente_ids: idsParaActivar,
+      observaciones: 'Activación masiva en lote desde Visor territorial',
+    });
+
+    if (res.data?.success) {
+      mostrarToast(res.data.message || `${idsParaActivar.length} clientes reactivados exitosamente.`);
+      clientesSeleccionadosIds.value = [];
+      await cargarDatos(true);
+    } else {
+      alert(res.data?.message || 'Error al procesar la activación masiva.');
+    }
+  } catch (err) {
+    console.error('Error al reactivar clientes en lote:', err);
+    alert('Error al activar en lote: ' + (err.response?.data?.message || err.message));
+  } finally {
+    activandoMasivo.value = false;
   }
 }
 
@@ -4806,12 +5129,14 @@ function abrirModalPuntoCliente(c) {
     tabActivo: 'rtm',
   };
 
+  const esInactivo = (c.estado || '').toLowerCase() !== 'activo';
   formRtm.value = {
     cliente_id: c.cliente_id || c.id,
     ruta_propuesta: c.ruta || (props.catalogo_rutas[0]?.ruta || ''),
     dia_propuesto: c.dia_norm || 'LUNES',
     observaciones: 'Ajuste dinámico RTM desde Visor',
     aplicar_inmediato: true,
+    activar_cliente: esInactivo,
   };
 
   guardandoRtm.value = false;
@@ -4850,6 +5175,7 @@ function confirmarAjusteRtm() {
     dia_propuesto: formRtm.value.dia_propuesto,
     observaciones: formRtm.value.observaciones || 'Ajuste dinámico RTM desde Visor',
     aplicar_inmediato: true,
+    activar_cliente: Boolean(formRtm.value.activar_cliente),
   };
   const clienteIdAfectado = payload.cliente_id;
 
@@ -4865,14 +5191,24 @@ function confirmarAjusteRtm() {
     (cl.id && cl.id === clienteIdAfectado)
   );
   if (idx !== -1) {
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : clientes.value[idx].estado;
     clientes.value[idx] = {
       ...clientes.value[idx],
       ruta: payload.ruta_propuesta,
       dia_norm: payload.dia_propuesto,
+      estado: estadoNuevo,
       tiene_cambio: true,
       tiene_propuesta: true,
       propuesta_estado: 'PENDIENTE',
     };
+    if (payload.activar_cliente && kpis.value) {
+      if (kpis.value.inactivos && kpis.value.inactivos > 0) {
+        kpis.value.inactivos--;
+      }
+      if (typeof kpis.value.activos === 'number') {
+        kpis.value.activos++;
+      }
+    }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
     }
@@ -4972,6 +5308,7 @@ function generarPopupHtmlRtm(c) {
   const rutaOrig = c.ruta_original || c.ruta;
   const diaOrig = c.dia_original || c.dia_norm;
   const tieneCambio = Boolean(c.tiene_cambio);
+  const esInactivo = (c.estado || '').toLowerCase() !== 'activo';
 
   const cachedKpis = kpisVentasCache.get(c.cliente_id);
   const numMesesVisibles = Math.min(periodosVisibles.value.length, 3) || 1;
@@ -5022,12 +5359,27 @@ function generarPopupHtmlRtm(c) {
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
         <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
           <span>${escapeHtml(c.nombre)}</span>
-          <span style="font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; background: ${(c.estado || '').toLowerCase() === 'activo' ? '#ECFDF5; color: #047857;' : '#FFE4E6; color: #BE123C;'}">${escapeHtml(c.estado || 'Activo')}</span>
+          <span style="font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; background: ${!esInactivo ? '#ECFDF5; color: #047857;' : '#FFE4E6; color: #BE123C;'}">${escapeHtml(c.estado || 'Activo')}</span>
         </div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
         <div style="font-family: monospace; font-size: 10px; color: #475569; margin-top: 3px;">
           ID: ${c.cliente_id} • Actual: <b>${escapeHtml(formatRuta(rutaOrig))}</b> (${escapeHtml(diaOrig || 'S/D')})
         </div>
+        ${esInactivo ? `
+          <button
+            type="button"
+            onclick="window.__activarCliente('${c.cliente_id || c.id}')"
+            style="margin-top: 5px; width: 100%; height: 24px; background-color: #047857; color: #ffffff; font-weight: 700; font-size: 10.5px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.15s ease; display: flex; align-items: center; justify-content: center; gap: 4px;"
+            onmouseover="this.style.backgroundColor='#065f46'"
+            onmouseout="this.style.backgroundColor='#047857'"
+            title="Reactivar cliente a estado Activo inmediatamente"
+          >
+            <svg style="width: 12px; height: 12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            <span>Activar Cliente</span>
+          </button>
+        ` : ''}
         ${tieneCambio ? `
           <div style="margin-top: 4px; padding: 4px 6px; background-color: #F8FAFC; border: 1.5px dashed #334155; border-radius: 4px; font-size: 9.5px; font-family: monospace;">
             <div style="font-weight: 700; color: #0F172A; display: flex; justify-content: space-between;">
@@ -5075,6 +5427,13 @@ function generarPopupHtmlRtm(c) {
           <input id="rtm-popup-obs-${c.id}" type="text" placeholder="Rebalanceo RTM..." style="width: 100%; height: 24px; padding: 0 6px; font-size: 10.5px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; box-sizing: border-box; outline: none;" />
         </div>
 
+        ${esInactivo ? `
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #047857; font-weight: 600; cursor: pointer; margin-top: 2px;">
+            <input id="rtm-popup-activar-${c.id}" type="checkbox" checked style="accent-color: #047857; cursor: pointer;" />
+            <span>Activar cliente al guardar</span>
+          </label>
+        ` : ''}
+
         <button
           id="rtm-btn-save-${c.id}"
           type="button"
@@ -5106,6 +5465,8 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
   const selectRuta = document.getElementById(`rtm-popup-ruta-${domId}`);
   const selectDia = document.getElementById(`rtm-popup-dia-${domId}`);
   const inputObs = document.getElementById(`rtm-popup-obs-${domId}`);
+  const checkActivar = document.getElementById(`rtm-popup-activar-${domId}`);
+  const activarCliente = checkActivar ? checkActivar.checked : false;
 
   if (!selectRuta || !selectRuta.value) {
     alert('Por favor selecciona una ruta.');
@@ -5118,6 +5479,7 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
     dia_propuesto: selectDia ? selectDia.value : 'LUNES',
     observaciones: inputObs?.value?.trim() || 'Ajuste RTM territorial desde mapa Leaflet',
     aplicar_inmediato: true,
+    activar_cliente: activarCliente,
   };
 
   // 1. Cerrar popup inmediatamente
@@ -5131,14 +5493,24 @@ function guardarPropuestaRtmDesdePopup(clienteId, domId) {
     (cl.id && cl.id === domId)
   );
   if (idx !== -1) {
+    const estadoNuevo = payload.activar_cliente ? 'Activo' : clientes.value[idx].estado;
     clientes.value[idx] = {
       ...clientes.value[idx],
       ruta: payload.ruta_propuesta,
       dia_norm: payload.dia_propuesto,
+      estado: estadoNuevo,
       tiene_cambio: true,
       tiene_propuesta: true,
       propuesta_estado: 'PENDIENTE',
     };
+    if (payload.activar_cliente && kpis.value) {
+      if (kpis.value.inactivos && kpis.value.inactivos > 0) {
+        kpis.value.inactivos--;
+      }
+      if (typeof kpis.value.activos === 'number') {
+        kpis.value.activos++;
+      }
+    }
     if (!modalAjusteRtm.value.show) {
       renderizarEnMapa(true);
     }
@@ -5550,6 +5922,10 @@ if (typeof window !== 'undefined') {
     guardarPropuestaRtmDesdePopup(clienteId, domId);
   };
 
+  window.__activarCliente = (clienteId) => {
+    activarClienteDirecto(clienteId);
+  };
+
   window.__eliminarVerticePoligono = (idx) => {
     eliminarVertice(idx);
   };
@@ -5582,6 +5958,7 @@ onUnmounted(() => {
     delete window.__abrirExpedienteCliente;
     delete window.__abrirModalAjusteRtm;
     delete window.__guardarPropuestaRtmDesdePopup;
+    delete window.__activarCliente;
     delete window.__eliminarVerticePoligono;
   }
   if (map) {
