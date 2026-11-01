@@ -3577,8 +3577,8 @@ async function descartarPropuesta(c) {
       }
       if (modalAjusteRtm.value.show && modalAjusteRtm.value.cliente && (modalAjusteRtm.value.cliente.propuesta_id === c.propuesta_id || modalAjusteRtm.value.cliente.id === c.id)) {
         cerrarModalAjusteRtm();
+        clienteActivoId.value = null;
       }
-      clienteActivoId.value = null;
       cargarDatos(true);
     } else {
       alert('No se pudo descartar la propuesta.');
@@ -3761,7 +3761,12 @@ async function cargarDatos(mantenerVista = false) {
     // Sincronizar filtros de rutas con las rutas resultantes
     sincronizarFiltrosConRutasDisponibles();
 
-    renderizarEnMapa(mantenerVista);
+    if (modalAjusteRtm.value.show) {
+      // Si el usuario abrió otro modal y está haciendo cambios, no perturbar el mapa ni la vista
+      mapaPendienteDeRenderizar = true;
+    } else {
+      renderizarEnMapa(mantenerVista);
+    }
   } catch (error) {
     console.error('Error al consultar datos de ruteo:', error);
   } finally {
@@ -4667,33 +4672,40 @@ async function obtenerKpisVentasCliente(clienteId) {
 
 let currentModalSession = 0;
 
+function esSesionValidaParaKpis(sessionId) {
+  if (modalAjusteRtm.value.show) {
+    return sessionId === currentModalSession;
+  }
+  return sessionId === null || sessionId === currentModalSession;
+}
+
 async function cargarKpisVentasCliente(clienteId, sessionId = null) {
   if (!clienteId) {
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaKpis(sessionId)) {
       kpisVentasCliente.value = null;
     }
     return;
   }
 
   if (kpisVentasCache.has(clienteId)) {
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaKpis(sessionId)) {
       kpisVentasCliente.value = kpisVentasCache.get(clienteId);
     }
     return;
   }
 
+  if (!esSesionValidaParaKpis(sessionId)) return;
+
   cargandoKpisVentas.value = true;
-  if (sessionId === null || sessionId === currentModalSession) {
-    kpisVentasCliente.value = null;
-  }
+  kpisVentasCliente.value = null;
 
   try {
     const data = await obtenerKpisVentasCliente(clienteId);
-    if (data && (sessionId === null || sessionId === currentModalSession)) {
+    if (data && esSesionValidaParaKpis(sessionId)) {
       kpisVentasCliente.value = data;
     }
   } finally {
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaKpis(sessionId)) {
       cargandoKpisVentas.value = false;
     }
   }
@@ -4742,32 +4754,40 @@ async function actualizarKpisEnPopup(c) {
   }).join('');
 }
 
+function esSesionValidaParaVisitas(sessionId) {
+  if (modalAjusteRtm.value.show) {
+    return sessionId === currentModalSession;
+  }
+  return sessionId === null || sessionId === currentModalSession;
+}
+
 async function cargarVisitasCliente(clienteId, sessionId = null) {
   if (!clienteId) {
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaVisitas(sessionId)) {
       visitasCliente.value = [];
     }
     return;
   }
+  if (!esSesionValidaParaVisitas(sessionId)) return;
+
   cargandoVisitas.value = true;
-  if (sessionId === null || sessionId === currentModalSession) {
-    visitasCliente.value = [];
-  }
+  visitasCliente.value = [];
+
   try {
     const url = typeof route === 'function'
       ? route('supervisor.visitas.fotos', { clienteId })
       : `/supervisor/visitas/fotos/${clienteId}`;
     const res = await axios.post(url, {}, { timeout: 10000 });
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaVisitas(sessionId)) {
       visitasCliente.value = res.data?.visitas || [];
     }
   } catch (error) {
     console.warn('No se pudieron cargar visitas del cliente:', error.message);
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaVisitas(sessionId)) {
       visitasCliente.value = [];
     }
   } finally {
-    if (sessionId === null || sessionId === currentModalSession) {
+    if (esSesionValidaParaVisitas(sessionId)) {
       cargandoVisitas.value = false;
     }
   }
@@ -4794,6 +4814,8 @@ function abrirModalPuntoCliente(c) {
     aplicar_inmediato: true,
   };
 
+  guardandoRtm.value = false;
+
   if (map && c.latitud && c.longitud) {
     map.panTo([c.latitud, c.longitud], { animate: true, duration: 0.5 });
   }
@@ -4805,41 +4827,78 @@ function abrirModalPuntoCliente(c) {
 const abrirModalAjusteRtm = abrirModalPuntoCliente;
 const abrirExpedienteCliente = abrirModalPuntoCliente;
 
+let mapaPendienteDeRenderizar = false;
+
 function cerrarModalAjusteRtm() {
   modalAjusteRtm.value.show = false;
   modalAjusteRtm.value.cliente = null;
+  guardandoRtm.value = false;
+
+  if (mapaPendienteDeRenderizar) {
+    mapaPendienteDeRenderizar = false;
+    renderizarEnMapa(true);
+  }
 }
 
-async function confirmarAjusteRtm() {
+function confirmarAjusteRtm() {
   if (!formRtm.value.ruta_propuesta) return;
-  guardandoRtm.value = true;
 
-  try {
-    const url = typeof route === 'function'
-      ? route('supervisor.saneamiento.visor.ajustar-rtm')
-      : '/supervisor/saneamiento/visor/ajustar-rtm';
+  // 1. Extraer una copia completamente inmutable del payload antes de cerrar el modal
+  const payload = {
+    cliente_id: formRtm.value.cliente_id,
+    ruta_propuesta: formRtm.value.ruta_propuesta,
+    dia_propuesto: formRtm.value.dia_propuesto,
+    observaciones: formRtm.value.observaciones || 'Ajuste dinámico RTM desde Visor',
+    aplicar_inmediato: true,
+  };
+  const clienteIdAfectado = payload.cliente_id;
 
-    const res = await axios.post(url, formRtm.value);
-
-    if (res.data?.success) {
-      mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
-      // Cerrar modal inmediatamente tras confirmar el cambio
-      cerrarModalAjusteRtm();
-      if (map) {
-        map.closePopup();
-      }
-      clienteActivoId.value = null;
-      // Actualizar datos en segundo plano sin bloquear ni alterar nuevos modales
-      cargarDatos(true);
-    } else {
-      alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
-    }
-  } catch (err) {
-    console.error('Error al ajustar RTM del cliente:', err);
-    alert('Error al ajustar RTM: ' + (err.response?.data?.message || err.message));
-  } finally {
-    guardandoRtm.value = false;
+  // 2. Cerrar el modal INMEDIATAMENTE al presionar Guardar (sin esperar la petición de red)
+  cerrarModalAjusteRtm();
+  if (map) {
+    map.closePopup();
   }
+
+  // 3. Aplicar actualización optimista local al cliente en memoria para respuesta instantánea
+  const idx = clientes.value.findIndex(cl =>
+    (cl.cliente_id && cl.cliente_id === clienteIdAfectado) ||
+    (cl.id && cl.id === clienteIdAfectado)
+  );
+  if (idx !== -1) {
+    clientes.value[idx] = {
+      ...clientes.value[idx],
+      ruta: payload.ruta_propuesta,
+      dia_norm: payload.dia_propuesto,
+      tiene_cambio: true,
+      tiene_propuesta: true,
+      propuesta_estado: 'PENDIENTE',
+    };
+    if (!modalAjusteRtm.value.show) {
+      renderizarEnMapa(true);
+    }
+  }
+
+  // 4. Ejecutar el guardado en segundo plano de manera 100% aislada (sin mutar ningún modal nuevo que se abra)
+  (async () => {
+    try {
+      const url = typeof route === 'function'
+        ? route('supervisor.saneamiento.visor.ajustar-rtm')
+        : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+      const res = await axios.post(url, payload);
+
+      if (res.data?.success) {
+        mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente');
+        // Actualizar datos en segundo plano sin interrumpir ni cerrar ningún modal que esté abierto
+        await cargarDatos(true);
+      } else {
+        alert(res.data?.message || 'No se pudo aplicar el ajuste RTM.');
+      }
+    } catch (err) {
+      console.error('Error al ajustar RTM del cliente:', err);
+      alert('Error al ajustar RTM: ' + (err.response?.data?.message || err.message));
+    }
+  })();
 }
 
 function mostrarToast(msg) {
@@ -5043,67 +5102,68 @@ function generarPopupHtmlRtm(c) {
   `;
 }
 
-async function guardarPropuestaRtmDesdePopup(clienteId, domId) {
+function guardarPropuestaRtmDesdePopup(clienteId, domId) {
   const selectRuta = document.getElementById(`rtm-popup-ruta-${domId}`);
   const selectDia = document.getElementById(`rtm-popup-dia-${domId}`);
   const inputObs = document.getElementById(`rtm-popup-obs-${domId}`);
-  const btn = document.getElementById(`rtm-btn-save-${domId}`);
 
   if (!selectRuta || !selectRuta.value) {
     alert('Por favor selecciona una ruta.');
     return;
   }
 
-  const rutaPropuesta = selectRuta.value;
-  const diaPropuesto = selectDia ? selectDia.value : 'LUNES';
-  const obs = inputObs?.value?.trim() || 'Ajuste RTM territorial desde mapa Leaflet';
+  const payload = {
+    cliente_id: clienteId,
+    ruta_propuesta: selectRuta.value,
+    dia_propuesto: selectDia ? selectDia.value : 'LUNES',
+    observaciones: inputObs?.value?.trim() || 'Ajuste RTM territorial desde mapa Leaflet',
+    aplicar_inmediato: true,
+  };
 
-  if (btn) {
-    btn.disabled = true;
-    btn.innerText = 'Guardando...';
-    btn.style.opacity = '0.7';
+  // 1. Cerrar popup inmediatamente
+  if (map) {
+    map.closePopup();
   }
 
-  try {
-    const url = typeof route === 'function'
-      ? route('supervisor.saneamiento.visor.ajustar-rtm')
-      : '/supervisor/saneamiento/visor/ajustar-rtm';
-
-    const res = await axios.post(url, {
-      cliente_id: clienteId,
-      ruta_propuesta: rutaPropuesta,
-      dia_propuesto: diaPropuesto,
-      observaciones: obs,
-      aplicar_inmediato: true,
-    });
-
-    if (res.data?.success) {
-      mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente.');
-      if (map) {
-        map.closePopup();
-      }
-      if (modalAjusteRtm.value.show && (modalAjusteRtm.value.cliente?.cliente_id === clienteId || modalAjusteRtm.value.cliente?.id === domId)) {
-        cerrarModalAjusteRtm();
-      }
-      clienteActivoId.value = null;
-      cargarDatos(true);
-    } else {
-      alert(res.data?.message || 'No se pudo guardar la propuesta.');
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = 'Guardar Propuesta';
-        btn.style.opacity = '1';
-      }
-    }
-  } catch (err) {
-    console.error('Error al guardar propuesta RTM:', err);
-    alert('Error al guardar propuesta RTM: ' + (err.response?.data?.message || err.message));
-    if (btn) {
-      btn.disabled = false;
-      btn.innerText = 'Guardar Propuesta';
-      btn.style.opacity = '1';
+  // 2. Actualización optimista local en memoria
+  const idx = clientes.value.findIndex(cl =>
+    (cl.cliente_id && cl.cliente_id === clienteId) ||
+    (cl.id && cl.id === domId)
+  );
+  if (idx !== -1) {
+    clientes.value[idx] = {
+      ...clientes.value[idx],
+      ruta: payload.ruta_propuesta,
+      dia_norm: payload.dia_propuesto,
+      tiene_cambio: true,
+      tiene_propuesta: true,
+      propuesta_estado: 'PENDIENTE',
+    };
+    if (!modalAjusteRtm.value.show) {
+      renderizarEnMapa(true);
     }
   }
+
+  // 3. Guardado en segundo plano aislado
+  (async () => {
+    try {
+      const url = typeof route === 'function'
+        ? route('supervisor.saneamiento.visor.ajustar-rtm')
+        : '/supervisor/saneamiento/visor/ajustar-rtm';
+
+      const res = await axios.post(url, payload);
+
+      if (res.data?.success) {
+        mostrarToast(res.data.message || 'Propuesta RTM registrada exitosamente.');
+        await cargarDatos(true);
+      } else {
+        alert(res.data?.message || 'No se pudo guardar la propuesta.');
+      }
+    } catch (err) {
+      console.error('Error al guardar propuesta RTM:', err);
+      alert('Error al guardar propuesta RTM: ' + (err.response?.data?.message || err.message));
+    }
+  })();
 }
 
 function cambiarCapaMapa(nombreCapa) {
