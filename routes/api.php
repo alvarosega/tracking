@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AppModuleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClienteInventarioController;
+use App\Http\Controllers\Api\FronteraController;
 use App\Http\Controllers\Api\OportunidadesController;
 use App\Http\Controllers\Api\PedidoRechazadoController;
 use App\Http\Controllers\Api\PlanRuteoController;
@@ -39,6 +40,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/visitas/clientes', [VisitaController::class, 'clientes']);
     Route::get('/visitas/plan', [VisitaController::class, 'clientes']);
     Route::get('/visitas', [VisitaController::class, 'clientes']);
+
+    // Polígono de Frontera de la Ruta Comercial para Android (Mapas y Geocercas)
+    Route::get('/fronteras/ruta', [FronteraController::class, 'ruta']);
+    Route::get('/fronteras/rutas', [FronteraController::class, 'ruta']);
+    Route::get('/visitas/frontera', [FronteraController::class, 'ruta']);
+    Route::get('/ruteo/frontera', [FronteraController::class, 'ruta']);
 
     // Registro de Visitas en Campo (ambos alias para compatibilidad total con Retrofit)
     Route::post('/visitas', [VisitaController::class, 'store']);
