@@ -99,8 +99,6 @@ class GetFronteraRutaAction
             'origen' => $origen,
             'total_puntos' => count($puntos),
             'puntos' => $puntos,
-            'poligono_latlon' => $poligonoLatLon,
-            'geojson' => $gj,
         ];
     }
 
@@ -159,11 +157,6 @@ class GetFronteraRutaAction
                         'origen' => 'AUTOMATICO_FALLBACK',
                         'total_puntos' => count($puntos),
                         'puntos' => $puntos,
-                        'poligono_latlon' => $poligonoLatLon,
-                        'geojson' => [
-                            'type' => 'Polygon',
-                            'coordinates' => [$coordsGeoJson],
-                        ],
                     ];
                 }
             }
