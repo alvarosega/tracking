@@ -65,7 +65,26 @@ class GetVisitasClientesAction
             ->whereNotNull('cliente_id')
             ->groupBy('cliente_id');
 
-        // 5. Consultar clientes activos de la ruta en pan_ruteo
+        // 5. Consultar clientes visitados hoy en mysql.visitas para is_visited
+        $todayBolivia = $nowBolivia->toDateString();
+        $visitedTodayMap = [];
+        try {
+            $visitedClientIds = DB::connection('mysql')
+                ->table('visitas')
+                ->whereDate('created_at', $todayBolivia)
+                ->where(function ($q) use ($user, $rutaUsuario): void {
+                    $q->where('user_id', $user->id)
+                      ->orWhere('route', $rutaUsuario);
+                })
+                ->whereNotNull('client_id')
+                ->pluck('client_id')
+                ->all();
+            $visitedTodayMap = array_flip($visitedClientIds);
+        } catch (\Throwable $ve) {
+            Log::warning('GetVisitasClientesAction visitas query: ' . $ve->getMessage());
+        }
+
+        // 6. Consultar clientes activos de la ruta en pan_ruteo
         $query = DB::connection('supervisor')
             ->table('pan_ruteo as p')
             ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join): void {
@@ -95,9 +114,21 @@ class GetVisitasClientesAction
                     ELSE COALESCE(NULLIF(p.cliente, ''), p.cliente_norm, 'Cliente S/N') 
                 END as cliente"),
                 DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL AND sb.direccion IS NOT NULL AND TRIM(sb.direccion) != '' THEN sb.direccion 
+                    ELSE COALESCE(p.direccion, '') 
+                END as direccion"),
+                DB::raw("CASE 
                     WHEN sb.id IS NOT NULL AND (sb.celular IS NOT NULL OR sb.telefono IS NOT NULL) THEN COALESCE(NULLIF(sb.celular, ''), NULLIF(sb.telefono, ''), '')
                     ELSE COALESCE(NULLIF(p.celular, ''), NULLIF(p.telefono, ''), '') 
                 END as telefono"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL AND sb.latitude IS NOT NULL THEN sb.latitude 
+                    ELSE p.latitud 
+                END as latitud"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL AND sb.longitude IS NOT NULL THEN sb.longitude 
+                    ELSE p.longitud 
+                END as longitud"),
                 'p.dia',
                 'p.dia_norm',
                 'p.ruta',
@@ -105,7 +136,7 @@ class GetVisitasClientesAction
             ->orderBy('p.cliente_id', 'asc')
             ->get();
 
-        // 6. Deduplicar por cliente_id y estructurar formato ligero para Retrofit
+        // 7. Deduplicar por cliente_id y estructurar formato ligero para Retrofit
         $clientesVistos = [];
         $resultado = [];
 
@@ -123,8 +154,12 @@ class GetVisitasClientesAction
             $status = $esHabilitado ? 'visited' : 'unvisited';
 
             $nombre = trim((string) $c->cliente);
+            $direccion = trim((string) ($c->direccion ?? ''));
             $telefono = trim((string) ($c->telefono ?: ''));
             $diaDisplay = ucfirst($diaNorm);
+            $latitud = $c->latitud !== null && $c->latitud !== '' ? (float) $c->latitud : null;
+            $longitud = $c->longitud !== null && $c->longitud !== '' ? (float) $c->longitud : null;
+            $isVisited = isset($visitedTodayMap[$cid]);
 
             $resultado[] = [
                 'id' => $cid,
@@ -132,9 +167,13 @@ class GetVisitasClientesAction
                 'cliente_id' => $cid,
                 'nombre' => $nombre,
                 'cliente' => $nombre,
+                'direccion' => $direccion,
                 'telefono' => $telefono,
+                'latitud' => $latitud,
+                'longitud' => $longitud,
                 'dia' => $diaDisplay,
                 'status' => $status,
+                'is_visited' => $isVisited,
             ];
         }
 
