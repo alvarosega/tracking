@@ -420,8 +420,8 @@ class GetCumplimientoDataAction
 
         foreach ($rutasFiltradas as $rutaCodigo) {
             $infoRuta = $metaRutas->get($rutaCodigo);
-            $vendedor = $infoRuta ? $infoRuta->vendedor : 'Sin Asignar';
-            $canal = $infoRuta ? $infoRuta->canal : 'TDB';
+            $vendedor = is_array($infoRuta) ? ($infoRuta['vendedor'] ?? 'Sin Asignar') : ($infoRuta?->vendedor ?? 'Sin Asignar');
+            $canal = is_array($infoRuta) ? ($infoRuta['canal'] ?? 'TDB') : ($infoRuta?->canal ?? 'TDB');
 
             // Colecciones locales de la ruta
             $carteraRuta = $carteraPorRuta->get($rutaCodigo, collect());
@@ -605,7 +605,7 @@ class GetCumplimientoDataAction
             // KPI 3: Cumplimiento de Objetivo Diario (10 Puntos)
             // ----------------------------------------------------
             $metaRutaObj = $metasPorRuta->get($rutaCodigo);
-            $metaMensual = $metaRutaObj ? (float) ($metaRutaObj->objetivo_de_venta ?? 0.0) : 0.0;
+            $metaMensual = $metaRutaObj ? (float) (is_array($metaRutaObj) ? ($metaRutaObj['objetivo_de_venta'] ?? 0.0) : ($metaRutaObj->objetivo_de_venta ?? 0.0)) : 0.0;
             $facturadoPrevio = (float) ($facturadoPrevioPorRuta[$rutaCodigo] ?? 0.0);
             $brecha = max(0.0, $metaMensual - $facturadoPrevio);
             $cuotaDiaria = ($divisorPreventa > 0) ? round($brecha / $divisorPreventa, 2) : 0.0;
