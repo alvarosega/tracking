@@ -25,7 +25,7 @@
             </span>
           </div>
           <p class="text-xs text-[#6E6E73] mt-0.5">
-            Configura qué fechas de preventa se evalúan contra la facturación de ventas (ERP) para enviar los pedidos rechazados a la app móvil de los vendedores.
+            Selecciona los días de preventa a evaluar contra la facturación en ERP para enviar los pedidos rechazados a la app móvil de los vendedores.
           </p>
         </div>
 
@@ -57,25 +57,19 @@
         </div>
       </div>
 
-      <!-- CARD 1: CONTROL DE EXCEPCIONES Y FERIADOS (APPLE HERO) -->
+      <!-- CARD HERO: SELECCIÓN DIRECTA DE DÍAS DE PREVENTA (APPLE PRO) -->
       <div class="bg-white border border-[#E5E5EA] rounded-[12px] p-4 sm:p-5 shadow-2xs space-y-4">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <div
-                class="w-7 h-7 rounded-[8px] flex items-center justify-center"
-                :class="evalInfo.es_excepcion ? 'bg-[#FF9500]/10 text-[#FF9500]' : 'bg-[#0071E3]/10 text-[#0071E3]'"
-              >
-                <svg v-if="evalInfo.es_excepcion" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <div class="w-7 h-7 rounded-[8px] bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
 
               <h2 class="text-sm font-bold text-[#1D1D1F]">
-                {{ evalInfo.es_excepcion ? 'Excepción Activa (Feriado o Fecha Manual)' : 'Modo Automático Semanal' }}
+                Días de Preventa a Evaluar para Hoy ({{ evalInfo.dia_actual }})
               </h2>
 
               <span
@@ -84,7 +78,7 @@
                   ? 'bg-[#FFF4E5] text-[#B25E00] border border-[#FF9500]/30'
                   : 'bg-[#EFF6FF] text-[#0071E3] border border-[#0071E3]/20'"
               >
-                {{ evalInfo.modo_aplicado }}
+                {{ evalInfo.es_excepcion ? 'Excepción Feriado' : 'Modo Semanal Activo' }}
               </span>
             </div>
 
@@ -93,158 +87,121 @@
             </p>
           </div>
 
-          <!-- Fechas Activas Badge -->
+          <!-- Impacto en Fechas Resueltas -->
           <div class="bg-[#F9F9FB] border border-[#E5E5EA] rounded-[8px] px-3.5 py-2 flex items-center gap-3 shrink-0">
             <div>
               <span class="text-[10px] font-medium text-[#86868B] block uppercase tracking-wider">Fechas de preventa evaluadas:</span>
               <span class="text-xs font-mono font-bold text-[#1D1D1F]">
-                {{ evalInfo.fechas.join(', ') }}
+                {{ evalInfo.fechas.length > 0 ? evalInfo.fechas.join(', ') : 'Ninguna' }}
               </span>
             </div>
             <span class="w-2.5 h-2.5 rounded-full" :class="evalInfo.es_excepcion ? 'bg-[#FF9500] animate-pulse' : 'bg-[#34C759]'"></span>
           </div>
         </div>
 
-        <!-- Barra de Configuración de Excepción (Superadmin o Ajustes Globales) -->
-        <div v-if="canEditGlobal" class="pt-3 border-t border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs text-[#86868B] font-medium">Fijar Fecha de Preventa (Feriados / Excepción):</span>
+        <!-- SELECTOR RÁPIDO DE DÍAS (BOTONES CON NOMBRE Y FECHA EXACTA) -->
+        <div class="pt-3 border-t border-[#E5E5EA] space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <span class="text-xs font-medium text-[#1D1D1F]">
+              Haz clic en los días de preventa que se deben cruzar hoy (ej: <strong>Viernes y Sábado</strong>):
+            </span>
+
+            <div class="flex items-center gap-2">
+              <button
+                v-if="canEditGlobal"
+                type="button"
+                @click="guardarDiasSeleccionados"
+                :disabled="guardando || diasSeleccionadosLocales.length === 0"
+                class="h-8 px-4 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 rounded-[6px] shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span v-if="guardando" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span>Guardar Días de Preventa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Botones de Días con Fechas -->
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="opc in opcionesDias"
+              :key="opc.nombre"
+              type="button"
+              @click="toggleDia(opc.nombre)"
+              class="h-9 px-3.5 rounded-[8px] border text-xs font-mono transition-all flex items-center gap-2 cursor-pointer select-none"
+              :class="isDiaActivo(opc.nombre)
+                ? 'bg-[#0071E3] text-white border-[#0071E3] font-bold shadow-xs'
+                : 'bg-white text-[#1D1D1F] border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            >
+              <!-- Checkmark icono -->
+              <span
+                class="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
+                :class="isDiaActivo(opc.nombre) ? 'bg-white/20 text-white' : 'border border-[#E5E5EA] text-transparent'"
+              >
+                ✓
+              </span>
+              <span>{{ opc.nombre }}</span>
+              <span
+                class="px-1.5 py-0.2 rounded text-[10px] font-mono"
+                :class="isDiaActivo(opc.nombre) ? 'bg-white/25 text-white' : 'bg-[#F2F2F7] text-[#6E6E73]'"
+              >
+                {{ opc.fecha_corta }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Selector de Fecha Específica / Feriado Alternativo -->
+          <div class="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[#86868B]">¿Hubo feriado o fecha especial?</span>
+              <button
+                type="button"
+                @click="mostrarSelectorFechaManual = !mostrarSelectorFechaManual"
+                class="text-[#0071E3] hover:underline font-medium cursor-pointer"
+              >
+                {{ mostrarSelectorFechaManual ? 'Ocultar selector de fecha fija' : 'Fijar fecha de preventa por calendario' }}
+              </button>
+            </div>
+
+            <div v-if="evalInfo.es_excepcion" class="flex items-center gap-2">
+              <span class="text-[#FF9500] font-medium">Excepción manual activa.</span>
+              <button
+                type="button"
+                @click="limpiarExcepcion"
+                :disabled="guardando"
+                class="text-[#0071E3] hover:underline font-medium cursor-pointer"
+              >
+                Volver a días automáticos
+              </button>
+            </div>
+          </div>
+
+          <!-- Input de Fecha Manual (Opcional si hubo feriado atípico) -->
+          <div v-if="mostrarSelectorFechaManual" class="p-3 bg-[#F9F9FB] rounded-[8px] border border-[#E5E5EA] flex flex-wrap items-center gap-3">
+            <span class="text-xs text-[#1D1D1F] font-medium">Fecha de Preventa Fija:</span>
             <input
               type="date"
-              v-model="inputFechaExcepcion"
+              v-model="inputFechaManual"
               class="h-8 px-2.5 text-xs font-mono text-[#1D1D1F] bg-white border border-[#E5E5EA] rounded-[6px] focus:outline-none focus:border-[#0071E3]"
             />
-            <span class="text-xs text-[#86868B]">hasta</span>
+            <span class="text-xs text-[#86868B]">hasta (opcional)</span>
             <input
               type="date"
-              v-model="inputFechaExcepcionHasta"
+              v-model="inputFechaManualHasta"
               class="h-8 px-2.5 text-xs font-mono text-[#1D1D1F] bg-white border border-[#E5E5EA] rounded-[6px] focus:outline-none focus:border-[#0071E3]"
-              placeholder="Opcional"
             />
-
             <button
               type="button"
-              @click="guardarExcepcionFecha"
-              :disabled="guardando || !inputFechaExcepcion"
-              class="h-8 px-3 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 rounded-[6px] shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              @click="guardarFechaManual"
+              :disabled="guardando || !inputFechaManual"
+              class="h-8 px-3 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 rounded-[6px] cursor-pointer transition-colors"
             >
-              <span v-if="guardando" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>Activar Excepción</span>
+              Aplicar Fecha Calendario
             </button>
-
-            <button
-              v-if="evalInfo.es_excepcion"
-              type="button"
-              @click="limpiarExcepcion"
-              :disabled="guardando"
-              class="h-8 px-3 text-xs font-semibold text-[#1D1D1F] bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] rounded-[6px] transition-colors cursor-pointer"
-            >
-              Volver a Automático Semanal
-            </button>
-          </div>
-
-          <!-- Toggle Mostrar Editor Matriz Semanal -->
-          <div>
-            <button
-              type="button"
-              @click="mostrarEditorMatriz = !mostrarEditorMatriz"
-              class="h-8 px-3 text-xs font-medium text-[#0071E3] hover:bg-[#EFF6FF] rounded-[6px] transition-colors inline-flex items-center gap-1 cursor-pointer"
-            >
-              <span>{{ mostrarEditorMatriz ? 'Ocultar Matriz Semanal' : 'Personalizar Matriz Semanal' }}</span>
-              <svg class="w-3.5 h-3.5 transition-transform" :class="{ 'rotate-180': mostrarEditorMatriz }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- COLLAPSIBLE: EDITOR DE MATRIZ SEMANAL (LUNES A SÁBADO) -->
-        <div v-if="mostrarEditorMatriz" class="mt-4 pt-4 border-t border-[#E5E5EA] space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-xs font-bold text-[#1D1D1F] uppercase tracking-wider">Matriz Semanal de Preventas por Día de Entrega</h3>
-              <p class="text-[11px] text-[#6E6E73]">Marca qué días de preventa corresponden a cada día de trabajo del vendedor cuando no hay feriados.</p>
-            </div>
-            <button
-              type="button"
-              @click="guardarMatrizSemanal"
-              :disabled="guardando"
-              class="h-7 px-3 text-xs font-semibold text-white bg-[#34C759] hover:bg-[#2EB84E] rounded-[6px] transition-colors cursor-pointer"
-            >
-              Guardar Matriz Semanal
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div
-              v-for="(diaData, diaKey) in diasSemanaCatalogo"
-              :key="diaKey"
-              class="p-3 rounded-[8px] border bg-[#FBFBFD] space-y-2"
-              :class="evalInfo.dia_actual.toLowerCase() === diaData.nombre.toLowerCase() ? 'border-[#0071E3] ring-1 ring-[#0071E3]/20' : 'border-[#E5E5EA]'"
-            >
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-[#1D1D1F]">{{ diaData.nombre }}</span>
-                <span
-                  v-if="evalInfo.dia_actual.toLowerCase() === diaData.nombre.toLowerCase()"
-                  class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#EFF6FF] text-[#0071E3]"
-                >
-                  Hoy
-                </span>
-              </div>
-
-              <div class="flex flex-wrap gap-1.5">
-                <label
-                  v-for="opcion in ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']"
-                  :key="opcion"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] text-[11px] font-mono cursor-pointer transition-colors border select-none"
-                  :class="isDiaSeleccionado(diaKey, opcion)
-                    ? 'bg-[#0071E3] text-white border-[#0071E3] font-bold shadow-2xs'
-                    : 'bg-white text-[#6E6E73] border-[#E5E5EA] hover:border-[#86868B]'"
-                >
-                  <input
-                    type="checkbox"
-                    class="hidden"
-                    :checked="isDiaSeleccionado(diaKey, opcion)"
-                    @change="toggleDiaMatriz(diaKey, opcion)"
-                  />
-                  <span>{{ opcion.substring(0, 3) }}</span>
-                </label>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      <!-- KPI METRICS (APPLE PRO) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
-          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Total Rutas</span>
-          <div class="text-xl font-bold font-mono text-[#1D1D1F] mt-0.5">{{ kpis.total_rutas || rutas.length }}</div>
-          <span class="text-[10px] text-[#6E6E73] mt-0.5 block">Comerciales monitoreadas</span>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
-          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Preventas Evaluadas</span>
-          <div class="text-xl font-bold font-mono text-[#0071E3] mt-0.5">{{ kpis.total_preventas_evaluadas || 0 }}</div>
-          <span class="text-[10px] text-[#6E6E73] mt-0.5 block">En las fechas del corte actual</span>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
-          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Rechazos Pendientes</span>
-          <div class="text-xl font-bold font-mono text-[#FF3B30] mt-0.5">{{ kpis.total_preventas_rechazadas || 0 }}</div>
-          <span class="text-[10px] text-[#6E6E73] mt-0.5 block">Preventas que ve Android hoy</span>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
-          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Estado de Corte</span>
-          <div class="text-xs font-bold font-mono text-[#1D1D1F] mt-1 truncate" :title="evalInfo.descripcion">
-            {{ evalInfo.es_excepcion ? 'Excepción Feriado' : 'Semanal Normal' }}
-          </div>
-          <span class="text-[10px] text-[#86868B] mt-0.5 block">{{ evalInfo.fechas.join(', ') }}</span>
-        </div>
-      </div>
-
-      <!-- TABLA MATRIZ DE RUTAS -->
+      <!-- TABLA MATRIZ DE RUTAS (CON CANAL TDB POR DEFECTO) -->
       <div class="space-y-3">
         <!-- Barra de Búsqueda y Filtros -->
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -261,10 +218,10 @@
               />
             </div>
 
-            <!-- Filtro de Canal -->
+            <!-- Filtro de Canal (Por Defecto TDB) -->
             <select
               v-model="filtroCanal"
-              class="h-8 px-2.5 text-xs bg-white border border-[#E5E5EA] rounded-[6px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+              class="h-8 px-2.5 text-xs bg-white border border-[#E5E5EA] rounded-[6px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] font-mono"
             >
               <option value="">Todos los Canales</option>
               <option v-for="canal in canales" :key="canal" :value="canal">{{ canal }}</option>
@@ -288,14 +245,14 @@
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-[#FBFBFD] border-b border-[#E5E5EA] text-[10px] font-mono uppercase text-[#86868B] tracking-wider">
-                  <th class="py-2 px-3.5">Ruta Comercial</th>
-                  <th class="py-2 px-3 text-center">Canal</th>
-                  <th class="py-2 px-3 text-center">Clientes</th>
-                  <th class="py-2 px-3 text-center">Preventas Corte</th>
-                  <th class="py-2 px-3 text-center">Rechazos Pendientes</th>
-                  <th class="py-2 px-3 text-center">Monto Rechazado</th>
-                  <th class="py-2 px-3 text-center">Estado Módulo</th>
-                  <th class="py-2 px-3 text-right">Acciones</th>
+                  <th class="py-2.5 px-3.5">Ruta Comercial</th>
+                  <th class="py-2.5 px-3 text-center">Canal</th>
+                  <th class="py-2.5 px-3 text-center">Clientes</th>
+                  <th class="py-2.5 px-3 text-center">Preventas Corte</th>
+                  <th class="py-2.5 px-3 text-center">Rechazos Pendientes</th>
+                  <th class="py-2.5 px-3 text-center">Monto Rechazado</th>
+                  <th class="py-2.5 px-3 text-center">Estado Módulo</th>
+                  <th class="py-2.5 px-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-xs">
@@ -313,7 +270,7 @@
                   <!-- Ruta y Vendedor -->
                   <td class="py-2.5 px-3.5 align-middle">
                     <div class="font-bold text-[#1D1D1F] font-mono">{{ r.ruta }}</div>
-                    <div class="text-[11px] text-[#6E6E73] truncate max-w-[180px]">{{ r.vendedor }}</div>
+                    <div class="text-[11px] text-[#6E6E73] truncate max-w-[200px]">{{ r.vendedor }}</div>
                   </td>
 
                   <!-- Canal -->
@@ -336,7 +293,7 @@
                   <!-- Rechazos Pendientes -->
                   <td class="py-2.5 px-3 align-middle text-center font-mono">
                     <span
-                      class="px-2 py-0.5 rounded-full text-xs font-bold"
+                      class="px-2.5 py-0.5 rounded-full text-xs font-bold"
                       :class="r.total_rechazos > 0 ? 'bg-[#FFECEB] text-[#FF3B30]' : 'text-[#86868B]'"
                     >
                       {{ r.total_rechazos }}
@@ -380,7 +337,7 @@
                         type="button"
                         @click="abrirPreview(r.ruta)"
                         class="h-7 px-2.5 bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#0071E3] text-xs font-semibold rounded-[6px] inline-flex items-center gap-1 transition-colors cursor-pointer"
-                        title="Ver preventas rechazadas que ve Android"
+                        title="Ver preventas rechazadas de esta ruta"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -441,7 +398,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div class="font-bold text-[#1D1D1F]">¡No hay pedidos rechazados pendientes!</div>
-              <div>Todas las preventas de estas fechas fueron completamente facturadas o ya cuentan con justificación.</div>
+              <div>Todas las preventas de estas fechas fueron facturadas en su totalidad o ya cuentan con justificación.</div>
             </div>
 
             <div v-else class="space-y-3">
@@ -461,6 +418,7 @@
                     </span>
                     <span class="text-xs font-bold text-[#1D1D1F]">{{ p.cliente_nombre }}</span>
                     <span class="text-[10px] font-mono text-[#86868B]">({{ p.codigo_cliente }})</span>
+                    <span class="text-[10px] font-mono text-[#86868B]">• Fecha: {{ p.fecha_preventa }}</span>
                   </div>
 
                   <div class="flex items-center gap-2">
@@ -541,23 +499,24 @@ const canEditMatriz = computed(() => isSuperAdmin.value || user.value?.permissio
 
 // Datos reactivos del servidor
 const configGlobal = ref(props.initialData.config_global || {});
-const evalInfo = ref(props.initialData.eval_info || { fechas: [] });
-const diasSemanaCatalogo = ref(props.initialData.dias_semana_catalogo || {});
+const evalInfo = ref(props.initialData.eval_info || { fechas: [], dias_activos: [] });
+const opcionesDias = ref(props.initialData.opciones_dias || []);
 const rutas = ref(props.initialData.rutas || []);
 const canales = ref(props.initialData.canales || []);
-const kpis = ref(props.initialData.kpis || {});
 
-// Estados locales de la vista
+// Estado local de días seleccionados
+const diasSeleccionadosLocales = ref([...(evalInfo.value?.dias_activos || ['Viernes', 'Sábado'])]);
+
+// Estados de carga y formulario
 const loading = ref(false);
 const guardando = ref(false);
-const mostrarEditorMatriz = ref(false);
+const mostrarSelectorFechaManual = ref(false);
+const inputFechaManual = ref('');
+const inputFechaManualHasta = ref('');
 
-const inputFechaExcepcion = ref(evalInfo.value?.es_excepcion ? evalInfo.value.fecha_min : '');
-const inputFechaExcepcionHasta = ref(evalInfo.value?.es_excepcion && evalInfo.value.fecha_max !== evalInfo.value.fecha_min ? evalInfo.value.fecha_max : '');
-
-// Filtros de la tabla
+// FILTRO POR CANAL: POR DEFECTO 'TDB'
+const filtroCanal = ref('TDB');
 const busqueda = ref('');
-const filtroCanal = ref('');
 const filtroSoloRechazos = ref(false);
 
 // Modal de previsualización
@@ -586,64 +545,64 @@ const rutasFiltradas = computed(() => {
   });
 });
 
-// Helper de matriz semanal
-function isDiaSeleccionado(diaKey, opcion) {
-  const matriz = configGlobal.value?.matriz_semanal || {};
-  const lista = matriz[diaKey] || [];
-  return lista.includes(opcion);
+// Helpers de selección de días
+function isDiaActivo(diaNombre) {
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return diasSeleccionadosLocales.value.some((d) => norm(d) === norm(diaNombre));
 }
 
-function toggleDiaMatriz(diaKey, opcion) {
-  if (!configGlobal.value.matriz_semanal) {
-    configGlobal.value.matriz_semanal = {};
-  }
-  if (!configGlobal.value.matriz_semanal[diaKey]) {
-    configGlobal.value.matriz_semanal[diaKey] = [];
-  }
+function toggleDia(diaNombre) {
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const target = norm(diaNombre);
+  const idx = diasSeleccionadosLocales.value.findIndex((d) => norm(d) === target);
 
-  const idx = configGlobal.value.matriz_semanal[diaKey].indexOf(opcion);
   if (idx > -1) {
-    configGlobal.value.matriz_semanal[diaKey].splice(idx, 1);
+    if (diasSeleccionadosLocales.value.length > 1) {
+      diasSeleccionadosLocales.value.splice(idx, 1);
+    }
   } else {
-    configGlobal.value.matriz_semanal[diaKey].push(opcion);
+    diasSeleccionadosLocales.value.push(diaNombre);
   }
 }
 
-// Acciones API
-async function fetchData() {
-  loading.value = true;
-  try {
-    const res = await axios.post('/supervisor/rechazos-ventana/data');
-    configGlobal.value = res.data.config_global;
-    evalInfo.value = res.data.eval_info;
-    diasSemanaCatalogo.value = res.data.dias_semana_catalogo;
-    rutas.value = res.data.rutas;
-    canales.value = res.data.canales;
-    kpis.value = res.data.kpis;
-  } catch (e) {
-    console.error('Error al recargar datos:', e);
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function guardarExcepcionFecha() {
-  if (!inputFechaExcepcion.value) return;
+// Guardar los días seleccionados
+async function guardarDiasSeleccionados() {
   guardando.value = true;
   try {
-    await axios.post('/supervisor/rechazos-ventana/global', {
-      modo: 'fecha_fija',
-      fecha_especifica_activa: inputFechaExcepcion.value,
-      fecha_especifica_hasta: inputFechaExcepcionHasta.value || null,
+    const res = await axios.post('/supervisor/rechazos-ventana/global', {
+      modo: 'semanal',
+      dias_seleccionados: diasSeleccionadosLocales.value,
+      fecha_especifica_activa: null,
+      fecha_especifica_hasta: null,
     });
+    configGlobal.value = res.data.config;
     await fetchData();
   } catch (e) {
-    alert(e.response?.data?.message || 'Error guardando excepción');
+    alert(e.response?.data?.message || 'Error guardando días de preventa');
   } finally {
     guardando.value = false;
   }
 }
 
+// Aplicar fecha manual o feriado
+async function guardarFechaManual() {
+  if (!inputFechaManual.value) return;
+  guardando.value = true;
+  try {
+    await axios.post('/supervisor/rechazos-ventana/global', {
+      modo: 'fecha_fija',
+      fecha_especifica_activa: inputFechaManual.value,
+      fecha_especifica_hasta: inputFechaManualHasta.value || null,
+    });
+    await fetchData();
+  } catch (e) {
+    alert(e.response?.data?.message || 'Error guardando fecha manual');
+  } finally {
+    guardando.value = false;
+  }
+}
+
+// Limpiar excepción y volver a días automáticos
 async function limpiarExcepcion() {
   guardando.value = true;
   try {
@@ -652,8 +611,9 @@ async function limpiarExcepcion() {
       fecha_especifica_activa: null,
       fecha_especifica_hasta: null,
     });
-    inputFechaExcepcion.value = '';
-    inputFechaExcepcionHasta.value = '';
+    inputFechaManual.value = '';
+    inputFechaManualHasta.value = '';
+    mostrarSelectorFechaManual.value = false;
     await fetchData();
   } catch (e) {
     alert(e.response?.data?.message || 'Error restableciendo a modo semanal');
@@ -662,21 +622,25 @@ async function limpiarExcepcion() {
   }
 }
 
-async function guardarMatrizSemanal() {
-  guardando.value = true;
+// Recargar datos desde el servidor
+async function fetchData() {
+  loading.value = true;
   try {
-    await axios.post('/supervisor/rechazos-ventana/global', {
-      matriz_semanal: configGlobal.value.matriz_semanal,
-    });
-    await fetchData();
-    alert('Matriz semanal guardada correctamente.');
+    const res = await axios.post('/supervisor/rechazos-ventana/data');
+    configGlobal.value = res.data.config_global;
+    evalInfo.value = res.data.eval_info;
+    opcionesDias.value = res.data.opciones_dias || [];
+    rutas.value = res.data.rutas;
+    canales.value = res.data.canales;
+    diasSeleccionadosLocales.value = [...(res.data.eval_info?.dias_activos || ['Viernes', 'Sábado'])];
   } catch (e) {
-    alert(e.response?.data?.message || 'Error guardando matriz');
+    console.error('Error al recargar datos:', e);
   } finally {
-    guardando.value = false;
+    loading.value = false;
   }
 }
 
+// Activar o desactivar ruta
 async function toggleRuta(r) {
   try {
     const nuevoEstado = !r.modulo_activo;
@@ -690,6 +654,7 @@ async function toggleRuta(r) {
   }
 }
 
+// Previsualización en vivo
 async function abrirPreview(ruta = null) {
   modalPreview.value.abierto = true;
   modalPreview.value.cargando = true;
@@ -707,4 +672,3 @@ async function abrirPreview(ruta = null) {
   }
 }
 </script>
-

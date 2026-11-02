@@ -53,6 +53,8 @@ class SupervisorRechazosVentanaController extends Controller
 
         $validated = $request->validate([
             'modo' => 'nullable|string|in:semanal,fecha_fija',
+            'dias_seleccionados' => 'nullable|array',
+            'dias_seleccionados.*' => 'string',
             'fecha_especifica_activa' => 'nullable|date',
             'fecha_especifica_hasta' => 'nullable|date',
             'matriz_semanal' => 'nullable|array',

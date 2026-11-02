@@ -7,6 +7,7 @@ namespace App\Actions\Web\Supervisor\RechazosVentana;
 use App\Models\AppModule;
 use App\Models\AppModuleRoute;
 use App\Services\PedidosRechazados\RechazosVentanaService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class UpdateRechazosVentanaAction
@@ -29,10 +30,25 @@ class UpdateRechazosVentanaAction
         // Fusión limpia preservando claves
         $updatedConfig = array_merge($currentConfig, $newConfig);
 
+        // Si se están seleccionando días de preventa directamente:
+        if (array_key_exists('dias_seleccionados', $newConfig) && is_array($newConfig['dias_seleccionados'])) {
+            $updatedConfig['modo'] = 'semanal';
+            $updatedConfig['fecha_especifica_activa'] = null;
+            $updatedConfig['fecha_especifica_hasta'] = null;
+
+            // Guardar también en la matriz semanal para el día actual
+            $now = Carbon::now('America/La_Paz');
+            $diaClave = $this->service->getClaveDiaEspanol($now->dayOfWeekIso);
+            $matriz = $updatedConfig['matriz_semanal'] ?? [];
+            $matriz[$diaClave] = $newConfig['dias_seleccionados'];
+            $updatedConfig['matriz_semanal'] = $matriz;
+        }
+
         // Si se limpió la fecha específica, asegurar que quede en null
         if (array_key_exists('fecha_especifica_activa', $newConfig) && empty($newConfig['fecha_especifica_activa'])) {
             $updatedConfig['fecha_especifica_activa'] = null;
             $updatedConfig['fecha_especifica_hasta'] = null;
+            $updatedConfig['modo'] = 'semanal';
         }
 
         $modulo->config = $updatedConfig;

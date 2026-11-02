@@ -327,6 +327,7 @@ class GetRechazosVentanaDataAction
             'modulo_activo_global' => $moduloActivoGlobal,
             'config_global' => $mergedConfig,
             'eval_info' => $evalInfo,
+            'opciones_dias' => $this->service->getOpcionesDiasConFechas($evalInfo['dias_activos'] ?? [], $nowBolivia),
             'dias_semana_catalogo' => RechazosVentanaService::DIAS_SEMANA,
             'canales' => $canalesLista,
             'rutas' => $rutasResultado,

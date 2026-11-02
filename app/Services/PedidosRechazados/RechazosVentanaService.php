@@ -17,7 +17,7 @@ class RechazosVentanaService
     public const MODULE_CODE = 'pedidos_rechazados';
 
     /**
-     * Catálogo ordenado de días de la semana con su índice ISO.
+     * Catálogo ordenado de días de la semana con su índice ISO (1=Lunes, 7=Domingo).
      */
     public const DIAS_SEMANA = [
         'lunes' => ['nombre' => 'Lunes', 'iso' => 1],
@@ -34,7 +34,8 @@ class RechazosVentanaService
      */
     public const DEFAULT_CONFIG = [
         'modo' => 'semanal', // 'semanal' | 'fecha_fija'
-        'fecha_especifica_activa' => null, // 'YYYY-MM-DD' para feriados o excepciones
+        'dias_seleccionados' => ['Viernes', 'Sábado'], // Días de preventa activos para el día de hoy
+        'fecha_especifica_activa' => null, // 'YYYY-MM-DD' opcional para feriados
         'fecha_especifica_hasta' => null,  // 'YYYY-MM-DD' opcional para rangos de feriados
         'matriz_semanal' => [
             'lunes' => ['Viernes', 'Sábado'],
@@ -106,15 +107,19 @@ class RechazosVentanaService
      *     fecha_max: string,
      *     descripcion: string,
      *     dia_actual: string,
+     *     dias_activos: array<int, string>,
      *     es_excepcion: bool
      * }
      */
     public function resolverFechasEvaluadas(array $config, ?Carbon $now = null): array
     {
         $now = $now ?: Carbon::now('America/La_Paz');
+        $diaIso = $now->dayOfWeekIso; // 1 = Lunes, 7 = Domingo
+        $nombreDiaActualClave = $this->getClaveDiaEspanol($diaIso);
+        $nombreDiaActualLegible = $this->getNombreDiaEspanol($diaIso);
 
-        // 1. Prioridad: Excepción manual activa (Feriados o días atípicos seleccionados por el supervisor)
-        if (!empty($config['fecha_especifica_activa'])) {
+        // 1. Prioridad: Excepción manual activa por fecha fija (Feriados o días atípicos seleccionados)
+        if (($config['modo'] ?? 'semanal') === 'fecha_fija' && !empty($config['fecha_especifica_activa'])) {
             $fInicio = Carbon::parse($config['fecha_especifica_activa'])->toDateString();
             $fFin = !empty($config['fecha_especifica_hasta'])
                 ? Carbon::parse($config['fecha_especifica_hasta'])->toDateString()
@@ -138,59 +143,82 @@ class RechazosVentanaService
                 : "Excepción activa (Feriado): Preventas del {$fInicio} al {$fFin}";
 
             return [
-                'modo_aplicado' => 'excepcion_fecha',
+                'modo_aplicado' => 'fecha_fija',
                 'fechas' => $fechasLista,
                 'fecha_min' => $fInicio,
                 'fecha_max' => $fFin,
                 'descripcion' => $desc,
-                'dia_actual' => $this->getNombreDiaEspanol($now->dayOfWeekIso),
+                'dia_actual' => $nombreDiaActualLegible,
+                'dias_activos' => [],
                 'es_excepcion' => true,
             ];
         }
 
-        // 2. Modo semanal automático: Determinar según el día de la semana actual en Bolivia
-        $diaIso = $now->dayOfWeekIso; // 1 = Lunes, 7 = Domingo
-        $nombreDiaActual = $this->getClaveDiaEspanol($diaIso);
+        // 2. Modo semanal / selección de días de preventa:
+        // Obtener los días de preventa configurados para hoy:
+        $diasConfigurados = [];
 
-        $matriz = $config['matriz_semanal'] ?? self::DEFAULT_CONFIG['matriz_semanal'];
-        $diasConfigurados = $matriz[$nombreDiaActual] ?? [];
+        // Si se guardaron explícitamente días_seleccionados:
+        if (!empty($config['dias_seleccionados']) && is_array($config['dias_seleccionados'])) {
+            $diasConfigurados = $config['dias_seleccionados'];
+        } else {
+            // O leer de la matriz semanal para el día actual
+            $matriz = $config['matriz_semanal'] ?? self::DEFAULT_CONFIG['matriz_semanal'];
+            $diasConfigurados = $matriz[$nombreDiaActualClave] ?? [];
+        }
 
+        // Si aún está vacío, fallback por defecto:
         if (empty($diasConfigurados)) {
-            // Fallback: Día operativo anterior (ayer)
-            $fPrev = $now->copy()->subDay()->toDateString();
-            return [
-                'modo_aplicado' => 'matriz_semanal',
-                'fechas' => [$fPrev],
-                'fecha_min' => $fPrev,
-                'fecha_max' => $fPrev,
-                'descripcion' => "Automático Semanal: Preventa de ayer ({$fPrev})",
-                'dia_actual' => $this->getNombreDiaEspanol($diaIso),
-                'es_excepcion' => false,
-            ];
+            $diasConfigurados = ($diaIso === 1) ? ['Viernes', 'Sábado'] : ['Ayer'];
         }
 
         $fechasCalculadas = [];
+        $diasLegiblesActivos = [];
+
         foreach ($diasConfigurados as $diaNombre) {
-            $targetIso = $this->convertirNombreDiaAIso((string) $diaNombre);
+            $diaStr = trim((string) $diaNombre);
+            if (empty($diaStr)) {
+                continue;
+            }
+
+            if (strtolower($diaStr) === 'ayer') {
+                $fAyer = $now->copy()->subDay()->toDateString();
+                $fechasCalculadas[$fAyer] = true;
+                $diasLegiblesActivos[] = 'Ayer';
+                continue;
+            }
+
+            if (strtolower($diaStr) === 'hoy') {
+                $fHoy = $now->toDateString();
+                $fechasCalculadas[$fHoy] = true;
+                $diasLegiblesActivos[] = 'Hoy';
+                continue;
+            }
+
+            $targetIso = $this->convertirNombreDiaAIso($diaStr);
             if ($targetIso === null) {
                 continue;
             }
 
             // Calcular cuántos días atrás cayó ese día de la semana
+            // E.g., Hoy Lunes (1), Target Viernes (5): (1 - 5 + 7) % 7 = 3 días atrás (Viernes anterior)
+            // E.g., Hoy Lunes (1), Target Sábado (6): (1 - 6 + 7) % 7 = 2 días atrás (Sábado anterior)
             $daysAgo = ($diaIso - $targetIso + 7) % 7;
             if ($daysAgo === 0) {
-                // Si el día objetivo es el mismo día actual (ej: Lunes evaluando Lunes), se asume el de hace 7 días
-                // salvo que incluir_hoy esté activo explícitamente
+                // Si el día seleccionado es el mismo día actual (ej: Lunes seleccionando Lunes),
+                // corresponde al Lunes anterior (hace 7 días)
                 $daysAgo = !empty($config['incluir_hoy']) ? 0 : 7;
             }
 
             $fechaCalculada = $now->copy()->subDays($daysAgo)->toDateString();
             $fechasCalculadas[$fechaCalculada] = true;
+            $diasLegiblesActivos[] = $this->getNombreDiaEspanol($targetIso);
         }
 
         if (empty($fechasCalculadas)) {
             $fPrev = $now->copy()->subDay()->toDateString();
             $fechasCalculadas[$fPrev] = true;
+            $diasLegiblesActivos[] = 'Ayer';
         }
 
         $fechasLista = array_keys($fechasCalculadas);
@@ -199,18 +227,72 @@ class RechazosVentanaService
         $fMin = reset($fechasLista);
         $fMax = end($fechasLista);
 
-        $diasStr = implode(' y ', (array) $diasConfigurados);
-        $fechasStr = implode(', ', $fechasLista);
+        $diasStr = implode(' y ', array_unique($diasLegiblesActivos));
+        $fechasFormatStr = implode(', ', array_map(fn($f) => Carbon::parse($f)->format('d/m/Y'), $fechasLista));
 
         return [
-            'modo_aplicado' => 'matriz_semanal',
+            'modo_aplicado' => 'semanal',
             'fechas' => $fechasLista,
             'fecha_min' => $fMin,
             'fecha_max' => $fMax,
-            'descripcion' => "Automático {$this->getNombreDiaEspanol($diaIso)}: Preventas de [{$diasStr}] ({$fechasStr})",
-            'dia_actual' => $this->getNombreDiaEspanol($diaIso),
+            'descripcion' => "Hoy es {$nombreDiaActualLegible}: evaluando preventas del [{$diasStr}] ({$fechasFormatStr})",
+            'dia_actual' => $nombreDiaActualLegible,
+            'dias_activos' => array_values(array_unique($diasLegiblesActivos)),
             'es_excepcion' => false,
         ];
+    }
+
+    /**
+     * Retorna las opciones de días de la semana con sus fechas calculadas relativas a hoy.
+     * Esto le permite al frontend mostrar directamente el botón con su fecha: ej. "Viernes (30/10)".
+     *
+     * @param array<int, string> $diasActivos
+     * @param Carbon|null $now
+     * @return array<int, array<string, mixed>>
+     */
+    public function getOpcionesDiasConFechas(array $diasActivos = [], ?Carbon $now = null): array
+    {
+        $now = $now ?: Carbon::now('America/La_Paz');
+        $diaIso = $now->dayOfWeekIso;
+
+        // Lista ordenada de días a ofrecer en la interfaz
+        $diasOrden = [
+            ['nombre' => 'Lunes', 'iso' => 1],
+            ['nombre' => 'Martes', 'iso' => 2],
+            ['nombre' => 'Miércoles', 'iso' => 3],
+            ['nombre' => 'Jueves', 'iso' => 4],
+            ['nombre' => 'Viernes', 'iso' => 5],
+            ['nombre' => 'Sábado', 'iso' => 6],
+            ['nombre' => 'Domingo', 'iso' => 7],
+        ];
+
+        $activosNorm = array_map(fn($d) => strtolower(trim(str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], (string)$d))), $diasActivos);
+
+        $opciones = [];
+        foreach ($diasOrden as $item) {
+            $targetIso = $item['iso'];
+            $daysAgo = ($diaIso - $targetIso + 7) % 7;
+            if ($daysAgo === 0) {
+                $daysAgo = 7;
+            }
+
+            $carbonDate = $now->copy()->subDays($daysAgo);
+            $cleanNombre = strtolower(trim(str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $item['nombre'])));
+            $isSeleccionado = in_array($cleanNombre, $activosNorm, true);
+
+            $opciones[] = [
+                'nombre' => $item['nombre'],
+                'iso' => $targetIso,
+                'fecha_iso' => $carbonDate->toDateString(),
+                'fecha_corta' => $carbonDate->format('d/m'),
+                'fecha_completa' => $carbonDate->format('d/m/Y'),
+                'dias_atras' => $daysAgo,
+                'es_hoy' => ($daysAgo === 0),
+                'seleccionado' => $isSeleccionado,
+            ];
+        }
+
+        return $opciones;
     }
 
     /**
@@ -510,7 +592,7 @@ class RechazosVentanaService
         return $map[$iso] ?? 'lunes';
     }
 
-    private function convertirNombreDiaAIso(string $nombre): ?int
+    public function convertirNombreDiaAIso(string $nombre): ?int
     {
         $clean = strtolower(trim(str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $nombre)));
         $map = [
@@ -525,4 +607,3 @@ class RechazosVentanaService
         return $map[$clean] ?? null;
     }
 }
-
