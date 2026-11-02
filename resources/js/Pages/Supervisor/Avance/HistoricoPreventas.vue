@@ -1,6 +1,6 @@
 <template>
   <SupervisorLayout title="Avance > Preventas Históricas">
-    <div class="space-y-2.5 font-sans select-none">
+    <div class="space-y-2.5 font-sans">
       <!-- Subnavegación de Módulo Avance -->
       <div class="flex items-center justify-between gap-2">
         <SubNavTabs :tabs="avanceTabs" />
@@ -37,6 +37,26 @@
 
         <!-- Acciones y Selector de Vista -->
         <div class="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
+          <!-- Botón Copiar Tabla al Portapapeles (Compatible con Excel / Google Sheets) -->
+          <button
+            type="button"
+            @click="copiarTablaAlPortapapeles"
+            :disabled="rutasFiltradas.length === 0"
+            class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-[8px] transition-all cursor-pointer shadow-xs border whitespace-nowrap"
+            :class="copiadoExitoso
+              ? 'bg-[#EBF9EF] text-[#248A3D] border-[#34C759]/40 font-bold'
+              : 'border-[#E5E5EA] bg-white text-[#1D1D1F] hover:bg-[#F5F5F7] disabled:opacity-50 disabled:cursor-not-allowed'"
+            title="Copiar contenido visible de la tabla al portapapeles (compatible con Excel)"
+          >
+            <svg v-if="!copiadoExitoso" class="w-3.5 h-3.5 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5 text-[#248A3D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{{ copiadoExitoso ? '¡Tabla Copiada!' : 'Copiar Tabla' }}</span>
+          </button>
+
           <!-- Toggle Solo Efectividad (Solo visible en vista de efectividad) -->
           <button
             v-if="vistaActiva === 'efectividad'"
@@ -327,9 +347,23 @@
                               <span class="w-2.5 h-2.5 rounded-full bg-[#248A3D]"></span>
                               Efectividad Válida (&ge; 70 Bs)
                             </span>
-                            <span class="px-2 py-0.5 rounded-[4px] bg-[#EBF9EF] text-[#248A3D] font-bold font-mono text-[10px]">
-                              {{ cacheDetalles[r.ruta].total_ok }} clientes
-                            </span>
+                            <div class="flex items-center gap-2">
+                              <span class="px-2 py-0.5 rounded-[4px] bg-[#EBF9EF] text-[#248A3D] font-bold font-mono text-[10px]">
+                                {{ cacheDetalles[r.ruta].total_ok }} clientes
+                              </span>
+                              <button
+                                v-if="cacheDetalles[r.ruta].clientes_ok?.length > 0"
+                                type="button"
+                                @click.stop="copiarClientes(cacheDetalles[r.ruta].clientes_ok, r.ruta, 'Validos')"
+                                class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-colors cursor-pointer flex items-center gap-1"
+                                title="Copiar lista de clientes válidos"
+                              >
+                                <svg class="w-3 h-3 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" />
+                                </svg>
+                                <span>{{ copiadoDetalleKey === (r.ruta + '_Validos') ? '¡Copiado!' : 'Copiar' }}</span>
+                              </button>
+                            </div>
                           </div>
 
                           <div class="max-h-56 overflow-y-auto custom-scroll space-y-1.5 pr-1">
@@ -361,9 +395,23 @@
                               <span class="w-2.5 h-2.5 rounded-full bg-[#B25E00]"></span>
                               Compras Bajo Umbral (&lt; 70 Bs)
                             </span>
-                            <span class="px-2 py-0.5 rounded-[4px] bg-[#FFF5E5] text-[#B25E00] font-bold font-mono text-[10px]">
-                              {{ cacheDetalles[r.ruta].total_bajo }} clientes
-                            </span>
+                            <div class="flex items-center gap-2">
+                              <span class="px-2 py-0.5 rounded-[4px] bg-[#FFF5E5] text-[#B25E00] font-bold font-mono text-[10px]">
+                                {{ cacheDetalles[r.ruta].total_bajo }} clientes
+                              </span>
+                              <button
+                                v-if="cacheDetalles[r.ruta].clientes_bajo?.length > 0"
+                                type="button"
+                                @click.stop="copiarClientes(cacheDetalles[r.ruta].clientes_bajo, r.ruta, 'Bajo Umbral')"
+                                class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-colors cursor-pointer flex items-center gap-1"
+                                title="Copiar lista de clientes bajo umbral"
+                              >
+                                <svg class="w-3 h-3 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" />
+                                </svg>
+                                <span>{{ copiadoDetalleKey === (r.ruta + '_Bajo Umbral') ? '¡Copiado!' : 'Copiar' }}</span>
+                              </button>
+                            </div>
                           </div>
 
                           <div class="max-h-56 overflow-y-auto custom-scroll space-y-1.5 pr-1">
@@ -514,6 +562,8 @@ const cargando = ref(false)
 const errorMsg = ref(null)
 const vistaActiva = ref('efectividad') // 'efectividad' o 'volumen'
 const soloEfectividad = ref(false)
+const copiadoExitoso = ref(false)
+const copiadoDetalleKey = ref(null)
 
 const diasColumnas = ref([])
 const matrizOriginal = ref([])
@@ -675,6 +725,12 @@ const consultarHistorico = async () => {
 
 // Toggle acordeón y consulta de desglose de clientes
 const toggleAcordeon = async (rutaKey) => {
+  // Si el usuario estaba seleccionando texto en la fila para copiar, no alternar el acordeón
+  const selection = window.getSelection()
+  if (selection && selection.toString().trim().length > 0) {
+    return
+  }
+
   if (filasExpandidas.has(rutaKey)) {
     filasExpandidas.delete(rutaKey)
     return
@@ -710,6 +766,161 @@ const toggleAcordeon = async (rutaKey) => {
     erroresDetalles[rutaKey] = err?.response?.data?.message || 'No se pudo cargar el detalle de clientes'
   } finally {
     cargandoDetalles[rutaKey] = false
+  }
+}
+
+// Copiar tabla completa al portapapeles (formato TSV compatible con Excel)
+const copiarTablaAlPortapapeles = async () => {
+  if (!rutasFiltradas.value || rutasFiltradas.value.length === 0) return
+
+  const lineas = []
+
+  // 1. Encabezados de columnas
+  if (vistaActiva.value === 'efectividad') {
+    if (soloEfectividad.value) {
+      const header = ['Ruta', 'Canal', 'Preventista', ...diasColumnas.value.map(d => d.dia_label), 'Total Efectividad']
+      lineas.push(header.join('\t'))
+    } else {
+      const colHeaders = []
+      diasColumnas.value.forEach(d => {
+        colHeaders.push(`${d.dia_label} (Plan)`, `${d.dia_label} (Vis)`, `${d.dia_label} (Prev)`, `${d.dia_label} (Efect)`)
+      })
+      const header = ['Ruta', 'Canal', 'Preventista', ...colHeaders, 'Total Plan', 'Total Vis', 'Total Prev', 'Total Efectividad']
+      lineas.push(header.join('\t'))
+    }
+  } else {
+    // Modo Volumen
+    const colHeaders = []
+    diasColumnas.value.forEach(d => {
+      colHeaders.push(`${d.dia_label} (Prev >=70)`, `${d.dia_label} (Volumen Bs)`)
+    })
+    const header = ['Ruta', 'Canal', 'Preventista', ...colHeaders, 'Total Prev >=70', 'Total Volumen Bs']
+    lineas.push(header.join('\t'))
+  }
+
+  // 2. Filas de datos
+  rutasFiltradas.value.forEach(r => {
+    const fila = [r.ruta, r.canal, r.vendedor]
+    if (vistaActiva.value === 'efectividad') {
+      if (soloEfectividad.value) {
+        diasColumnas.value.forEach(d => {
+          const ef = r.dias[d.fecha]?.efectividad_pct != null ? `${Number(r.dias[d.fecha].efectividad_pct).toFixed(1)}%` : '-'
+          fila.push(ef)
+        })
+        fila.push(`${Number(r.efectividad_promedio_pct || 0).toFixed(1)}%`)
+      } else {
+        diasColumnas.value.forEach(d => {
+          const info = r.dias[d.fecha] || {}
+          fila.push(info.plan ?? 0, info.visitados ?? 0, info.con_preventa ?? 0, `${Number(info.efectividad_pct || 0).toFixed(1)}%`)
+        })
+        fila.push(r.tot_plan || 0, r.tot_visitados || 0, r.tot_preventa || 0, `${Number(r.efectividad_promedio_pct || 0).toFixed(1)}%`)
+      }
+    } else {
+      // Volumen
+      diasColumnas.value.forEach(d => {
+        const info = r.dias[d.fecha] || {}
+        fila.push(info.con_preventa ?? 0, Number(info.volumen_bs || 0).toFixed(2))
+      })
+      fila.push(r.tot_preventa || 0, Number(r.tot_volumen_bs || 0).toFixed(2))
+    }
+    lineas.push(fila.join('\t'))
+  })
+
+  // 3. Fila de Total General
+  const filaTotales = ['TOTAL GENERAL', '', '']
+  if (vistaActiva.value === 'efectividad') {
+    if (soloEfectividad.value) {
+      diasColumnas.value.forEach(d => {
+        const totD = calcularTotalesDia(d.fecha)
+        filaTotales.push(`${totD.efectividad_pct.toFixed(1)}%`)
+      })
+      filaTotales.push(`${totalesGlobalesFiltrados.value.efectividad_pct.toFixed(1)}%`)
+    } else {
+      diasColumnas.value.forEach(d => {
+        const totD = calcularTotalesDia(d.fecha)
+        filaTotales.push(totD.plan, totD.visitados, totD.con_preventa, `${totD.efectividad_pct.toFixed(1)}%`)
+      })
+      filaTotales.push(
+        totalesGlobalesFiltrados.value.plan,
+        totalesGlobalesFiltrados.value.visitados,
+        totalesGlobalesFiltrados.value.con_preventa,
+        `${totalesGlobalesFiltrados.value.efectividad_pct.toFixed(1)}%`
+      )
+    }
+  } else {
+    // Volumen
+    diasColumnas.value.forEach(d => {
+      const totD = calcularTotalesDia(d.fecha)
+      filaTotales.push(totD.con_preventa, totD.volumen_bs.toFixed(2))
+    })
+    filaTotales.push(
+      totalesGlobalesFiltrados.value.con_preventa,
+      totalesGlobalesFiltrados.value.volumen_bs.toFixed(2)
+    )
+  }
+  lineas.push(filaTotales.join('\t'))
+
+  const tsv = lineas.join('\n')
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(tsv)
+    } else {
+      const textArea = document.createElement('textarea')
+      textArea.value = tsv
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
+    copiadoExitoso.value = true
+    setTimeout(() => { copiadoExitoso.value = false }, 2500)
+  } catch (e) {
+    console.error('[HistoricoPreventas] Error al copiar tabla:', e)
+  }
+}
+
+// Copiar lista de clientes del acordeón al portapapeles
+const copiarClientes = async (clientes, ruta, tipo) => {
+  if (!clientes || clientes.length === 0) return
+
+  const fIni = store.fechaInicio || props.fecha_inicio_default
+  const fCorte = store.fechaCorte || props.fecha_corte_default
+  const lineas = []
+  lineas.push(`Clientes ${tipo} - Ruta ${ruta} (${fIni} a ${fCorte})`)
+  lineas.push(['Cliente', 'Fecha', 'Total Bs', tipo === 'Bajo Umbral' ? 'Falta para 70 Bs' : ''].filter(Boolean).join('\t'))
+
+  clientes.forEach(c => {
+    const fila = [c.cliente_nombre, c.fecha, Number(c.total_bs || 0).toFixed(2)]
+    if (tipo === 'Bajo Umbral') {
+      fila.push(Number(c.brecha_70 || 0).toFixed(2))
+    }
+    lineas.push(fila.join('\t'))
+  })
+
+  const tsv = lineas.join('\n')
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(tsv)
+    } else {
+      const textArea = document.createElement('textarea')
+      textArea.value = tsv
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
+    const key = `${ruta}_${tipo}`
+    copiadoDetalleKey.value = key
+    setTimeout(() => {
+      if (copiadoDetalleKey.value === key) copiadoDetalleKey.value = null
+    }, 2000)
+  } catch (e) {
+    console.error('[HistoricoPreventas] Error al copiar clientes:', e)
   }
 }
 
