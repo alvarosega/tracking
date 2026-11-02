@@ -3739,10 +3739,8 @@ const conteoPropuestasPendientes = computed(() => {
 });
 
 function descargarArchivoExcelCsv(rows, nombreArchivo) {
-  // UTF-8 BOM (\uFEFF) para compatibilidad directa con acentos en Excel
-  // Directiva sep=;\r\n para forzar a Excel a abrir columnas con punto y coma sin importar configuración regional
+  // UTF-8 BOM (\uFEFF) para compatibilidad directa con acentos y caracteres latinos en Excel
   const BOM = '\uFEFF';
-  const SEP = 'sep=;\r\n';
   const csvBody = rows
     .map(row =>
       row
@@ -3755,7 +3753,7 @@ function descargarArchivoExcelCsv(rows, nombreArchivo) {
     )
     .join('\r\n');
 
-  const blob = new Blob([BOM + SEP + csvBody], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([BOM + csvBody], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);

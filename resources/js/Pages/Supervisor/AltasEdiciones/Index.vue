@@ -1511,9 +1511,7 @@ const conteoEdicionesPendientes = computed(() => edicionesPendientes.value.lengt
 
 function descargarArchivoExcelCsv(rows, nombreArchivo) {
   // UTF-8 BOM (\uFEFF) para compatibilidad con caracteres latinos en Excel
-  // Directiva sep=;\r\n para apertura nativa de columnas delimitadas por punto y coma
   const BOM = '\uFEFF';
-  const SEP = 'sep=;\r\n';
   const csvBody = rows
     .map(row =>
       row
@@ -1526,7 +1524,7 @@ function descargarArchivoExcelCsv(rows, nombreArchivo) {
     )
     .join('\r\n');
 
-  const blob = new Blob([BOM + SEP + csvBody], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([BOM + csvBody], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
