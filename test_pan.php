@@ -12,3 +12,4 @@ $domingoRows = Illuminate\Support\Facades\DB::connection('supervisor')
     ->get();
 
 echo "Domingo breakdown by ruta:\n" . json_encode($domingoRows, JSON_PRETTY_PRINT) . PHP_EOL;
+

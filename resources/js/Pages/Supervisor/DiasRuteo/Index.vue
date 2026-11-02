@@ -487,9 +487,24 @@ function formatDiasAsignados(diasList) {
   return diasList.join(' + ');
 }
 
+const props = defineProps({
+  initialRutas: {
+    type: Array,
+    default: () => [],
+  },
+  initialCanales: {
+    type: Array,
+    default: () => [],
+  },
+  initialDiasSemana: {
+    type: Array,
+    default: () => [],
+  },
+});
+
 // Datos principales
-const rutas = ref([]);
-const canales = ref([]);
+const rutas = ref(props.initialRutas && props.initialRutas.length > 0 ? [...props.initialRutas] : []);
+const canales = ref(props.initialCanales && props.initialCanales.length > 0 ? [...props.initialCanales] : []);
 
 const loading = ref(false);
 const guardando = ref(false);
@@ -709,7 +724,9 @@ async function resetearRuta(rutaObj) {
 }
 
 onMounted(() => {
-  fetchData();
+  if (rutas.value.length === 0) {
+    fetchData();
+  }
 });
 </script>
 

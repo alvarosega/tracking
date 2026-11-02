@@ -18,9 +18,15 @@ class SupervisorDiasRuteoController extends Controller
     /**
      * Muestra la interfaz de asignación de días de visita por ruta.
      */
-    public function index(): Response
+    public function index(GetDiasRuteoDataAction $action): Response
     {
-        return Inertia::render('Supervisor/DiasRuteo/Index');
+        $data = $action->execute();
+
+        return Inertia::render('Supervisor/DiasRuteo/Index', [
+            'initialRutas' => $data['rutas'],
+            'initialCanales' => $data['canales'],
+            'initialDiasSemana' => $data['dias_semana'],
+        ]);
     }
 
     /**
