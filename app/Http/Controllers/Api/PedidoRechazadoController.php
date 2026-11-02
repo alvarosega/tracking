@@ -134,6 +134,8 @@ class PedidoRechazadoController extends Controller
             $fechaDesde = $request->input('fecha_desde', $request->input('desde'));
             $fechaHasta = $request->input('fecha_hasta', $request->input('hasta'));
             $incluirHoy = filter_var($request->input('incluir_hoy', false), FILTER_VALIDATE_BOOLEAN);
+            $nroPreventa = $request->input('nro_preventa', $request->input('pre_venta_id'));
+            $incluirJustificados = filter_var($request->input('incluir_justificados', false), FILTER_VALIDATE_BOOLEAN);
 
             $preventas = $action->execute(
                 user: $request->user(),
@@ -144,7 +146,9 @@ class PedidoRechazadoController extends Controller
                 diasParam: is_numeric($dias) ? (int) $dias : null,
                 fechaDesdeParam: is_string($fechaDesde) && $fechaDesde !== 'null' && $fechaDesde !== '' ? $fechaDesde : null,
                 fechaHastaParam: is_string($fechaHasta) && $fechaHasta !== 'null' && $fechaHasta !== '' ? $fechaHasta : null,
-                incluirHoy: $incluirHoy
+                incluirHoy: $incluirHoy,
+                nroPreventaParam: is_numeric($nroPreventa) ? (int) $nroPreventa : null,
+                incluirJustificados: $incluirJustificados
             );
 
             Log::info('[RECHAZOS-HTTP-OUT] Consulta preventas-pendientes respondida con éxito', [

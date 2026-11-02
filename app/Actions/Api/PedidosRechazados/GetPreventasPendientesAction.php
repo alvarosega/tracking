@@ -34,7 +34,9 @@ class GetPreventasPendientesAction
         int|string|null $diasParam = null,
         ?string $fechaDesdeParam = null,
         ?string $fechaHastaParam = null,
-        bool $incluirHoy = false
+        bool $incluirHoy = false,
+        int|string|null $nroPreventaParam = null,
+        bool $incluirJustificados = false
     ): array {
         $now = Carbon::now('America/La_Paz');
 
@@ -112,7 +114,8 @@ class GetPreventasPendientesAction
             $query = DB::connection('supervisor')->table('fact_preventas as p');
 
             if (!empty($ruta)) {
-                $query->where(DB::raw('TRIM(UPPER(p.ruta))'), trim(strtoupper($ruta)));
+                $cleanRuta = str_replace(' ', '', strtoupper(trim($ruta)));
+                $query->where(DB::raw("REPLACE(UPPER(p.ruta), ' ', '')"), $cleanRuta);
             } else {
                 $query->where(function ($q) use ($user): void {
                     $hasCondition = false;
@@ -125,20 +128,22 @@ class GetPreventasPendientesAction
                         return;
                     }
 
-                    if (!empty($userName)) {
-                        $q->where(DB::raw('TRIM(UPPER(p.vendedor))'), strtoupper($userName));
+                    $cleanUser = str_replace(' ', '', strtoupper($username));
+                    $cleanRuta = str_replace(' ', '', strtoupper($userRuta));
+                    $cleanName = str_replace(' ', '', strtoupper($userName));
+
+                    if (!empty($cleanName)) {
+                        $q->where(DB::raw("REPLACE(UPPER(p.vendedor), ' ', '')"), $cleanName);
                         $hasCondition = true;
                     }
-                    if (!empty($username)) {
-                        $upperUser = strtoupper($username);
-                        $q->orWhere(DB::raw('TRIM(UPPER(p.username_vendedor))'), $upperUser)
-                          ->orWhere(DB::raw('TRIM(UPPER(p.ruta))'), $upperUser)
-                          ->orWhere(DB::raw('TRIM(UPPER(p.vendedor))'), $upperUser);
+                    if (!empty($cleanUser)) {
+                        $q->orWhere(DB::raw("REPLACE(UPPER(p.username_vendedor), ' ', '')"), $cleanUser)
+                          ->orWhere(DB::raw("REPLACE(UPPER(p.ruta), ' ', '')"), $cleanUser)
+                          ->orWhere(DB::raw("REPLACE(UPPER(p.vendedor), ' ', '')"), $cleanUser);
                         $hasCondition = true;
                     }
-                    if (!empty($userRuta)) {
-                        $upperRuta = strtoupper($userRuta);
-                        $q->orWhere(DB::raw('TRIM(UPPER(p.ruta))'), $upperRuta);
+                    if (!empty($cleanRuta)) {
+                        $q->orWhere(DB::raw("REPLACE(UPPER(p.ruta), ' ', '')"), $cleanRuta);
                         $hasCondition = true;
                     }
                     if (!$hasCondition) {
@@ -147,17 +152,22 @@ class GetPreventasPendientesAction
                 });
             }
 
-            if ($fechaInicio === $fechaFin) {
-                $query->where('p.fecha_norm', $fechaInicio);
+            if (!empty($nroPreventaParam)) {
+                // Si se busca un nro_preventa específico, buscarlo directamente
+                $query->where('p.nro_preventa', (int) $nroPreventaParam);
             } else {
-                $query->whereBetween('p.fecha_norm', [$fechaInicio, $fechaFin]);
+                if ($fechaInicio === $fechaFin) {
+                    $query->where('p.fecha_norm', $fechaInicio);
+                } else {
+                    $query->whereBetween('p.fecha_norm', [$fechaInicio, $fechaFin]);
+                }
             }
 
             if (!empty($clienteId)) {
                 $query->where('p.cliente_id', $clienteId);
             }
 
-            if (!empty($preventasYaJustificadas)) {
+            if (!empty($preventasYaJustificadas) && !$incluirJustificados) {
                 $query->whereNotIn('p.nro_preventa', $preventasYaJustificadas);
             }
 
