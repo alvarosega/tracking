@@ -38,25 +38,19 @@ class GetPreventasPendientesAction
     ): array {
         $now = Carbon::now('America/La_Paz');
 
-        // 1. Determinar el rango de fechas de preventa a evaluar según el ciclo operativo comercial:
-        // Reglas clave del ciclo:
-        // - Preventa Viernes -> Entrega Sábado.
-        // - Domingo NO se opera.
-        // - Preventa Sábado -> Entrega Lunes.
-        // - Por tanto, en Lunes, las entregas concluidas son las del Sábado (Preventas del Viernes).
+        // 1. Determinar el rango de fechas de preventa a evaluar:
         if (!empty($fechaPreventaParam)) {
             $parsed = Carbon::parse($fechaPreventaParam);
             // Si el cliente pide fecha de Domingo (ej. calculó 'ayer' en lunes),
-            // en domingo no hubo preventas: resolver al Viernes operativo previo (D-2 de domingo)
+            // en domingo no hubo preventas: abarcar fin de semana operativo completo (Viernes y Sábado)
             if ($parsed->isSunday()) {
-                $parsed = $parsed->subDays(2);
+                $fechaInicio = $parsed->copy()->subDays(2)->toDateString(); // Viernes
+                $fechaFin = $parsed->copy()->subDay()->toDateString();      // Sábado
+            } else {
+                $fechaInicio = $parsed->toDateString();
+                $fechaFin = $parsed->toDateString();
             }
-            $fechaInicio = $parsed->toDateString();
-            $fechaFin = $parsed->toDateString();
         } elseif (!empty($fechaVentaParam)) {
-            // Si el cliente envía fecha_entrega / fecha_venta (facturación):
-            // Sábado o Domingo de entrega -> Preventa del Viernes
-            // Lunes de entrega -> Preventa del Sábado
             $parsedVenta = Carbon::parse($fechaVentaParam);
             if ($parsedVenta->isSunday()) {
                 $fechaPrev = $parsedVenta->subDays(2)->toDateString(); // Viernes
@@ -68,23 +62,32 @@ class GetPreventasPendientesAction
             $fechaInicio = $fechaPrev;
             $fechaFin = $fechaPrev;
         } elseif (!empty($fechaDesdeParam)) {
-            // Filtro por rango explícito
             $fechaInicio = $fechaDesdeParam;
             $fechaFin = !empty($fechaHastaParam) ? $fechaHastaParam : ($incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString());
         } else {
-            // Ventana móvil por defecto (últimos 7 días)
-            // Si hoy es Lunes y no se fuerza incluirHoy, la fecha de preventa más reciente
-            // cuyo reparto concluyó es el Viernes (D-3). Las del Sábado (D-2) se reparten hoy Lunes.
+            // Ventana móvil por defecto (últimos 7 días hasta ayer o hoy):
+            // En Lunes, 'ayer' es Domingo; abarca toda la semana y fin de semana completo (Viernes 30 y Sábado 31 inclusive)
             $dias = is_numeric($diasParam) ? max(1, min(90, (int) $diasParam)) : 7;
-            if ($now->isMonday() && !$incluirHoy) {
-                $fechaFin = $now->copy()->subDays(3)->toDateString(); // Viernes previo
-            } elseif ($now->isSunday()) {
-                $fechaFin = $now->copy()->subDays(2)->toDateString(); // Viernes previo
-            } else {
-                $fechaFin = $incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString();
-            }
+            $fechaFin = $incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString();
             $fechaInicio = Carbon::parse($fechaFin)->subDays($dias - 1)->toDateString();
         }
+
+        Log::info('[RECHAZOS-ENGINE] Evaluando preventas pendientes', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'user_ruta' => $user->ruta,
+            'role' => $user->role?->name,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin,
+            'params' => [
+                'fechaPreventaParam' => $fechaPreventaParam,
+                'fechaVentaParam' => $fechaVentaParam,
+                'clienteId' => $clienteId,
+                'ruta' => $ruta,
+                'diasParam' => $diasParam,
+                'incluirHoy' => $incluirHoy,
+            ],
+        ]);
 
         try {
             // 2. Preventas ya justificadas por el vendedor en la BD local (pedidos_rechazados)
@@ -100,6 +103,11 @@ class GetPreventasPendientesAction
                 ->unique()
                 ->toArray();
 
+            Log::info('[RECHAZOS-ENGINE] Preventas ya justificadas excluidas', [
+                'total_excluidas' => count($preventasYaJustificadas),
+                'ids_excluidos' => $preventasYaJustificadas,
+            ]);
+
             // 3. Consultar fact_preventas en supervisor DB
             $query = DB::connection('supervisor')->table('fact_preventas as p');
 
@@ -111,6 +119,11 @@ class GetPreventasPendientesAction
                     $username = trim((string) ($user->username ?? ''));
                     $userRuta = trim((string) ($user->ruta ?? ''));
                     $userName = trim((string) ($user->name ?? ''));
+
+                    // Si es supervisor o admin y no tiene ruta asignada, permitir ver todas las preventas
+                    if (($user->isSupervisor() || $user->isSuperAdmin()) && empty($userRuta)) {
+                        return;
+                    }
 
                     if (!empty($userName)) {
                         $q->where(DB::raw('TRIM(UPPER(p.vendedor))'), strtoupper($userName));
@@ -172,6 +185,15 @@ class GetPreventasPendientesAction
             ->get();
 
             if ($items->isEmpty()) {
+                Log::warning('[RECHAZOS-ENGINE] 0 preventas encontradas en fact_preventas para los filtros dados', [
+                    'rango_fechas' => [$fechaInicio, $fechaFin],
+                    'user_id' => $user->id,
+                    'username' => $user->username,
+                    'user_ruta' => $user->ruta,
+                    'ruta_param' => $ruta,
+                    'preventas_ya_justificadas_excluidas' => count($preventasYaJustificadas),
+                ]);
+
                 return [];
             }
 
@@ -183,6 +205,12 @@ class GetPreventasPendientesAction
                 ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->toArray();
+
+            Log::info('[RECHAZOS-ENGINE] Preventas obtenidas de fact_preventas', [
+                'total_filas_items' => $items->count(),
+                'total_preventas_unicas' => count($nrosPreventa),
+                'nros_preventa' => $nrosPreventa,
+            ]);
 
             $ventasPorItem = [];
 
@@ -329,6 +357,13 @@ class GetPreventasPendientesAction
                     $preventasPendientes[] = $prev;
                 }
             }
+
+            Log::info('[RECHAZOS-ENGINE] Preventas evaluadas contra fact_ventas', [
+                'total_preventas_en_rango' => count($nrosPreventa),
+                'total_facturas_cruzadas' => count($ventasFacturadas ?? []),
+                'preventas_con_rechazo' => count($preventasPendientes),
+                'nros_rechazados' => array_column($preventasPendientes, 'nro_preventa'),
+            ]);
 
             return $preventasPendientes;
         } catch (\Throwable $e) {

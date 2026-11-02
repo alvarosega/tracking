@@ -113,6 +113,18 @@ class PedidoRechazadoController extends Controller
         Request $request,
         GetPreventasPendientesAction $action
     ): JsonResponse {
+        $user = $request->user();
+        Log::info('[RECHAZOS-HTTP-IN] Consulta preventas-pendientes recibida desde cliente', [
+            'user_id' => $user?->id,
+            'username' => $user?->username,
+            'user_ruta' => $user?->ruta,
+            'role' => $user?->role?->name,
+            'ip' => $request->ip(),
+            'query_params' => $request->all(),
+            'query_string' => $request->getQueryString(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         try {
             $fecha = $request->input('fecha_preventa', $request->input('fecha'));
             $fechaVenta = $request->input('fecha_venta', $request->input('fecha_entrega'));
@@ -134,6 +146,12 @@ class PedidoRechazadoController extends Controller
                 fechaHastaParam: is_string($fechaHasta) && $fechaHasta !== 'null' && $fechaHasta !== '' ? $fechaHasta : null,
                 incluirHoy: $incluirHoy
             );
+
+            Log::info('[RECHAZOS-HTTP-OUT] Consulta preventas-pendientes respondida con éxito', [
+                'user_id' => $user?->id,
+                'total_pedidos_devueltos' => count($preventas),
+                'nros_preventa' => array_column($preventas, 'nro_preventa'),
+            ]);
 
             return response()->json([
                 'success' => true,
