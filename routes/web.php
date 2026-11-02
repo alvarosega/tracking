@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\SupervisorAdminUsuariosController;
 use App\Http\Controllers\Web\SupervisorAltasEdicionesController;
 use App\Http\Controllers\Web\SupervisorAuditoriaController;
 use App\Http\Controllers\Web\SupervisorAvanceController;
+use App\Http\Controllers\Web\SupervisorDiasRuteoController;
 use App\Http\Controllers\Web\SupervisorHorariosController;
 use App\Http\Controllers\Web\SupervisorIndexController;
 use App\Http\Controllers\Web\SupervisorIngestaController;
@@ -326,6 +327,14 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/active-workdays', [SupervisorHorariosController::class, 'activeWorkdays'])->name('active-workdays');
             Route::post('/close/{userId}', [SupervisorHorariosController::class, 'forceCloseWorkday'])->name('close');
         });
+    });
+
+    // Módulo Días de Visita Ruteo (Asignación de días de pan_ruteo por ruta comercial)
+    Route::prefix('dias-ruteo')->name('dias-ruteo.')->middleware('module.access:horarios')->group(function () {
+        Route::get('/', [SupervisorDiasRuteoController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorDiasRuteoController::class, 'data'])->name('data');
+        Route::post('/update', [SupervisorDiasRuteoController::class, 'update'])->name('update');
+        Route::post('/reset', [SupervisorDiasRuteoController::class, 'reset'])->name('reset');
     });
 
     // Módulo Gestión de Módulos Móviles y Parámetros

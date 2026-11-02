@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Actions\Api\Ruteo;
 
+use App\Models\RouteVisitDay;
 use App\Models\User;
 use App\Services\SaneamientoAuditService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GetPlanRuteoAction
 {
@@ -39,8 +41,12 @@ class GetPlanRuteoAction
 
         // 2. Determinar día actual y fecha en Bolivia (UTC-4)
         $nowBolivia = Carbon::now('America/La_Paz');
-        $diaActual = self::DIAS_MAP[$nowBolivia->dayOfWeekIso];
+        $dayOfWeekIso = (int) $nowBolivia->dayOfWeekIso; // 1 = Lunes, ..., 7 = Domingo
+        $diaActual = self::DIAS_MAP[$dayOfWeekIso] ?? 'Lunes';
         $fechaHoy = $nowBolivia->toDateString();
+
+        // 2.1 Resolver días de visita de pan_ruteo asignados para esta ruta en el día actual
+        $diasVisitaObjetivo = $this->resolverDiasVisita($rutaUsuario, $dayOfWeekIso, $diaActual);
 
         // 3. Subconsulta: obtener el ID más reciente de edición pendiente por cliente
         $latestPendingEdits = DB::connection('supervisor')
@@ -66,17 +72,21 @@ class GetPlanRuteoAction
                 }
             });
 
-        $query->where(function ($q) use ($diaActual): void {
-            if ($diaActual === 'Miércoles') {
-                $q->whereIn('p.dia_norm', ['Miercoles', 'Miércoles', 'MIERCOLES'])
-                  ->orWhereIn('p.dia', ['Miercoles', 'Miércoles', 'MIERCOLES']);
-            } elseif ($diaActual === 'Sábado') {
-                $q->whereIn('p.dia_norm', ['Sabado', 'Sábado', 'SABADO'])
-                  ->orWhereIn('p.dia', ['Sabado', 'Sábado', 'SABADO']);
-            } else {
-                $q->where('p.dia_norm', $diaActual)
-                  ->orWhere('p.dia_norm', mb_strtoupper($diaActual, 'UTF-8'))
-                  ->orWhere('p.dia', $diaActual);
+        // 4.1 Filtro por los días de visita asignados (soporta asignaciones múltiples de pan_ruteo)
+        $query->where(function ($q) use ($diasVisitaObjetivo): void {
+            foreach ($diasVisitaObjetivo as $idx => $dia) {
+                $variantes = $this->obtenerVariantesDia((string) $dia);
+                if ($idx === 0) {
+                    $q->where(function ($sub) use ($variantes) {
+                        $sub->whereIn('p.dia_norm', $variantes)
+                            ->orWhereIn('p.dia', $variantes);
+                    });
+                } else {
+                    $q->orWhere(function ($sub) use ($variantes) {
+                        $sub->whereIn('p.dia_norm', $variantes)
+                            ->orWhereIn('p.dia', $variantes);
+                    });
+                }
             }
         });
 
@@ -144,5 +154,60 @@ class GetPlanRuteoAction
 
             return $item;
         });
+    }
+
+    /**
+     * Resuelve los días de visita de pan_ruteo configurados para la ruta en el día actual.
+     * Si existe configuración personalizada activa en route_visit_days, se retornan esos días;
+     * de lo contrario, se retorna el día natural actual de calendario.
+     *
+     * @return array<int, string>
+     */
+    protected function resolverDiasVisita(string $ruta, int $dayOfWeekIso, string $diaActual): array
+    {
+        try {
+            $config = RouteVisitDay::query()
+                ->where('route', $ruta)
+                ->where('day_of_week', $dayOfWeekIso)
+                ->where('is_active', true)
+                ->first();
+
+            if ($config && !empty($config->dias_visita) && is_array($config->dias_visita)) {
+                $diasFiltrados = array_values(array_filter(
+                    $config->dias_visita,
+                    fn($d) => !empty(trim((string) $d))
+                ));
+
+                if (!empty($diasFiltrados)) {
+                    return $diasFiltrados;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Silencioso ante tablas pendientes o contingencias
+            Log::warning("No se pudo consultar route_visit_days para ruta {$ruta}: " . $e->getMessage());
+        }
+
+        return [$diaActual];
+    }
+
+    /**
+     * Retorna las variantes léxicas (con y sin tildes, mayúsculas, minúsculas) para cotejar en pan_ruteo.
+     *
+     * @return array<int, string>
+     */
+    protected function obtenerVariantesDia(string $dia): array
+    {
+        $diaCanonical = ucfirst(mb_strtolower(trim($dia), 'UTF-8'));
+
+        return match ($diaCanonical) {
+            'Lunes' => ['Lunes', 'LUNES', 'lunes'],
+            'Martes' => ['Martes', 'MARTES', 'martes'],
+            'Miércoles', 'Miercoles' => ['Miercoles', 'Miércoles', 'MIERCOLES', 'MIÉRCOLES', 'miercoles', 'miércoles'],
+            'Jueves' => ['Jueves', 'JUEVES', 'jueves'],
+            'Viernes' => ['Viernes', 'VIERNES', 'viernes'],
+            'Sábado', 'Sabado' => ['Sabado', 'Sábado', 'SABADO', 'SÁBADO', 'sabado', 'sábado'],
+            'Domingo' => ['Domingo', 'DOMINGO', 'domingo'],
+            default => [$dia, mb_strtoupper($dia, 'UTF-8'), mb_strtolower($dia, 'UTF-8')],
+        };
     }
 }
