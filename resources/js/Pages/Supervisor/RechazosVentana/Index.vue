@@ -246,18 +246,21 @@
               <thead>
                 <tr class="bg-[#FBFBFD] border-b border-[#E5E5EA] text-[10px] font-mono uppercase text-[#86868B] tracking-wider">
                   <th class="py-2.5 px-3.5">Ruta Comercial</th>
-                  <th class="py-2.5 px-3 text-center">Canal</th>
-                  <th class="py-2.5 px-3 text-center">Clientes</th>
-                  <th class="py-2.5 px-3 text-center">Preventas Corte</th>
-                  <th class="py-2.5 px-3 text-center">Rechazos Pendientes</th>
-                  <th class="py-2.5 px-3 text-center">Monto Rechazado</th>
-                  <th class="py-2.5 px-3 text-center">Estado Módulo</th>
+                  <th class="py-2.5 px-2.5 text-center">Canal</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Total de preventas evaluadas en el ciclo">Preventas</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Pedidos facturados en su totalidad">Entregados</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Pedidos con entrega parcial (facturado menor a preventa)">Parciales</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Pedidos caídos (0% facturado)">Caídos (0%)</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Pedidos con justificación ya guardada">Justificados</th>
+                  <th class="py-2.5 px-2.5 text-center" title="Rechazos pendientes por justificar (Caídos + Parciales - Justificados)">Rechazos Pend.</th>
+                  <th class="py-2.5 px-3 text-center" title="Monto en Bs pendiente de facturar">Monto Rechazado</th>
+                  <th class="py-2.5 px-2.5 text-center">Estado Módulo</th>
                   <th class="py-2.5 px-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-xs">
                 <tr v-if="rutasFiltradas.length === 0">
-                  <td colspan="8" class="py-8 text-center text-xs text-[#86868B]">
+                  <td colspan="11" class="py-8 text-center text-xs text-[#86868B]">
                     No se encontraron rutas con los filtros seleccionados.
                   </td>
                 </tr>
@@ -274,24 +277,39 @@
                   </td>
 
                   <!-- Canal -->
-                  <td class="py-2.5 px-3 align-middle text-center">
+                  <td class="py-2.5 px-2.5 align-middle text-center">
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#F2F2F7] text-[#1D1D1F]">
                       {{ r.canal }}
                     </span>
                   </td>
 
-                  <!-- Clientes -->
-                  <td class="py-2.5 px-3 align-middle text-center font-mono text-[#86868B]">
-                    {{ r.total_clientes }}
-                  </td>
-
-                  <!-- Preventas Corte -->
-                  <td class="py-2.5 px-3 align-middle text-center font-mono font-semibold text-[#1D1D1F]">
+                  <!-- Total Preventas -->
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono font-semibold text-[#1D1D1F]">
                     {{ r.total_preventas }}
                   </td>
 
+                  <!-- Entregados -->
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono text-[#34C759]">
+                    {{ r.pedidos_entregados }}
+                  </td>
+
+                  <!-- Parciales -->
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono" :class="r.pedidos_parciales > 0 ? 'text-[#FF9500] font-semibold' : 'text-[#86868B]'">
+                    {{ r.pedidos_parciales }}
+                  </td>
+
+                  <!-- Caídos (0%) -->
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono" :class="r.pedidos_caidos > 0 ? 'text-[#FF3B30] font-semibold' : 'text-[#86868B]'">
+                    {{ r.pedidos_caidos }}
+                  </td>
+
+                  <!-- Justificados -->
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono text-[#86868B]">
+                    {{ r.pedidos_justificados }}
+                  </td>
+
                   <!-- Rechazos Pendientes -->
-                  <td class="py-2.5 px-3 align-middle text-center font-mono">
+                  <td class="py-2.5 px-2.5 align-middle text-center font-mono">
                     <span
                       class="px-2.5 py-0.5 rounded-full text-xs font-bold"
                       :class="r.total_rechazos > 0 ? 'bg-[#FFECEB] text-[#FF3B30]' : 'text-[#86868B]'"
