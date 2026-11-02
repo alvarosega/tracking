@@ -37,6 +37,7 @@ class StorePedidoRechazadoAction
         $codigoCliente = !empty($data['codigo_cliente']) && $data['codigo_cliente'] !== 'null' ? (string) $data['codigo_cliente'] : null;
         $fechaPreventa = !empty($data['fecha_preventa']) && $data['fecha_preventa'] !== 'null' ? (string) $data['fecha_preventa'] : null;
         $ruta = !empty($data['ruta']) && $data['ruta'] !== 'null' ? (string) $data['ruta'] : ($user->ruta ?? null);
+        $distribuidor = !empty($data['distribuidor']) && $data['distribuidor'] !== 'null' ? trim((string) $data['distribuidor']) : null;
         $itemsData = $data['items'] ?? [];
         $tipoSugerido = $data['tipo_rechazo'] ?? null;
 
@@ -231,7 +232,7 @@ class StorePedidoRechazadoAction
         try {
             return DB::connection('mysql')->transaction(function () use (
                 $data, $user, $uuid, $nroPreventa, $clienteId, $codigoCliente,
-                $clienteNombre, $fechaPreventa, $fechaRechazo, $ruta, $tipoSugerido,
+                $clienteNombre, $fechaPreventa, $fechaRechazo, $ruta, $distribuidor, $tipoSugerido,
                 $photoPath, $sanitizedItems, $totalCantRechazada, $montoTotalRechazado, $nowBolivia
             ): PedidoRechazado {
                 $cabecera = PedidoRechazado::create([
@@ -246,6 +247,7 @@ class StorePedidoRechazadoAction
                     'fecha_preventa' => $fechaPreventa,
                     'fecha_rechazo' => $fechaRechazo,
                     'ruta' => $ruta,
+                    'distribuidor' => $distribuidor,
                     'motivo' => $data['motivo'] ?? 'OTRO',
                     'tipo_rechazo' => $tipoSugerido ?: ($data['tipo_rechazo'] ?? 'TOTAL'),
                     'comentarios' => !empty($data['comentarios']) && $data['comentarios'] !== 'null' ? (string) $data['comentarios'] : null,

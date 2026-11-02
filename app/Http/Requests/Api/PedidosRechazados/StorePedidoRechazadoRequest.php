@@ -84,6 +84,20 @@ class StorePedidoRechazadoRequest extends FormRequest
             $merge['ruta'] = trim((string) $ruta);
         }
 
+        // 5.1 Normalizar distribuidor / repartidor asignado
+        $distribuidor = $this->input('distribuidor')
+            ?? $this->input('distribuidor_nombre')
+            ?? $this->input('distribuidorNombre')
+            ?? $this->input('repartidor')
+            ?? $this->input('chofer')
+            ?? $this->input('delivery');
+
+        if ($distribuidor !== null && $distribuidor !== '' && $distribuidor !== 'null') {
+            $merge['distribuidor'] = trim((string) $distribuidor);
+        } else {
+            $merge['distribuidor'] = null;
+        }
+
         // 6. Normalizar motivo: soportar motivo, motivo_codigo, motivoCodigo, codigo_motivo, motivo_id, "AUSENTE"
         $rawMotivo = $this->input('motivo')
             ?? $this->input('motivo_codigo')
@@ -283,6 +297,7 @@ class StorePedidoRechazadoRequest extends FormRequest
             'fecha_preventa' => ['nullable'],
             'fecha_rechazo' => ['nullable'],
             'ruta' => ['nullable', 'string', 'max:50'],
+            'distribuidor' => ['nullable', 'string', 'max:150'],
             'motivo' => ['required', 'string', 'max:150'],
             'tipo_rechazo' => ['nullable', 'string'],
             'comentarios' => ['nullable', 'string'],

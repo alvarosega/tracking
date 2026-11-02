@@ -12,6 +12,15 @@ class PedidoRechazado extends Model
 {
     use HasFactory;
 
+    public const DISTRIBUIDORES = [
+        ['id' => 1, 'nombre' => 'Abner Llojlla Quito'],
+        ['id' => 2, 'nombre' => 'Alan Jacinto Limachi Ajata'],
+        ['id' => 3, 'nombre' => 'Hernan Huanca'],
+        ['id' => 4, 'nombre' => 'Jorge Luis Laura Chacon'],
+        ['id' => 5, 'nombre' => 'Rodrigo Quispe'],
+        ['id' => 6, 'nombre' => 'Roly Cupana'],
+    ];
+
     protected $table = 'pedidos_rechazados';
 
     protected $fillable = [
@@ -26,6 +35,7 @@ class PedidoRechazado extends Model
         'fecha_preventa',
         'fecha_rechazo',
         'ruta',
+        'distribuidor',
         'motivo',
         'tipo_rechazo',
         'comentarios',

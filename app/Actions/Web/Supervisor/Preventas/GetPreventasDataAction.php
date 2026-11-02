@@ -150,6 +150,7 @@ class GetPreventasDataAction
                         'id' => $rechazo->id,
                         'uuid' => $rechazo->uuid,
                         'motivo' => $rechazo->motivo,
+                        'distribuidor' => $rechazo->distribuidor,
                         'tipo_rechazo' => $rechazo->tipo_rechazo,
                         'comentarios' => $rechazo->comentarios,
                         'photo_url' => $rechazo->photo_url,

@@ -1025,6 +1025,9 @@
               <p class="text-slate-600 text-[11px]">
                 <strong>Comentario:</strong> {{ pedidoEvidenciaModal.justificativo?.comentarios || 'Sin comentarios registrados.' }}
               </p>
+              <p v-if="pedidoEvidenciaModal.justificativo?.distribuidor" class="text-slate-700 text-[11px]">
+                <strong>Distribuidor asignado:</strong> <span class="text-indigo-700 font-semibold">{{ pedidoEvidenciaModal.justificativo.distribuidor }}</span>
+              </p>
               <div
                 v-if="pedidoEvidenciaModal.justificativo?.latitude && pedidoEvidenciaModal.justificativo?.longitude"
                 class="pt-1 text-right"

@@ -390,6 +390,9 @@
                     <p v-if="ped.rechazo.comentarios" class="text-slate-600 text-[9px] mt-1 italic">
                       "{{ ped.rechazo.comentarios }}"
                     </p>
+                    <div v-if="ped.rechazo.distribuidor" class="text-[9px] text-indigo-800 font-medium mt-0.5">
+                      🚚 Distribuidor: {{ ped.rechazo.distribuidor }}
+                    </div>
                     <div class="flex items-center justify-between mt-1 text-[9px] text-slate-500 font-mono pt-1 border-t border-rose-100">
                       <span>{{ ped.rechazo.fecha_rechazo || 'Registrado en campo' }}</span>
                       <button

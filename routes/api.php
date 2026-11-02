@@ -62,6 +62,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     foreach (['pedidos-rechazados', 'pedidos_rechazados', 'pedido-rechazado', 'pedido_rechazado', 'rechazos', 'rechazo'] as $prefix) {
         Route::prefix($prefix)->group(function (): void {
             Route::match(['get', 'post'], '/motivos', [PedidoRechazadoController::class, 'motivos']);
+            Route::match(['get', 'post'], '/distribuidores', [PedidoRechazadoController::class, 'distribuidores']);
+            Route::match(['get', 'post'], '/repartidores', [PedidoRechazadoController::class, 'distribuidores']);
             Route::match(['get', 'post'], '/preventas-pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
             Route::match(['get', 'post'], '/preventas_pendientes', [PedidoRechazadoController::class, 'preventasPendientes']);
             Route::post('/', [PedidoRechazadoController::class, 'store']);

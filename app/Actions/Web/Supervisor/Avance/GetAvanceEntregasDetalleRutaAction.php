@@ -279,6 +279,7 @@ class GetAvanceEntregasDetalleRutaAction
                     'motivo' => (string) ($r->motivo ?? 'SIN_MOTIVO'),
                     'tipo_rechazo' => (string) ($r->tipo_rechazo ?? 'TOTAL'),
                     'comentarios' => trim((string) ($r->comentarios ?? '')) ?: null,
+                    'distribuidor' => trim((string) ($r->distribuidor ?? '')) ?: null,
                     'fecha_rechazo' => $r->fecha_rechazo ? Carbon::parse($r->fecha_rechazo)->format('Y-m-d H:i') : null,
                     'vendedor_reporta' => (string) ($r->vendedor ?? ''),
                     'photo_path' => $fotoRel ?: null,

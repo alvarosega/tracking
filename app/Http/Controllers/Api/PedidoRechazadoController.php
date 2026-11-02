@@ -9,6 +9,7 @@ use App\Actions\Api\PedidosRechazados\GetPreventasPendientesAction;
 use App\Actions\Api\PedidosRechazados\StorePedidoRechazadoAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PedidosRechazados\StorePedidoRechazadoRequest;
+use App\Models\PedidoRechazado;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,23 @@ class PedidoRechazadoController extends Controller
         return response()->json([
             'success' => true,
             'motivos' => self::MOTIVOS_RECHAZO,
+        ]);
+    }
+
+    /**
+     * Catálogo de distribuidores oficiales para poblar el selector desplegable en Android.
+     * GET /api/pedidos-rechazados/distribuidores o GET /api/pedido-rechazado/distribuidores
+     */
+    public function distribuidores(): JsonResponse
+    {
+        $distribuidores = config('distribuidores.lista', PedidoRechazado::DISTRIBUIDORES);
+
+        return response()->json([
+            'success' => true,
+            'total' => count($distribuidores),
+            'distribuidores' => $distribuidores,
+            'repartidores' => $distribuidores,
+            'data' => $distribuidores,
         ]);
     }
 
