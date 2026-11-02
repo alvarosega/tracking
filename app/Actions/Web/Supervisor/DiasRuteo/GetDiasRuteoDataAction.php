@@ -65,28 +65,18 @@ class GetDiasRuteoDataAction
             Log::error('GetDiasRuteoDataAction dim_rutas error: ' . $e->getMessage());
         }
 
-        // 2. Obtener rutas y conteo de clientes por día en pan_ruteo
-        $conteosPorRutaDia = []; // [normKey => [diaCanon => total_clientes]]
+        // 2. Obtener clientes activos desde pan_ruteo agrupados por ruta y día
+        $clientesPorRutaDia = []; // [nKey => [diaCanon => [cid => true]]]
+        $clientesPorRuta = [];    // [nKey => [cid => true]]
 
         try {
             $panRows = DB::connection('supervisor')
                 ->table('pan_ruteo')
-                ->where(function ($q) {
-                    $q->whereNull('estado')
-                      ->orWhere('estado', '')
-                      ->orWhere('estado', 'Activo')
-                      ->orWhereRaw("UPPER(TRIM(estado)) IN ('ACTIVO', 'ACTIVA', 'VIGENTE')")
-                      ->orWhereRaw("UPPER(TRIM(estado)) NOT IN ('INACTIVO', 'INACTIVA', 'BAJA', 'ELIMINADO')");
-                })
+                ->where('estado', 'Activo')
                 ->whereNotNull('ruta')
                 ->whereRaw("TRIM(ruta) != ''")
-                ->select([
-                    'ruta',
-                    'dia_norm',
-                    'dia',
-                    DB::raw('COUNT(DISTINCT COALESCE(NULLIF(cliente_id, 0), id)) as total_clientes'),
-                ])
-                ->groupBy('ruta', 'dia_norm', 'dia')
+                ->where('cliente_id', '>', 0)
+                ->select(['cliente_id', 'ruta', 'dia_norm', 'dia'])
                 ->get();
 
             foreach ($panRows as $pr) {
@@ -99,11 +89,14 @@ class GetDiasRuteoDataAction
                     $nombresRutaMap[$nKey] = $rawRuta;
                 }
 
+                $cid = (int) $pr->cliente_id;
                 $diaRaw = !empty(trim((string) $pr->dia_norm)) ? trim((string) $pr->dia_norm) : trim((string) $pr->dia);
                 $diaCanon = $this->normalizarDiaNombre($diaRaw);
+
                 if ($diaCanon) {
-                    $conteosPorRutaDia[$nKey][$diaCanon] = ($conteosPorRutaDia[$nKey][$diaCanon] ?? 0) + (int) $pr->total_clientes;
+                    $clientesPorRutaDia[$nKey][$diaCanon][$cid] = true;
                 }
+                $clientesPorRuta[$nKey][$cid] = true;
             }
         } catch (\Throwable $e) {
             Log::error('GetDiasRuteoDataAction pan_ruteo error: ' . $e->getMessage());
@@ -172,8 +165,13 @@ class GetDiasRuteoDataAction
             $canal = $meta['canal'] ?? 'TDB';
             $vendedor = $meta['vendedor'] ?? ($vendedoresUsers[$nKey] ?? 'Sin asignar');
 
-            $conteosDia = $conteosPorRutaDia[$nKey] ?? [];
-            $totalClientesRuta = array_sum($conteosDia);
+            $cidsRuta = $clientesPorRuta[$nKey] ?? [];
+            $totalClientesRuta = count($cidsRuta);
+
+            $conteosDia = [];
+            foreach (self::DIAS_SEMANA as $diaNombre) {
+                $conteosDia[$diaNombre] = count($clientesPorRutaDia[$nKey][$diaNombre] ?? []);
+            }
 
             $configsRuta = collect($configsPorRutaNorm[$nKey] ?? []);
             $diasConfigurados = [];
@@ -202,14 +200,17 @@ class GetDiasRuteoDataAction
                     $tieneAlgunaPersonalizada = true;
                 }
 
-                // Calcular suma de clientes para los días asignados
-                $clientesCalculados = 0;
+                // Calcular clientes únicos para los días de visita asignados (sin duplicar si un cliente visita varios días)
+                $cidsAsignados = [];
                 foreach ($diasVisitaAsignados as $dAsig) {
                     $dCanon = $this->normalizarDiaNombre((string) $dAsig);
-                    if ($dCanon && isset($conteosDia[$dCanon])) {
-                        $clientesCalculados += $conteosDia[$dCanon];
+                    if ($dCanon && isset($clientesPorRutaDia[$nKey][$dCanon])) {
+                        foreach ($clientesPorRutaDia[$nKey][$dCanon] as $cIdKey => $val) {
+                            $cidsAsignados[$cIdKey] = true;
+                        }
                     }
                 }
+                $clientesCalculados = count($cidsAsignados);
 
                 $diasConfigurados[$diaNum] = [
                     'day_of_week' => $diaNum,
