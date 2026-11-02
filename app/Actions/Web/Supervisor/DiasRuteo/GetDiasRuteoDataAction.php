@@ -82,10 +82,11 @@ class GetDiasRuteoDataAction
                 ->whereRaw("TRIM(ruta) != ''")
                 ->select([
                     'ruta',
-                    DB::raw("COALESCE(NULLIF(TRIM(dia_norm), ''), TRIM(dia)) as dia_calculado"),
+                    'dia_norm',
+                    'dia',
                     DB::raw('COUNT(DISTINCT COALESCE(NULLIF(cliente_id, 0), id)) as total_clientes'),
                 ])
-                ->groupBy('ruta', DB::raw("COALESCE(NULLIF(TRIM(dia_norm), ''), TRIM(dia))"))
+                ->groupBy('ruta', 'dia_norm', 'dia')
                 ->get();
 
             foreach ($panRows as $pr) {
@@ -98,7 +99,8 @@ class GetDiasRuteoDataAction
                     $nombresRutaMap[$nKey] = $rawRuta;
                 }
 
-                $diaCanon = $this->normalizarDiaNombre((string) $pr->dia_calculado);
+                $diaRaw = !empty(trim((string) $pr->dia_norm)) ? trim((string) $pr->dia_norm) : trim((string) $pr->dia);
+                $diaCanon = $this->normalizarDiaNombre($diaRaw);
                 if ($diaCanon) {
                     $conteosPorRutaDia[$nKey][$diaCanon] = ($conteosPorRutaDia[$nKey][$diaCanon] ?? 0) + (int) $pr->total_clientes;
                 }
