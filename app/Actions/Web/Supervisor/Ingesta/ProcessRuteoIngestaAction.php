@@ -227,6 +227,9 @@ class ProcessRuteoIngestaAction
         $totalBdAnterior = count($clientesEnBd);
         $totalClientesArchivo = count($clientesEnArchivo);
 
+        // El procesamiento del plan de ruteo opera siempre como Reemplazo Maestro del padrón oficial
+        $esCargaCompleta = true;
+
         $registrosAuditoria = [];
         $altasCnt = 0;
         $modificadosCnt = 0;
