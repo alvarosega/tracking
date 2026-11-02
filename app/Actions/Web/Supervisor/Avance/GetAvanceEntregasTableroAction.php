@@ -35,9 +35,13 @@ class GetAvanceEntregasTableroAction
 
     private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro): array
     {
-        $fechaPreventa = $fechaCorte;
+        // La fecha seleccionada en pantalla es la fecha de facturación/despacho (Corte)
+        $fechaFacturacion = $fechaCorte;
+        // La preventa evaluada es la del día operativo previo (D-1) que originó estas entregas
+        $fechaPreventa = $this->calcularFechaOperativaPrevia($fechaFacturacion);
+
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
-        $fechaMaxFact = max(Carbon::parse($fechaPreventa)->addDays(30)->format('Y-m-d'), $nowBolivia);
+        $fechaMaxFact = max(Carbon::parse($fechaFacturacion)->addDays(30)->format('Y-m-d'), $nowBolivia);
 
         $params = [$fechaPreventa, $fechaMaxFact, $fechaPreventa];
         $extraSql = '';

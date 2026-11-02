@@ -27,7 +27,7 @@
               v-if="submodo === 'diario'"
               class="text-[11px] text-slate-500 font-medium hidden sm:inline font-mono"
             >
-              (Fecha de Corte: <strong class="text-slate-800">{{ fechaD1Referencia }}</strong>)
+              (Facturación: <strong class="text-slate-800">{{ datosEntregas?.fecha_corte || store.filtrosAplicados?.fechaCorte || store.fechaCorte }}</strong> · Preventa D-1: <strong class="text-slate-800">{{ fechaD1Referencia }}</strong>)
             </span>
             <span
               v-else

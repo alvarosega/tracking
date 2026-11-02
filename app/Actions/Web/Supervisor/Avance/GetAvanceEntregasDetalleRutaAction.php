@@ -37,8 +37,13 @@ class GetAvanceEntregasDetalleRutaAction
 
     private function procesarDetalleRuta(string $ruta, string $fechaInicio, string $fechaCorte): array
     {
+        $fechaFactInicio = $fechaInicio;
+        $fechaFactCorte = $fechaCorte;
+        $fechaPrevInicio = $this->calcularFechaOperativaPrevia($fechaFactInicio);
+        $fechaPrevFin = $this->calcularFechaOperativaPrevia($fechaFactCorte);
+
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
-        $fechaMaxFact = max(Carbon::parse($fechaCorte)->addDays(30)->format('Y-m-d'), $nowBolivia);
+        $fechaMaxFact = max(Carbon::parse($fechaFactCorte)->addDays(30)->format('Y-m-d'), $nowBolivia);
 
         $query = "
             SELECT 
@@ -102,8 +107,8 @@ class GetAvanceEntregasDetalleRutaAction
         ";
 
         $filas = DB::connection('supervisor')->select($query, [
-            $fechaInicio, $fechaMaxFact,
-            $fechaInicio, $fechaCorte,
+            $fechaFactInicio, $fechaMaxFact,
+            $fechaPrevInicio, $fechaPrevFin,
             trim($ruta),
         ]);
 
@@ -384,6 +389,29 @@ class GetAvanceEntregasDetalleRutaAction
                 $it['monto_rechazado_rep'] = 0.0;
             }
         }
+    }
+
+    private function calcularFechaOperativaPrevia(string $fecha): string
+    {
+        try {
+            $row = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '<', $fecha)
+                ->where('monto_final', '>', 0)
+                ->selectRaw('CAST(MAX(fecha_norm) AS CHAR) AS max_f')
+                ->first();
+
+            if ($row && !empty($row->max_f)) {
+                return (string) $row->max_f;
+            }
+        } catch (\Throwable $e) {
+            // Silencioso
+        }
+
+        $dt = Carbon::parse($fecha);
+        if ($dt->isMonday()) {
+            return $dt->subDays(2)->format('Y-m-d');
+        }
+        return $dt->subDay()->format('Y-m-d');
     }
 }
 

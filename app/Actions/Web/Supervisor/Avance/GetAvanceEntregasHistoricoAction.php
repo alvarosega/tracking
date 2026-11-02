@@ -38,9 +38,39 @@ class GetAvanceEntregasHistoricoAction
 
     private function procesarHistorico(string $fechaInicio, string $fechaCorte): array
     {
-        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
-        $fechaMaxFact = max(Carbon::parse($fechaCorte)->addDays(30)->format('Y-m-d'), $nowBolivia);
+        // 1. Rango oficial de facturación (coincide al 100% con Cumplimiento KPIs - Volumen General)
+        $fechaFactInicio = $fechaInicio;
+        $fechaFactCorte = $fechaCorte;
 
+        // 2. Rango de preventas correspondientes (D-1): Preventas que originaron las entregas de ese período
+        $fechaPrevInicio = $this->calcularFechaOperativaPrevia($fechaFactInicio);
+        $fechaPrevFin = $this->calcularFechaOperativaPrevia($fechaFactCorte);
+
+        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
+        $fechaMaxFact = max(Carbon::parse($fechaFactCorte)->addDays(30)->format('Y-m-d'), $nowBolivia);
+
+        // 3. Monto facturado oficial por ruta desde fact_ventas (mismo cálculo que Cumplimiento KPIs)
+        $ventasOficialesRuta = DB::connection('supervisor')->table('fact_ventas')
+            ->where('fecha_norm', '>=', $fechaFactInicio)
+            ->where('fecha_norm', '<=', $fechaFactCorte)
+            ->where('monto_final', '!=', 0)
+            ->where(function ($q): void {
+                $q->whereNull('revertida')
+                  ->orWhere(function ($sub): void {
+                      $sub->where('revertida', '!=', 'Si')
+                          ->where('revertida', '!=', 'SI')
+                          ->where('revertida', '!=', '1');
+                  });
+            })
+            ->select([
+                DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
+                DB::raw("ROUND(SUM(monto_final), 2) as total_facturado"),
+            ])
+            ->groupBy('ruta_clean')
+            ->pluck('total_facturado', 'ruta_clean')
+            ->toArray();
+
+        // 4. Consulta agrupada de preventas del ciclo [fechaPrevInicio, fechaPrevFin] cruzadas con fact_ventas
         $query = "
             SELECT 
                 TRIM(UPPER(COALESCE(fp.ruta, 'SIN RUTA'))) AS ruta,
@@ -74,8 +104,8 @@ class GetAvanceEntregasHistoricoAction
         ";
 
         $filas = DB::connection('supervisor')->select($query, [
-            $fechaInicio, $fechaMaxFact,
-            $fechaInicio, $fechaCorte,
+            $fechaFactInicio, $fechaMaxFact,
+            $fechaPrevInicio, $fechaPrevFin,
         ]);
 
         $todosNros = [];
@@ -132,11 +162,30 @@ class GetAvanceEntregasHistoricoAction
             unset($r);
         }
 
+        // Incorporar rutas que tuvieron ventas facturadas en el período aunque no registren preventas
+        foreach ($ventasOficialesRuta as $rVenta => $mFactVenta) {
+            if (!isset($rutasMap[$rVenta])) {
+                $rutasMap[$rVenta] = [
+                    'ruta' => $rVenta,
+                    'canal' => 'SC',
+                    'vendedor' => 'No Asignado',
+                    'total_pedidos' => 0,
+                    'pedidos_entregados' => 0,
+                    'pedidos_parciales' => 0,
+                    'pedidos_caidos' => 0,
+                    'pedidos_justificados' => 0,
+                    'monto_preventa' => 0.0,
+                    'monto_facturado' => (float) $mFactVenta,
+                ];
+            }
+        }
+
         $rutasResumen = [];
         $totPedidos = 0;
         $totEntregados = 0;
         $totParciales = 0;
         $totCaidos = 0;
+        $totJustificados = 0;
         $totPrevBs = 0.0;
         $totFactBs = 0.0;
 
@@ -144,7 +193,11 @@ class GetAvanceEntregasHistoricoAction
 
         foreach ($rutasMap as $rNombre => $r) {
             $mPrev = $r['monto_preventa'];
-            $mFact = $r['monto_facturado'];
+            // Utilizar el facturado oficial de fact_ventas para coincidir 100% con Cumplimiento KPIs
+            $mFact = isset($ventasOficialesRuta[$rNombre])
+                ? (float) $ventasOficialesRuta[$rNombre]
+                : (float) $r['monto_facturado'];
+
             $brecha = round($mFact - $mPrev, 2);
             $efec = $mPrev > 0 ? round(($mFact / $mPrev) * 100.0, 1) : 0.0;
 
@@ -167,6 +220,7 @@ class GetAvanceEntregasHistoricoAction
             $totEntregados += $r['pedidos_entregados'];
             $totParciales += $r['pedidos_parciales'];
             $totCaidos += $r['pedidos_caidos'];
+            $totJustificados += $r['pedidos_justificados'];
             $totPrevBs = round($totPrevBs + $mPrev, 2);
             $totFactBs = round($totFactBs + $mFact, 2);
         }
@@ -175,14 +229,17 @@ class GetAvanceEntregasHistoricoAction
         $efecGlobal = $totPrevBs > 0 ? round(($totFactBs / $totPrevBs) * 100.0, 1) : 0.0;
 
         return [
-            'fecha_inicio' => $fechaInicio,
-            'fecha_corte' => $fechaCorte,
+            'fecha_inicio' => $fechaFactInicio,
+            'fecha_corte' => $fechaFactCorte,
+            'fecha_prev_inicio' => $fechaPrevInicio,
+            'fecha_prev_fin' => $fechaPrevFin,
             'total_rutas' => count($rutasResumen),
             'totales_generales' => [
                 'total_pedidos' => $totPedidos,
                 'pedidos_entregados' => $totEntregados,
                 'pedidos_parciales' => $totParciales,
                 'pedidos_caidos' => $totCaidos,
+                'pedidos_justificados' => $totJustificados,
                 'monto_preventa' => $totPrevBs,
                 'monto_facturado' => $totFactBs,
                 'brecha_bs' => $brechaGlobal,
@@ -190,6 +247,29 @@ class GetAvanceEntregasHistoricoAction
             ],
             'rutas' => $rutasResumen,
         ];
+    }
+
+    private function calcularFechaOperativaPrevia(string $fecha): string
+    {
+        try {
+            $row = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '<', $fecha)
+                ->where('monto_final', '>', 0)
+                ->selectRaw('CAST(MAX(fecha_norm) AS CHAR) AS max_f')
+                ->first();
+
+            if ($row && !empty($row->max_f)) {
+                return (string) $row->max_f;
+            }
+        } catch (\Throwable $e) {
+            // Silencioso
+        }
+
+        $dt = Carbon::parse($fecha);
+        if ($dt->isMonday()) {
+            return $dt->subDays(2)->format('Y-m-d');
+        }
+        return $dt->subDay()->format('Y-m-d');
     }
 
     private function obtenerJustificativosSet(array $nrosPreventa): array
@@ -210,4 +290,3 @@ class GetAvanceEntregasHistoricoAction
         }
     }
 }
-
