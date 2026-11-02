@@ -155,11 +155,7 @@ class GetDetalleReposicionRutaAction
                 ->where('fecha_norm', '<=', $fechaFinHist)
                 ->where('monto_final', '>', 0)
                 ->where(function ($q): void {
-                    $q->whereNull('revertida')
-                      ->orWhere(function ($sub): void {
-                          $sub->where('revertida', '!=', 'Si')
-                              ->where('revertida', '!=', 'SI');
-                      });
+                    $q->whereNull('revertida')->orWhereRaw("UPPER(TRIM(revertida)) != 'SI'");
                 })
                 ->select([
                     'cliente_id',

@@ -284,12 +284,12 @@ class GetCumplimientoDataAction
             Log::warning('Error consultando facturado acumulado en fact_ventas: ' . $e->getMessage());
         }
 
-        // G. Historial de 90 días (13 semanas) para Reposición y Ampliación de Portafolio
+        // G. Historial de 13 semanas (91 días) para Reposición y Ampliación de Portafolio
         $compradoresIds = $preventasRaw->pluck('cliente_id')->unique()->filter()->toArray();
         $historial90DiasPorCliente = [];
 
         if ((self::EVALUAR_KPI6_REPOSICION || self::EVALUAR_KPI7_AMPLIACION) && !empty($compradoresIds)) {
-            $fechaInicio90 = $carbonFecha->copy()->subDays(90)->toDateString();
+            $fechaInicio90 = $carbonFecha->copy()->subDays(91)->toDateString();
             $fechaFin90 = $carbonFecha->copy()->subDays(1)->toDateString();
 
             try {
@@ -300,7 +300,7 @@ class GetCumplimientoDataAction
                     ->where('fecha_norm', '<=', $fechaFin90)
                     ->where('monto_final', '>', 0)
                     ->where(function ($q): void {
-                        $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                        $q->whereNull('revertida')->orWhereRaw("UPPER(TRIM(revertida)) != 'SI'");
                     })
                     ->select([
                         'cliente_id',
@@ -317,6 +317,7 @@ class GetCumplimientoDataAction
                         $historial90DiasPorCliente[$cId] = [
                             'skus' => [],
                             'keys' => [],
+                            'canonical_keys' => [],
                             'categorias' => [],
                             'total_lineas' => 0,
                         ];
@@ -324,6 +325,11 @@ class GetCumplimientoDataAction
                     $cod = trim((string) $hv->codigo_producto);
                     $pid = (int) $hv->producto_id;
                     $prodNorm = mb_strtolower(trim((string) $hv->producto));
+
+                    $canonicalKey = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : ($prodNorm !== '' ? "nom_{$prodNorm}" : ''));
+                    if ($canonicalKey !== '') {
+                        $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] = true;
+                    }
 
                     if ($cod !== '') {
                         $historial90DiasPorCliente[$cId]['skus'][$cod] = true;
@@ -362,6 +368,7 @@ class GetCumplimientoDataAction
                         $historial90DiasPorCliente[$cId] = [
                             'skus' => [],
                             'keys' => [],
+                            'canonical_keys' => [],
                             'categorias' => [],
                             'total_lineas' => 0,
                         ];
@@ -369,6 +376,11 @@ class GetCumplimientoDataAction
                     $cod = trim((string) $hp->codigo_producto);
                     $pid = (int) $hp->producto_id;
                     $prodNorm = mb_strtolower(trim((string) $hp->producto));
+
+                    $canonicalKey = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : ($prodNorm !== '' ? "nom_{$prodNorm}" : ''));
+                    if ($canonicalKey !== '') {
+                        $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] = true;
+                    }
 
                     if ($cod !== '') {
                         $historial90DiasPorCliente[$cId]['skus'][$cod] = true;
@@ -668,7 +680,7 @@ class GetCumplimientoDataAction
                     $historial = $historial90DiasPorCliente[$cIdInt] ?? null;
                     $tieneBase = ($historial && (!empty($historial['keys']) || !empty($historial['skus'])));
 
-                    $skusBaseCount = $tieneBase ? count($historial['skus']) : 0;
+                    $skusBaseCount = $tieneBase ? count($historial['canonical_keys'] ?? $historial['skus']) : 0;
                     $matchesCliente = 0;
                     $fueraCanastaCliente = 0;
 
