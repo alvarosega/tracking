@@ -10,9 +10,11 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class StoreClienteInventarioAction
 {
+    private static ?bool $hasJerarquiaColumns = null;
     /**
      * Guarda el inventario físico tomado en el cliente con garantía de idempotencia.
      *
@@ -137,7 +139,15 @@ class StoreClienteInventarioAction
                     ? (int) round((float) $item['ultima_compra_cantidad'])
                     : (isset($item['ultima_compra']['cantidad']) && is_numeric($item['ultima_compra']['cantidad']) ? (int) round((float) $item['ultima_compra']['cantidad']) : 0);
 
-                $itemsToInsert[] = [
+                if (self::$hasJerarquiaColumns === null) {
+                    try {
+                        self::$hasJerarquiaColumns = Schema::connection('mysql')->hasColumn('cliente_inventario_items', 'jerarquia1');
+                    } catch (\Throwable) {
+                        self::$hasJerarquiaColumns = false;
+                    }
+                }
+
+                $row = [
                     'cliente_inventario_id' => $cabecera->id,
                     'producto_id' => $prodId,
                     'codigo_producto' => $codigo,
@@ -149,6 +159,14 @@ class StoreClienteInventarioAction
                     'ultima_compra_cantidad' => max(0, $cantUltCompra),
                     'created_at' => now(),
                 ];
+
+                if (self::$hasJerarquiaColumns) {
+                    $row['jerarquia1'] = !empty($item['jerarquia1']) && $item['jerarquia1'] !== 'null' ? (string) $item['jerarquia1'] : null;
+                    $row['jerarquia2'] = !empty($item['jerarquia2']) && $item['jerarquia2'] !== 'null' ? (string) $item['jerarquia2'] : null;
+                    $row['jerarquia3'] = !empty($item['jerarquia3']) && $item['jerarquia3'] !== 'null' ? (string) $item['jerarquia3'] : null;
+                }
+
+                $itemsToInsert[] = $row;
             }
 
             if (!empty($itemsToInsert)) {

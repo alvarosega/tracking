@@ -86,11 +86,18 @@ class StoreClienteInventarioRequest extends FormRequest
                     $categoria = 'General';
                 }
 
+                $j1 = $item['jerarquia1'] ?? $item['jerarquia_1'] ?? null;
+                $j2 = $item['jerarquia2'] ?? $item['jerarquia_2'] ?? null;
+                $j3 = $item['jerarquia3'] ?? $item['jerarquia_3'] ?? null;
+
                 $sanitizedItems[] = [
                     'producto_id' => $prodId,
                     'codigo_producto' => $codigo,
                     'producto_nombre' => $nombre,
                     'categoria' => $categoria,
+                    'jerarquia1' => ($j1 !== null && $j1 !== '' && $j1 !== 'null') ? (string) $j1 : null,
+                    'jerarquia2' => ($j2 !== null && $j2 !== '' && $j2 !== 'null') ? (string) $j2 : null,
+                    'jerarquia3' => ($j3 !== null && $j3 !== '' && $j3 !== 'null') ? (string) $j3 : null,
                     'stock_fisico' => max(0, $stockFisico),
                     'total_comprado' => isset($item['total_comprado']) && is_numeric($item['total_comprado']) ? (int) $item['total_comprado'] : 0,
                     'cantidad_historica' => isset($item['cantidad_historica']) && is_numeric($item['cantidad_historica']) ? (int) $item['cantidad_historica'] : 0,
@@ -158,6 +165,9 @@ class StoreClienteInventarioRequest extends FormRequest
             'items.*.producto' => ['nullable', 'string', 'max:255'],
             'items.*.producto_nombre' => ['nullable', 'string', 'max:255'],
             'items.*.categoria' => ['nullable', 'string', 'max:100'],
+            'items.*.jerarquia1' => ['nullable', 'string', 'max:100'],
+            'items.*.jerarquia2' => ['nullable', 'string', 'max:100'],
+            'items.*.jerarquia3' => ['nullable', 'string', 'max:100'],
             'items.*.stock_fisico' => ['required', 'numeric', 'min:0'],
             'items.*.total_comprado' => ['nullable', 'numeric'],
             'items.*.cantidad_historica' => ['nullable', 'numeric'],
