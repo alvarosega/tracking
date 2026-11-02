@@ -89,13 +89,20 @@ class GetVisitasClientesAction
             Log::warning('GetVisitasClientesAction visitas query: ' . $ve->getMessage());
         }
 
-        // 6. Consultar todos los clientes de la ruta en pan_ruteo (incluye referenciales)
+        // 6. Consultar clientes activos de la ruta en pan_ruteo (excluyendo inactivos)
         $query = DB::connection('supervisor')
             ->table('pan_ruteo as p')
             ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join): void {
                 $join->on('p.cliente_id', '=', 'latest_sb.cliente_id');
             })
             ->leftJoin('saneamiento_base as sb', 'sb.id', '=', 'latest_sb.max_id')
+            ->where(function ($q): void {
+                $q->whereNull('p.estado')
+                  ->orWhere('p.estado', '')
+                  ->orWhere('p.estado', 'Activo')
+                  ->orWhereRaw("UPPER(TRIM(p.estado)) IN ('ACTIVO', 'ACTIVA', 'VIGENTE')")
+                  ->orWhereRaw("UPPER(TRIM(p.estado)) NOT IN ('INACTIVO', 'INACTIVA', 'BAJA', 'ELIMINADO')");
+            })
             ->where(function ($q) use ($rutaUsuario, $user): void {
                 $q->whereRaw("TRIM(UPPER(p.ruta)) = ?", [strtoupper($rutaUsuario)]);
                 if (!empty($user->ruta) && $user->ruta !== $user->username) {
