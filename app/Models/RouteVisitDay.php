@@ -33,6 +33,15 @@ class RouteVisitDay extends Model
     ];
 
     /**
+     * Serializa arrays/objetos con UTF-8 literal (sin escapes \uXXXX).
+     * Evita que "Miércoles" se guarde como "Mi\u00e9rcoles" en la BD.
+     */
+    protected function asJson($value): string
+    {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
      * Usuario (superadmin) que actualizó la configuración.
      */
     public function updater(): BelongsTo
