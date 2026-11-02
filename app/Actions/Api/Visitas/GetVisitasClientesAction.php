@@ -6,6 +6,7 @@ namespace App\Actions\Api\Visitas;
 
 use App\Models\RouteVisitDay;
 use App\Models\User;
+use App\Services\SaneamientoAuditService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,10 @@ class GetVisitasClientesAction
         6 => 'Sábado',
         7 => 'Domingo',
     ];
+
+    public function __construct(
+        protected SaneamientoAuditService $saneamientoAuditService
+    ) {}
 
     /**
      * Retorna el listado ligero de todos los clientes de la ruta para el submódulo de Visitas.
@@ -84,20 +89,13 @@ class GetVisitasClientesAction
             Log::warning('GetVisitasClientesAction visitas query: ' . $ve->getMessage());
         }
 
-        // 6. Consultar clientes activos de la ruta en pan_ruteo
+        // 6. Consultar todos los clientes de la ruta en pan_ruteo (incluye referenciales)
         $query = DB::connection('supervisor')
             ->table('pan_ruteo as p')
             ->leftJoinSub($latestPendingEdits, 'latest_sb', function ($join): void {
                 $join->on('p.cliente_id', '=', 'latest_sb.cliente_id');
             })
             ->leftJoin('saneamiento_base as sb', 'sb.id', '=', 'latest_sb.max_id')
-            ->where(function ($q): void {
-                $q->whereNull('p.estado')
-                  ->orWhere('p.estado', '')
-                  ->orWhere('p.estado', 'Activo')
-                  ->orWhereRaw("UPPER(TRIM(p.estado)) IN ('ACTIVO', 'ACTIVA', 'VIGENTE')")
-                  ->orWhereRaw("UPPER(TRIM(p.estado)) NOT IN ('INACTIVO', 'INACTIVA', 'BAJA', 'ELIMINADO')");
-            })
             ->where(function ($q) use ($rutaUsuario, $user): void {
                 $q->whereRaw("TRIM(UPPER(p.ruta)) = ?", [strtoupper($rutaUsuario)]);
                 if (!empty($user->ruta) && $user->ruta !== $user->username) {
@@ -113,14 +111,13 @@ class GetVisitasClientesAction
                     WHEN sb.id IS NOT NULL AND sb.cliente IS NOT NULL AND TRIM(sb.cliente) != '' THEN sb.cliente 
                     ELSE COALESCE(NULLIF(p.cliente, ''), p.cliente_norm, 'Cliente S/N') 
                 END as cliente"),
+                'p.ruta',
+                'p.dia',
+                'p.dia_norm',
                 DB::raw("CASE 
                     WHEN sb.id IS NOT NULL AND sb.direccion IS NOT NULL AND TRIM(sb.direccion) != '' THEN sb.direccion 
                     ELSE COALESCE(p.direccion, '') 
                 END as direccion"),
-                DB::raw("CASE 
-                    WHEN sb.id IS NOT NULL AND (sb.celular IS NOT NULL OR sb.telefono IS NOT NULL) THEN COALESCE(NULLIF(sb.celular, ''), NULLIF(sb.telefono, ''), '')
-                    ELSE COALESCE(NULLIF(p.celular, ''), NULLIF(p.telefono, ''), '') 
-                END as telefono"),
                 DB::raw("CASE 
                     WHEN sb.id IS NOT NULL AND sb.latitude IS NOT NULL THEN sb.latitude 
                     ELSE p.latitud 
@@ -129,14 +126,35 @@ class GetVisitasClientesAction
                     WHEN sb.id IS NOT NULL AND sb.longitude IS NOT NULL THEN sb.longitude 
                     ELSE p.longitud 
                 END as longitud"),
-                'p.dia',
-                'p.dia_norm',
-                'p.ruta',
+                DB::raw("COALESCE(p.estado, 'Activo') as estado"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN sb.tipo_negocio ELSE COALESCE(p.tipo_negocio, '') END as tipo_negocio"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
+                    ELSE COALESCE(TRIM(p.territorio), '') 
+                END as zona"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
+                    ELSE COALESCE(TRIM(p.territorio), '') 
+                END as zona_comercial"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL THEN COALESCE(sb.zona, '') 
+                    ELSE COALESCE(TRIM(p.territorio), '') 
+                END as territorio"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.contacto, '') ELSE COALESCE(p.contacto, '') END as contacto"),
+                DB::raw("CASE 
+                    WHEN sb.id IS NOT NULL AND (sb.celular IS NOT NULL OR sb.telefono IS NOT NULL) THEN COALESCE(NULLIF(sb.celular, ''), NULLIF(sb.telefono, ''), '')
+                    ELSE COALESCE(NULLIF(p.celular, ''), NULLIF(p.telefono, ''), '') 
+                END as telefono"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.celular, '') ELSE COALESCE(p.celular, '') END as celular"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.referencia, '') ELSE COALESCE(p.referencia, '') END as referencia"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.nombre_factura, '') ELSE COALESCE(p.nombre_factura, '') END as nombre_factura"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN COALESCE(sb.nit, '') ELSE COALESCE(p.nit, '') END as nit"),
+                DB::raw("CASE WHEN sb.id IS NOT NULL THEN 1 ELSE 0 END as tiene_edicion_pendiente"),
             ])
             ->orderBy('p.cliente_id', 'asc')
             ->get();
 
-        // 7. Deduplicar por cliente_id y estructurar formato ligero para Retrofit
+        // 7. Deduplicar por cliente_id y estructurar formato unificado compatible con PlanRuteoDto
         $clientesVistos = [];
         $resultado = [];
 
@@ -161,19 +179,41 @@ class GetVisitasClientesAction
             $longitud = $c->longitud !== null && $c->longitud !== '' ? (float) $c->longitud : null;
             $isVisited = isset($visitedTodayMap[$cid]);
 
+            // Auditoría de saneamiento para Modo Censo / Calidad de Datos
+            $c->tiene_edicion_pendiente = (bool) $c->tiene_edicion_pendiente;
+            $audit = $this->saneamientoAuditService->audit($c);
+
             $resultado[] = [
                 'id' => $cid,
                 'id_cliente' => $cid,
                 'cliente_id' => $cid,
                 'nombre' => $nombre,
                 'cliente' => $nombre,
+                'ruta' => (string) ($c->ruta ?? $rutaUsuario),
+                'dia' => $diaDisplay,
                 'direccion' => $direccion,
-                'telefono' => $telefono,
                 'latitud' => $latitud,
                 'longitud' => $longitud,
-                'dia' => $diaDisplay,
-                'status' => $status,
+                'telefono' => $telefono,
+                'celular' => (string) ($c->celular ?? ''),
+                'contacto' => (string) ($c->contacto ?? ''),
+                'estado' => (string) ($c->estado ?? 'Activo'),
+                'tipo_negocio' => (string) ($c->tipo_negocio ?? ''),
+                'zona' => (string) ($c->zona ?? ''),
+                'zona_comercial' => (string) ($c->zona_comercial ?? ''),
+                'territorio' => (string) ($c->territorio ?? ''),
+                'referencia' => (string) ($c->referencia ?? ''),
+                'nombre_factura' => (string) ($c->nombre_factura ?? ''),
+                'nit' => (string) ($c->nit ?? ''),
+                'tiene_edicion_pendiente' => (bool) $c->tiene_edicion_pendiente,
                 'is_visited' => $isVisited,
+                'visita_estado' => $isVisited ? 'VISITADO' : 'PENDIENTE',
+                'status' => $status,
+                'requiere_saneamiento' => (bool) $audit['requiere_saneamiento'],
+                'saneamiento_obligatorio' => (bool) ($audit['saneamiento_obligatorio'] && !$c->tiene_edicion_pendiente),
+                'saneamiento_alertas' => $audit['alertas'],
+                'saneamiento_campos_incompletos' => $audit['campos_incompletos'],
+                'calidad_score' => (int) $audit['calidad_score'],
             ];
         }
 

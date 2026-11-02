@@ -145,6 +145,10 @@ class GetPlanRuteoAction
             $haSidoVisitado = $visitasHoy->has($item->cliente_id);
             $visita = $visitasHoy->get($item->cliente_id);
 
+            $item->id = (int) $item->cliente_id;
+            $item->id_cliente = (int) $item->cliente_id;
+            $item->nombre = (string) $item->cliente;
+            $item->status = 'visited';
             $item->tiene_edicion_pendiente = (bool) $item->tiene_edicion_pendiente;
             $item->is_visited = $haSidoVisitado;
             $item->visita_estado = $haSidoVisitado ? $visita->status : 'PENDIENTE';
