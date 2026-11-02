@@ -39,24 +39,27 @@ class GetClienteProductosHistorialAction
         $rutaCliente = $clientePlan?->ruta ? trim((string) $clientePlan->ruta) : $ruta;
 
         // 2. Obtener los días de historial configurados para la ruta o por defecto global (default 30)
-        $diasHistorial = 30;
+        $diasHistorial = null;
 
         if (!empty($rutaCliente)) {
-            $routeOverride = AppModuleRoute::where('ruta', $rutaCliente)
+            $cleanRuta = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $rutaCliente)));
+            $routeOverride = AppModuleRoute::whereRaw("TRIM(UPPER(ruta)) = ?", [$cleanRuta])
                 ->where('module_code', 'inventario_cliente')
                 ->first();
 
-            if ($routeOverride && isset($routeOverride->config['dias_historial'])) {
+            if ($routeOverride && isset($routeOverride->config['dias_historial']) && is_numeric($routeOverride->config['dias_historial'])) {
                 $diasHistorial = max(1, (int) $routeOverride->config['dias_historial']);
             }
         }
 
-        if ($diasHistorial === 30) {
+        if ($diasHistorial === null) {
             $modulo = AppModule::where('code', 'inventario_cliente')->first();
-            if ($modulo && isset($modulo->config['dias_historial'])) {
+            if ($modulo && isset($modulo->config['dias_historial']) && is_numeric($modulo->config['dias_historial'])) {
                 $diasHistorial = max(1, (int) $modulo->config['dias_historial']);
             }
         }
+
+        $diasHistorial = $diasHistorial ?? 30;
 
         $hoy = Carbon::now();
         $fechaDesde = $hoy->copy()->subDays($diasHistorial)->format('Y-m-d');

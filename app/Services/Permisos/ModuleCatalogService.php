@@ -110,6 +110,7 @@ class ModuleCatalogService
 
                     // Grupo 3: Módulos & Ajustes
                     ['id' => 'matriz', 'module_key' => 'modulos', 'name' => 'Matriz por Ruta', 'group' => 'Módulos & Ajustes'],
+                    ['id' => 'stock-ventana', 'module_key' => 'modulos', 'name' => 'Ventana Toma de Stock', 'group' => 'Módulos & Ajustes'],
                     ['id' => 'global', 'module_key' => 'modulos', 'name' => 'Ajustes Globales', 'group' => 'Módulos & Ajustes'],
                     ['id' => 'inventarios', 'module_key' => 'modulos', 'name' => 'Stock PDV / Auditoría', 'group' => 'Módulos & Ajustes'],
                 ],

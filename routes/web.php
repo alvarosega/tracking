@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
 use App\Http\Controllers\Web\SupervisorSaneamientoController;
+use App\Http\Controllers\Web\SupervisorStockVentanaController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
 use App\Http\Controllers\Web\SupervisorVisitasController;
 use Illuminate\Support\Facades\Route;
@@ -335,6 +336,16 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/data', [SupervisorDiasRuteoController::class, 'data'])->name('data');
         Route::post('/update', [SupervisorDiasRuteoController::class, 'update'])->name('update');
         Route::post('/reset', [SupervisorDiasRuteoController::class, 'reset'])->name('reset');
+    });
+
+    // Módulo Ventana Histórica para Toma de Stock de Cliente (Android)
+    Route::prefix('stock-ventana')->name('stock-ventana.')->middleware('module.access:modulos')->group(function () {
+        Route::get('/', [SupervisorStockVentanaController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorStockVentanaController::class, 'data'])->name('data');
+        Route::post('/global', [SupervisorStockVentanaController::class, 'updateGlobal'])->name('global');
+        Route::post('/route', [SupervisorStockVentanaController::class, 'updateRoute'])->name('route');
+        Route::post('/route/reset', [SupervisorStockVentanaController::class, 'resetRoute'])->name('route.reset');
+        Route::post('/batch', [SupervisorStockVentanaController::class, 'batchUpdate'])->name('batch');
     });
 
     // Módulo Gestión de Módulos Móviles y Parámetros
