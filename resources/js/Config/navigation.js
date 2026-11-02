@@ -364,6 +364,15 @@ export const navigationConfig = {
           group: 'Módulos & Ajustes'
         },
         {
+          id: 'rechazos-ventana',
+          module: 'modulos',
+          name: 'Ventana Pedidos Rechazados',
+          route: 'supervisor.rechazos-ventana.index',
+          component: 'Supervisor/RechazosVentana/Index',
+          icon: 'ExclamationTriangleIcon',
+          group: 'Módulos & Ajustes'
+        },
+        {
           id: 'global',
           module: 'modulos',
           name: 'Ajustes Globales',
@@ -538,6 +547,7 @@ export const jornadasHorariosModulosTabs = [
   { id: 'horarios', module: 'horarios', name: 'Matriz de Horarios', route: 'supervisor.horarios.index', icon: 'CalendarIcon', componentPrefix: 'Supervisor/Horarios' },
   { id: 'dias-ruteo', module: 'horarios', name: 'Días de Visita', route: 'supervisor.dias-ruteo.index', icon: 'CalendarDaysIcon', componentPrefix: 'Supervisor/DiasRuteo' },
   { id: 'stock-ventana', module: 'modulos', name: 'Toma de Stock', route: 'supervisor.stock-ventana.index', icon: 'ArchiveBoxIcon', componentPrefix: 'Supervisor/StockVentana' },
+  { id: 'rechazos-ventana', module: 'modulos', name: 'Pedidos Rechazados', route: 'supervisor.rechazos-ventana.index', icon: 'ExclamationTriangleIcon', componentPrefix: 'Supervisor/RechazosVentana' },
   { id: 'modulos', module: 'modulos', name: 'Módulos & Ajustes', route: 'supervisor.modulos.index', icon: 'AdjustmentsHorizontalIcon', componentPrefix: 'Supervisor/Modulos' },
 ];
 

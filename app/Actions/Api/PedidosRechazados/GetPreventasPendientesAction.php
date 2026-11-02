@@ -6,6 +6,7 @@ namespace App\Actions\Api\PedidosRechazados;
 
 use App\Models\PedidoRechazado;
 use App\Models\User;
+use App\Services\PedidosRechazados\RechazosVentanaService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -39,48 +40,70 @@ class GetPreventasPendientesAction
         bool $incluirJustificados = false
     ): array {
         $now = Carbon::now('America/La_Paz');
+        $service = app(RechazosVentanaService::class);
+        $userRuta = $ruta ?: (string) ($user->ruta ?? '');
+        $configModulo = $service->getConfig($userRuta);
 
-        // 1. Determinar el rango de fechas de preventa a evaluar:
+        $fechasEvaluadas = [];
+        $modoEvaluado = 'automatico';
+
+        // 1. Determinar el rango o lista de fechas de preventa a evaluar:
         if (!empty($fechaPreventaParam)) {
             $parsed = Carbon::parse($fechaPreventaParam);
-            // Si el cliente pide fecha de Domingo (ej. calculó 'ayer' en lunes),
-            // en domingo no hubo preventas: abarcar fin de semana operativo completo (Viernes y Sábado)
             if ($parsed->isSunday()) {
-                $fechaInicio = $parsed->copy()->subDays(2)->toDateString(); // Viernes
-                $fechaFin = $parsed->copy()->subDay()->toDateString();      // Sábado
+                $fechasEvaluadas = [
+                    $parsed->copy()->subDays(2)->toDateString(), // Viernes
+                    $parsed->copy()->subDay()->toDateString(),   // Sábado
+                ];
             } else {
-                $fechaInicio = $parsed->toDateString();
-                $fechaFin = $parsed->toDateString();
+                $fechasEvaluadas = [$parsed->toDateString()];
             }
+            $modoEvaluado = 'param_fecha_preventa';
         } elseif (!empty($fechaVentaParam)) {
             $parsedVenta = Carbon::parse($fechaVentaParam);
             if ($parsedVenta->isSunday()) {
-                $fechaPrev = $parsedVenta->subDays(2)->toDateString(); // Viernes
+                $fPrev = $parsedVenta->subDays(2)->toDateString(); // Viernes
             } elseif ($parsedVenta->isMonday()) {
-                $fechaPrev = $parsedVenta->subDays(2)->toDateString(); // Sábado
+                $fPrev = $parsedVenta->subDays(2)->toDateString(); // Sábado
             } else {
-                $fechaPrev = $parsedVenta->subDay()->toDateString();
+                $fPrev = $parsedVenta->subDay()->toDateString();
             }
-            $fechaInicio = $fechaPrev;
-            $fechaFin = $fechaPrev;
+            $fechasEvaluadas = [$fPrev];
+            $modoEvaluado = 'param_fecha_venta';
         } elseif (!empty($fechaDesdeParam)) {
-            $fechaInicio = $fechaDesdeParam;
-            $fechaFin = !empty($fechaHastaParam) ? $fechaHastaParam : ($incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString());
+            $fInicio = $fechaDesdeParam;
+            $fFin = !empty($fechaHastaParam) ? $fechaHastaParam : ($incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString());
+            $cursor = Carbon::parse($fInicio);
+            $cFin = Carbon::parse($fFin);
+            while ($cursor->lte($cFin)) {
+                $fechasEvaluadas[] = $cursor->toDateString();
+                $cursor->addDay();
+            }
+            $modoEvaluado = 'param_rango_fechas';
         } else {
-            // Ventana móvil por defecto (últimos 7 días hasta ayer o hoy):
-            // En Lunes, 'ayer' es Domingo; abarca toda la semana y fin de semana completo (Viernes 30 y Sábado 31 inclusive)
-            $dias = is_numeric($diasParam) ? max(1, min(90, (int) $diasParam)) : 7;
-            $fechaFin = $incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString();
-            $fechaInicio = Carbon::parse($fechaFin)->subDays($dias - 1)->toDateString();
+            // Leer configuración dinámica del módulo de supervisión (Jornadas, Horarios & Módulos)
+            $evalInfo = $service->resolverFechasEvaluadas($configModulo, $now);
+            $fechasEvaluadas = $evalInfo['fechas'];
+            $modoEvaluado = $evalInfo['modo_aplicado'];
         }
+
+        if (empty($fechasEvaluadas)) {
+            $fechasEvaluadas = [$now->copy()->subDay()->toDateString()];
+        }
+
+        sort($fechasEvaluadas);
+        $fechaInicio = reset($fechasEvaluadas);
+        $fechaFin = end($fechasEvaluadas);
 
         Log::info('[RECHAZOS-ENGINE] Evaluando preventas pendientes', [
             'user_id' => $user->id,
             'username' => $user->username,
             'user_ruta' => $user->ruta,
             'role' => $user->role?->name,
-            'fecha_inicio' => $fechaInicio,
-            'fecha_fin' => $fechaFin,
+            'modo_evaluado' => $modoEvaluado,
+            'fechas_evaluadas' => $fechasEvaluadas,
+            'fecha_min' => $fechaInicio,
+            'fecha_max' => $fechaFin,
             'params' => [
                 'fechaPreventaParam' => $fechaPreventaParam,
                 'fechaVentaParam' => $fechaVentaParam,
@@ -156,11 +179,7 @@ class GetPreventasPendientesAction
                 // Si se busca un nro_preventa específico, buscarlo directamente
                 $query->where('p.nro_preventa', (int) $nroPreventaParam);
             } else {
-                if ($fechaInicio === $fechaFin) {
-                    $query->where('p.fecha_norm', $fechaInicio);
-                } else {
-                    $query->whereBetween('p.fecha_norm', [$fechaInicio, $fechaFin]);
-                }
+                $query->whereIn('p.fecha_norm', $fechasEvaluadas);
             }
 
             if (!empty($clienteId)) {
@@ -239,9 +258,12 @@ class GetPreventasPendientesAction
                     ->where('monto_final', '>', 0)
                     ->where('cantidad', '>', 0);
 
-                // Si excepcionalmente se pasó fechaVentaParam fija, se respeta; de lo contrario se evalúa toda factura válida
+                // Si excepcionalmente se pasó fechaVentaParam fija, se respeta;
+                // de lo contrario se evalúa cualquier factura desde la fecha de preventa hacia adelante (D a D+X)
                 if (!empty($fechaVentaParam)) {
                     $ventasQuery->where('fecha_norm', $fechaVentaParam);
+                } else {
+                    $ventasQuery->where('fecha_norm', '>=', $fechaInicio);
                 }
 
                 $ventasFacturadas = $ventasQuery->select([

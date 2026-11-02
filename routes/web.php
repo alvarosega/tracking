@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\SupervisorIngestaController;
 use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
+use App\Http\Controllers\Web\SupervisorRechazosVentanaController;
 use App\Http\Controllers\Web\SupervisorSaneamientoController;
 use App\Http\Controllers\Web\SupervisorStockVentanaController;
 use App\Http\Controllers\Web\SupervisorTrackingController;
@@ -346,6 +347,18 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/route', [SupervisorStockVentanaController::class, 'updateRoute'])->name('route');
         Route::post('/route/reset', [SupervisorStockVentanaController::class, 'resetRoute'])->name('route.reset');
         Route::post('/batch', [SupervisorStockVentanaController::class, 'batchUpdate'])->name('batch');
+    });
+
+    // Módulo Ventana y Días para Pedidos Rechazados (Android)
+    Route::prefix('rechazos-ventana')->name('rechazos-ventana.')->middleware('module.access:modulos')->group(function () {
+        Route::get('/', [SupervisorRechazosVentanaController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorRechazosVentanaController::class, 'data'])->name('data');
+        Route::post('/global', [SupervisorRechazosVentanaController::class, 'updateGlobal'])->name('global');
+        Route::post('/route', [SupervisorRechazosVentanaController::class, 'updateRoute'])->name('route');
+        Route::post('/route/toggle', [SupervisorRechazosVentanaController::class, 'toggleRoute'])->name('route.toggle');
+        Route::post('/route/reset', [SupervisorRechazosVentanaController::class, 'resetRoute'])->name('route.reset');
+        Route::post('/batch', [SupervisorRechazosVentanaController::class, 'batchUpdate'])->name('batch');
+        Route::post('/preview', [SupervisorRechazosVentanaController::class, 'preview'])->name('preview');
     });
 
     // Módulo Gestión de Módulos Móviles y Parámetros
