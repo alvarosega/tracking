@@ -36,7 +36,8 @@ class GetAvanceEntregasTableroAction
     private function procesarTablero(string $fechaCorte, ?string $canalFiltro, ?string $rutaFiltro): array
     {
         $fechaPreventa = $fechaCorte;
-        $fechaMaxFact = Carbon::parse($fechaPreventa)->addDays(6)->format('Y-m-d');
+        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
+        $fechaMaxFact = max(Carbon::parse($fechaPreventa)->addDays(30)->format('Y-m-d'), $nowBolivia);
 
         $params = [$fechaPreventa, $fechaMaxFact, $fechaPreventa];
         $extraSql = '';
@@ -93,7 +94,7 @@ class GetAvanceEntregasTableroAction
                 WHERE fecha_norm >= ? AND fecha_norm <= ?
                   AND monto_final > 0
                   AND cantidad > 0
-                  AND (revertida IS NULL OR LOWER(TRIM(revertida)) != 'si')
+                  AND (revertida IS NULL OR (LOWER(TRIM(revertida)) != 'si' AND revertida != '1'))
                 GROUP BY pre_venta_id, producto_id
             ) fv_agregada ON fp.nro_preventa = fv_agregada.pre_venta_id AND fp.producto_id = fv_agregada.producto_id
             WHERE fp.fecha_norm = ?
@@ -460,7 +461,7 @@ class GetAvanceEntregasTableroAction
             } elseif (in_array($it['estatus'], ['NO_ENTREGADO', 'ENTREGA_PARCIAL'], true) && ($justRaw['tipo_rechazo'] ?? '') === 'TOTAL') {
                 $it['motivo_rechazo'] = $justRaw['motivo'];
                 $it['cantidad_rechazada_rep'] = max(0, (int) $it['cantidad_preventa'] - (int) $it['cantidad_facturada']);
-                $it['monto_rechazado_rep'] = round(max(0.0, (float) $it['monto_preventa'] - (float) $it['monto_facturada']), 2);
+                $it['monto_rechazado_rep'] = round(max(0.0, (float) $it['monto_preventa'] - (float) $it['monto_facturado']), 2);
             } else {
                 $it['motivo_rechazo'] = null;
                 $it['cantidad_rechazada_rep'] = 0;

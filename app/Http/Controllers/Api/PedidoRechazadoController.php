@@ -100,19 +100,36 @@ class PedidoRechazadoController extends Controller
             $fechaVenta = $request->input('fecha_venta', $request->input('fecha_entrega'));
             $clienteId = $request->input('cliente_id', $request->input('client_id'));
             $ruta = $request->input('ruta', $request->input('route'));
+            $dias = $request->input('dias', $request->input('dias_historial', $request->input('ventana_dias')));
+            $fechaDesde = $request->input('fecha_desde', $request->input('desde'));
+            $fechaHasta = $request->input('fecha_hasta', $request->input('hasta'));
+            $incluirHoy = filter_var($request->input('incluir_hoy', false), FILTER_VALIDATE_BOOLEAN);
 
             $preventas = $action->execute(
                 user: $request->user(),
                 fechaPreventaParam: is_string($fecha) && $fecha !== 'null' && $fecha !== '' ? $fecha : null,
                 fechaVentaParam: is_string($fechaVenta) && $fechaVenta !== 'null' && $fechaVenta !== '' ? $fechaVenta : null,
                 clienteId: is_string($clienteId) || is_numeric($clienteId) ? $clienteId : null,
-                ruta: is_string($ruta) && $ruta !== 'null' && $ruta !== '' ? $ruta : null
+                ruta: is_string($ruta) && $ruta !== 'null' && $ruta !== '' ? $ruta : null,
+                diasParam: is_numeric($dias) ? (int) $dias : null,
+                fechaDesdeParam: is_string($fechaDesde) && $fechaDesde !== 'null' && $fechaDesde !== '' ? $fechaDesde : null,
+                fechaHastaParam: is_string($fechaHasta) && $fechaHasta !== 'null' && $fechaHasta !== '' ? $fechaHasta : null,
+                incluirHoy: $incluirHoy
             );
 
             return response()->json([
                 'success' => true,
                 'total' => count($preventas),
+                'filtros' => [
+                    'dias' => is_numeric($dias) ? (int) $dias : 7,
+                    'fecha_preventa' => is_string($fecha) && $fecha !== 'null' && $fecha !== '' ? $fecha : null,
+                    'fecha_desde' => is_string($fechaDesde) && $fechaDesde !== 'null' && $fechaDesde !== '' ? $fechaDesde : null,
+                    'fecha_hasta' => is_string($fechaHasta) && $fechaHasta !== 'null' && $fechaHasta !== '' ? $fechaHasta : null,
+                    'cliente_id' => $clienteId ?: null,
+                    'ruta' => $ruta ?: null,
+                ],
                 'data' => $preventas,
+                'preventas' => $preventas,
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Error consultando preventas pendientes: ' . $e->getMessage(), [

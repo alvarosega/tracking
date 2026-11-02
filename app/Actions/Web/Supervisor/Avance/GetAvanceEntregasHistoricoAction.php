@@ -38,7 +38,8 @@ class GetAvanceEntregasHistoricoAction
 
     private function procesarHistorico(string $fechaInicio, string $fechaCorte): array
     {
-        $fechaMaxFact = Carbon::parse($fechaCorte)->addDays(6)->format('Y-m-d');
+        $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d');
+        $fechaMaxFact = max(Carbon::parse($fechaCorte)->addDays(30)->format('Y-m-d'), $nowBolivia);
 
         $query = "
             SELECT 
@@ -62,7 +63,7 @@ class GetAvanceEntregasHistoricoAction
                 WHERE fecha_norm >= ? AND fecha_norm <= ?
                   AND monto_final > 0
                   AND cantidad > 0
-                  AND (revertida IS NULL OR LOWER(TRIM(revertida)) != 'si')
+                  AND (revertida IS NULL OR (LOWER(TRIM(revertida)) != 'si' AND revertida != '1'))
                 GROUP BY pre_venta_id, producto_id
             ) fv_agregada ON fp.nro_preventa = fv_agregada.pre_venta_id AND fp.producto_id = fv_agregada.producto_id
             WHERE fp.fecha_norm >= ? AND fp.fecha_norm <= ?

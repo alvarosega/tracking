@@ -6,6 +6,7 @@ namespace App\Actions\Api\PedidosRechazados;
 
 use App\Models\PedidoRechazado;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -14,14 +15,13 @@ class GetPreventasPendientesAction
     /**
      * Calcula y devuelve las preventas tomadas pendientes de justificar frente a las ventas facturadas (entregas).
      *
-     * Reglas del ciclo operativo según el día actual en que se consulta:
-     * - Lunes: Entregas del Sábado y Domingo cruzadas con Preventas del Viernes (D-3).
-     * - Martes: Entregas del Lunes cruzadas con Preventas del Sábado (D-3).
-     * - Miércoles: Entregas del Martes (D-1) cruzadas con Preventas del Lunes (D-2).
-     * - Jueves: Entregas del Miércoles (D-1) cruzadas con Preventas del Martes (D-2).
-     * - Viernes: Entregas del Jueves (D-1) cruzadas con Preventas del Miércoles (D-2).
-     * - Sábado: Entregas del Viernes (D-1) cruzadas con Preventas del Jueves (D-2).
-     * - Domingo: Entregas del Sábado (D-1) cruzadas con Preventas del Viernes (D-2).
+     * Reglas del módulo dinámico:
+     * 1. Elimina la restricción estática de facturación al día siguiente (X+1). Si existe en fact_ventas
+     *    en cualquier fecha posterior (X+1, X+2, X+3...), se reconoce como entregada.
+     * 2. Ventana dinámica: en lugar de evaluar únicamente el día D-2, evalúa un rango móvil de días
+     *    (por defecto últimos 7 días hasta ayer D-1), permitiendo visibilidad completa.
+     * 3. Excluye preventas completamente entregadas y preventas ya justificadas en pedidos_rechazados.
+     * 4. Detecta rechazos parciales (cuando se facturó menos de lo pedido) y totales (facturado = 0).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -30,41 +30,42 @@ class GetPreventasPendientesAction
         ?string $fechaPreventaParam = null,
         ?string $fechaVentaParam = null,
         int|string|null $clienteId = null,
-        ?string $ruta = null
+        ?string $ruta = null,
+        int|string|null $diasParam = null,
+        ?string $fechaDesdeParam = null,
+        ?string $fechaHastaParam = null,
+        bool $incluirHoy = false
     ): array {
-        $now = now('America/La_Paz');
+        $now = Carbon::now('America/La_Paz');
 
-        // 1. Determinar fechas por defecto del ciclo operativo según el día de la semana:
-        if ($now->isMonday()) {
-            // Lunes: Preventa Viernes (D-3) vs Entregas Sábado (D-2) y Domingo (D-1)
-            $defaultFechasPreventa = [$now->copy()->subDays(3)->toDateString()];
-            $defaultFechasVenta = [
-                $now->copy()->subDays(2)->toDateString(),
-                $now->copy()->subDays(1)->toDateString(),
-            ];
-        } elseif ($now->isTuesday()) {
-            // Martes: Preventa Sábado (D-3) vs Entregas Lunes (D-1)
-            $defaultFechasPreventa = [$now->copy()->subDays(3)->toDateString()];
-            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
-        } elseif ($now->isSunday()) {
-            // Domingo: Preventa Viernes (D-2) vs Entregas Sábado (D-1)
-            $defaultFechasPreventa = [$now->copy()->subDays(2)->toDateString()];
-            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
+        // 1. Determinar el rango de fechas de preventa a evaluar:
+        if (!empty($fechaPreventaParam)) {
+            // Filtro por fecha específica
+            $fechaInicio = $fechaPreventaParam;
+            $fechaFin = $fechaPreventaParam;
+        } elseif (!empty($fechaDesdeParam)) {
+            // Filtro por rango explícito
+            $fechaInicio = $fechaDesdeParam;
+            $fechaFin = !empty($fechaHastaParam) ? $fechaHastaParam : ($incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString());
         } else {
-            // Miércoles, Jueves, Viernes, Sábado: Preventa anteayer (D-2) vs Entregas ayer (D-1)
-            $defaultFechasPreventa = [$now->copy()->subDays(2)->toDateString()];
-            $defaultFechasVenta = [$now->copy()->subDay()->toDateString()];
+            // Ventana móvil por defecto (últimos 7 días hasta ayer, salvo que se solicite incluir hoy o ventana diferente)
+            $dias = is_numeric($diasParam) ? max(1, min(90, (int) $diasParam)) : 7;
+            $fechaFin = $incluirHoy ? $now->toDateString() : $now->copy()->subDay()->toDateString();
+            $fechaInicio = Carbon::parse($fechaFin)->subDays($dias - 1)->toDateString();
         }
-
-        $fechasPreventa = !empty($fechaPreventaParam) ? [$fechaPreventaParam] : $defaultFechasPreventa;
-        $fechasVenta = !empty($fechaVentaParam) ? [$fechaVentaParam] : $defaultFechasVenta;
 
         try {
             // 2. Preventas ya justificadas por el vendedor en la BD local (pedidos_rechazados)
             $preventasYaJustificadas = PedidoRechazado::query()
-                ->where('user_id', $user->id)
                 ->whereNotNull('nro_preventa')
+                ->where(function ($q) use ($user): void {
+                    $q->where('user_id', $user->id)
+                      ->orWhere('vendedor_username', $user->username);
+                })
                 ->pluck('nro_preventa')
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
                 ->toArray();
 
             // 3. Consultar fact_preventas en supervisor DB
@@ -98,7 +99,11 @@ class GetPreventasPendientesAction
                 });
             }
 
-            $query->whereIn('p.fecha_norm', $fechasPreventa);
+            if ($fechaInicio === $fechaFin) {
+                $query->where('p.fecha_norm', $fechaInicio);
+            } else {
+                $query->whereBetween('p.fecha_norm', [$fechaInicio, $fechaFin]);
+            }
 
             if (!empty($clienteId)) {
                 $query->where('p.cliente_id', $clienteId);
@@ -124,35 +129,67 @@ class GetPreventasPendientesAction
                 'p.cantidad as cantidad_preventa',
                 'p.precio_lista',
                 'p.monto_final',
-            ])->get();
+            ])
+            ->where('p.monto_final', '>', 0)
+            ->where('p.cantidad', '>', 0)
+            ->orderByDesc('p.fecha_norm')
+            ->orderBy('p.nro_preventa')
+            ->get();
 
             if ($items->isEmpty()) {
                 return [];
             }
 
-            // 4. Obtener cantidades facturadas en fact_ventas (entregas) en las fechas de entrega correspondientes
-            $nrosPreventa = $items->pluck('nro_preventa')->filter()->unique()->toArray();
+            // 4. Obtener cantidades facturadas en fact_ventas (entregas)
+            // Se elimina la restricción estricta de fecha_norm = fecha_venta (X+1).
+            // Si la preventa se facturó en X+1, X+2, X+3 o posterior, se reconoce como entregada.
+            $nrosPreventa = $items->pluck('nro_preventa')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->toArray();
+
             $ventasPorItem = [];
 
             if (!empty($nrosPreventa)) {
-                $ventasFacturadas = DB::connection('supervisor')
+                $ventasQuery = DB::connection('supervisor')
                     ->table('fact_ventas')
                     ->where(function ($q): void {
                         $q->whereNull('revertida')
                           ->orWhere(function ($sub): void {
                               $sub->where('revertida', '!=', 'Si')
-                                  ->where('revertida', '!=', 'SI');
+                                  ->where('revertida', '!=', 'SI')
+                                  ->where('revertida', '!=', '1');
                           });
                     })
                     ->whereIn('pre_venta_id', $nrosPreventa)
-                    ->whereIn('fecha_norm', $fechasVenta)
-                    ->select('pre_venta_id', 'producto_id', DB::raw('SUM(cantidad) as total_facturado'))
-                    ->groupBy('pre_venta_id', 'producto_id')
-                    ->get();
+                    ->where('monto_final', '>', 0)
+                    ->where('cantidad', '>', 0);
+
+                // Si excepcionalmente se pasó fechaVentaParam fija, se respeta; de lo contrario se evalúa toda factura válida
+                if (!empty($fechaVentaParam)) {
+                    $ventasQuery->where('fecha_norm', $fechaVentaParam);
+                }
+
+                $ventasFacturadas = $ventasQuery->select([
+                    'pre_venta_id',
+                    'producto_id',
+                    DB::raw('SUM(cantidad) as total_facturado'),
+                    DB::raw('SUM(monto_final) as monto_facturado'),
+                    DB::raw('MAX(fecha_norm) as fecha_facturada'),
+                    DB::raw('MAX(nro_factura) as nro_factura'),
+                ])
+                ->groupBy('pre_venta_id', 'producto_id')
+                ->get();
 
                 foreach ($ventasFacturadas as $v) {
                     $key = trim((string) $v->pre_venta_id) . '_' . trim((string) $v->producto_id);
-                    $ventasPorItem[$key] = ($ventasPorItem[$key] ?? 0) + (int) $v->total_facturado;
+                    $ventasPorItem[$key] = [
+                        'total_facturado' => (int) $v->total_facturado,
+                        'monto_facturado' => (float) $v->monto_facturado,
+                        'fecha_facturada' => $v->fecha_facturada ? (string) $v->fecha_facturada : null,
+                        'nro_factura' => $v->nro_factura ? (string) $v->nro_factura : null,
+                    ];
                 }
             }
 
@@ -162,12 +199,19 @@ class GetPreventasPendientesAction
                 $nro = (string) ($item->nro_preventa ?: $item->preventa_item_id);
 
                 if (!isset($preventasTemp[$nro])) {
+                    $fechaPrev = (string) $item->fecha_preventa;
+                    $diasTranscurridos = (int) Carbon::parse($fechaPrev)->diffInDays($now, false);
+
                     $preventasTemp[$nro] = [
-                        'nro_preventa' => $nro,
-                        'fecha_preventa' => $item->fecha_preventa,
-                        'cliente_id' => (string) $item->cliente_id,
-                        'codigo_cliente' => $item->codigo_cliente,
+                        'nro_preventa' => (int) ($item->nro_preventa ?: 0),
+                        'pre_venta_id' => (int) ($item->nro_preventa ?: 0),
+                        'fecha_preventa' => $fechaPrev,
+                        'fecha' => $fechaPrev,
+                        'dias_transcurridos' => max(0, $diasTranscurridos),
+                        'cliente_id' => (int) $item->cliente_id,
+                        'codigo_cliente' => $item->codigo_cliente ?: (string) $item->cliente_id,
                         'cliente_nombre' => $item->cliente_nombre,
+                        'cliente' => $item->cliente_nombre,
                         'ruta' => $item->ruta,
                         'vendedor' => $item->vendedor,
                         'tipo_sugerido' => 'TOTAL',
@@ -177,6 +221,8 @@ class GetPreventasPendientesAction
                         'total_items_preventa' => 0,
                         'total_items_facturados' => 0,
                         'total_items_rechazados' => 0,
+                        'fecha_facturada' => null,
+                        'nro_factura' => null,
                         'items_rechazados' => [],
                         'items' => [],
                     ];
@@ -187,11 +233,20 @@ class GetPreventasPendientesAction
                 $precioUnit = ($cantPreventa > 0 && $montoItemPreventa > 0) ? ($montoItemPreventa / $cantPreventa) : 0.0;
 
                 $itemKey = trim((string) $item->nro_preventa) . '_' . trim((string) $item->producto_id);
-                $cantFacturada = isset($ventasPorItem[$itemKey]) ? (int) $ventasPorItem[$itemKey] : 0;
+                $facturadoInfo = $ventasPorItem[$itemKey] ?? null;
+
+                $cantFacturada = $facturadoInfo ? (int) $facturadoInfo['total_facturado'] : 0;
                 $cantRechazada = max(0, $cantPreventa - $cantFacturada);
 
                 $montoRechazado = round($cantRechazada * $precioUnit, 2);
-                $montoFacturado = round($cantFacturada * $precioUnit, 2);
+                $montoFacturado = round(min($cantFacturada, $cantPreventa) * $precioUnit, 2);
+
+                if ($facturadoInfo && !empty($facturadoInfo['fecha_facturada'])) {
+                    $preventasTemp[$nro]['fecha_facturada'] = $facturadoInfo['fecha_facturada'];
+                }
+                if ($facturadoInfo && !empty($facturadoInfo['nro_factura'])) {
+                    $preventasTemp[$nro]['nro_factura'] = $facturadoInfo['nro_factura'];
+                }
 
                 $preventasTemp[$nro]['monto_total_preventa'] += $montoItemPreventa;
                 $preventasTemp[$nro]['monto_total_facturado'] += $montoFacturado;
@@ -202,9 +257,10 @@ class GetPreventasPendientesAction
 
                 $itemData = [
                     'preventa_item_id' => $item->preventa_item_id,
-                    'producto_id' => $item->producto_id,
+                    'producto_id' => (int) $item->producto_id,
                     'codigo_producto' => $item->codigo_producto,
                     'producto_nombre' => $item->producto_nombre,
+                    'producto' => $item->producto_nombre,
                     'categoria' => $item->categoria,
                     'cantidad_preventa' => $cantPreventa,
                     'cantidad_facturada' => $cantFacturada,
@@ -214,7 +270,9 @@ class GetPreventasPendientesAction
                     'monto_facturado' => round($montoFacturado, 2),
                     'monto_rechazado' => round($montoRechazado, 2),
                     'es_parcial' => ($cantFacturada > 0 && $cantRechazada > 0),
-                    'es_totalmente_rechazado' => ($cantFacturada == 0 && $cantRechazada > 0),
+                    'es_totalmente_rechazado' => ($cantFacturada === 0 && $cantRechazada > 0),
+                    'fecha_facturada' => $facturadoInfo['fecha_facturada'] ?? null,
+                    'nro_factura' => $facturadoInfo['nro_factura'] ?? null,
                 ];
 
                 $preventasTemp[$nro]['items'][] = $itemData;
