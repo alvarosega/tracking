@@ -130,6 +130,8 @@ class PedidoRechazadoController extends Controller
                 ],
                 'data' => $preventas,
                 'preventas' => $preventas,
+                'pedidos' => $preventas,
+                'items' => $preventas,
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Error consultando preventas pendientes: ' . $e->getMessage(), [
