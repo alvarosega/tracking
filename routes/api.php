@@ -32,8 +32,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Tracking periódico de ubicación (restringido a jornada activa)
     Route::post('/tracking/sync', [TrackingController::class, 'sync'])->middleware('workday.active');
 
-    // Descarga del plan de ruteo maestro unificado
+    // Descarga del plan de ruteo maestro unificado (Submódulo Ruteo / Saneamiento)
     Route::get('/plan-ruteo', [PlanRuteoController::class, 'index']);
+
+    // Submódulo de Visitas: listado ligero de clientes de la ruta con estado visited/unvisited
+    Route::get('/visitas/clientes', [VisitaController::class, 'clientes']);
+    Route::get('/visitas/plan', [VisitaController::class, 'clientes']);
+    Route::get('/visitas', [VisitaController::class, 'clientes']);
 
     // Registro de Visitas en Campo (ambos alias para compatibilidad total con Retrofit)
     Route::post('/visitas', [VisitaController::class, 'store']);

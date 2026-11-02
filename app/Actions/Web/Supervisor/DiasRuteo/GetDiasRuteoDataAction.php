@@ -125,8 +125,24 @@ class GetDiasRuteoDataAction
         // 4. Obtener configuraciones persistidas en route_visit_days
         $configsPorRutaNorm = [];
         try {
-            $allConfigs = RouteVisitDay::with('updater:id,username')->get();
+            $allConfigs = RouteVisitDay::all();
+
+            $updaterIds = $allConfigs->pluck('updated_by')->filter()->unique()->values()->all();
+            $updatersMap = [];
+            if (!empty($updaterIds)) {
+                try {
+                    $updatersMap = DB::connection('mysql')
+                        ->table('users')
+                        ->whereIn('id', $updaterIds)
+                        ->pluck('username', 'id')
+                        ->all();
+                } catch (\Throwable $ue) {
+                    Log::warning('GetDiasRuteoDataAction users updater error: ' . $ue->getMessage());
+                }
+            }
+
             foreach ($allConfigs as $conf) {
+                $conf->setAttribute('updater_name_cached', $updatersMap[$conf->updated_by] ?? null);
                 $nKey = $normKey($conf->route);
                 if ($nKey === '') {
                     continue;
@@ -193,7 +209,7 @@ class GetDiasRuteoDataAction
                     $esPersonalizado = (count($diasVisitaAsignados) !== 1 || $diasVisitaAsignados[0] !== $diaNombre);
                     $isActive = (bool) $conf->is_active;
                     $updatedAt = $conf->updated_at ? $conf->updated_at->format('d/m/Y H:i') : null;
-                    $updaterName = $conf->updater?->username;
+                    $updaterName = $conf->updater_name_cached ?? $conf->updater?->username;
                 }
 
                 if ($esPersonalizado) {
