@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Web\Supervisor\DiasRuteo;
 
 use App\Models\RouteVisitDay;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GetDiasRuteoDataAction
 {
@@ -32,99 +32,148 @@ class GetDiasRuteoDataAction
      */
     public function execute(): array
     {
+        $normKey = static function (?string $r): string {
+            return strtoupper(trim(preg_replace('/\s+/', ' ', (string) $r)));
+        };
+
         // 1. Obtener catálogo maestro de rutas desde dim_rutas
-        $dimRows = DB::connection('supervisor')
-            ->table('dim_rutas')
-            ->whereNotNull('ruta')
-            ->where('ruta', '!=', '')
-            ->select('ruta', 'canal', 'vendedor')
-            ->get();
+        $metaPorRutaNorm = [];
+        $nombresRutaMap = []; // normKey => display string preferido
 
-        $metaRuta = $dimRows->keyBy('ruta');
-        $rutasDim = $dimRows->pluck('ruta');
+        try {
+            $dimRows = DB::connection('supervisor')
+                ->table('dim_rutas')
+                ->whereNotNull('ruta')
+                ->whereRaw("TRIM(ruta) != ''")
+                ->select('ruta', 'canal', 'vendedor')
+                ->get();
 
-        // 2. Obtener rutas activas y conteo de clientes por día en pan_ruteo
-        $conteosPorRutaDia = [];
-        $rutasPan = collect();
+            foreach ($dimRows as $row) {
+                $rawRuta = trim((string) $row->ruta);
+                $nKey = $normKey($rawRuta);
+                if ($nKey === '') {
+                    continue;
+                }
+                $metaPorRutaNorm[$nKey] = [
+                    'ruta' => $rawRuta,
+                    'canal' => trim((string) ($row->canal ?: 'TDB')),
+                    'vendedor' => trim((string) ($row->vendedor ?: 'Sin asignar')),
+                ];
+                $nombresRutaMap[$nKey] = $rawRuta;
+            }
+        } catch (\Throwable $e) {
+            Log::error('GetDiasRuteoDataAction dim_rutas error: ' . $e->getMessage());
+        }
+
+        // 2. Obtener rutas y conteo de clientes por día en pan_ruteo
+        $conteosPorRutaDia = []; // [normKey => [diaCanon => total_clientes]]
 
         try {
             $panRows = DB::connection('supervisor')
                 ->table('pan_ruteo')
-                ->where('estado', 'Activo')
+                ->where(function ($q) {
+                    $q->whereNull('estado')
+                      ->orWhere('estado', '')
+                      ->orWhere('estado', 'Activo')
+                      ->orWhereRaw("UPPER(TRIM(estado)) IN ('ACTIVO', 'ACTIVA', 'VIGENTE')")
+                      ->orWhereRaw("UPPER(TRIM(estado)) NOT IN ('INACTIVO', 'INACTIVA', 'BAJA', 'ELIMINADO')");
+                })
                 ->whereNotNull('ruta')
-                ->where('ruta', '!=', '')
+                ->whereRaw("TRIM(ruta) != ''")
                 ->select([
                     'ruta',
-                    DB::raw("COALESCE(NULLIF(dia_norm, ''), dia) as dia_calculado"),
-                    DB::raw('COUNT(DISTINCT cliente_id) as total_clientes'),
+                    DB::raw("COALESCE(NULLIF(TRIM(dia_norm), ''), TRIM(dia)) as dia_calculado"),
+                    DB::raw('COUNT(DISTINCT COALESCE(NULLIF(cliente_id, 0), id)) as total_clientes'),
                 ])
-                ->groupBy('ruta', DB::raw("COALESCE(NULLIF(dia_norm, ''), dia)"))
+                ->groupBy('ruta', DB::raw("COALESCE(NULLIF(TRIM(dia_norm), ''), TRIM(dia))"))
                 ->get();
 
-            $rutasPan = $panRows->pluck('ruta')->unique();
-
             foreach ($panRows as $pr) {
-                $ruta = trim((string) $pr->ruta);
+                $rawRuta = trim((string) $pr->ruta);
+                $nKey = $normKey($rawRuta);
+                if ($nKey === '') {
+                    continue;
+                }
+                if (!isset($nombresRutaMap[$nKey])) {
+                    $nombresRutaMap[$nKey] = $rawRuta;
+                }
+
                 $diaCanon = $this->normalizarDiaNombre((string) $pr->dia_calculado);
                 if ($diaCanon) {
-                    $conteosPorRutaDia[$ruta][$diaCanon] = (int) $pr->total_clientes;
+                    $conteosPorRutaDia[$nKey][$diaCanon] = ($conteosPorRutaDia[$nKey][$diaCanon] ?? 0) + (int) $pr->total_clientes;
                 }
             }
         } catch (\Throwable $e) {
-            // Silencioso si pan_ruteo no responde temporalmente
+            Log::error('GetDiasRuteoDataAction pan_ruteo error: ' . $e->getMessage());
         }
 
-        // 3. Obtener usuarios vendedores en users
+        // 3. Obtener usuarios vendedores en users (MySQL local/auth)
         $vendedoresUsers = [];
         try {
-            $vendedoresUsers = DB::table('users')
+            $usersRows = DB::table('users')
                 ->whereNotNull('ruta')
-                ->where('ruta', '!=', '')
+                ->whereRaw("TRIM(ruta) != ''")
                 ->where('is_active', true)
-                ->pluck('username', 'ruta')
-                ->toArray();
+                ->select('ruta', 'username')
+                ->get();
+
+            foreach ($usersRows as $u) {
+                $nKey = $normKey($u->ruta);
+                if ($nKey !== '' && !isset($vendedoresUsers[$nKey])) {
+                    $vendedoresUsers[$nKey] = trim((string) $u->username);
+                }
+            }
         } catch (\Throwable $e) {
             // Silencioso
         }
 
         // 4. Obtener configuraciones persistidas en route_visit_days
-        $configsPorRuta = collect();
+        $configsPorRutaNorm = [];
         try {
-            $configsPorRuta = RouteVisitDay::with('updater:id,username')
-                ->get()
-                ->groupBy('route');
+            $allConfigs = RouteVisitDay::with('updater:id,username')->get();
+            foreach ($allConfigs as $conf) {
+                $nKey = $normKey($conf->route);
+                if ($nKey === '') {
+                    continue;
+                }
+                if (!isset($nombresRutaMap[$nKey])) {
+                    $nombresRutaMap[$nKey] = trim((string) $conf->route);
+                }
+                $configsPorRutaNorm[$nKey][] = $conf;
+            }
         } catch (\Throwable $e) {
-            // Si la tabla no existe aún, se asumen días estándar
+            Log::error('GetDiasRuteoDataAction route_visit_days error: ' . $e->getMessage());
         }
 
-        // 5. Unificar rutas únicas
-        $rutasUnicas = $rutasDim
-            ->concat($rutasPan)
-            ->concat($configsPorRuta->keys())
-            ->map(fn($r) => trim((string) $r))
-            ->filter()
-            ->unique()
-            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
-            ->values();
+        // 5. Unificar rutas únicas preservando orden natural
+        $normKeysUnicas = array_keys($nombresRutaMap);
+        sort($normKeysUnicas, SORT_NATURAL | SORT_FLAG_CASE);
 
-        $canalesUnicos = $dimRows->pluck('canal')->filter()->unique()->values()->toArray();
-        if (empty($canalesUnicos)) {
-            $canalesUnicos = ['MAY', 'TDB', 'MZO', 'PROV'];
+        $canalesUnicos = [];
+        foreach ($metaPorRutaNorm as $m) {
+            if (!empty($m['canal'])) {
+                $canalesUnicos[$m['canal']] = true;
+            }
+        }
+        $canalesLista = array_keys($canalesUnicos);
+        if (empty($canalesLista)) {
+            $canalesLista = ['MAY', 'TDB', 'MZO', 'PROV'];
         }
 
         $rutasResultado = [];
         $kpiPersonalizadas = 0;
         $kpiEstandar = 0;
 
-        foreach ($rutasUnicas as $ruta) {
-            $meta = $metaRuta->get($ruta);
-            $canal = $meta?->canal ?? 'TDB';
-            $vendedor = $meta?->vendedor ?? ($vendedoresUsers[$ruta] ?? 'Sin asignar');
+        foreach ($normKeysUnicas as $nKey) {
+            $displayRuta = $nombresRutaMap[$nKey];
+            $meta = $metaPorRutaNorm[$nKey] ?? null;
+            $canal = $meta['canal'] ?? 'TDB';
+            $vendedor = $meta['vendedor'] ?? ($vendedoresUsers[$nKey] ?? 'Sin asignar');
 
-            $conteosDia = $conteosPorRutaDia[$ruta] ?? [];
+            $conteosDia = $conteosPorRutaDia[$nKey] ?? [];
             $totalClientesRuta = array_sum($conteosDia);
 
-            $configsRuta = $configsPorRuta->get($ruta, collect());
+            $configsRuta = collect($configsPorRutaNorm[$nKey] ?? []);
             $diasConfigurados = [];
             $tieneAlgunaPersonalizada = false;
 
@@ -154,7 +203,7 @@ class GetDiasRuteoDataAction
                 // Calcular suma de clientes para los días asignados
                 $clientesCalculados = 0;
                 foreach ($diasVisitaAsignados as $dAsig) {
-                    $dCanon = $this->normalizarDiaNombre($dAsig);
+                    $dCanon = $this->normalizarDiaNombre((string) $dAsig);
                     if ($dCanon && isset($conteosDia[$dCanon])) {
                         $clientesCalculados += $conteosDia[$dCanon];
                     }
@@ -180,7 +229,7 @@ class GetDiasRuteoDataAction
             }
 
             $rutasResultado[] = [
-                'ruta' => $ruta,
+                'ruta' => $displayRuta,
                 'canal' => $canal,
                 'vendedor' => $vendedor,
                 'total_clientes_ruta' => $totalClientesRuta,
@@ -197,7 +246,7 @@ class GetDiasRuteoDataAction
 
         return [
             'rutas' => $rutasResultado,
-            'canales' => $canalesUnicos,
+            'canales' => $canalesLista,
             'dias_semana' => $diasSemanaLista,
             'kpis' => [
                 'total_rutas' => count($rutasResultado),
@@ -208,21 +257,39 @@ class GetDiasRuteoDataAction
     }
 
     /**
-     * Normaliza cualquier cadena de día al formato canónico (Lunes, Martes, etc.).
+     * Normaliza cualquier cadena o variante de día al formato canónico (Lunes, Martes, etc.).
      */
-    protected function normalizarDiaNombre(string $dia): ?string
+    public function normalizarDiaNombre(?string $dia): ?string
     {
-        $limpio = ucfirst(mb_strtolower(trim($dia), 'UTF-8'));
-        return match ($limpio) {
-            'Lunes' => 'Lunes',
-            'Martes' => 'Martes',
-            'Miercoles', 'Miércoles' => 'Miércoles',
-            'Jueves' => 'Jueves',
-            'Viernes' => 'Viernes',
-            'Sabado', 'Sábado' => 'Sábado',
-            'Domingo' => 'Domingo',
-            default => null,
-        };
+        if ($dia === null || trim($dia) === '') {
+            return null;
+        }
+
+        $limpio = mb_strtolower(trim($dia), 'UTF-8');
+        $limpio = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $limpio);
+
+        if (str_starts_with($limpio, 'lun') || $limpio === '1') {
+            return 'Lunes';
+        }
+        if (str_starts_with($limpio, 'mar') || $limpio === '2') {
+            return 'Martes';
+        }
+        if (str_starts_with($limpio, 'mie') || $limpio === '3') {
+            return 'Miércoles';
+        }
+        if (str_starts_with($limpio, 'jue') || $limpio === '4') {
+            return 'Jueves';
+        }
+        if (str_starts_with($limpio, 'vie') || $limpio === '5') {
+            return 'Viernes';
+        }
+        if (str_starts_with($limpio, 'sab') || $limpio === '6') {
+            return 'Sábado';
+        }
+        if (str_starts_with($limpio, 'dom') || $limpio === '7') {
+            return 'Domingo';
+        }
+
+        return null;
     }
 }
-

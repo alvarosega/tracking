@@ -17,7 +17,8 @@ class ResetRouteVisitDaysAction
      */
     public function execute(string $route): int
     {
-        return RouteVisitDay::where('route', trim($route))->delete();
+        $cleanRoute = strtoupper(trim(preg_replace('/\s+/', ' ', $route)));
+
+        return RouteVisitDay::whereRaw("TRIM(UPPER(route)) = ?", [$cleanRoute])->delete();
     }
 }
-

@@ -45,45 +45,6 @@
         </div>
       </div>
 
-      <!-- Tarjetas KPI Apple Pro -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3.5 flex items-center justify-between shadow-2xs">
-          <div>
-            <span class="text-[11px] text-[#86868B] font-medium block">Total Rutas Activas</span>
-            <span class="text-xl font-bold font-mono text-[#1D1D1F] tabular-nums">{{ kpis.total_rutas }}</span>
-          </div>
-          <div class="w-9 h-9 rounded-full bg-[#F2F2F7] flex items-center justify-center text-[#1D1D1F]">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-          </div>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3.5 flex items-center justify-between shadow-2xs">
-          <div>
-            <span class="text-[11px] text-[#0071E3] font-medium block">Con Días Personalizados</span>
-            <span class="text-xl font-bold font-mono text-[#0071E3] tabular-nums">{{ kpis.rutas_personalizadas }}</span>
-          </div>
-          <div class="w-9 h-9 rounded-full bg-[#EFF6FF] flex items-center justify-center text-[#0071E3]">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </div>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3.5 flex items-center justify-between shadow-2xs">
-          <div>
-            <span class="text-[11px] text-[#248A3D] font-medium block">Con Días Naturales</span>
-            <span class="text-xl font-bold font-mono text-[#248A3D] tabular-nums">{{ kpis.rutas_estandar }}</span>
-          </div>
-          <div class="w-9 h-9 rounded-full bg-[#EBF9EF] flex items-center justify-center text-[#248A3D]">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
       <!-- Barra de Filtros y Búsqueda -->
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div class="flex items-center gap-2 flex-1">
@@ -529,11 +490,6 @@ function formatDiasAsignados(diasList) {
 // Datos principales
 const rutas = ref([]);
 const canales = ref([]);
-const kpis = ref({
-  total_rutas: 0,
-  rutas_personalizadas: 0,
-  rutas_estandar: 0,
-});
 
 const loading = ref(false);
 const guardando = ref(false);
@@ -583,11 +539,6 @@ async function fetchData() {
     const res = await axios.post('/supervisor/dias-ruteo/data');
     rutas.value = res.data.rutas || [];
     canales.value = res.data.canales || [];
-    kpis.value = res.data.kpis || {
-      total_rutas: 0,
-      rutas_personalizadas: 0,
-      rutas_estandar: 0,
-    };
   } catch (err) {
     console.error('Error al cargar datos de días de ruteo:', err);
     showToast('Error de comunicación al consultar la matriz de días de ruteo.', true);

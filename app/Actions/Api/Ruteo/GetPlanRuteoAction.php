@@ -64,7 +64,13 @@ class GetPlanRuteoAction
                 $join->on('p.cliente_id', '=', 'latest_sb.cliente_id');
             })
             ->leftJoin('saneamiento_base as sb', 'sb.id', '=', 'latest_sb.max_id')
-            ->where('p.estado', 'Activo')
+            ->where(function ($q): void {
+                $q->whereNull('p.estado')
+                  ->orWhere('p.estado', '')
+                  ->orWhere('p.estado', 'Activo')
+                  ->orWhereRaw("UPPER(TRIM(p.estado)) IN ('ACTIVO', 'ACTIVA', 'VIGENTE')")
+                  ->orWhereRaw("UPPER(TRIM(p.estado)) NOT IN ('INACTIVO', 'INACTIVA', 'BAJA', 'ELIMINADO')");
+            })
             ->where(function ($q) use ($rutaUsuario, $user): void {
                 $q->where('p.ruta', $rutaUsuario);
                 if (!empty($user->ruta) && $user->ruta !== $user->username) {
@@ -166,8 +172,9 @@ class GetPlanRuteoAction
     protected function resolverDiasVisita(string $ruta, int $dayOfWeekIso, string $diaActual): array
     {
         try {
+            $cleanRuta = strtoupper(trim(preg_replace('/\s+/', ' ', $ruta)));
             $config = RouteVisitDay::query()
-                ->where('route', $ruta)
+                ->whereRaw("TRIM(UPPER(route)) = ?", [$cleanRuta])
                 ->where('day_of_week', $dayOfWeekIso)
                 ->where('is_active', true)
                 ->first();
