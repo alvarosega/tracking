@@ -24,7 +24,16 @@ class ClienteInventarioController extends Controller
         GetClienteProductosHistorialAction $action
     ): JsonResponse {
         $ruta = $request->query('ruta') ?: $request->user()?->ruta;
-        $result = $action->execute($clienteId, is_string($ruta) ? $ruta : null);
+        $diasHistorial = $request->query('dias_historial') ?? $request->query('dias');
+        $diasInt = ($diasHistorial !== null && is_numeric($diasHistorial) && (int) $diasHistorial > 0)
+            ? (int) $diasHistorial
+            : null;
+
+        $result = $action->execute(
+            clienteId: $clienteId,
+            ruta: is_string($ruta) ? $ruta : null,
+            diasHistorialParam: $diasInt
+        );
 
         return response()->json($result, 200);
     }

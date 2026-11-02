@@ -18,35 +18,73 @@ class GetClienteProductosHistorialAction
      * Obtiene el listado completo de productos del cliente para la toma de inventario físico en PDV:
      * - Historial de compras (ERP / fact_ventas).
      * - Jerarquías de producto (jerarquia1, jerarquia2, jerarquia3, categoría) para ordenamiento y filtros en Android.
+     * - Frecuencia de compra y monto histórico en Bs.
      * - Historial de tomas físicas previas (cliente_inventarios / cliente_inventario_items).
      * - Cálculo del disponible teórico y compras posteriores al último conteo físico.
      *
      * @return array<string, mixed>
      */
-    public function execute(int|string $clienteId, ?string $ruta = null): array
+    public function execute(int|string $clienteId, ?string $ruta = null, ?int $diasHistorialParam = null): array
     {
         // 1. Enlace con pan_ruteo: Verificar existencia del cliente y obtener su ruta oficial
-        $clientePlan = DB::connection('supervisor')
-            ->table('pan_ruteo')
-            ->where('cliente_id', $clienteId)
-            ->when(!empty($ruta), fn($q) => $q->where('ruta', $ruta))
-            ->first(['cliente_id', 'cliente', 'codigo_cliente', 'ruta']);
-
-        if (!$clientePlan) {
+        // NOTA: pan_ruteo NO tiene la columna codigo_cliente, solo cliente_id, cliente y ruta
+        $clientePlan = null;
+        try {
             $clientePlan = DB::connection('supervisor')
                 ->table('pan_ruteo')
                 ->where('cliente_id', $clienteId)
-                ->first(['cliente_id', 'cliente', 'codigo_cliente', 'ruta']);
+                ->when(!empty($ruta), fn($q) => $q->where('ruta', $ruta))
+                ->first(['cliente_id', 'cliente', 'ruta']);
+
+            if (!$clientePlan) {
+                $clientePlan = DB::connection('supervisor')
+                    ->table('pan_ruteo')
+                    ->where('cliente_id', $clienteId)
+                    ->first(['cliente_id', 'cliente', 'ruta']);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Error consultando cliente en pan_ruteo: ' . $e->getMessage());
         }
 
         $clienteNombre = $clientePlan?->cliente ? trim((string) $clientePlan->cliente) : null;
-        $codigoCliente = $clientePlan?->codigo_cliente ? trim((string) $clientePlan->codigo_cliente) : null;
         $rutaCliente = $clientePlan?->ruta ? trim((string) $clientePlan->ruta) : $ruta;
+        $codigoCliente = null;
 
-        // 2. Obtener los días de historial configurados para la ruta o por defecto global (default 30)
+        // Intentar resolver codigo_cliente oficial y nombre de respaldo desde fact_ventas
+        try {
+            $vInfo = DB::connection('supervisor')
+                ->table('fact_ventas')
+                ->where('cliente_id', $clienteId)
+                ->whereNotNull('codigo_cliente')
+                ->whereRaw("TRIM(codigo_cliente) != ''")
+                ->orderByDesc('fecha_norm')
+                ->first(['codigo_cliente', 'cliente', 'ruta']);
+
+            if ($vInfo) {
+                $codigoCliente = trim((string) $vInfo->codigo_cliente);
+                if (!$clienteNombre && !empty($vInfo->cliente)) {
+                    $clienteNombre = trim((string) $vInfo->cliente);
+                }
+                if (!$rutaCliente && !empty($vInfo->ruta)) {
+                    $rutaCliente = trim((string) $vInfo->ruta);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Error consultando codigo_cliente en fact_ventas: ' . $e->getMessage());
+        }
+
+        if (!$codigoCliente) {
+            $codigoCliente = (string) $clienteId;
+        }
+
+        // 2. Determinar ventana de días de historial
+        // Si viene el query param 'dias_historial' desde Android, respetarlo prioritariamente
         $diasHistorial = null;
+        if ($diasHistorialParam !== null && $diasHistorialParam > 0) {
+            $diasHistorial = $diasHistorialParam;
+        }
 
-        if (!empty($rutaCliente)) {
+        if ($diasHistorial === null && !empty($rutaCliente)) {
             $cleanRuta = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $rutaCliente)));
             $routeOverride = AppModuleRoute::whereRaw("TRIM(UPPER(ruta)) = ?", [$cleanRuta])
                 ->where('module_code', 'inventario_cliente')
@@ -115,26 +153,32 @@ class GetClienteProductosHistorialAction
         }
 
         // 4. Consultar compras válidas del cliente en el rango en fact_ventas (supervisor ERP)
-        $ventas = FactVenta::query()
-            ->validas()
-            ->where('cliente_id', $clienteId)
-            ->where('fecha_norm', '>=', $fechaDesde)
-            ->orderByDesc('fecha_norm')
-            ->orderByDesc('hora')
-            ->get([
-                'producto_id',
-                'codigo',
-                'producto',
-                'categoria',
-                'jerarquia1',
-                'jerarquia2',
-                'jerarquia3',
-                'fecha_norm',
-                'hora',
-                'cantidad',
-                'cliente',
-                'codigo_cliente',
-            ]);
+        $ventas = collect();
+        try {
+            $ventas = FactVenta::query()
+                ->validas()
+                ->where('cliente_id', $clienteId)
+                ->where('fecha_norm', '>=', $fechaDesde)
+                ->orderByDesc('fecha_norm')
+                ->orderByDesc('hora')
+                ->get([
+                    'producto_id',
+                    'codigo',
+                    'producto',
+                    'categoria',
+                    'jerarquia1',
+                    'jerarquia2',
+                    'jerarquia3',
+                    'fecha_norm',
+                    'hora',
+                    'cantidad',
+                    'monto_final',
+                    'cliente',
+                    'codigo_cliente',
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('Error consultando fact_ventas para cliente ' . $clienteId . ': ' . $e->getMessage());
+        }
 
         $productosMap = [];
 
@@ -152,6 +196,7 @@ class GetClienteProductosHistorialAction
             }
 
             $cant = (int) $v->cantidad;
+            $monto = (float) ($v->monto_final ?? 0.0);
             $fecha = (string) $v->fecha_norm;
             $hora = $v->hora ? trim((string) $v->hora) : '';
 
@@ -164,18 +209,24 @@ class GetClienteProductosHistorialAction
                 $productosMap[$cod] = [
                     'producto_id' => $v->producto_id ? (int) $v->producto_id : null,
                     'codigo' => $cod,
+                    'codigo_producto' => $cod,
                     'producto' => trim((string) ($v->producto ?? '')),
+                    'producto_nombre' => trim((string) ($v->producto ?? '')),
                     'categoria' => $cat !== '' ? $cat : 'GENERAL',
                     'jerarquia1' => $j1 !== '' ? $j1 : 'GENERAL',
                     'jerarquia2' => $j2 !== '' ? $j2 : 'GENERAL',
                     'jerarquia3' => $j3 !== '' ? $j3 : 'GENERAL',
                     'total_comprado' => 0,
+                    'cantidad_historica' => 0,
+                    'monto_historico' => 0.0,
                     '_fechas' => [],
                     '_compras' => [],
                 ];
             }
 
             $productosMap[$cod]['total_comprado'] += $cant;
+            $productosMap[$cod]['cantidad_historica'] += $cant;
+            $productosMap[$cod]['monto_historico'] += $monto;
 
             if (!isset($productosMap[$cod]['_fechas'][$fecha])) {
                 $productosMap[$cod]['_fechas'][$fecha] = 0;
@@ -189,7 +240,7 @@ class GetClienteProductosHistorialAction
             ];
         }
 
-        // 5. Incluir productos que se censaron previamente pero no tuvieron compras en los últimos X días
+        // 5. Incluir productos censados previamente que no tuvieron compras en los últimos X días
         $missingCodigos = array_values(array_diff(array_keys($stocksPorCodigo), array_keys($productosMap)));
 
         if (!empty($missingCodigos)) {
@@ -237,15 +288,21 @@ class GetClienteProductosHistorialAction
                 $j3 = trim((string) ($m?->jerarquia3 ?? ''));
                 $cat = trim((string) ($m?->categoria ?? ($prev['categoria'] ?? '')));
 
+                $prodNom = trim((string) ($m?->producto ?? ($prev['producto'] ?? "Producto {$missingCod}")));
+
                 $productosMap[$missingCod] = [
                     'producto_id' => $m?->producto_id ? (int) $m->producto_id : ($prev['producto_id'] ?? null),
                     'codigo' => $missingCod,
-                    'producto' => trim((string) ($m?->producto ?? ($prev['producto'] ?? "Producto {$missingCod}"))),
+                    'codigo_producto' => $missingCod,
+                    'producto' => $prodNom,
+                    'producto_nombre' => $prodNom,
                     'categoria' => $cat !== '' ? $cat : 'GENERAL',
                     'jerarquia1' => $j1 !== '' ? $j1 : 'GENERAL',
                     'jerarquia2' => $j2 !== '' ? $j2 : 'GENERAL',
                     'jerarquia3' => $j3 !== '' ? $j3 : 'GENERAL',
                     'total_comprado' => 0,
+                    'cantidad_historica' => 0,
+                    'monto_historico' => 0.0,
                     '_fechas' => [],
                     '_compras' => [],
                 ];
@@ -308,17 +365,24 @@ class GetClienteProductosHistorialAction
             $jerarquias3[] = $item['jerarquia3'];
             $categorias[] = $item['categoria'];
 
+            $frecuenciaCompra = count($item['_fechas']);
+            $montoHistorico = round((float) $item['monto_historico'], 2);
+
             $productosList[] = [
                 'producto_id' => $item['producto_id'],
+                'id' => $item['producto_id'], // Alias de tolerancia
                 'codigo' => $item['codigo'],
-                'codigo_producto' => $item['codigo'],
+                'codigo_producto' => $item['codigo'], // Alias de tolerancia
                 'producto' => $item['producto'],
-                'producto_nombre' => $item['producto'],
+                'producto_nombre' => $item['producto'], // Alias de tolerancia
                 'categoria' => $item['categoria'],
                 'jerarquia1' => $item['jerarquia1'],
                 'jerarquia2' => $item['jerarquia2'],
                 'jerarquia3' => $item['jerarquia3'],
+                'frecuencia_compra' => $frecuenciaCompra,
+                'monto_historico' => $montoHistorico,
                 'total_comprado' => $item['total_comprado'],
+                'cantidad_historica' => $item['total_comprado'], // Alias de tolerancia
                 'ultima_compra' => $ultimaCompra,
                 'historial' => $historialCompras, // Retrocompatibilidad con la app actual
                 'historial_compras' => $historialCompras,
@@ -382,6 +446,8 @@ class GetClienteProductosHistorialAction
                 'categorias' => $uniqueCat,
             ],
             'productos' => $productosList,
+            'items' => $productosList, // Alias de tolerancia para Android
+            'data' => $productosList,  // Alias de tolerancia para Android
         ];
     }
 }

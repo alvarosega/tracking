@@ -43,24 +43,25 @@ class StoreClienteInventarioAction
 
         if (empty($clienteNombre) || empty($codigoCliente)) {
             try {
-                // Intentar primero desde pan_ruteo (si existe) o fact_ventas en supervisor
+                // Intentar primero desde fact_ventas (donde reside el codigo_cliente oficial)
                 $clienteInfo = DB::connection('supervisor')
-                    ->table('pan_ruteo')
+                    ->table('fact_ventas')
                     ->where('cliente_id', $clienteId)
-                    ->select('nombre_cliente as cliente', 'codigo_cliente')
+                    ->whereNotNull('codigo_cliente')
+                    ->select('cliente', 'codigo_cliente')
                     ->first();
 
                 if (!$clienteInfo) {
                     $clienteInfo = DB::connection('supervisor')
-                        ->table('fact_ventas')
+                        ->table('pan_ruteo')
                         ->where('cliente_id', $clienteId)
-                        ->select('cliente', 'codigo_cliente')
+                        ->select('cliente')
                         ->first();
                 }
 
                 if ($clienteInfo) {
                     $clienteNombre = $clienteNombre ?: ($clienteInfo->cliente ?? null);
-                    $codigoCliente = $codigoCliente ?: ($clienteInfo->codigo_cliente ?? null);
+                    $codigoCliente = $codigoCliente ?: ($clienteInfo->codigo_cliente ?? (string) $clienteId);
                 }
             } catch (\Throwable $e) {
                 Log::warning('No se pudo enriquecer información del cliente desde supervisor DB: ' . $e->getMessage());
