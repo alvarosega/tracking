@@ -50,27 +50,27 @@ class GetClienteProductosHistorialAction
         $rutaCliente = $clientePlan?->ruta ? trim((string) $clientePlan->ruta) : $ruta;
         $codigoCliente = null;
 
-        // Intentar resolver codigo_cliente oficial y nombre de respaldo desde fact_ventas
+        // Intentar resolver codigo_cliente oficial y nombre de respaldo desde fact_preventas (donde reside codigo_cliente)
         try {
-            $vInfo = DB::connection('supervisor')
-                ->table('fact_ventas')
+            $prevInfo = DB::connection('supervisor')
+                ->table('fact_preventas')
                 ->where('cliente_id', $clienteId)
                 ->whereNotNull('codigo_cliente')
                 ->whereRaw("TRIM(codigo_cliente) != ''")
                 ->orderByDesc('fecha_norm')
                 ->first(['codigo_cliente', 'cliente', 'ruta']);
 
-            if ($vInfo) {
-                $codigoCliente = trim((string) $vInfo->codigo_cliente);
-                if (!$clienteNombre && !empty($vInfo->cliente)) {
-                    $clienteNombre = trim((string) $vInfo->cliente);
+            if ($prevInfo) {
+                $codigoCliente = trim((string) $prevInfo->codigo_cliente);
+                if (!$clienteNombre && !empty($prevInfo->cliente)) {
+                    $clienteNombre = trim((string) $prevInfo->cliente);
                 }
-                if (!$rutaCliente && !empty($vInfo->ruta)) {
-                    $rutaCliente = trim((string) $vInfo->ruta);
+                if (!$rutaCliente && !empty($prevInfo->ruta)) {
+                    $rutaCliente = trim((string) $prevInfo->ruta);
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('Error consultando codigo_cliente en fact_ventas: ' . $e->getMessage());
+            Log::warning('Error consultando codigo_cliente en fact_preventas: ' . $e->getMessage());
         }
 
         if (!$codigoCliente) {
@@ -174,7 +174,6 @@ class GetClienteProductosHistorialAction
                     'cantidad',
                     'monto_final',
                     'cliente',
-                    'codigo_cliente',
                 ]);
         } catch (\Throwable $e) {
             Log::error('Error consultando fact_ventas para cliente ' . $clienteId . ': ' . $e->getMessage());
@@ -185,9 +184,6 @@ class GetClienteProductosHistorialAction
         foreach ($ventas as $v) {
             if (!$clienteNombre && !empty($v->cliente)) {
                 $clienteNombre = trim((string) $v->cliente);
-            }
-            if (!$codigoCliente && !empty($v->codigo_cliente)) {
-                $codigoCliente = trim((string) $v->codigo_cliente);
             }
 
             $cod = trim((string) ($v->codigo ?? ''));
