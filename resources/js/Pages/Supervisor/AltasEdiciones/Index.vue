@@ -1299,6 +1299,7 @@ import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import { mapsConfig } from '@/Config/maps';
+import { descargarExcelXlsx } from '@/Utils/exportExcel';
 import L from 'leaflet';
 
 const page = usePage();
@@ -1509,32 +1510,6 @@ const edicionesPendientes = computed(() => {
 
 const conteoEdicionesPendientes = computed(() => edicionesPendientes.value.length);
 
-function descargarArchivoExcelCsv(rows, nombreArchivo) {
-  // UTF-8 BOM (\uFEFF) para compatibilidad con caracteres latinos en Excel
-  const BOM = '\uFEFF';
-  const csvBody = rows
-    .map(row =>
-      row
-        .map(val => {
-          if (val === null || val === undefined) return '""';
-          const str = String(val).replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
-          return `"${str}"`;
-        })
-        .join(';')
-    )
-    .join('\r\n');
-
-  const blob = new Blob([BOM + csvBody], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', nombreArchivo);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 function exportarEdicionesExcel() {
   const lista = edicionesPendientes.value;
 
@@ -1736,10 +1711,10 @@ function exportarEdicionesExcel() {
   });
 
   const fechaHoy = new Date().toISOString().slice(0, 10);
-  const nombreArchivo = `ediciones_pendientes_ruteo_${fechaHoy}.csv`;
+  const nombreArchivo = `ediciones_pendientes_ruteo_${fechaHoy}.xlsx`;
 
-  descargarArchivoExcelCsv(rows, nombreArchivo);
-  mostrarToast(`Se descargaron ${lista.length} cliente(s) con edición comparados y actualizados con pan_ruteo.`);
+  descargarExcelXlsx(rows, nombreArchivo, 'Ediciones Pendientes');
+  mostrarToast(`Se descargaron ${lista.length} cliente(s) con edición comparados y actualizados con pan_ruteo en Excel (.xlsx).`);
 }
 
 function toggleMenu(nombre, event) {

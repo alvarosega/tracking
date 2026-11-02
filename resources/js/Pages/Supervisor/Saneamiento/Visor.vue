@@ -2646,6 +2646,7 @@ import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTab
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
 import { getCanalColor, getRutaColor, formatRuta, getDiaColor, registerRutasCatalogo, DIAS_SEMANA_CONFIG } from '@/Config/colors';
+import { descargarExcelXlsx } from '@/Utils/exportExcel';
 
 const diasSemanaConfig = DIAS_SEMANA_CONFIG;
 import L from 'leaflet';
@@ -3738,32 +3739,6 @@ const conteoPropuestasPendientes = computed(() => {
   return clientesPendientesDeduplicados.value.length;
 });
 
-function descargarArchivoExcelCsv(rows, nombreArchivo) {
-  // UTF-8 BOM (\uFEFF) para compatibilidad directa con acentos y caracteres latinos en Excel
-  const BOM = '\uFEFF';
-  const csvBody = rows
-    .map(row =>
-      row
-        .map(val => {
-          if (val === null || val === undefined) return '""';
-          const str = String(val).replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
-          return `"${str}"`;
-        })
-        .join(';')
-    )
-    .join('\r\n');
-
-  const blob = new Blob([BOM + csvBody], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', nombreArchivo);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 function exportarPropuestasExcel(soloSeleccionados = false) {
   let lista = [];
 
@@ -3836,7 +3811,7 @@ function exportarPropuestasExcel(soloSeleccionados = false) {
     else if (cambioDia) tipoAjuste = 'CAMBIO DE DÍA';
 
     const row = [
-      c.cliente_id || c.id || '',
+      Number(c.cliente_id || c.id) || '',
       c.nombre || '',
       rutaOrig,
       diaOrig,
@@ -3851,9 +3826,12 @@ function exportarPropuestasExcel(soloSeleccionados = false) {
       c.direccion || '',
       c.celular || '',
       c.tiene_gps ? 'SI' : 'NO',
-      c.latitud || '',
-      c.longitud || '',
-      ...periodos.map(p => getVentaClientePeriodo(c, p.periodo)),
+      c.latitud !== null && c.latitud !== undefined && c.latitud !== '' ? Number(c.latitud) : '',
+      c.longitud !== null && c.longitud !== undefined && c.longitud !== '' ? Number(c.longitud) : '',
+      ...periodos.map(p => {
+        const v = getVentaClientePeriodo(c, p.periodo);
+        return typeof v === 'number' ? v : (Number(v) || 0);
+      }),
     ];
 
     rows.push(row);
@@ -3861,11 +3839,11 @@ function exportarPropuestasExcel(soloSeleccionados = false) {
 
   const fechaHoy = new Date().toISOString().slice(0, 10);
   const nombreArchivo = soloSeleccionados
-    ? `clientes_seleccionados_rtm_${fechaHoy}.csv`
-    : `propuestas_pendientes_rtm_${fechaHoy}.csv`;
+    ? `clientes_seleccionados_rtm_${fechaHoy}.xlsx`
+    : `propuestas_pendientes_rtm_${fechaHoy}.xlsx`;
 
-  descargarArchivoExcelCsv(rows, nombreArchivo);
-  mostrarToast(`Se descargaron ${lista.length} registro(s) en Excel exitosamente.`);
+  descargarExcelXlsx(rows, nombreArchivo, 'Propuestas RTM');
+  mostrarToast(`Se descargaron ${lista.length} registro(s) en Excel (.xlsx) exitosamente.`);
 }
 
 // Edición directa en la matriz inferior de Ajuste RTM (desplegables directos)
