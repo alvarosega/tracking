@@ -5,14 +5,14 @@
       <div>
         <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · KPI 6: Pedido de Reposición (Canasta Habitual 60%)
+            Pizarra Modelo Unilever · KPI 6: Pedido de Reposición (Match Ponderado f_i)
           </h3>
           <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
-            15 pts Base · Histórico {{ semanasFiltro }} Semanas por Cliente (fact_ventas + fact_preventas)
+            15 pts Base · Histórico {{ semanasFiltro }} Semanas · Escala Gradual 40% a 70%
           </span>
         </div>
         <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Regla: Coincidencia de recompra de SKUs habituales comprados en las últimas {{ semanasFiltro }} semanas (&ge; 1 compra histórica). Umbral exigido: &ge; 60.0% de reposición de canasta.
+          Regla: Coincidencia ponderada por frecuencia semanal histórica (<strong class="text-[#1D1D1F]">f_i</strong> = semanas con compra). Escala: &lt; 40% (0 pts) · 40% a 69.9% (gradual hasta 14.95 pts) · &ge; 70% (15 pts). Clientes nuevos son neutros.
         </p>
       </div>
 
@@ -47,9 +47,9 @@
             <th class="px-1 sm:px-2 py-2 text-center sticky left-0 z-30 w-7 sm:w-9 border-r border-black/[0.05] bg-[#F8F8FA] text-[10px] sm:text-[11px]">Pos</th>
             <th class="px-1.5 sm:px-2.5 py-2 sticky left-7 sm:left-9 z-30 w-24 sm:w-44 md:w-52 border-r border-black/[0.06] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] bg-[#F8F8FA] text-[10px] sm:text-[11px] truncate">Ruta / Preventista</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Compradores</th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">SKUs Base</th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">Match Repo</th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">Fuera Canasta</th>
+            <th class="px-3 py-2 text-center border-r border-black/[0.04]" title="Suma de pesos históricos f_i de todos los SKUs esperados">Pts Esperados</th>
+            <th class="px-3 py-2 text-center border-r border-black/[0.04]" title="Suma de pesos f_i de los SKUs recomprados hoy">Pts Match</th>
+            <th class="px-3 py-2 text-center border-r border-black/[0.04]">SKUs Match / Base</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">% Reposición</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Estatus</th>
             <th class="px-3 py-2 text-right">Puntos (15)</th>
@@ -114,26 +114,26 @@
                   {{ getCompradores(r) }}
                 </td>
 
-                <!-- SKUs Base (Esperados) -->
-                <td class="px-3 py-1.5 text-center font-mono text-[#1D1D1F] border-r border-black/[0.04]">
-                  {{ getSkusEsperados(r) }}
+                <!-- Pts Esperados -->
+                <td class="px-3 py-1.5 text-center font-mono font-semibold text-[#1D1D1F] border-r border-black/[0.04]" title="Suma de pesos f_i esperados">
+                  {{ getPuntosEsperados(r) }}
                 </td>
 
-                <!-- Match Repo (Recomprados) -->
-                <td class="px-3 py-1.5 text-center font-mono font-bold text-[#1E6B37] border-r border-black/[0.04]">
-                  {{ getSkusMatch(r) }}
+                <!-- Pts Match -->
+                <td class="px-3 py-1.5 text-center font-mono font-bold text-[#1E6B37] border-r border-black/[0.04]" title="Suma de pesos f_i recomprados">
+                  {{ getPuntosMatch(r) }}
                 </td>
 
-                <!-- Fuera Canasta -->
-                <td class="px-3 py-1.5 text-center font-mono text-[#6E6E73] border-r border-black/[0.04]">
-                  {{ getSkusFuera(r) }}
+                <!-- SKUs Match / Base -->
+                <td class="px-3 py-1.5 text-center font-mono text-[11px] text-[#6E6E73] border-r border-black/[0.04]">
+                  <strong class="text-[#1D1D1F]">{{ getSkusMatch(r) }}</strong> / {{ getSkusEsperados(r) }}
                 </td>
 
                 <!-- % Reposición -->
                 <td class="px-3 py-1.5 text-center font-mono font-bold border-r border-black/[0.04]">
                   <span
                     v-if="getPctReposicion(r) !== null"
-                    :class="getPctReposicion(r) >= 60.0 ? 'text-[#1E6B37]' : 'text-[#C9342C]'"
+                    :class="getPctReposicion(r) >= 70.0 ? 'text-[#1E6B37]' : (getPctReposicion(r) >= 40.0 ? 'text-[#0071E3]' : 'text-[#C9342C]')"
                   >
                     {{ Number(getPctReposicion(r)).toFixed(1) }}%
                   </span>
@@ -145,11 +145,13 @@
                   <span
                     v-if="getPctReposicion(r) !== null"
                     class="inline-flex px-2 py-0.5 rounded-[5px] text-[10px] font-bold"
-                    :class="getPctReposicion(r) >= 60.0
+                    :class="getPctReposicion(r) >= 70.0
                       ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
-                      : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
+                      : (getPctReposicion(r) >= 40.0
+                        ? 'bg-[#EFF6FF] text-[#1D4ED8] border border-[#DBEAFE]'
+                        : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]')"
                   >
-                    {{ getPctReposicion(r) >= 60.0 ? '≥ 60% CUMPLE' : '< 60% DÉFICIT' }}
+                    {{ getPctReposicion(r) >= 70.0 ? '≥ 70% ÓPTIMO' : (getPctReposicion(r) >= 40.0 ? '40-70% GRADUAL' : '< 40% DÉFICIT') }}
                   </span>
                   <span v-else class="text-[#86868B] text-[11px] font-mono">—</span>
                 </td>
@@ -157,12 +159,15 @@
                 <!-- Puntos (15) -->
                 <td class="px-3 py-1.5 text-right font-mono font-bold text-[12px]">
                   <span
-                    v-if="getCumpleKpi(r)"
-                    class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[4px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]"
+                    v-if="getPuntosObtenidos(r) > 0"
+                    class="inline-flex items-center justify-center min-w-[32px] px-1.5 py-0.5 rounded-[4px] text-[11px] font-bold font-mono"
+                    :class="getPuntosObtenidos(r) >= 15.0
+                      ? 'text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]'
+                      : 'text-[#1D4ED8] bg-[#EFF6FF] border border-[#DBEAFE]'"
                   >
-                    +15
+                    +{{ getPuntosObtenidos(r).toFixed(1) }}
                   </span>
-                  <span v-else class="text-[#86868B] font-mono">—</span>
+                  <span v-else class="text-[#86868B] font-mono">0 pts</span>
                 </td>
               </tr>
 
@@ -274,23 +279,33 @@
                           </div>
 
                           <div class="flex items-center gap-3 text-[11px] font-mono">
-                            <span class="text-[#6E6E73]">
-                              Base Histórica: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ semanasFiltro }} sem)
-                            </span>
-                            <span class="text-[#6E6E73]">
-                              Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
-                            </span>
-                            <span
-                              class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold font-mono"
-                              :class="t.cumple
-                                ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
-                                : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
-                            >
-                              {{ Number(t.porcentaje_reposicion || 0).toFixed(1) }}% {{ t.cumple ? 'REPOSICIÓN' : 'DÉFICIT' }}
-                            </span>
-                            <span class="text-[11px] font-bold text-[#1D1D1F]">
-                              Match: <strong class="text-[#1E6B37]">{{ t.skus_con_match }}</strong> / <span class="text-[#6E6E73]">{{ t.skus_esperados }}</span>
-                            </span>
+                            <template v-if="t.es_neutro">
+                              <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold font-mono bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
+                                CLIENTE NUEVO (NEUTRO · EXCLUIDO)
+                              </span>
+                              <span class="text-[#6E6E73]">
+                                Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
+                              </span>
+                            </template>
+                            <template v-else>
+                              <span class="text-[#6E6E73]">
+                                Canasta: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ t.puntos_esperados || 0 }} pts f_i)
+                              </span>
+                              <span class="text-[#6E6E73]">
+                                Match Ponderado: <strong class="text-[#1E6B37] font-bold">{{ t.puntos_match || 0 }}</strong> / {{ t.puntos_esperados || 0 }} pts
+                              </span>
+                              <span class="text-[#6E6E73]">
+                                Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
+                              </span>
+                              <span
+                                class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold font-mono"
+                                :class="t.cumple
+                                  ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
+                                  : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
+                              >
+                                {{ Number(t.porcentaje_reposicion || 0).toFixed(1) }}% {{ t.cumple ? 'REPOSICIÓN' : 'DÉFICIT' }}
+                              </span>
+                            </template>
                           </div>
                         </div>
 
@@ -322,8 +337,8 @@
                                     <th class="py-1.5 px-2 text-center" :title="`Cantidad total comprada por este cliente en las últimas ${semanasFiltro} semanas`">
                                       Cant. Comprada
                                     </th>
-                                    <th class="py-1.5 px-2 text-center" title="Cantidad de semanas distintas con compra de este SKU">
-                                      Semanas c/ Compra
+                                    <th class="py-1.5 px-2 text-center" title="Peso histórico f_i = semanas distintas con compra de este SKU">
+                                      Peso f_i (Sem)
                                     </th>
                                     <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada de reposición (Cant. Comprada / ${semanasFiltro} sem, mín 1)`">
                                       Cantidad Repo
@@ -377,10 +392,10 @@
                                         </span>
                                       </td>
 
-                                      <!-- Semanas con compra -->
+                                      <!-- Peso f_i (Semanas con compra) -->
                                       <td class="py-2 px-2 text-center font-bold text-[#0071E3] bg-black/[0.01]">
-                                        <span class="px-1.5 py-0.5 rounded bg-[#EBF5FF] border border-[#B3D7FF]">
-                                          {{ item.semanas_con_compra || 0 }} sem
+                                        <span class="px-1.5 py-0.5 rounded bg-[#EBF5FF] border border-[#B3D7FF] font-mono text-[10px]">
+                                          {{ item.peso_fi || item.semanas_con_compra || 1 }} pts
                                         </span>
                                       </td>
 
@@ -596,6 +611,18 @@ function getCompradores(r) {
     ?? '—'
 }
 
+function getPuntosEsperados(r) {
+  return r.kpi6_reposicion?.puntos_esperados
+    ?? detallePorRuta[r.ruta]?.totales?.puntos_esperados_total
+    ?? '—'
+}
+
+function getPuntosMatch(r) {
+  return r.kpi6_reposicion?.puntos_match
+    ?? detallePorRuta[r.ruta]?.totales?.puntos_match_total
+    ?? '—'
+}
+
 function getSkusEsperados(r) {
   return r.kpi6_reposicion?.skus_esperados
     ?? detallePorRuta[r.ruta]?.totales?.skus_esperados_total
@@ -632,7 +659,20 @@ function getCumpleKpi(r) {
     return Boolean(r.kpi6_reposicion.cumple)
   }
   const pct = getPctReposicion(r)
-  return pct !== null && pct >= 60.0
+  return pct !== null && pct >= 40.0
+}
+
+function getPuntosObtenidos(r) {
+  if (r.kpi6_reposicion?.puntos !== undefined) {
+    return Number(r.kpi6_reposicion.puntos)
+  }
+  if (detallePorRuta[r.ruta]?.totales?.puntos_obtenidos !== undefined) {
+    return Number(detallePorRuta[r.ruta].totales.puntos_obtenidos)
+  }
+  const pct = getPctReposicion(r)
+  if (pct === null || pct < 40.0) return 0.0
+  if (pct >= 70.0) return 15.0
+  return Number((15.0 * ((pct - 40.0) / 30.0)).toFixed(2))
 }
 
 // ── Control de expansión de clientes ──────────────────────────────────────

@@ -84,15 +84,23 @@ class GetDetalleReposicionRutaAction
                     'configuracion' => [
                         'semanas_historia' => $semanas,
                         'dias_historia' => $diasHistoria,
+                        'piso_pct' => 40.0,
+                        'tope_pct' => 70.0,
+                        'puntos_max' => 15.0,
                     ],
                     'totales' => [
                         'compradores_hoy' => 0,
+                        'compradores_evaluables' => 0,
+                        'compradores_nuevos' => 0,
+                        'puntos_esperados_total' => 0,
+                        'puntos_match_total' => 0,
                         'skus_esperados_total' => 0,
                         'skus_con_match_total' => 0,
                         'skus_fuera_canasta_total' => 0,
                         'porcentaje_reposicion_ruta' => 0.0,
                         'cumple_umbral' => false,
                         'puntos_obtenidos' => 0.0,
+                        'estatus_ruta' => '< 40% DÉFICIT',
                     ],
                     'tiendas' => [],
                 ];
@@ -256,12 +264,15 @@ class GetDetalleReposicionRutaAction
             $procesarHistorial($histVentas);
             $procesarHistorial($histPrev);
 
-            // 3. Evaluar reposición tienda por tienda
+            // 3. Evaluar reposición tienda por tienda (Match Ponderado por semanas con compra f_i)
             $tiendas = [];
             $totalSkusEsperados = 0;
             $totalSkusMatch = 0;
             $totalSkusFueraCanasta = 0;
-            $sumaScoresPorcentaje = 0.0;
+            $totalPuntosEsperadosRuta = 0;
+            $totalPuntosMatchRuta = 0;
+            $tiendasEvaluablesCount = 0;
+            $tiendasNuevasCount = 0;
 
             foreach ($clientesCompradores as $cid => $cData) {
                 $canastaRaw = $historialPorCliente[$cid] ?? [];
@@ -271,6 +282,8 @@ class GetDetalleReposicionRutaAction
                 $keysUsadasHoy = [];
                 $canastaBase = [];
                 $matchesCliente = 0;
+                $puntosEsperadosTienda = 0;
+                $puntosMatchTienda = 0;
 
                 foreach ($canastaRaw as $hKey => $hab) {
                     $cod = $hab['codigo_producto'];
@@ -291,9 +304,14 @@ class GetDetalleReposicionRutaAction
                     $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
                     $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
 
+                    // Peso f_i = semanas con compra del SKU en la ventana de historia
+                    $pesoFi = max(1, (int) ($hab['semanas_con_compra'] ?? 1));
+                    $puntosEsperadosTienda += $pesoFi;
+
                     if ($esMatch) {
                         $matchesCliente++;
                         $keysUsadasHoy[$keyMatch] = true;
+                        $puntosMatchTienda += $pesoFi;
                     }
 
                     $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $semanas)));
@@ -305,6 +323,7 @@ class GetDetalleReposicionRutaAction
                         'descripcion' => $hab['producto'],
                         'categoria' => $hab['categoria'],
                         'tipo_origen' => 'HABITO_CLIENTE',
+                        'peso_fi' => $pesoFi,
                         'unidades_acumuladas' => $hab['total_unidades'],
                         'semanas_con_compra' => $hab['semanas_con_compra'],
                         'dias_con_compra' => $hab['dias_con_compra'],
@@ -318,13 +337,13 @@ class GetDetalleReposicionRutaAction
                     ];
                 }
 
-                // Ordenar canasta habitual: primero recomprados, luego más semanas y volumen
+                // Ordenar canasta habitual: primero recomprados, luego peso f_i descendente
                 usort($canastaBase, function ($a, $b) {
                     if ($a['recomprado_hoy'] !== $b['recomprado_hoy']) {
                         return $b['recomprado_hoy'] <=> $a['recomprado_hoy'];
                     }
-                    if ($a['semanas_con_compra'] !== $b['semanas_con_compra']) {
-                        return $b['semanas_con_compra'] <=> $a['semanas_con_compra'];
+                    if ($a['peso_fi'] !== $b['peso_fi']) {
+                        return $b['peso_fi'] <=> $a['peso_fi'];
                     }
                     return $b['unidades_acumuladas'] <=> $a['unidades_acumuladas'];
                 });
@@ -364,11 +383,22 @@ class GetDetalleReposicionRutaAction
                 $totalSkusMatch += $cntMatch;
                 $totalSkusFueraCanasta += $cntFuera;
 
-                $pctReposicionTienda = ($cntEsperados > 0)
-                    ? round(($cntMatch / $cntEsperados) * 100.0, 1)
-                    : (count($pedidoHoy) > 0 ? 100.0 : 0.0);
+                // Regla de Cliente Nuevo o Recuperado (Puntos Esperados = 0)
+                $esClienteNuevo = ($cntEsperados === 0 || $puntosEsperadosTienda === 0);
 
-                $sumaScoresPorcentaje += $pctReposicionTienda;
+                if (!$esClienteNuevo) {
+                    $pctReposicionTienda = round(($puntosMatchTienda / $puntosEsperadosTienda) * 100.0, 1);
+                    $cumpleTienda = ($pctReposicionTienda >= 60.0);
+
+                    $totalPuntosEsperadosRuta += $puntosEsperadosTienda;
+                    $totalPuntosMatchRuta += $puntosMatchTienda;
+                    $tiendasEvaluablesCount++;
+                } else {
+                    // Neutro (Excluido): aporta 0 al numerador y 0 al denominador de la ruta
+                    $pctReposicionTienda = null;
+                    $cumpleTienda = null;
+                    $tiendasNuevasCount++;
+                }
 
                 $tiendas[] = [
                     'cliente_id' => $cid,
@@ -376,12 +406,15 @@ class GetDetalleReposicionRutaAction
                     'cliente' => $cData['cliente'],
                     'total_bs_hoy' => round($cData['total_bs_hoy'], 2),
                     'total_skus_hoy' => count($pedidoHoy),
+                    'es_neutro' => $esClienteNuevo,
+                    'puntos_esperados' => $puntosEsperadosTienda,
+                    'puntos_match' => $puntosMatchTienda,
                     'skus_esperados' => $cntEsperados,
                     'skus_con_match' => $cntMatch,
                     'skus_sin_match' => max(0, $cntEsperados - $cntMatch),
                     'skus_fuera_canasta_count' => $cntFuera,
                     'porcentaje_reposicion' => $pctReposicionTienda,
-                    'cumple' => $pctReposicionTienda >= 60.0,
+                    'cumple' => $cumpleTienda,
                     'skus_habituales' => $canastaBase, // Para Vue template
                     'canasta_base' => $canastaBase,    // Compatibilidad Python
                     'pedidos_hoy' => $pedidosHoyVista, // Compatibilidad Python
@@ -392,9 +425,32 @@ class GetDetalleReposicionRutaAction
             usort($tiendas, fn ($a, $b) => $b['total_bs_hoy'] <=> $a['total_bs_hoy']);
 
             $cntTiendas = count($tiendas);
-            $pctReposicionRuta = $cntTiendas > 0
-                ? round($sumaScoresPorcentaje / $cntTiendas, 1)
-                : 0.0;
+
+            // Paso 2: Porcentaje de Reposición del Día de la Ruta (Ponderado Global de Puntos)
+            if ($totalPuntosEsperadosRuta > 0) {
+                $pctReposicionRuta = round(($totalPuntosMatchRuta / $totalPuntosEsperadosRuta) * 100.0, 1);
+            } elseif ($cntTiendas > 0) {
+                // Caso de borde único: 100% de las tiendas compradoras son clientes nuevos sin historial
+                $pctReposicionRuta = 100.0;
+            } else {
+                $pctReposicionRuta = 0.0;
+            }
+
+            // Paso 3: Asignación de Puntos por Escala Proporcional (15 Puntos)
+            if ($pctReposicionRuta < 40.0 || $cntTiendas === 0) {
+                $puntosObtenidos = 0.0;
+                $cumpleUmbral = false;
+                $estatusRuta = '< 40% DÉFICIT';
+            } elseif ($pctReposicionRuta >= 70.0) {
+                $puntosObtenidos = 15.0;
+                $cumpleUmbral = true;
+                $estatusRuta = '≥ 70% ÓPTIMO';
+            } else {
+                // Entre 40.0% y 69.9%: 15 * (($pct - 40.0) / 30.0)
+                $puntosObtenidos = round(15.0 * (($pctReposicionRuta - 40.0) / 30.0), 2);
+                $cumpleUmbral = true;
+                $estatusRuta = 'PROPORCIONAL';
+            }
 
             return [
                 'ruta' => $ruta,
@@ -404,15 +460,23 @@ class GetDetalleReposicionRutaAction
                 'configuracion' => [
                     'semanas_historia' => $semanas,
                     'dias_historia' => $diasHistoria,
+                    'piso_pct' => 40.0,
+                    'tope_pct' => 70.0,
+                    'puntos_max' => 15.0,
                 ],
                 'totales' => [
                     'compradores_hoy' => $cntTiendas,
+                    'compradores_evaluables' => $tiendasEvaluablesCount,
+                    'compradores_nuevos' => $tiendasNuevasCount,
+                    'puntos_esperados_total' => $totalPuntosEsperadosRuta,
+                    'puntos_match_total' => $totalPuntosMatchRuta,
                     'skus_esperados_total' => $totalSkusEsperados,
                     'skus_con_match_total' => $totalSkusMatch,
                     'skus_fuera_canasta_total' => $totalSkusFueraCanasta,
                     'porcentaje_reposicion_ruta' => $pctReposicionRuta,
-                    'cumple_umbral' => $pctReposicionRuta >= 60.0,
-                    'puntos_obtenidos' => $pctReposicionRuta >= 60.0 ? 15.0 : 0.0,
+                    'cumple_umbral' => $cumpleUmbral,
+                    'puntos_obtenidos' => $puntosObtenidos,
+                    'estatus_ruta' => $estatusRuta,
                 ],
                 'tiendas' => $tiendas,
             ];
