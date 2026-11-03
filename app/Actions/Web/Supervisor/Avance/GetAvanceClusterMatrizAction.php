@@ -84,7 +84,7 @@ class GetAvanceClusterMatrizAction
             $agrupacion = 'cluster_jerarquia';
         }
 
-        // Construir Query
+        // Construir Base Query
         $subPan = DB::connection('supervisor')->table('pan_ruteo')
             ->select('cliente_id', DB::raw('MAX(TRIM(ruta)) as ruta_pan'))
             ->where('cliente_id', '>', 0)
@@ -94,7 +94,7 @@ class GetAvanceClusterMatrizAction
 
         $exprRuta = "COALESCE(NULLIF(TRIM(pan.ruta_pan), ''), NULLIF(TRIM(fv.ruta), ''), 'SIN RUTA')";
 
-        $query = DB::connection('supervisor')->table('fact_ventas as fv')
+        $baseQuery = DB::connection('supervisor')->table('fact_ventas as fv')
             ->leftJoinSub($subPan, 'pan', 'fv.cliente_id', '=', 'pan.cliente_id')
             ->where(function ($q): void {
                 $q->whereNull('fv.revertida')->orWhereRaw("LOWER(TRIM(fv.revertida)) != 'si'");
@@ -106,67 +106,125 @@ class GetAvanceClusterMatrizAction
             });
 
         if (!empty($canalesValidos)) {
-            $query->leftJoin('dim_rutas as dr', function ($join) use ($exprRuta): void {
+            $baseQuery->leftJoin('dim_rutas as dr', function ($join) use ($exprRuta): void {
                 $join->whereRaw("TRIM(UPPER(dr.ruta)) = TRIM(UPPER({$exprRuta}))");
             })
             ->whereIn(DB::raw("TRIM(UPPER(COALESCE(dr.canal, fv.canal, '')))"), $canalesValidos);
         }
 
         if (!empty($rutasValidas)) {
-            $query->whereIn(DB::raw("TRIM(UPPER({$exprRuta}))"), $rutasValidas);
+            $baseQuery->whereIn(DB::raw("TRIM(UPPER({$exprRuta}))"), $rutasValidas);
         }
 
         if (!empty($clustersValidos)) {
-            $query->whereIn(DB::raw("TRIM(UPPER(COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER')))"), $clustersValidos);
+            $baseQuery->whereIn(DB::raw("TRIM(UPPER(COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER')))"), $clustersValidos);
         }
 
-        // Columnas a seleccionar y agrupar
+        // Columnas a seleccionar y agrupar en subconsulta para compatibilidad total con ONLY_FULL_GROUP_BY
         if ($agrupacion === 'cluster') {
-            $query->select([
+            $baseQuery->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
-                DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("cluster, fecha_norm");
+                'fv.monto_final as valor',
+            ]);
+
+            $mainQuery = DB::connection('supervisor')->query()
+                ->fromSub($baseQuery, 'sub')
+                ->select([
+                    'cluster',
+                    'fecha_norm',
+                    DB::raw("SUM(valor) as valor"),
+                ])
+                ->groupBy('cluster', 'fecha_norm');
         } elseif ($agrupacion === 'cluster_cliente') {
-            $query->select([
+            $baseQuery->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
                 DB::raw("{$exprRuta} as ruta"),
                 DB::raw("COALESCE(fv.cliente_id, 0) as cliente_id"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cliente), ''), 'CLIENTE S/N') as cliente"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
-                DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("cluster, {$exprRuta}, fv.cliente_id, cliente, fecha_norm");
+                'fv.monto_final as valor',
+            ]);
+
+            $mainQuery = DB::connection('supervisor')->query()
+                ->fromSub($baseQuery, 'sub')
+                ->select([
+                    'cluster',
+                    'ruta',
+                    'cliente_id',
+                    'cliente',
+                    'fecha_norm',
+                    DB::raw("SUM(valor) as valor"),
+                ])
+                ->groupBy('cluster', 'ruta', 'cliente_id', 'cliente', 'fecha_norm');
         } elseif ($agrupacion === 'cluster_jerarquia') {
-            $query->select([
+            $baseQuery->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia1), ''), 'SIN J1') as j1"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia2), ''), 'SIN J2') as j2"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia3), ''), 'SIN J3') as j3"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
-                DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("cluster, j1, j2, j3, fecha_norm");
+                'fv.monto_final as valor',
+            ]);
+
+            $mainQuery = DB::connection('supervisor')->query()
+                ->fromSub($baseQuery, 'sub')
+                ->select([
+                    'cluster',
+                    'j1',
+                    'j2',
+                    'j3',
+                    'fecha_norm',
+                    DB::raw("SUM(valor) as valor"),
+                ])
+                ->groupBy('cluster', 'j1', 'j2', 'j3', 'fecha_norm');
         } elseif ($agrupacion === 'cluster_ruta_jerarquia') {
-            $query->select([
+            $baseQuery->select([
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
                 DB::raw("{$exprRuta} as ruta"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia1), ''), 'SIN J1') as j1"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia2), ''), 'SIN J2') as j2"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia3), ''), 'SIN J3') as j3"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
-                DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("cluster, {$exprRuta}, j1, j2, j3, fecha_norm");
+                'fv.monto_final as valor',
+            ]);
+
+            $mainQuery = DB::connection('supervisor')->query()
+                ->fromSub($baseQuery, 'sub')
+                ->select([
+                    'cluster',
+                    'ruta',
+                    'j1',
+                    'j2',
+                    'j3',
+                    'fecha_norm',
+                    DB::raw("SUM(valor) as valor"),
+                ])
+                ->groupBy('cluster', 'ruta', 'j1', 'j2', 'j3', 'fecha_norm');
         } else { // ruta_jerarquia
-            $query->select([
+            $baseQuery->select([
                 DB::raw("{$exprRuta} as ruta"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia1), ''), 'SIN J1') as j1"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia2), ''), 'SIN J2') as j2"),
                 DB::raw("COALESCE(NULLIF(TRIM(fv.jerarquia3), ''), 'SIN J3') as j3"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
-                DB::raw("SUM({$colExpr}) as valor"),
-            ])->groupByRaw("{$exprRuta}, j1, j2, j3, fecha_norm");
+                'fv.monto_final as valor',
+            ]);
+
+            $mainQuery = DB::connection('supervisor')->query()
+                ->fromSub($baseQuery, 'sub')
+                ->select([
+                    'ruta',
+                    'j1',
+                    'j2',
+                    'j3',
+                    'fecha_norm',
+                    DB::raw("SUM(valor) as valor"),
+                ])
+                ->groupBy('ruta', 'j1', 'j2', 'j3', 'fecha_norm');
         }
 
-        $rawRows = $query->get();
+        $rawRows = $mainQuery->get();
 
         // Fechas globales para la fila TOTAL GENERAL
         $fechasEmpresa = [];
