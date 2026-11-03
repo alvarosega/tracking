@@ -14,23 +14,39 @@ class GetAvanceClusterCatalogoAction
      */
     public function execute(): array
     {
-        // 1. Canales únicos desde dim_rutas
-        $canales = DB::connection('supervisor')->table('dim_rutas')
-            ->whereNotNull('canal')
-            ->where('canal', '!=', '')
-            ->selectRaw("DISTINCT TRIM(canal) as canal")
+        // 1. Canales únicos asociados a las rutas de pan_ruteo vía dim_rutas
+        $canales = DB::connection('supervisor')->table('pan_ruteo as p')
+            ->leftJoin('dim_rutas as dr', DB::raw("TRIM(UPPER(p.ruta))"), '=', DB::raw("TRIM(UPPER(dr.ruta))"))
+            ->where('p.cliente_id', '>', 0)
+            ->whereNotNull('dr.canal')
+            ->where('dr.canal', '!=', '')
+            ->selectRaw("DISTINCT TRIM(dr.canal) as canal")
             ->orderBy('canal')
             ->pluck('canal')
             ->toArray();
 
-        // 2. Rutas únicas desde dim_rutas
-        $rutas = DB::connection('supervisor')->table('dim_rutas')
+        if (empty($canales)) {
+            $canales = DB::connection('supervisor')->table('dim_rutas')
+                ->whereNotNull('canal')
+                ->where('canal', '!=', '')
+                ->selectRaw("DISTINCT TRIM(canal) as canal")
+                ->orderBy('canal')
+                ->pluck('canal')
+                ->toArray();
+        }
+
+        // 2. Rutas únicas obtenidas directamente desde pan_ruteo
+        $rutasRaw = DB::connection('supervisor')->table('pan_ruteo')
+            ->where('cliente_id', '>', 0)
             ->whereNotNull('ruta')
             ->where('ruta', '!=', '')
             ->selectRaw("DISTINCT TRIM(ruta) as ruta")
-            ->orderBy('ruta')
             ->pluck('ruta')
             ->toArray();
+
+        $rutas = array_values(array_unique(array_filter(array_map('trim', $rutasRaw))));
+        natsort($rutas);
+        $rutas = array_values($rutas);
 
         // 3. Clusters únicos observados en fact_ventas
         $clustersRaw = DB::connection('supervisor')->table('fact_ventas')
