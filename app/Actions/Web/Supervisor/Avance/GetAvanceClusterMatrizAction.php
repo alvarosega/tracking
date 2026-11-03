@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Web\Supervisor\Avance;
 
+use App\Actions\Web\Supervisor\Auditoria\EnriquecerFotosAction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +21,8 @@ class GetAvanceClusterMatrizAction
     ];
 
     public function __construct(
-        private readonly GetAvanceClusterCatalogoAction $catalogoAction
+        private readonly GetAvanceClusterCatalogoAction $catalogoAction,
+        private readonly EnriquecerFotosAction $enriquecerFotosAction,
     ) {}
 
     /**
@@ -269,6 +271,7 @@ class GetAvanceClusterMatrizAction
         } elseif ($agrupacion === 'cluster_cliente') {
             // Cluster (Nivel 0) -> Ruta (Nivel 1) -> Cliente (Nivel 2)
             $rawTree = [];
+            $todosCids = [];
             foreach ($rawRows as $r) {
                 $cl = trim((string) $r->cluster);
                 $rt = trim((string) $r->ruta);
@@ -277,8 +280,26 @@ class GetAvanceClusterMatrizAction
                 $f = substr((string) $r->fecha_norm, 0, 10);
                 $v = (float) ($r->valor ?? 0.0);
 
+                if ($cId > 0) {
+                    $todosCids[$cId] = $cId;
+                }
+
                 $rawTree[$cl][$rt][$cId]['nombre'] = $cNom;
                 $rawTree[$cl][$rt][$cId]['fechas'][$f] = ($rawTree[$cl][$rt][$cId]['fechas'][$f] ?? 0.0) + $v;
+            }
+
+            // Enriquecer fotos de clientes desde visitas
+            $mapaFotos = [];
+            if (!empty($todosCids)) {
+                $dummy = array_map(fn ($id) => ['cliente_id' => $id], array_values($todosCids));
+                $enriquecidos = $this->enriquecerFotosAction->execute($dummy, 'cliente_id');
+                foreach ($enriquecidos as $item) {
+                    $mapaFotos[$item['cliente_id']] = [
+                        'cant_fotos' => (int) ($item['cant_fotos'] ?? 0),
+                        'foto_reciente_url' => $item['foto_reciente_url'] ?? null,
+                        'foto_reciente_fecha' => $item['foto_reciente_fecha'] ?? null,
+                    ];
+                }
             }
 
             $clustersOrdenados = $this->ordenarClusters(array_keys($rawTree));
@@ -297,6 +318,12 @@ class GetAvanceClusterMatrizAction
                         $this->fusionarFechas($fCli, $fechasRt);
 
                         $mCli = $this->calcMetricasNodo($fCli, $mesesMeta, $decimales);
+                        $fotoInfo = $mapaFotos[$cId] ?? [
+                            'cant_fotos' => 0,
+                            'foto_reciente_url' => null,
+                            'foto_reciente_fecha' => null,
+                        ];
+
                         $clienteNodes[] = array_merge([
                             'id' => "node_{$cl}__{$rt}__cli_{$cId}",
                             'label' => $cId > 0 ? "{$cNom} ({$cId})" : $cNom,
@@ -304,6 +331,10 @@ class GetAvanceClusterMatrizAction
                             'nivel' => 2,
                             'cliente_id' => $cId,
                             'cliente_nombre' => $cNom,
+                            'ruta' => $rt,
+                            'cant_fotos' => $fotoInfo['cant_fotos'],
+                            'foto_reciente_url' => $fotoInfo['foto_reciente_url'],
+                            'foto_reciente_fecha' => $fotoInfo['foto_reciente_fecha'],
                             'share_pct' => 0.0,
                             'share_total_pct' => $totalGeneralTy > 0 ? round(($mCli['total_ty'] / $totalGeneralTy) * 100.0, 1) : 0.0,
                             'children' => [],

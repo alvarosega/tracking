@@ -954,6 +954,46 @@
                         {{ fila.label }}
                       </span>
 
+                      <!-- Miniatura y Botón de Fotos (Nivel Cliente) -->
+                      <button
+                        v-if="fila.tipo === 'cliente' && fila.cliente_id > 0 && fila.cant_fotos > 0"
+                        type="button"
+                        @click.stop="abrirFotosCliente(fila)"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] apple-control-pill cursor-pointer shrink-0 hover:border-blue-300 transition-all ml-1"
+                        :title="`Ver ${fila.cant_fotos} fotografía${fila.cant_fotos > 1 ? 's' : ''}`"
+                      >
+                        <img
+                          v-if="fila.foto_reciente_url"
+                          :src="fila.foto_reciente_url"
+                          class="w-4 h-4 rounded-[3px] object-cover border border-black/[0.1] shrink-0"
+                          loading="lazy"
+                        />
+                        <svg
+                          v-else
+                          class="w-3 h-3 text-[#0071E3] shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <circle cx="12" cy="13" r="3" stroke-width="2" />
+                        </svg>
+                        <span class="text-[9px] font-bold text-[#0071E3] font-mono leading-none">
+                          {{ fila.cant_fotos }}
+                        </span>
+                      </button>
+
+                      <span
+                        v-else-if="fila.tipo === 'cliente' && fila.cliente_id > 0"
+                        class="inline-flex items-center gap-0.5 text-[8px] text-[#86868B] px-1 py-0.5 rounded bg-black/[0.02] border border-black/[0.04] shrink-0 select-none ml-1"
+                        title="Sin fotografías registradas"
+                      >
+                        <svg class="w-2.5 h-2.5 text-[#C7C7CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        </svg>
+                        <span>0</span>
+                      </span>
+
                       <!-- Contador de Hijos cuando está colapsado -->
                       <span
                         v-if="fila.children && fila.children.length && !nodoExpandido(fila.id)"
@@ -1159,6 +1199,9 @@
         </section>
       </template>
     </div>
+
+    <!-- Modal de Evidencias Fotográficas del Cliente -->
+    <AuditoriaFotosModal ref="fotosModalRef" />
   </SupervisorLayout>
 </template>
 
@@ -1167,7 +1210,18 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
+import AuditoriaFotosModal from '@/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue'
 import { navigationConfig } from '@/Config/navigation.js'
+
+const fotosModalRef = ref(null)
+
+const abrirFotosCliente = (fila) => {
+  fotosModalRef.value?.abrir(
+    fila.cliente_id,
+    fila.cliente_nombre || fila.label,
+    fila.ruta || ''
+  )
+}
 
 const props = defineProps({
   catalogo: {
