@@ -41,8 +41,15 @@ class GetPreventasPendientesAction
     ): array {
         $now = Carbon::now('America/La_Paz');
         $service = app(RechazosVentanaService::class);
-        $userRuta = $ruta ?: (string) ($user->ruta ?? '');
-        $configModulo = $service->getConfig($userRuta);
+
+        // Resolver la ruta comercial efectiva del vendedor/usuario autenticado
+        $esAdminOSupervisor = $user->isSupervisor() || $user->isSuperAdmin();
+        $userRutaComercial = !empty($ruta) ? trim($ruta) : trim((string) ($user->ruta ?? ''));
+        if (empty($userRutaComercial) && !$esAdminOSupervisor) {
+            $userRutaComercial = trim((string) $user->username);
+        }
+
+        $configModulo = $service->getConfig($userRutaComercial ?: null);
 
         $fechasEvaluadas = [];
         $modoEvaluado = 'automatico';
@@ -99,6 +106,7 @@ class GetPreventasPendientesAction
             'user_id' => $user->id,
             'username' => $user->username,
             'user_ruta' => $user->ruta,
+            'user_ruta_comercial' => $userRutaComercial,
             'role' => $user->role?->name,
             'modo_evaluado' => $modoEvaluado,
             'fechas_evaluadas' => $fechasEvaluadas,
@@ -117,7 +125,7 @@ class GetPreventasPendientesAction
         try {
             $preventas = $service->evaluarPreventas(
                 fechasEvaluadas: $fechasEvaluadas,
-                rutaFiltro: !empty($ruta) ? $ruta : null,
+                rutaFiltro: !empty($userRutaComercial) ? $userRutaComercial : null,
                 user: $user,
                 incluirJustificados: $incluirJustificados
             );

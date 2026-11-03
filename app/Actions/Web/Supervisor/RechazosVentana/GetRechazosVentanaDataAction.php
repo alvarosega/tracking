@@ -150,9 +150,6 @@ class GetRechazosVentanaDataAction
 
             $nroPrev = (int) $row->nro_preventa;
             $esJustificado = isset($justificadosMap[$nroPrev]);
-            if ($esJustificado) {
-                $r['pedidos_justificados']++;
-            }
 
             $cPrev = (int) ($row->cant_prev ?? 0);
             $cFact = (int) ($row->cant_fact ?? 0);
@@ -164,14 +161,18 @@ class GetRechazosVentanaDataAction
 
             if ($cFact === 0) {
                 $r['pedidos_caidos']++;
-                if (!$esJustificado) {
+                if ($esJustificado) {
+                    $r['pedidos_justificados']++;
+                } else {
                     $r['monto_rechazos'] = round($r['monto_rechazos'] + $mPrev, 2);
                 }
             } elseif ($cFact >= $cPrev) {
                 $r['pedidos_entregados']++;
             } else {
                 $r['pedidos_parciales']++;
-                if (!$esJustificado) {
+                if ($esJustificado) {
+                    $r['pedidos_justificados']++;
+                } else {
                     $r['monto_rechazos'] = round($r['monto_rechazos'] + max(0.0, $mPrev - $mFact), 2);
                 }
             }

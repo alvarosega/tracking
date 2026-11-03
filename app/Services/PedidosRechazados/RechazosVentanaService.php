@@ -326,12 +326,6 @@ class RechazosVentanaService
         $preventasYaJustificadas = [];
         try {
             $qJust = PedidoRechazado::query()->whereNotNull('nro_preventa');
-            if ($user && !$user->isSupervisor() && !$user->isSuperAdmin()) {
-                $qJust->where(function ($q) use ($user): void {
-                    $q->where('user_id', $user->id)
-                      ->orWhere('vendedor_username', $user->username);
-                });
-            }
             $preventasYaJustificadas = $qJust->pluck('nro_preventa')
                 ->map(fn ($id) => (int) $id)
                 ->filter(fn ($id) => $id > 0)
@@ -352,32 +346,49 @@ class RechazosVentanaService
                 $params[] = $f;
             }
 
+            // Resolver candidatos de ruta comercial
+            $rutasCandidatas = [];
             if (!empty($rutaFiltro)) {
-                $cleanRuta = strtoupper(trim(preg_replace('/\s+/', ' ', $rutaFiltro)));
-                $extraWhere .= " AND REPLACE(UPPER(fp.ruta), ' ', '') = ?";
-                $params[] = str_replace(' ', '', $cleanRuta);
+                $cleanRuta = str_replace(' ', '', strtoupper(trim($rutaFiltro)));
+                $rutasCandidatas[] = $cleanRuta;
+                if (str_starts_with($cleanRuta, 'TDB')) {
+                    $sin = substr($cleanRuta, 3);
+                    if (!empty($sin)) {
+                        $rutasCandidatas[] = $sin;
+                    }
+                } else {
+                    $rutasCandidatas[] = 'TDB' . $cleanRuta;
+                }
             } elseif ($user && !$user->isSupervisor() && !$user->isSuperAdmin()) {
-                $cleanUser = str_replace(' ', '', strtoupper((string) ($user->username ?? '')));
-                $cleanRuta = str_replace(' ', '', strtoupper((string) ($user->ruta ?? '')));
-                $cleanName = str_replace(' ', '', strtoupper((string) ($user->name ?? '')));
+                $userRuta = trim((string) ($user->ruta ?: $user->username));
+                if (!empty($userRuta)) {
+                    $cleanRuta = str_replace(' ', '', strtoupper($userRuta));
+                    $rutasCandidatas[] = $cleanRuta;
+                    if (str_starts_with($cleanRuta, 'TDB')) {
+                        $sin = substr($cleanRuta, 3);
+                        if (!empty($sin)) {
+                            $rutasCandidatas[] = $sin;
+                        }
+                    } else {
+                        $rutasCandidatas[] = 'TDB' . $cleanRuta;
+                    }
+                }
+            }
 
-                $userConds = [];
-                if (!empty($cleanName)) {
-                    $userConds[] = "REPLACE(UPPER(fp.vendedor), ' ', '') = ?";
-                    $params[] = $cleanName;
+            $rutasCandidatas = array_values(array_unique(array_filter($rutasCandidatas)));
+
+            if (!empty($rutasCandidatas)) {
+                $rPlaceholders = implode(',', array_fill(0, count($rutasCandidatas), '?'));
+                $extraWhere .= " AND REPLACE(UPPER(fp.ruta), ' ', '') IN ({$rPlaceholders})";
+                foreach ($rutasCandidatas as $rc) {
+                    $params[] = $rc;
                 }
+            } elseif ($user && !$user->isSupervisor() && !$user->isSuperAdmin()) {
+                // Si es vendedor pero no tiene ruta asignada, filtrar por username_vendedor exacto
+                $cleanUser = str_replace(' ', '', strtoupper((string) ($user->username ?? '')));
                 if (!empty($cleanUser)) {
-                    $userConds[] = "REPLACE(UPPER(fp.username_vendedor), ' ', '') = ?";
+                    $extraWhere .= " AND REPLACE(UPPER(fp.username_vendedor), ' ', '') = ?";
                     $params[] = $cleanUser;
-                    $userConds[] = "REPLACE(UPPER(fp.ruta), ' ', '') = ?";
-                    $params[] = $cleanUser;
-                }
-                if (!empty($cleanRuta)) {
-                    $userConds[] = "REPLACE(UPPER(fp.ruta), ' ', '') = ?";
-                    $params[] = $cleanRuta;
-                }
-                if (!empty($userConds)) {
-                    $extraWhere .= " AND (" . implode(' OR ', $userConds) . ")";
                 } else {
                     $extraWhere .= " AND 1 = 0";
                 }
