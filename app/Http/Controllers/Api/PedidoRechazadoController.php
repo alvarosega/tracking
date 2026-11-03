@@ -17,15 +17,16 @@ use Illuminate\Support\Facades\Log;
 class PedidoRechazadoController extends Controller
 {
     public const MOTIVOS_RECHAZO = [
-        ['id' => 1, 'codigo' => 'TIENDA_CERRADA', 'nombre' => 'Tienda cerrada / No abrió'],
-        ['id' => 2, 'codigo' => 'SIN_DINERO', 'nombre' => 'Sin dinero / Falta de liquidez'],
-        ['id' => 3, 'codigo' => 'ERROR_PREVENTA', 'nombre' => 'Cliente no realizó el pedido (Error preventa)'],
-        ['id' => 4, 'codigo' => 'DUENO_AUSENTE', 'nombre' => 'Encargado o dueño ausente'],
-        ['id' => 5, 'codigo' => 'PRECIO_DISCONFORME', 'nombre' => 'Inconformidad con precio o descuento'],
-        ['id' => 6, 'codigo' => 'PRODUCTO_DANADO', 'nombre' => 'Producto dañado o en mal estado'],
-        ['id' => 7, 'codigo' => 'PEDIDO_DUPLICADO', 'nombre' => 'Pedido duplicado'],
-        ['id' => 8, 'codigo' => 'FALTA_ESPACIO', 'nombre' => 'Falta de espacio / Stock suficiente'],
-        ['id' => 9, 'codigo' => 'OTRO', 'nombre' => 'Otro motivo (especificar en comentarios)'],
+        ['id' => 1, 'codigo' => 'TIENDA_CERRADA', 'nombre' => 'Tienda cerrada'],
+        ['id' => 2, 'codigo' => 'SIN_DINERO', 'nombre' => 'Sin dinero'],
+        ['id' => 3, 'codigo' => 'DUENO_AUSENTE', 'nombre' => 'Dueño ausente'],
+        ['id' => 4, 'codigo' => 'ERROR_PREVENTA', 'nombre' => 'Error preventa'],
+        ['id' => 5, 'codigo' => 'NO_VISITADO_DISTRIBUIDOR', 'nombre' => 'Distribuidor no pasó'],
+        ['id' => 6, 'codigo' => 'ENTREGA_FUERA_HORARIO', 'nombre' => 'Entrega fuera de horario'],
+        ['id' => 7, 'codigo' => 'PRODUCTO_DANADO', 'nombre' => 'Producto dañado'],
+        ['id' => 8, 'codigo' => 'STOCK_CAMION_INCOMPLETO', 'nombre' => 'Falta de producto en camión'],
+        ['id' => 9, 'codigo' => 'PRECIO_DISCONFORME', 'nombre' => 'Inconformidad con precio'],
+        ['id' => 10, 'codigo' => 'OTRO', 'nombre' => 'Otro motivo'],
     ];
 
     /**

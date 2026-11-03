@@ -113,13 +113,14 @@ class StorePedidoRechazadoRequest extends FormRequest
             $motivoMap = [
                 1 => 'TIENDA_CERRADA',
                 2 => 'SIN_DINERO',
-                3 => 'ERROR_PREVENTA',
-                4 => 'DUENO_AUSENTE',
-                5 => 'PRECIO_DISCONFORME',
-                6 => 'PRODUCTO_DANADO',
-                7 => 'PEDIDO_DUPLICADO',
-                8 => 'FALTA_ESPACIO',
-                9 => 'OTRO',
+                3 => 'DUENO_AUSENTE',
+                4 => 'ERROR_PREVENTA',
+                5 => 'NO_VISITADO_DISTRIBUIDOR',
+                6 => 'ENTREGA_FUERA_HORARIO',
+                7 => 'PRODUCTO_DANADO',
+                8 => 'STOCK_CAMION_INCOMPLETO',
+                9 => 'PRECIO_DISCONFORME',
+                10 => 'OTRO',
             ];
             $rawMotivo = $motivoMap[(int) $rawMotivo] ?? 'OTRO';
         }
