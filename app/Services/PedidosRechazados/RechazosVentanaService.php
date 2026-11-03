@@ -490,6 +490,8 @@ class RechazosVentanaService
                         'ruta' => (string) $item->ruta,
                         'canal' => (string) $item->canal,
                         'vendedor' => (string) $item->vendedor,
+                        'distribuidor' => null,
+                        'repartidor' => null,
                         'tipo_sugerido' => 'TOTAL',
                         'monto_total_preventa' => 0.0,
                         'monto_total_facturado' => 0.0,
