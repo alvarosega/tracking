@@ -330,13 +330,33 @@
                                 <th class="px-2.5 py-1.5 text-center w-8">#</th>
                                 <th class="px-2.5 py-1.5 w-20">Código</th>
                                 <th class="px-3 py-1.5">Cliente / PDV</th>
-                                <th class="px-2.5 py-1.5 text-center">Ítems SKU</th>
-                                <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Venta (Bs)</th>
+                                <th
+                                  @click.stop="toggleSortClientes(r.ruta, 'items')"
+                                  class="px-2.5 py-1.5 text-center cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                                  :class="getSortClientes(r.ruta).col === 'items' ? 'text-[#0071E3]' : ''"
+                                  title="Ordenar por Ítems SKU"
+                                >
+                                  <div class="flex items-center justify-center gap-0.5">
+                                    <span>Ítems SKU</span>
+                                    <span v-if="getSortClientes(r.ruta).col === 'items'">{{ getSortClientes(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  @click.stop="toggleSortClientes(r.ruta, 'monto')"
+                                  class="px-3 py-1.5 text-right font-mono font-bold cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                                  :class="getSortClientes(r.ruta).col === 'monto' ? 'text-[#0071E3]' : ''"
+                                  title="Ordenar por Monto de Venta"
+                                >
+                                  <div class="flex items-center justify-end gap-0.5">
+                                    <span>Monto Venta (Bs)</span>
+                                    <span v-if="getSortClientes(r.ruta).col === 'monto'">{{ getSortClientes(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                                  </div>
+                                </th>
                                 <th class="px-2.5 py-1.5 text-center w-20">Detalle</th>
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-black/[0.03]">
-                              <template v-for="(c, cIdx) in detallePorRuta[r.ruta].clientes" :key="c.cliente_id || cIdx">
+                              <template v-for="(c, cIdx) in clientesOrdenados(r.ruta)" :key="c.cliente_id || cIdx">
                                 <tr
                                   @click="toggleSubCliente(`${r.ruta}_${c.cliente_id}`)"
                                   class="hover:bg-black/[0.02] cursor-pointer transition-colors"
@@ -432,15 +452,44 @@
                                 <th class="px-2.5 py-1.5 text-center w-8">#</th>
                                 <th class="px-2.5 py-1.5 w-24">Código SKU</th>
                                 <th class="px-3 py-1.5">Producto / Presentación</th>
-                                <th class="px-2.5 py-1.5 text-center">Categoría</th>
-                                <th class="px-2.5 py-1.5 text-right font-mono font-bold">Cantidad Total</th>
-                                <th class="px-2.5 py-1.5 text-center">Clientes</th>
-                                <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Total (Bs)</th>
+                                <th
+                                  @click.stop="toggleSortProductos(r.ruta, 'cantidad')"
+                                  class="px-2.5 py-1.5 text-right font-mono font-bold cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                                  :class="getSortProductos(r.ruta).col === 'cantidad' ? 'text-[#0071E3]' : ''"
+                                  title="Ordenar por Cantidad Total"
+                                >
+                                  <div class="flex items-center justify-end gap-0.5">
+                                    <span>Cantidad Total</span>
+                                    <span v-if="getSortProductos(r.ruta).col === 'cantidad'">{{ getSortProductos(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  @click.stop="toggleSortProductos(r.ruta, 'clientes')"
+                                  class="px-2.5 py-1.5 text-center cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                                  :class="getSortProductos(r.ruta).col === 'clientes' ? 'text-[#0071E3]' : ''"
+                                  title="Ordenar por Clientes"
+                                >
+                                  <div class="flex items-center justify-center gap-0.5">
+                                    <span>Clientes</span>
+                                    <span v-if="getSortProductos(r.ruta).col === 'clientes'">{{ getSortProductos(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  @click.stop="toggleSortProductos(r.ruta, 'monto')"
+                                  class="px-3 py-1.5 text-right font-mono font-bold cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                                  :class="getSortProductos(r.ruta).col === 'monto' ? 'text-[#0071E3]' : ''"
+                                  title="Ordenar por Monto Total"
+                                >
+                                  <div class="flex items-center justify-end gap-0.5">
+                                    <span>Monto Total (Bs)</span>
+                                    <span v-if="getSortProductos(r.ruta).col === 'monto'">{{ getSortProductos(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                                  </div>
+                                </th>
                                 <th class="px-2.5 py-1.5 text-center w-24">Detalle</th>
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-black/[0.03]">
-                              <template v-for="(p, pIdx) in detallePorRuta[r.ruta].productos" :key="p.codigo_producto || pIdx">
+                              <template v-for="(p, pIdx) in productosOrdenados(r.ruta)" :key="p.codigo_producto || pIdx">
                                 <tr
                                   @click="toggleSubProducto(`${r.ruta}_${p.codigo_producto}`)"
                                   class="hover:bg-black/[0.02] cursor-pointer transition-colors"
@@ -454,7 +503,6 @@
                                   <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="p.producto">
                                     {{ p.producto }}
                                   </td>
-                                  <td class="px-2.5 py-1 text-center text-[#86868B] text-[10px]">{{ p.categoria || '—' }}</td>
                                   <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
                                     {{ p.cantidad_total }}
                                   </td>
@@ -481,7 +529,7 @@
 
                                 <!-- Desglose de Clientes que compraron este producto -->
                                 <tr v-if="subProductoAbierto[`${r.ruta}_${p.codigo_producto}`]">
-                                  <td colspan="8" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
+                                  <td colspan="7" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
                                     <div class="apple-glass-card rounded-[8px] overflow-hidden">
                                       <table class="w-full text-left border-collapse text-[10px]">
                                         <thead class="border-b border-black/[0.05] bg-black/[0.02] text-[#86868B] font-bold uppercase">
@@ -626,6 +674,8 @@ const acordeonAbierto = reactive({})
 const subClienteAbierto = reactive({})
 const subProductoAbierto = reactive({})
 const modoVistaRuta = reactive({})
+const sortSubClientes = reactive({})
+const sortSubProductos = reactive({})
 const cargandoDetalle = reactive({})
 const errorDetalle = reactive({})
 const detallePorRuta = reactive({})
@@ -638,6 +688,82 @@ function setModoVista(ruta, modo) {
   modoVistaRuta[ruta] = modo
 }
 
+function getSortClientes(ruta) {
+  if (!sortSubClientes[ruta]) {
+    sortSubClientes[ruta] = { col: 'monto', dir: 'desc' }
+  }
+  return sortSubClientes[ruta]
+}
+
+function toggleSortClientes(ruta, col) {
+  const s = getSortClientes(ruta)
+  if (s.col === col) {
+    s.dir = s.dir === 'desc' ? 'asc' : 'desc'
+  } else {
+    s.col = col
+    s.dir = 'desc'
+  }
+}
+
+function clientesOrdenados(ruta) {
+  const lista = [...(detallePorRuta[ruta]?.clientes || [])]
+  const s = getSortClientes(ruta)
+  const mul = s.dir === 'asc' ? 1 : -1
+
+  return lista.sort((a, b) => {
+    if (s.col === 'items') {
+      const vA = (a.items || []).length
+      const vB = (b.items || []).length
+      if (vA !== vB) return mul * (vA - vB)
+    } else if (s.col === 'monto') {
+      const vA = Number(a.total_bs) || 0
+      const vB = Number(b.total_bs) || 0
+      if (vA !== vB) return mul * (vA - vB)
+    }
+    return String(a.cliente || '').localeCompare(String(b.cliente || ''))
+  })
+}
+
+function getSortProductos(ruta) {
+  if (!sortSubProductos[ruta]) {
+    sortSubProductos[ruta] = { col: 'monto', dir: 'desc' }
+  }
+  return sortSubProductos[ruta]
+}
+
+function toggleSortProductos(ruta, col) {
+  const s = getSortProductos(ruta)
+  if (s.col === col) {
+    s.dir = s.dir === 'desc' ? 'asc' : 'desc'
+  } else {
+    s.col = col
+    s.dir = 'desc'
+  }
+}
+
+function productosOrdenados(ruta) {
+  const lista = [...(detallePorRuta[ruta]?.productos || [])]
+  const s = getSortProductos(ruta)
+  const mul = s.dir === 'asc' ? 1 : -1
+
+  return lista.sort((a, b) => {
+    if (s.col === 'cantidad') {
+      const vA = Number(a.cantidad_total) || 0
+      const vB = Number(b.cantidad_total) || 0
+      if (vA !== vB) return mul * (vA - vB)
+    } else if (s.col === 'clientes') {
+      const vA = Number(a.clientes_count) || 0
+      const vB = Number(b.clientes_count) || 0
+      if (vA !== vB) return mul * (vA - vB)
+    } else if (s.col === 'monto') {
+      const vA = Number(a.total_bs) || 0
+      const vB = Number(b.total_bs) || 0
+      if (vA !== vB) return mul * (vA - vB)
+    }
+    return String(a.producto || '').localeCompare(String(b.producto || ''))
+  })
+}
+
 watch(
   () => store.fecha,
   () => {
@@ -646,6 +772,8 @@ watch(
     Object.keys(subClienteAbierto).forEach(k => delete subClienteAbierto[k])
     Object.keys(subProductoAbierto).forEach(k => delete subProductoAbierto[k])
     Object.keys(modoVistaRuta).forEach(k => delete modoVistaRuta[k])
+    Object.keys(sortSubClientes).forEach(k => delete sortSubClientes[k])
+    Object.keys(sortSubProductos).forEach(k => delete sortSubProductos[k])
   }
 )
 
