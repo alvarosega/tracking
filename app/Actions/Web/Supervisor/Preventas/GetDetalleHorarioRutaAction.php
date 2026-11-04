@@ -52,15 +52,15 @@ class GetDetalleHorarioRutaAction
             $carteraPlanDia = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where(function ($q) use ($diasFiltro): void {
-                    $q->whereIn(DB::raw("LOWER(TRIM(dia_norm))"), $diasFiltro)
-                      ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
+                    $q->whereIn('dia_norm', $diasFiltro)
+                      ->orWhereIn('dia', $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
                 ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
-                    DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
-                    DB::raw("MAX(COALESCE(TRIM(cliente_norm), '')) as cliente_norm"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), NULLIF(TRIM(cliente_norm), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente_norm"),
                     DB::raw("MAX(COALESCE(TRIM(dia), '')) as dia"),
                     DB::raw("MAX(COALESCE(TRIM(dia_norm), '')) as dia_norm"),
                     DB::raw("MAX(COALESCE(TRIM(estado), 'ACTIVO')) as estado"),
@@ -75,14 +75,15 @@ class GetDetalleHorarioRutaAction
                 ->get()
                 ->keyBy('cliente_id');
 
-            // Catálogo auxiliar de todos los clientes de esta ruta en pan_ruteo (solo para resolver nombres de visitas fuera de plan)
+            // Catálogo auxiliar de todos los clientes de esta ruta en pan_ruteo (para resolver visitas fuera del plan de hoy)
             $otrosClientesRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
                 ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
-                    DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), NULLIF(TRIM(cliente_norm), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente_norm"),
                     DB::raw("MAX(COALESCE(TRIM(direccion), '')) as direccion"),
                 ])
                 ->groupBy('cliente_id')
@@ -97,8 +98,7 @@ class GetDetalleHorarioRutaAction
                 ? trim((string) $dimInfo->vendedor)
                 : trim((string) ($carteraPlanDia->firstWhere('vendedor', '!=', null)->vendedor ?? 'No Asignado'));
 
-            // 2. Diccionarios de Cruce por Cliente basados EXCLUSIVAMENTE en el Plan del Día
-            // Así evitamos que visitas de otros días o de otras rutas coincidan erróneamente por nombres comunes
+            // 2. Diccionarios de Cruce por Cliente basados en el Plan del Día y en Cartera Total
             $planIdPorNombreNorm = [];
             $planIdPorNombreAlfa = [];
 
@@ -117,8 +117,26 @@ class GetDetalleHorarioRutaAction
                 }
             }
 
+            // Diccionario de todos los clientes de esta ruta en pan_ruteo (para visitas fuera de plan de hoy)
+            $todosClientesNorm = [];
+            $todosClientesAlfa = [];
+            foreach ($otrosClientesRuta as $cid => $c) {
+                $cidInt = (int) $cid;
+                $nom = trim((string) $c->cliente);
+                $nomNorm = trim((string) $c->cliente_norm);
+
+                if ($nom !== '') {
+                    $todosClientesNorm[$this->normalizarTexto($nom)] = $cidInt;
+                    $todosClientesAlfa[$this->normalizarAlfanumerico($nom)] = $cidInt;
+                }
+                if ($nomNorm !== '') {
+                    $todosClientesNorm[$this->normalizarTexto($nomNorm)] = $cidInt;
+                    $todosClientesAlfa[$this->normalizarAlfanumerico($nomNorm)] = $cidInt;
+                }
+            }
+
             // 3. Marcajes del sistema central (fact_visitas - Web ERP)
-            // Se cruzan únicamente contra los clientes programados para hoy en esta ruta (sin tomar en cuenta vendedor)
+            // Se cruzan únicamente contra los clientes de esta ruta (sin tomar en cuenta vendedor)
             $visitasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
                 ->where('fv.fecha_norm', $fechaNorm)
                 ->select([
@@ -136,6 +154,7 @@ class GetDetalleHorarioRutaAction
 
             $visitasWebPorCid = [];
             $factVisitasPorNombreAlfa = [];
+            $visitasFueraPlan = [];
 
             foreach ($visitasSistema as $fs) {
                 $n1 = $this->normalizarTexto((string) $fs->cliente);
@@ -201,6 +220,47 @@ class GetDetalleHorarioRutaAction
                             $visitasWebPorCid[$cid]['tipo'] = 'PreVenta';
                         }
                     }
+                } else {
+                    // ¿Es un cliente de esta ruta pero de otro día en pan_ruteo (visita fuera del plan de hoy)?
+                    $cidOtro = $todosClientesNorm[$n1]
+                        ?? $todosClientesNorm[$n2]
+                        ?? $todosClientesAlfa[$a1]
+                        ?? $todosClientesAlfa[$a2]
+                        ?? null;
+
+                    if ($cidOtro) {
+                        $pOtro = $otrosClientesRuta[$cidOtro] ?? null;
+                        $fpKey = "cid_{$cidOtro}";
+
+                        if (!isset($visitasFueraPlan[$fpKey])) {
+                            $visitasFueraPlan[$fpKey] = [
+                                'client_id' => $cidOtro,
+                                'cliente' => $pOtro ? trim((string) $pOtro->cliente) : trim((string) $fs->cliente),
+                                'hora_app' => null,
+                                'visitas_app_count' => 0,
+                                'marcajes_app' => [],
+                                'hora_web' => $itemWeb['check_in'],
+                                'visitas_web_count' => 1,
+                                'marcajes_web' => $itemWeb['marcajes_web'],
+                                'check_out_web' => $itemWeb['check_out'],
+                                'tiempo_pdv_web' => $itemWeb['tiempo_pdv'],
+                                'monto' => $itemWeb['monto'],
+                                'tipo' => $itemWeb['tipo'] ?: 'Visita',
+                                'foto_url' => null,
+                                'fotos_count' => 0,
+                                'direccion' => $pOtro ? trim((string) ($pOtro->direccion ?? '')) : null,
+                            ];
+                        } else {
+                            $visitasFueraPlan[$fpKey]['visitas_web_count']++;
+                            if ($hInValido) {
+                                $visitasFueraPlan[$fpKey]['marcajes_web'][] = $hIn;
+                                if (empty($visitasFueraPlan[$fpKey]['hora_web']) || strcmp($hIn, $visitasFueraPlan[$fpKey]['hora_web']) < 0) {
+                                    $visitasFueraPlan[$fpKey]['hora_web'] = $hIn;
+                                }
+                            }
+                            $visitasFueraPlan[$fpKey]['monto'] += $itemWeb['monto'];
+                        }
+                    }
                 }
             }
 
@@ -236,7 +296,6 @@ class GetDetalleHorarioRutaAction
                 ->get();
 
             $visitasMovilPorCid = [];
-            $visitasFueraPlan = [];
 
             foreach ($filasMovil as $fm) {
                 $cid = (int) ($fm->client_id ?? 0);

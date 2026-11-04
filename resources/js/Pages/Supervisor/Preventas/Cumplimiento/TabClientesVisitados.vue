@@ -700,7 +700,7 @@ function clientesVisitasFiltrados(ruta) {
   const fueraPlan = (d.fuera_plan || []).map(c => ({ ...c, categoria: 'Fuera de Plan' }))
 
   let lista = []
-  if (tab === 'visitados') lista = visitados
+  if (tab === 'visitados') lista = [...visitados, ...fueraPlan]
   else if (tab === 'no_visitados') lista = noVisitados
   else if (tab === 'fuera_plan') lista = fueraPlan
   else lista = [...visitados, ...noVisitados, ...fueraPlan]

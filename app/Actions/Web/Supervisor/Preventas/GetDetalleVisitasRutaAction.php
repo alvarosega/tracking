@@ -48,15 +48,15 @@ class GetDetalleVisitasRutaAction
             $carteraTotalRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where(function ($q) use ($diasFiltro): void {
-                    $q->whereIn(DB::raw("LOWER(TRIM(dia_norm))"), $diasFiltro)
-                      ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
+                    $q->whereIn('dia_norm', $diasFiltro)
+                      ->orWhereIn('dia', $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
                 ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
-                    DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
-                    DB::raw("MAX(COALESCE(TRIM(cliente_norm), '')) as cliente_norm"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), NULLIF(TRIM(cliente_norm), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente_norm"),
                     DB::raw("MAX(COALESCE(TRIM(estado), 'ACTIVO')) as estado"),
                     DB::raw("MAX(COALESCE(TRIM(territorio), '-')) as zona_venta"),
                     DB::raw("MAX(COALESCE(TRIM(territorio), '-')) as territorio"),
@@ -70,14 +70,15 @@ class GetDetalleVisitasRutaAction
                 ->get()
                 ->keyBy('cliente_id');
 
-            // Catálogo auxiliar de todos los clientes de la ruta para nombres fuera de plan
+            // Catálogo auxiliar de todos los clientes de la ruta para nombres fuera de plan (todos los días)
             $otrosClientesRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
                 ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
-                    DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), NULLIF(TRIM(cliente_norm), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente_norm"),
                     DB::raw("MAX(COALESCE(TRIM(direccion), '')) as direccion"),
                     DB::raw("MAX(COALESCE(TRIM(estado), 'ACTIVO')) as estado"),
                 ])
@@ -92,7 +93,7 @@ class GetDetalleVisitasRutaAction
                 ? trim((string) $dimInfo->vendedor)
                 : trim((string) ($carteraTotalRuta->firstWhere('vendedor', '!=', null)->vendedor ?? 'No Asignado'));
 
-            // 2. Diccionarios de Cruce por Cliente basados EXCLUSIVAMENTE en el Plan del Día
+            // 2. Diccionarios de Cruce por Cliente basados en el Plan del Día y en Cartera Total
             $planIdPorNombreNorm = [];
             $planIdPorNombreAlfa = [];
 
@@ -108,6 +109,24 @@ class GetDetalleVisitasRutaAction
                 if ($nomNorm !== '') {
                     $planIdPorNombreNorm[$this->normTxt($nomNorm)] = $cidInt;
                     $planIdPorNombreAlfa[$this->normalizarAlfanumerico($nomNorm)] = $cidInt;
+                }
+            }
+
+            // Diccionario de todos los clientes de esta ruta en pan_ruteo (para identificar visitas fuera de plan)
+            $todosClientesNorm = [];
+            $todosClientesAlfa = [];
+            foreach ($otrosClientesRuta as $cid => $c) {
+                $cidInt = (int) $cid;
+                $nom = trim((string) $c->cliente);
+                $nomNorm = trim((string) $c->cliente_norm);
+
+                if ($nom !== '') {
+                    $todosClientesNorm[$this->normTxt($nom)] = $cidInt;
+                    $todosClientesAlfa[$this->normalizarAlfanumerico($nom)] = $cidInt;
+                }
+                if ($nomNorm !== '') {
+                    $todosClientesNorm[$this->normTxt($nomNorm)] = $cidInt;
+                    $todosClientesAlfa[$this->normalizarAlfanumerico($nomNorm)] = $cidInt;
                 }
             }
 
@@ -147,6 +166,7 @@ class GetDetalleVisitasRutaAction
 
             $visitasWebPorCid = [];
             $factVisitasPorNombreAlfa = [];
+            $visitasFueraPlan = [];
 
             foreach ($visitasSistema as $fs) {
                 $n1 = $this->normTxt((string) $fs->cliente);
@@ -214,6 +234,52 @@ class GetDetalleVisitasRutaAction
                             $visitasWebPorCid[$cid]['tipo'] = 'PreVenta';
                         }
                     }
+                } else {
+                    // ¿Es un cliente de esta ruta pero de otro día en pan_ruteo (visita fuera del plan de hoy)?
+                    $cidOtro = $todosClientesNorm[$n1]
+                        ?? $todosClientesNorm[$n2]
+                        ?? $todosClientesAlfa[$a1]
+                        ?? $todosClientesAlfa[$a2]
+                        ?? null;
+
+                    if ($cidOtro) {
+                        $pOtro = $otrosClientesRuta[$cidOtro] ?? null;
+                        $fpKey = "cid_{$cidOtro}";
+
+                        if (!isset($visitasFueraPlan[$fpKey])) {
+                            $visitasFueraPlan[$fpKey] = [
+                                'cliente_id' => $cidOtro,
+                                'cliente' => $pOtro ? trim((string) $pOtro->cliente) : trim((string) $fs->cliente),
+                                'check_in' => $itemWeb['check_in'],
+                                'hora_app' => null,
+                                'visitas_web_count' => 1,
+                                'visitas_app_count' => 0,
+                                'marcajes_web' => $itemWeb['marcajes_web'],
+                                'marcajes_app' => [],
+                                'tiempo_pdv' => $itemWeb['tiempo_pdv'],
+                                'monto' => $itemWeb['monto'],
+                                'tipo' => $itemWeb['tipo'] ?: 'Visita',
+                                'motivo' => $itemWeb['motivo'] ?: 'Visita',
+                                'foto_url' => null,
+                                'direccion' => $pOtro ? trim((string) ($pOtro->direccion ?? '')) : '-',
+                                'en_fact_visitas' => true,
+                                'en_visitas_app' => false,
+                                'comments_app' => null,
+                                'status_app' => null,
+                                'es_inactivo' => false,
+                            ];
+                        } else {
+                            $visitasFueraPlan[$fpKey]['visitas_web_count']++;
+                            if ($hInValido) {
+                                $visitasFueraPlan[$fpKey]['marcajes_web'][] = $hIn;
+                                if (empty($visitasFueraPlan[$fpKey]['check_in']) || strcmp($hIn, $visitasFueraPlan[$fpKey]['check_in']) < 0) {
+                                    $visitasFueraPlan[$fpKey]['check_in'] = $hIn;
+                                }
+                            }
+                            $visitasFueraPlan[$fpKey]['monto'] += $itemWeb['monto'];
+                            $visitasFueraPlan[$fpKey]['en_fact_visitas'] = true;
+                        }
+                    }
                 }
             }
 
@@ -231,7 +297,6 @@ class GetDetalleVisitasRutaAction
                 ->get();
 
             $visitasMovilPorCid = [];
-            $visitasFueraPlan = [];
 
             foreach ($filasMovil as $fm) {
                 $cid = (int) ($fm->client_id ?? 0);
@@ -513,10 +578,11 @@ class GetDetalleVisitasRutaAction
                 'estricto' => $estricto,
                 'totales' => [
                     'cartera_plan' => $totalPlanActivo,
-                    'visitados' => count($visitadosActivos),
+                    'visitados' => count($visitadosActivos) + count($fueraPlan),
+                    'visitados_plan' => count($visitadosActivos),
                     'no_visitados' => count($noVisitadosActivos),
                     'fuera_plan' => count($fueraPlan),
-                    'diferencia' => count($visitadosActivos) - $totalPlanActivo,
+                    'diferencia' => (count($visitadosActivos) + count($fueraPlan)) - $totalPlanActivo,
                 ],
                 'no_visitados' => $noVisitadosActivos,
                 'visitados' => $visitadosActivos,
