@@ -284,8 +284,16 @@ class GetDetalleReposicionRutaAction
                         $puntosMatchTienda += $pesoFi;
                     }
 
-                    // Cantidad de reposición esperada: cantidad comprada sobre la ventana de tiempo (semanas de historia, mín 1)
-                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $semanas)));
+                    // Cantidad de reposición esperada: cantidad comprada sobre las semanas transcurridas en esa ventana de tiempo (mín 1)
+                    $txFechas = array_column($hab['historial_compras'] ?? [], 'fecha');
+                    $primeraFecha = !empty($txFechas) ? min($txFechas) : null;
+                    if ($primeraFecha) {
+                        $diasDesdePrimera = max(1, (int) Carbon::parse($primeraFecha)->diffInDays(Carbon::parse($fechaNorm)));
+                        $semanasTranscurridas = min($semanas, max(1, (int) ceil($diasDesdePrimera / 7)));
+                    } else {
+                        $semanasTranscurridas = max(1, $semanas);
+                    }
+                    $cantRepo = max(1, (int) round($hab['total_unidades'] / $semanasTranscurridas));
 
                     $canastaBase[] = [
                         'producto_id' => $hab['producto_id'],
@@ -298,6 +306,7 @@ class GetDetalleReposicionRutaAction
                         'frecuencia_compra' => $freqCompra,
                         'unidades_acumuladas' => $hab['total_unidades'],
                         'dias_con_compra' => $freqCompra,
+                        'semanas_transcurridas' => $semanasTranscurridas,
                         'cantidad_repo' => $cantRepo,
                         'monto_acumulado_bs' => round($hab['total_bs'], 2),
                         'unidades_hoy' => $unidadesHoy,

@@ -297,7 +297,7 @@
                                     <th class="py-1.5 px-2 text-center" title="Peso histórico f_i = semanas distintas con compra de este SKU">
                                       Peso f_i (Sem)
                                     </th>
-                                    <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada de reposición (Cant. Comprada / ${semanasFiltro} sem, mín 1)`">
+                                    <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada de reposición (Cant. Comprada / Semanas transcurridas en la ventana, mín 1)`">
                                       Cantidad Repo
                                     </th>
                                     <th class="py-1.5 px-2 text-center w-14">Estatus</th>
@@ -344,18 +344,18 @@
                                         </span>
                                       </td>
 
-                                      <!-- Peso f_i (Semanas con compra) -->
+                                      <!-- Peso f_i (Frecuencia de compra) -->
                                       <td class="py-2 px-2 text-center font-bold text-[#0071E3] bg-black/[0.01]">
                                         <span class="px-1.5 py-0.5 rounded bg-[#EBF5FF] border border-[#B3D7FF] font-mono text-[10px]">
-                                          {{ item.peso_fi || item.semanas_con_compra || 1 }} pts
+                                          {{ item.peso_fi || item.frecuencia_compra || 1 }} pts
                                         </span>
                                       </td>
 
-                                      <!-- Cantidad Repo Sugerida -->
+                                      <!-- Cantidad Repo -->
                                       <td class="py-2 px-2 text-center font-bold text-[#1E6B37] bg-black/[0.01]">
                                         <span
                                           class="px-1.5 py-0.5 rounded bg-[#EBF9EF] border border-[#D1F2D9]"
-                                          :title="`Sugerido semanal: ${item.unidades_acumuladas || 0} uds / ${semanasFiltro} sem (mín 1)`"
+                                          :title="`Sugerido: ${item.unidades_acumuladas || 0} uds / ${item.semanas_transcurridas || semanasFiltro} sem transcurridas (mín 1)`"
                                         >
                                           {{ item.cantidad_repo || 1 }} uds
                                         </span>
