@@ -49,7 +49,6 @@
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Compradores</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]" title="Suma de pesos históricos f_i de todos los SKUs esperados">Pts Esperados</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]" title="Suma de pesos f_i de los SKUs recomprados hoy">Pts Match</th>
-            <th class="px-3 py-2 text-center border-r border-black/[0.04]">SKUs Match / Base</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">% Reposición</th>
             <th class="px-3 py-2 text-center border-r border-black/[0.04]">Estatus</th>
             <th class="px-3 py-2 text-right">Puntos (15)</th>
@@ -64,13 +63,13 @@
                 <div class="h-3.5 w-12 sm:w-16 skeleton mb-1"></div>
                 <div class="h-3 w-16 sm:w-28 skeleton"></div>
               </td>
-              <td v-for="c in 6" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
+              <td v-for="c in 5" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-12 mx-auto skeleton"></div></td>
               <td class="px-3 py-2 text-right"><div class="h-4 w-8 ml-auto skeleton"></div></td>
             </tr>
           </template>
 
           <tr v-else-if="rutasOrdenadas.length === 0">
-            <td colspan="9" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
+            <td colspan="8" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
               No se encontraron rutas para los filtros seleccionados.
             </td>
           </tr>
@@ -124,11 +123,6 @@
                   {{ getPuntosMatch(r) }}
                 </td>
 
-                <!-- SKUs Match / Base -->
-                <td class="px-3 py-1.5 text-center font-mono text-[11px] text-[#6E6E73] border-r border-black/[0.04]">
-                  <strong class="text-[#1D1D1F]">{{ getSkusMatch(r) }}</strong> / {{ getSkusEsperados(r) }}
-                </td>
-
                 <!-- % Reposición -->
                 <td class="px-3 py-1.5 text-center font-mono font-bold border-r border-black/[0.04]">
                   <span
@@ -172,10 +166,10 @@
               </tr>
 
               <!-- ═══════════════════════════════════════════════════════════ -->
-              <!-- Fila Acordeón: Auditoría en Tablas Multinivel (Python)     -->
+              <!-- Fila Acordeón: Auditoría en Tablas                         -->
               <!-- ═══════════════════════════════════════════════════════════ -->
               <tr v-if="acordeonAbierto[r.ruta]">
-                <td colspan="9" class="p-3 bg-white/70 border-b border-black/[0.06]">
+                <td colspan="8" class="p-3 bg-white/70 border-b border-black/[0.06]">
                   <!-- Estado de carga -->
                   <div v-if="cargandoDetalle[r.ruta]" class="p-6 text-center text-[#6E6E73] text-[11px] font-medium space-y-2">
                     <div class="h-4 w-48 mx-auto skeleton"></div>
@@ -243,35 +237,24 @@
                             </span>
                           </div>
 
-                          <div class="flex items-center gap-2.5 text-[10.5px] font-mono flex-wrap">
+                          <div class="flex items-center gap-3 text-[10.5px] font-mono flex-wrap">
                             <template v-if="t.es_neutro">
                               <span class="px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold font-mono bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
-                                CLIENTE NUEVO (NEUTRO · EXCLUIDO)
+                                CLIENTE NUEVO (NEUTRO)
                               </span>
                               <span class="text-[#6E6E73]">
-                                Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
+                                Monto: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
                               </span>
                             </template>
                             <template v-else>
                               <span class="text-[#6E6E73]">
-                                Canasta: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ t.puntos_esperados || 0 }} pts f_i)
+                                Pts Esperados: <strong class="text-[#1D1D1F] font-bold">{{ t.puntos_esperados || 0 }} pts</strong>
                               </span>
                               <span class="text-[#6E6E73]">
-                                Cant. Repo: <strong class="text-[#1D1D1F]">{{ totalCanastaRepo(t.canasta_base) }} uds</strong>
+                                Logrado: <strong class="text-[#1E6B37] font-bold">{{ t.puntos_match || 0 }} pts</strong>
                               </span>
                               <span class="text-[#6E6E73]">
-                                Match Ponderado: <strong class="text-[#1E6B37] font-bold">{{ t.puntos_match || 0 }}</strong> / {{ t.puntos_esperados || 0 }} pts
-                              </span>
-                              <span class="text-[#6E6E73]">
-                                Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
-                              </span>
-                              <span
-                                class="px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold font-mono"
-                                :class="t.cumple
-                                  ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
-                                  : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
-                              >
-                                {{ Number(t.porcentaje_reposicion || 0).toFixed(1) }}% {{ t.cumple ? 'REPOSICIÓN' : 'DÉFICIT' }}
+                                Monto: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
                               </span>
                             </template>
                           </div>
