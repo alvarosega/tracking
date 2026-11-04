@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class GetCumplimientoDataAction
 {
     private const UMBRAL_HORARIO_SEGUNDOS = 29400; // 08:10:00 (8*3600 + 10*60)
-    private const UMBRAL_EFECTIVIDAD_PCT = 55.0;
+    private const UMBRAL_EFECTIVIDAD_PCT = 80.0;
     private const UMBRAL_COMPRA_MINIMA_BS = 70.0;
     private const UMBRAL_REPOSICION_PCT = 20.0;
     private const PISO_REPOSICION_PCT = 20.0;

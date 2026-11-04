@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class GetDetalleEfectividadRutaAction
 {
     private const MONTO_MINIMO_COMPRA_EFECTIVA = 70.0;
-    private const UMBRAL_EFECTIVIDAD_PCT = 55.0;
+    private const UMBRAL_EFECTIVIDAD_PCT = 80.0;
 
     private const DIAS_MAP = [
         1 => ['lunes'],

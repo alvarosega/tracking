@@ -5,7 +5,7 @@
       <div>
         <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · Efectividad Comercial de Visita (55%)
+            Pizarra Modelo Unilever · Efectividad Comercial de Visita (80%)
           </h3>
           <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
             30 pts Base · Criterio Binario
@@ -205,7 +205,7 @@
 
                 <!-- % Efectividad -->
                 <td class="px-3 py-1.5 text-center font-mono font-bold border-r border-black/[0.04]">
-                  <span :class="metricasEfec(r).efectividadPct >= 55.0 ? 'text-[#1E6B37]' : 'text-[#C9342C]'">
+                  <span :class="metricasEfec(r).efectividadPct >= 80.0 ? 'text-[#1E6B37]' : 'text-[#C9342C]'">
                     {{ Number(metricasEfec(r).efectividadPct).toFixed(1) }}%
                   </span>
                 </td>
