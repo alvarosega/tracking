@@ -41,7 +41,8 @@ class GetCumplimientoDataAction
         string $fecha,
         array $canales = [],
         array $rutas = [],
-        bool $estrictoHorario = false
+        bool $estrictoHorario = false,
+        int $semanasHistoria = 13
     ): array {
         // 1. Obtener catálogo y filtrar rutas objetivo
         $catalogoData = $this->catalogoAction->execute();
@@ -290,11 +291,12 @@ class GetCumplimientoDataAction
         $historial90DiasPorCliente = [];
 
         if ((self::EVALUAR_KPI6_REPOSICION || self::EVALUAR_KPI7_AMPLIACION) && !empty($compradoresIds)) {
-            $fechaInicio90 = $carbonFecha->copy()->subDays(91)->toDateString();
+            $diasVentana = max(7, ($semanasHistoria > 0 ? $semanasHistoria : 13) * 7);
+            $fechaInicio90 = $carbonFecha->copy()->subDays($diasVentana)->toDateString();
             $fechaFin90 = $carbonFecha->copy()->subDays(1)->toDateString();
 
             try {
-                // Historial de compras exclusivamente en fact_preventas (últimas 13 semanas previas)
+                // Historial de compras exclusivamente en fact_preventas (ventana seleccionada de semanas)
                 $histPrev = DB::connection('supervisor')->table('fact_preventas')
                     ->whereIn('cliente_id', $compradoresIds)
                     ->where('fecha_norm', '>=', $fechaInicio90)

@@ -30,6 +30,7 @@ const loadingRanking = ref(false)
 const errorRanking = ref(null)
 const datosBrutos = ref(null)
 const rutasRanking = ref([])
+const ventanaReposicion = ref(13)
 
 function aplicarFiltros() {
   filtrosAplicados.value = {
@@ -326,7 +327,8 @@ async function cargarDatosRanking() {
       fecha: fecha.value,
       canales: canalesSeleccionados.value || [],
       rutas: rutasSeleccionadas.value || [],
-      estricto_horario: Boolean(horarioEstricto.value)
+      estricto_horario: Boolean(horarioEstricto.value),
+      semanas_historia: ventanaReposicion.value || 13
     }
 
     const res = await axios.post('/supervisor/preventas/cumplimiento/data', payload)
@@ -376,6 +378,7 @@ const storeInstance = reactive({
   diasCalendario,
   filtrosAplicados,
   tabActivo,
+  ventanaReposicion,
   loadingRanking,
   errorRanking,
   datosBrutos,

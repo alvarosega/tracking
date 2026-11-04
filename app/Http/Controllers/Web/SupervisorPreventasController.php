@@ -115,12 +115,14 @@ class SupervisorPreventasController extends Controller
         $canales = (array) $request->input('canales', []);
         $rutas = (array) $request->input('rutas', []);
         $estrictoHorario = (bool) $request->boolean('estricto_horario', false);
+        $semanas = $request->input('semanas_historia') ? (int) $request->input('semanas_historia') : 13;
 
         $resultado = $action->execute(
             fecha: $fecha,
             canales: $canales,
             rutas: $rutas,
-            estrictoHorario: $estrictoHorario
+            estrictoHorario: $estrictoHorario,
+            semanasHistoria: $semanas
         );
 
         return response()->json($resultado);
