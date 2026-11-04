@@ -422,7 +422,13 @@ class GetDetalleReposicionRutaAction
                 ];
             }
 
-            usort($tiendas, fn ($a, $b) => $b['total_bs_hoy'] <=> $a['total_bs_hoy']);
+            // Ordenar: clientes evaluables primero por total Bs desc, clientes excluidos (neutros) al final
+            usort($tiendas, function ($a, $b) {
+                if ($a['es_neutro'] !== $b['es_neutro']) {
+                    return $a['es_neutro'] ? 1 : -1;
+                }
+                return $b['total_bs_hoy'] <=> $a['total_bs_hoy'];
+            });
 
             $cntTiendas = count($tiendas);
 

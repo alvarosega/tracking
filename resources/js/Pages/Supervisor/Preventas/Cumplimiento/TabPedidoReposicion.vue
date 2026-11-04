@@ -245,22 +245,22 @@
                     </div>
 
                     <!-- Lista de Tiendas Compradoras (cada una con sus 2 tablas) -->
-                    <div v-else class="space-y-3">
+                    <div v-else class="space-y-1.5">
                       <div
                         v-for="(t, tIdx) in detallePorRuta[r.ruta].tiendas"
                         :key="t.cliente_id"
-                        class="apple-glass-card rounded-[12px] p-3 border border-black/[0.06] bg-white space-y-2.5 transition-all shadow-xs"
+                        class="apple-glass-card rounded-[9px] py-1.5 px-2.5 border border-black/[0.06] bg-white space-y-1.5 transition-all shadow-xs hover:border-black/[0.12]"
                       >
                         <!-- Cabecera de la Tienda (Nivel 2) -->
-                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06] text-[11px]">
-                          <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-black/[0.05] text-[11px]">
+                          <div class="flex items-center gap-1.5 min-w-0">
                             <button
                               type="button"
                               @click="toggleCliente(r.ruta, t.cliente_id, tIdx)"
-                              class="font-bold text-[#1D1D1F] hover:text-[#0071E3] text-[13px] flex items-center gap-1.5 cursor-pointer"
+                              class="font-bold text-[#1D1D1F] hover:text-[#0071E3] text-[12px] flex items-center gap-1.5 cursor-pointer truncate"
                             >
                               <svg
-                                class="w-3.5 h-3.5 text-[#86868B] transition-transform duration-200"
+                                class="w-3.5 h-3.5 text-[#86868B] transition-transform duration-200 shrink-0"
                                 :class="isClienteAbierto(r.ruta, t.cliente_id, tIdx) ? 'rotate-90 text-[#0071E3]' : ''"
                                 fill="none"
                                 stroke="currentColor"
@@ -268,19 +268,16 @@
                               >
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                               </svg>
-                              <span>{{ t.cliente }}</span>
+                              <span class="truncate">{{ t.cliente }}</span>
                             </button>
-                            <span class="text-[10px] text-[#86868B] font-mono px-1.5 py-0.5 rounded bg-[#F5F5F7] border border-[#E5E5EA]">
-                              #{{ t.cliente_id }}
-                            </span>
-                            <span v-if="t.codigo_cliente" class="text-[10px] text-[#86868B] font-mono">
-                              ({{ t.codigo_cliente }})
+                            <span class="text-[9.5px] text-[#86868B] font-mono px-1.5 py-0.2 rounded bg-[#F5F5F7] border border-[#E5E5EA] shrink-0">
+                              #{{ t.codigo_cliente || t.cliente_id }}
                             </span>
                           </div>
 
-                          <div class="flex items-center gap-3 text-[11px] font-mono">
+                          <div class="flex items-center gap-2.5 text-[10.5px] font-mono flex-wrap">
                             <template v-if="t.es_neutro">
-                              <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold font-mono bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
+                              <span class="px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold font-mono bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
                                 CLIENTE NUEVO (NEUTRO · EXCLUIDO)
                               </span>
                               <span class="text-[#6E6E73]">
@@ -289,7 +286,7 @@
                             </template>
                             <template v-else>
                               <span class="text-[#6E6E73]">
-                                Canasta: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ t.puntos_esperados || 0 }} pts f_i)
+                                Cantidad Repo: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ t.puntos_esperados || 0 }} pts f_i)
                               </span>
                               <span class="text-[#6E6E73]">
                                 Match Ponderado: <strong class="text-[#1E6B37] font-bold">{{ t.puntos_match || 0 }}</strong> / {{ t.puntos_esperados || 0 }} pts
@@ -298,7 +295,7 @@
                                 Pedido Hoy: <strong class="text-[#0071E3] font-bold">Bs {{ formatBs(t.total_bs_hoy) }}</strong>
                               </span>
                               <span
-                                class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold font-mono"
+                                class="px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold font-mono"
                                 :class="t.cumple
                                   ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
                                   : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
@@ -329,11 +326,10 @@
                             </div>
 
                             <div class="overflow-x-auto max-h-80 custom-scroll rounded-[8px] border border-black/[0.06] bg-white">
-                              <table class="w-full min-w-[560px] text-left text-[11px] border-collapse font-num">
+                              <table class="w-full min-w-[500px] text-left text-[11px] border-collapse font-num">
                                 <thead class="bg-[#F8F8FA] text-[#6E6E73] text-[9px] font-bold uppercase tracking-tight border-b border-black/[0.06] sticky top-0 z-10 select-none">
                                   <tr>
                                     <th class="py-1.5 px-2.5">Producto (Historial del Cliente)</th>
-                                    <th class="py-1.5 px-2">Categoría</th>
                                     <th class="py-1.5 px-2 text-center" :title="`Cantidad total comprada por este cliente en las últimas ${semanasFiltro} semanas`">
                                       Cant. Comprada
                                     </th>
@@ -350,7 +346,7 @@
 
                                 <tbody class="divide-y divide-black/[0.04]">
                                   <tr v-if="(t.canasta_base || []).length === 0">
-                                    <td colspan="7" class="py-4 text-center text-[#86868B] text-[10px] italic">
+                                    <td colspan="6" class="py-4 text-center text-[#86868B] text-[10px] italic">
                                       Cliente sin historial de compras en las últimas {{ semanasFiltro }} semanas (Apertura de cliente).
                                     </td>
                                   </tr>
@@ -379,10 +375,6 @@
                                           </button>
                                           <span class="truncate max-w-[210px]" :title="item.producto">{{ item.producto || '—' }}</span>
                                         </div>
-                                      </td>
-
-                                      <td class="py-2 px-2 text-[#6E6E73] font-medium text-[10px] truncate max-w-[90px]">
-                                        {{ item.categoria || 'GENERAL' }}
                                       </td>
 
                                       <!-- Cantidad total comprada -->
@@ -435,7 +427,7 @@
                                       v-if="isSkuDetalleAbierto(r.ruta, t.cliente_id, item.codigo_producto || item.producto || sIdx)"
                                       class="bg-[#F8F9FA] border-b border-black/[0.06]"
                                     >
-                                      <td colspan="7" class="p-2.5 pl-8">
+                                      <td colspan="6" class="p-2.5 pl-8">
                                         <div class="bg-white rounded-[8px] border border-black/[0.08] p-2 max-w-xl space-y-1.5 shadow-2xs">
                                           <div class="flex justify-between items-center text-[9px] font-bold text-[#6E6E73] uppercase pb-1 border-b border-black/[0.06]">
                                             <span>Nivel 4 · Historial de Compras en las últimas {{ semanasFiltro }} semanas</span>
@@ -500,7 +492,6 @@
                                 <thead class="bg-[#F8F8FA] text-[#6E6E73] text-[9px] font-bold uppercase tracking-tight border-b border-black/[0.06] sticky top-0 z-10 select-none">
                                   <tr>
                                     <th class="py-1.5 px-2">Producto Pedido</th>
-                                    <th class="py-1.5 px-2">Categoría</th>
                                     <th class="py-1.5 px-2 text-center">Cantidad</th>
                                     <th class="py-1.5 px-2 text-right">Monto Bs</th>
                                     <th class="py-1.5 px-2 text-center">Clasificación</th>
@@ -509,7 +500,7 @@
 
                                 <tbody class="divide-y divide-black/[0.04]">
                                   <tr v-if="(t.pedidos_hoy || []).length === 0">
-                                    <td colspan="5" class="py-4 text-center text-[#86868B] text-[10px] italic">
+                                    <td colspan="4" class="py-4 text-center text-[#86868B] text-[10px] italic">
                                       Sin compras facturadas hoy.
                                     </td>
                                   </tr>
@@ -523,10 +514,6 @@
                                   >
                                     <td class="py-2 px-2 font-bold text-[#1D1D1F] truncate max-w-[170px]" :title="item.producto">
                                       {{ item.producto || '—' }}
-                                    </td>
-
-                                    <td class="py-2 px-2 text-[#6E6E73] font-medium text-[9px] truncate max-w-[80px]">
-                                      {{ item.categoria || 'GENERAL' }}
                                     </td>
 
                                     <td class="py-2 px-2 text-center font-bold text-[#1D1D1F]">
@@ -678,11 +665,7 @@ function getPuntosObtenidos(r) {
 // ── Control de expansión de clientes ──────────────────────────────────────
 function isClienteAbierto(ruta, clienteId, idx) {
   const key = `${ruta}-${clienteId}-${idx}`
-  if (clientesAbiertos[key] !== undefined) {
-    return clientesAbiertos[key]
-  }
-  // El primer cliente abierto por defecto para mayor rapidez
-  return idx === 0
+  return Boolean(clientesAbiertos[key])
 }
 
 function toggleCliente(ruta, clienteId, idx) {
