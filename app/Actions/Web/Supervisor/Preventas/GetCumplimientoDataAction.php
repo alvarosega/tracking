@@ -17,10 +17,10 @@ class GetCumplimientoDataAction
     private const UMBRAL_COMPRA_MINIMA_BS = 70.0;
     private const UMBRAL_REPOSICION_PCT = 20.0;
     private const PISO_REPOSICION_PCT = 20.0;
-    private const UMBRAL_AMPLIACION_PCT = 60.0;
+    private const UMBRAL_AMPLIACION_PCT = 30.0;
     private const UMBRAL_COVERS_PCT = 60.0;
     private const EVALUAR_KPI6_REPOSICION = true; // KPI 6: Pedido de Reposición (Canasta Habitual 60% · 15 pts) activado
-    private const EVALUAR_KPI7_AMPLIACION = false; // KPI 7 pausado (—)
+    private const EVALUAR_KPI7_AMPLIACION = true; // KPI 7: Ampliación de Portafolio (>= 30% · 20 pts) activado
     private const EVALUAR_KPI8_COVERS = false; // KPI 8 pausado (—)
 
     public function __construct(
@@ -730,14 +730,107 @@ class GetCumplimientoDataAction
             }
 
             // ----------------------------------------------------
-            // KPIs 7 y 8: Ampliación y Covers (Pausados por ahora)
+            // KPI 7: Ampliación de Portafolio (20 Puntos · Criterio >= 30%)
             // ----------------------------------------------------
-            $kpi7Cumple = false;
-            $kpi7Puntos = 0;
+            $totalSkusPreventaRuta = 0;
+            $totalSkusAmpliacionRuta = 0;
             $cumplenAmpliacion = 0;
             $detalleAmpliacionTiendas = [];
             $tasaAmpliacion = 0.0;
+            $kpi7Cumple = false;
+            $kpi7Puntos = 0.0;
 
+            if (self::EVALUAR_KPI7_AMPLIACION) {
+                foreach ($preventasPorCliente as $cId => $itemsCliente) {
+                    $cIdInt = (int) $cId;
+                    $historial = $historial90DiasPorCliente[$cIdInt] ?? null;
+                    $tieneBase = !empty($historial);
+
+                    // Agrupar items comprados hoy por SKU único
+                    $skusCompradosHoy = [];
+                    foreach ($itemsCliente as $it) {
+                        $cod = trim((string) ($it->codigo_producto ?? ''));
+                        $pid = (int) ($it->producto_id ?? 0);
+                        $prodNorm = mb_strtolower(trim((string) ($it->producto ?? '')));
+                        $key = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : "nom_{$prodNorm}");
+
+                        if (!isset($skusCompradosHoy[$key])) {
+                            $skusCompradosHoy[$key] = [
+                                'cod' => $cod,
+                                'pid' => $pid,
+                                'prodNorm' => $prodNorm,
+                                'producto' => trim((string) ($it->producto ?? '')),
+                                'cantidad' => 0,
+                                'monto' => 0.0,
+                            ];
+                        }
+                        $skusCompradosHoy[$key]['cantidad'] += (int) ($it->cantidad ?? 0);
+                        $skusCompradosHoy[$key]['monto'] += (float) ($it->monto_final ?? 0.0);
+                    }
+
+                    $totalSkusCliente = count($skusCompradosHoy);
+                    $skusNuevosCount = 0;
+                    $skusHabitualesCount = 0;
+
+                    foreach ($skusCompradosHoy as $skuData) {
+                        $enHistorial = false;
+                        if ($tieneBase) {
+                            $cod = $skuData['cod'];
+                            $pid = $skuData['pid'];
+                            $prodNorm = $skuData['prodNorm'];
+
+                            if ($cod !== '' && isset($historial['keys']["cod_{$cod}"])) {
+                                $enHistorial = true;
+                            } elseif ($pid > 0 && isset($historial['keys']["id_{$pid}"])) {
+                                $enHistorial = true;
+                            } elseif ($prodNorm !== '' && isset($historial['keys']["nom_{$prodNorm}"])) {
+                                $enHistorial = true;
+                            }
+                        }
+
+                        if ($enHistorial) {
+                            $skusHabitualesCount++;
+                        } else {
+                            $skusNuevosCount++;
+                        }
+                    }
+
+                    $pctAmpliacionCliente = $totalSkusCliente > 0
+                        ? round(($skusNuevosCount / $totalSkusCliente) * 100.0, 1)
+                        : 0.0;
+                    $cumpleCliente = ($pctAmpliacionCliente >= self::UMBRAL_AMPLIACION_PCT);
+
+                    if ($cumpleCliente) {
+                        $cumplenAmpliacion++;
+                    }
+
+                    $totalSkusPreventaRuta += $totalSkusCliente;
+                    $totalSkusAmpliacionRuta += $skusNuevosCount;
+
+                    $primerItem = $itemsCliente->first();
+                    $detalleAmpliacionTiendas[] = [
+                        'cliente_id' => $cIdInt,
+                        'codigo_cliente' => $primerItem->codigo_cliente ?? (string) $cIdInt,
+                        'cliente' => $primerItem->cliente ?? "Cliente #{$cIdInt}",
+                        'total_skus' => $totalSkusCliente,
+                        'skus_ampliacion' => $skusNuevosCount,
+                        'skus_habituales' => $skusHabitualesCount,
+                        'porcentaje_ampliacion' => $pctAmpliacionCliente,
+                        'cumple' => $cumpleCliente,
+                    ];
+                }
+
+                $tasaAmpliacion = $totalSkusPreventaRuta > 0
+                    ? round(($totalSkusAmpliacionRuta / $totalSkusPreventaRuta) * 100.0, 1)
+                    : 0.0;
+
+                $kpi7Cumple = ($totalCompradores > 0 && $tasaAmpliacion >= self::UMBRAL_AMPLIACION_PCT);
+                $kpi7Puntos = $kpi7Cumple ? 20.0 : 0.0;
+            }
+
+            // ----------------------------------------------------
+            // KPI 8: Covers (Pausado por ahora)
+            // ----------------------------------------------------
             $kpi8Cumple = false;
             $kpi8Puntos = 0;
             $cumplenCovers = 0;
@@ -883,7 +976,7 @@ class GetCumplimientoDataAction
                     'piso_pct' => self::PISO_REPOSICION_PCT,
                 ],
 
-                // Resumen KPI 7: Ampliación (Pausado)
+                // Resumen KPI 7: Ampliación de Portafolio (20 Puntos)
                 'kpi7_ampliacion' => [
                     'puntos' => $kpi7Puntos,
                     'puntos_max' => 20,
@@ -891,6 +984,8 @@ class GetCumplimientoDataAction
                     'evaluado' => self::EVALUAR_KPI7_AMPLIACION,
                     'total_compradores' => $totalCompradores,
                     'cumplen' => $cumplenAmpliacion,
+                    'total_skus' => $totalSkusPreventaRuta,
+                    'skus_ampliacion' => $totalSkusAmpliacionRuta,
                     'tasa_pct' => $tasaAmpliacion,
                     'umbral_pct' => self::UMBRAL_AMPLIACION_PCT,
                 ],

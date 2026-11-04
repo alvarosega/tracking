@@ -301,7 +301,10 @@ function enriquecerRuta(r) {
       metricas: {
         total_compradores: Number(k7.total_compradores || 0),
         cumplen: Number(k7.cumplen || 0),
-        tasa_pct: Number(k7.tasa_pct || 0)
+        total_skus: Number(k7.total_skus || 0),
+        skus_ampliacion: Number(k7.skus_ampliacion || 0),
+        tasa_pct: Number(k7.tasa_pct || 0),
+        umbral_pct: Number(k7.umbral_pct || 30.0)
       }
     },
     covers: {
