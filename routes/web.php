@@ -149,6 +149,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/compra-minima/detalle', [SupervisorPreventasController::class, 'cumplimientoCompraMinimaDetalle'])->name('cumplimiento.compra-minima.detalle');
             Route::post('/cumplimiento/reposicion/detalle', [SupervisorPreventasController::class, 'cumplimientoReposicionDetalle'])->name('cumplimiento.reposicion.detalle');
             Route::post('/cumplimiento/ampliacion/detalle', [SupervisorPreventasController::class, 'cumplimientoAmpliacionDetalle'])->name('cumplimiento.ampliacion.detalle');
+            Route::post('/cumplimiento/covers/detalle', [SupervisorPreventasController::class, 'cumplimientoCoversDetalle'])->name('cumplimiento.covers.detalle');
         });
 
         // Productos

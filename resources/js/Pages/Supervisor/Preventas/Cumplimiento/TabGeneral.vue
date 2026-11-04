@@ -130,8 +130,16 @@
               <div class="text-[9px] font-mono text-[#86868B] font-normal">(20 PTS)</div>
             </th>
 
-            <th class="px-2 py-2 text-center border-r border-black/[0.04]">
-              <div>8. COVERS</div>
+            <th
+              @click="toggleSort('k8')"
+              class="px-2 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.03] transition-colors select-none"
+              :class="sortCol === 'k8' ? 'bg-blue-50 text-[#0071E3]' : ''"
+              title="Ordenar por 8. Covers (5 pts)"
+            >
+              <div class="flex items-center justify-center gap-0.5">
+                <span>8. COVERS</span>
+                <span v-if="sortCol === 'k8'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
+              </div>
               <div class="text-[9px] font-mono text-[#86868B] font-normal">(5 PTS)</div>
             </th>
 
@@ -285,7 +293,8 @@ const sortLabels = {
   k4: '4. Efectividad',
   k5: '5. Mín 70',
   k6: '6. Repo',
-  k7: '7. Ampl.'
+  k7: '7. Ampl.',
+  k8: '8. Covers'
 }
 
 function toggleSort(col) {
@@ -345,6 +354,9 @@ const rutasOrdenadas = computed(() => {
     } else if (col === 'k7') {
       valA = (a.kpis?.ampliacion_portafolio?.evaluado && a.kpis?.ampliacion_portafolio?.cumple) ? 20 : 0
       valB = (b.kpis?.ampliacion_portafolio?.evaluado && b.kpis?.ampliacion_portafolio?.cumple) ? 20 : 0
+    } else if (col === 'k8') {
+      valA = (a.kpis?.covers?.evaluado && a.kpis?.covers?.cumple) ? 5 : 0
+      valB = (b.kpis?.covers?.evaluado && b.kpis?.covers?.cumple) ? 5 : 0
     }
     if (valA !== valB) {
       return dir * (valA - valB)

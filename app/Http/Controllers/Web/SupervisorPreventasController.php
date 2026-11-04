@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Web;
 use App\Actions\Web\Supervisor\Preventas\GetCumplimientoDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleAmpliacionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleCompraMinimaAction;
+use App\Actions\Web\Supervisor\Preventas\GetDetalleCoversRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleEfectividadRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleHorarioRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
@@ -219,6 +220,19 @@ class SupervisorPreventasController extends Controller
         $semanas = $request->input('semanas_historia') ? (int) $request->input('semanas_historia') : null;
 
         $resultado = $action->execute(ruta: $ruta, fecha: $fecha, semanasHistoria: $semanas);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve la auditoría de covers (clientes con productos con descuento) para el acordeón del KPI 8.
+     */
+    public function cumplimientoCoversDetalle(Request $request, GetDetalleCoversRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta', '');
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+
+        $resultado = $action->execute(ruta: $ruta, fecha: $fecha);
 
         return response()->json($resultado);
     }

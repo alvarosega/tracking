@@ -18,10 +18,10 @@ class GetCumplimientoDataAction
     private const UMBRAL_REPOSICION_PCT = 20.0;
     private const PISO_REPOSICION_PCT = 20.0;
     private const UMBRAL_AMPLIACION_PCT = 30.0;
-    private const UMBRAL_COVERS_PCT = 60.0;
+    private const UMBRAL_COVERS_PCT = 50.0;
     private const EVALUAR_KPI6_REPOSICION = true; // KPI 6: Pedido de Reposición (Canasta Habitual 60% · 15 pts) activado
     private const EVALUAR_KPI7_AMPLIACION = true; // KPI 7: Ampliación de Portafolio (>= 30% · 20 pts) activado
-    private const EVALUAR_KPI8_COVERS = false; // KPI 8 pausado (—)
+    private const EVALUAR_KPI8_COVERS = true; // KPI 8: Covers (Descuento >= 50% · 5 pts) activado
 
     public function __construct(
         private readonly GetCatalogoRutasAction $catalogoAction
@@ -233,6 +233,7 @@ class GetCumplimientoDataAction
                     'categoria',
                     'cantidad',
                     'precio_lista',
+                    'descuento',
                     'monto_final',
                 ])
                 ->get();
@@ -829,13 +830,53 @@ class GetCumplimientoDataAction
             }
 
             // ----------------------------------------------------
-            // KPI 8: Covers (Pausado por ahora)
+            // KPI 8: Covers (5 Puntos · Clientes con Descuento >= 50%)
             // ----------------------------------------------------
             $kpi8Cumple = false;
-            $kpi8Puntos = 0;
+            $kpi8Puntos = 0.0;
             $cumplenCovers = 0;
             $detalleCoversTiendas = [];
             $tasaCovers = 0.0;
+
+            if (self::EVALUAR_KPI8_COVERS) {
+                foreach ($preventasPorCliente as $cId => $itemsCliente) {
+                    $cIdInt = (int) $cId;
+                    $tieneDescuento = false;
+                    $totalDescuentoCliente = 0.0;
+                    $itemsConDescuentoCount = 0;
+
+                    foreach ($itemsCliente as $it) {
+                        $desc = (float) ($it->descuento ?? 0.0);
+                        if ($desc > 0) {
+                            $tieneDescuento = true;
+                            $itemsConDescuentoCount++;
+                            $totalDescuentoCliente += $desc;
+                        }
+                    }
+
+                    if ($tieneDescuento) {
+                        $cumplenCovers++;
+                    }
+
+                    $primerItem = $itemsCliente->first();
+                    $detalleCoversTiendas[] = [
+                        'cliente_id' => $cIdInt,
+                        'codigo_cliente' => $primerItem->codigo_cliente ?? (string) $cIdInt,
+                        'cliente' => $primerItem->cliente ?? "Cliente #{$cIdInt}",
+                        'total_items' => $itemsCliente->count(),
+                        'items_con_descuento' => $itemsConDescuentoCount,
+                        'descuento_total' => round($totalDescuentoCliente, 2),
+                        'cumple' => $tieneDescuento,
+                    ];
+                }
+
+                $tasaCovers = $totalCompradores > 0
+                    ? round(($cumplenCovers / $totalCompradores) * 100.0, 1)
+                    : 0.0;
+
+                $kpi8Cumple = ($totalCompradores > 0 && $tasaCovers >= self::UMBRAL_COVERS_PCT);
+                $kpi8Puntos = $kpi8Cumple ? 5.0 : 0.0;
+            }
 
             // ----------------------------------------------------
             // Score Total Unilever (0 a 100 Puntos)
@@ -990,7 +1031,7 @@ class GetCumplimientoDataAction
                     'umbral_pct' => self::UMBRAL_AMPLIACION_PCT,
                 ],
 
-                // Resumen KPI 8: Covers (Pausado)
+                // Resumen KPI 8: Covers (5 Puntos · Clientes con Descuento >= 50%)
                 'kpi8_covers' => [
                     'puntos' => $kpi8Puntos,
                     'puntos_max' => 5,

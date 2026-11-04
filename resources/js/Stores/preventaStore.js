@@ -314,7 +314,8 @@ function enriquecerRuta(r) {
       metricas: {
         total_compradores: Number(k8.total_compradores || 0),
         cumplen: Number(k8.cumplen || 0),
-        tasa_pct: Number(k8.tasa_pct || 0)
+        tasa_pct: Number(k8.tasa_pct || 0),
+        umbral_pct: Number(k8.umbral_pct || 50.0)
       }
     }
   }
