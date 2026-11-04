@@ -191,7 +191,12 @@ class GetCumplimientoDataAction
             $visitasMovilRaw = DB::table('visitas as v')
                 ->leftJoin('users as u', 'v.user_id', '=', 'u.id')
                 ->whereDate('v.visited_at', $fecha)
-                ->whereIn('v.route', $rutasFiltradas)
+                ->where(function ($q) use ($rutasFiltradas): void {
+                    $q->whereIn('v.route', $rutasFiltradas);
+                    foreach ($rutasFiltradas as $rf) {
+                        $q->orWhereRaw("TRIM(UPPER(v.route)) = ?", [strtoupper(trim($rf))]);
+                    }
+                })
                 ->where('v.is_opportunity', 0)
                 ->select([
                     'v.id',
@@ -211,7 +216,7 @@ class GetCumplimientoDataAction
             Log::warning('Error consultando visitas móviles en Cumplimiento: ' . $e->getMessage());
         }
 
-        $visitasMovilPorRuta = $visitasMovilRaw->groupBy('route');
+        $visitasMovilPorRuta = $visitasMovilRaw->groupBy(fn ($item) => strtoupper(trim((string) ($item->route ?? ''))));
 
         // D. fact_preventas: Pedidos transaccionados intra-día en tiempo real
         $preventasRaw = collect();
@@ -400,22 +405,38 @@ class GetCumplimientoDataAction
             $horaWeb = null;
             $segundosWeb = null;
 
-            if ($visitasWebRuta->isNotEmpty()) {
-                $firstW = $visitasWebRuta->first();
-                $horaWeb = $this->extraerHoraString($firstW->check_in ?? null);
-                $segundosWeb = $this->horaASegundos($horaWeb);
-                $primerCheckinWeb = $horaWeb;
+            // Recorrer todas las visitas web de la ruta para encontrar el primer check-in válido
+            foreach ($visitasWebRuta as $vw) {
+                $h = $this->extraerHoraString($vw->check_in ?? null);
+                if ($h && $h !== '00:00:00' && $h !== '00:00') {
+                    $sec = $this->horaASegundos($h);
+                    if ($sec !== null && $sec >= 18000) { // >= 05:00:00
+                        if ($segundosWeb === null || $sec < $segundosWeb) {
+                            $segundosWeb = $sec;
+                            $horaWeb = $h;
+                            $primerCheckinWeb = $h;
+                        }
+                    }
+                }
             }
 
             $primerCheckinMovil = null;
             $horaMovil = null;
             $segundosMovil = null;
 
-            if ($visitasMovilRuta->isNotEmpty()) {
-                $firstM = $visitasMovilRuta->first();
-                $horaMovil = $this->extraerHoraString($firstM->visited_at ?? null);
-                $segundosMovil = $this->horaASegundos($horaMovil);
-                $primerCheckinMovil = $horaMovil;
+            // Recorrer todas las visitas móviles de la ruta para encontrar el primer check-in válido
+            foreach ($visitasMovilRuta as $vm) {
+                $h = $this->extraerHoraString($vm->visited_at ?? null);
+                if ($h && $h !== '00:00:00' && $h !== '00:00') {
+                    $sec = $this->horaASegundos($h);
+                    if ($sec !== null && $sec >= 18000) {
+                        if ($segundosMovil === null || $sec < $segundosMovil) {
+                            $segundosMovil = $sec;
+                            $horaMovil = $h;
+                            $primerCheckinMovil = $h;
+                        }
+                    }
+                }
             }
 
             $kpi1Cumple = false;
@@ -423,10 +444,30 @@ class GetCumplimientoDataAction
             $kpi1Estado = 'Sin Marcación';
             $kpi1RetrasoMin = 0;
 
+            // En modo normal, el primer contacto toma la menor hora válida entre Web y App disponible
+            $mejorSegundos = null;
+            $mejorHora = null;
+
+            if ($segundosWeb !== null && $segundosMovil !== null) {
+                if ($segundosWeb <= $segundosMovil) {
+                    $mejorSegundos = $segundosWeb;
+                    $mejorHora = $horaWeb;
+                } else {
+                    $mejorSegundos = $segundosMovil;
+                    $mejorHora = $horaMovil;
+                }
+            } elseif ($segundosWeb !== null) {
+                $mejorSegundos = $segundosWeb;
+                $mejorHora = $horaWeb;
+            } elseif ($segundosMovil !== null) {
+                $mejorSegundos = $segundosMovil;
+                $mejorHora = $horaMovil;
+            }
+
             if (!$estrictoHorario) {
-                // Modo Normal: Evalúa primer check-in registrado en sistema central (fact_visitas)
-                if ($segundosWeb !== null) {
-                    if ($segundosWeb <= self::UMBRAL_HORARIO_SEGUNDOS) {
+                // Modo Normal: Evalúa el primer contacto registrado (Web o App)
+                if ($mejorSegundos !== null) {
+                    if ($mejorSegundos <= self::UMBRAL_HORARIO_SEGUNDOS) {
                         $kpi1Cumple = true;
                         $kpi1Puntos = 10;
                         $kpi1Estado = 'Puntual';
@@ -434,19 +475,7 @@ class GetCumplimientoDataAction
                         $kpi1Cumple = false;
                         $kpi1Puntos = 0;
                         $kpi1Estado = 'Atrasado';
-                        $kpi1RetrasoMin = (int) round(($segundosWeb - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
-                    }
-                } elseif ($segundosMovil !== null) {
-                    // Fallback a marcación móvil si la central aún no ha sincronizado
-                    if ($segundosMovil <= self::UMBRAL_HORARIO_SEGUNDOS) {
-                        $kpi1Cumple = true;
-                        $kpi1Puntos = 10;
-                        $kpi1Estado = 'Puntual (App)';
-                    } else {
-                        $kpi1Cumple = false;
-                        $kpi1Puntos = 0;
-                        $kpi1Estado = 'Atrasado';
-                        $kpi1RetrasoMin = (int) round(($segundosMovil - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
+                        $kpi1RetrasoMin = (int) round(($mejorSegundos - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
                     }
                 }
             } else {

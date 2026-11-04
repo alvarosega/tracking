@@ -147,16 +147,17 @@ class GetDetalleHorarioRutaAction
                 if (strlen($hIn) === 5) {
                     $hIn .= ':00';
                 }
+                $hInValido = ($hIn !== '' && $hIn !== '00:00:00' && $hIn !== '00:00');
 
                 $itemWeb = [
-                    'check_in' => $hIn,
+                    'check_in' => $hInValido ? $hIn : null,
                     'check_out' => trim((string) $fs->check_out) ?: null,
                     'tiempo_pdv' => trim((string) $fs->tiempo_pdv) ?: null,
                     'tipo' => trim((string) $fs->tipo),
                     'motivo' => trim((string) $fs->motivo),
                     'monto' => (float) ($fs->monto ?: 0.0),
                     'visitas_web_count' => 1,
-                    'marcajes_web' => [$hIn],
+                    'marcajes_web' => $hInValido ? [$hIn] : [],
                 ];
 
                 foreach (array_unique(array_filter([$a1, $a2])) as $alfaKey) {
@@ -164,9 +165,11 @@ class GetDetalleHorarioRutaAction
                         $factVisitasPorNombreAlfa[$alfaKey] = $itemWeb;
                     } else {
                         $factVisitasPorNombreAlfa[$alfaKey]['visitas_web_count']++;
-                        $factVisitasPorNombreAlfa[$alfaKey]['marcajes_web'][] = $hIn;
-                        if (strcmp($hIn, $factVisitasPorNombreAlfa[$alfaKey]['check_in']) < 0) {
-                            $factVisitasPorNombreAlfa[$alfaKey]['check_in'] = $hIn;
+                        if ($hInValido) {
+                            $factVisitasPorNombreAlfa[$alfaKey]['marcajes_web'][] = $hIn;
+                            if (empty($factVisitasPorNombreAlfa[$alfaKey]['check_in']) || strcmp($hIn, $factVisitasPorNombreAlfa[$alfaKey]['check_in']) < 0) {
+                                $factVisitasPorNombreAlfa[$alfaKey]['check_in'] = $hIn;
+                            }
                         }
                         $factVisitasPorNombreAlfa[$alfaKey]['monto'] += (float) ($fs->monto ?: 0.0);
                     }
@@ -184,9 +187,11 @@ class GetDetalleHorarioRutaAction
                         $visitasWebPorCid[$cid] = $itemWeb;
                     } else {
                         $visitasWebPorCid[$cid]['visitas_web_count']++;
-                        $visitasWebPorCid[$cid]['marcajes_web'][] = $hIn;
-                        if (strcmp($hIn, $visitasWebPorCid[$cid]['check_in']) < 0) {
-                            $visitasWebPorCid[$cid]['check_in'] = $hIn;
+                        if ($hInValido) {
+                            $visitasWebPorCid[$cid]['marcajes_web'][] = $hIn;
+                            if (empty($visitasWebPorCid[$cid]['check_in']) || strcmp($hIn, $visitasWebPorCid[$cid]['check_in']) < 0) {
+                                $visitasWebPorCid[$cid]['check_in'] = $hIn;
+                            }
                         }
                         $visitasWebPorCid[$cid]['monto'] += (float) ($fs->monto ?: 0.0);
                         if (!empty($itemWeb['motivo']) && empty($visitasWebPorCid[$cid]['motivo'])) {
@@ -240,7 +245,10 @@ class GetDetalleHorarioRutaAction
                     $cid = $planIdPorNombreAlfa[$a] ?? 0;
                 }
 
-                $horaM = $fm->visited_at ? $fm->visited_at->format('H:i:s') : '00:00:00';
+                $horaM = $fm->visited_at ? $fm->visited_at->format('H:i:s') : null;
+                if ($horaM === '00:00:00' || $horaM === '00:00') {
+                    $horaM = null;
+                }
                 $fotoUrl = null;
                 $fotoRel = ltrim(str_replace('\\', '/', (string) $fm->photo_path), '/');
                 if ($fotoRel !== '') {
@@ -259,7 +267,7 @@ class GetDetalleHorarioRutaAction
                         $visitasMovilPorCid[$cid] = [
                             'hora_app' => $horaM,
                             'visitas_app_count' => 1,
-                            'marcajes_app' => [$horaM],
+                            'marcajes_app' => $horaM ? [$horaM] : [],
                             'foto_url' => $fotoUrl,
                             'fotos_count' => $fotoUrl ? 1 : 0,
                             'status' => (string) ($fm->status ?? ''),
@@ -267,9 +275,11 @@ class GetDetalleHorarioRutaAction
                         ];
                     } else {
                         $visitasMovilPorCid[$cid]['visitas_app_count']++;
-                        $visitasMovilPorCid[$cid]['marcajes_app'][] = $horaM;
-                        if (strcmp($horaM, $visitasMovilPorCid[$cid]['hora_app']) < 0) {
-                            $visitasMovilPorCid[$cid]['hora_app'] = $horaM;
+                        if ($horaM) {
+                            $visitasMovilPorCid[$cid]['marcajes_app'][] = $horaM;
+                            if (empty($visitasMovilPorCid[$cid]['hora_app']) || strcmp($horaM, $visitasMovilPorCid[$cid]['hora_app']) < 0) {
+                                $visitasMovilPorCid[$cid]['hora_app'] = $horaM;
+                            }
                         }
                         if ($fotoUrl) {
                             if (empty($visitasMovilPorCid[$cid]['foto_url'])) {
@@ -311,7 +321,7 @@ class GetDetalleHorarioRutaAction
                             'cliente' => $nombreFp,
                             'hora_app' => $horaM,
                             'visitas_app_count' => 1,
-                            'marcajes_app' => [$horaM],
+                            'marcajes_app' => $horaM ? [$horaM] : [],
                             'hora_web' => $webFp['check_in'] ?? null,
                             'visitas_web_count' => $webFp['visitas_web_count'] ?? ($webFp ? 1 : 0),
                             'marcajes_web' => $webFp['marcajes_web'] ?? ($webFp['check_in'] ? [$webFp['check_in']] : []),
@@ -325,9 +335,11 @@ class GetDetalleHorarioRutaAction
                         ];
                     } else {
                         $visitasFueraPlan[$fpKey]['visitas_app_count']++;
-                        $visitasFueraPlan[$fpKey]['marcajes_app'][] = $horaM;
-                        if (strcmp($horaM, $visitasFueraPlan[$fpKey]['hora_app']) < 0) {
-                            $visitasFueraPlan[$fpKey]['hora_app'] = $horaM;
+                        if ($horaM) {
+                            $visitasFueraPlan[$fpKey]['marcajes_app'][] = $horaM;
+                            if (empty($visitasFueraPlan[$fpKey]['hora_app']) || strcmp($horaM, $visitasFueraPlan[$fpKey]['hora_app']) < 0) {
+                                $visitasFueraPlan[$fpKey]['hora_app'] = $horaM;
+                            }
                         }
                         if ($fotoUrl) {
                             if (empty($visitasFueraPlan[$fpKey]['foto_url'])) {
@@ -354,7 +366,13 @@ class GetDetalleHorarioRutaAction
                 $visitado = ($web !== null || $app !== null);
 
                 $hWeb = $web['check_in'] ?? null;
+                if ($hWeb === '00:00:00' || $hWeb === '00:00' || empty($hWeb)) {
+                    $hWeb = null;
+                }
                 $hApp = $app['hora_app'] ?? null;
+                if ($hApp === '00:00:00' || $hApp === '00:00' || empty($hApp)) {
+                    $hApp = null;
+                }
 
                 $hOrden = '99:99:99';
                 if ($hWeb && $hApp) {
@@ -412,8 +430,14 @@ class GetDetalleHorarioRutaAction
 
             // Paso B: Clientes visitados fuera de plan
             foreach ($visitasFueraPlan as $fpKey => $fp) {
-                $hWeb = $fp['hora_web'];
-                $hApp = $fp['hora_app'];
+                $hWeb = $fp['hora_web'] ?? null;
+                if ($hWeb === '00:00:00' || $hWeb === '00:00' || empty($hWeb)) {
+                    $hWeb = null;
+                }
+                $hApp = $fp['hora_app'] ?? null;
+                if ($hApp === '00:00:00' || $hApp === '00:00' || empty($hApp)) {
+                    $hApp = null;
+                }
                 $hOrden = '99:99:99';
                 if ($hWeb && $hApp) {
                     $hOrden = strcmp($hWeb, $hApp) < 0 ? $hWeb : $hApp;
