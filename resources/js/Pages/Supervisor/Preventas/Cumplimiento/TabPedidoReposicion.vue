@@ -355,7 +355,7 @@
                                       <td class="py-2 px-2 text-center font-bold text-[#1E6B37] bg-black/[0.01]">
                                         <span
                                           class="px-1.5 py-0.5 rounded bg-[#EBF9EF] border border-[#D1F2D9]"
-                                          :title="`Sugerido: ${item.unidades_acumuladas || 0} uds / ${item.semanas_transcurridas || semanasFiltro} sem transcurridas (mín 1)`"
+                                          :title="`Sugerido: ${item.unidades_acumuladas || 0} uds / ${semanasFiltro} sem (mín 1)`"
                                         >
                                           {{ item.cantidad_repo || 1 }} uds
                                         </span>
@@ -733,6 +733,8 @@ async function toggleReposicionAcordeon(r) {
 }
 
 function recalcularReposicion() {
+  store.ventanaReposicion = semanasFiltro.value || 13
+  store.cargarDatosRanking()
   const rutasAbiertas = Object.keys(acordeonAbierto).filter(k => acordeonAbierto[k])
   rutasAbiertas.forEach(ruta => {
     cargarDetalleRuta(ruta, true)
