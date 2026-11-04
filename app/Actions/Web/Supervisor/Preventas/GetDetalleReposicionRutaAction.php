@@ -156,31 +156,7 @@ class GetDetalleReposicionRutaAction
 
             $cids = array_keys($clientesCompradores);
 
-            // 2. Historial de compras en fact_ventas (últimas 13 semanas)
-            $histVentas = DB::connection('supervisor')->table('fact_ventas')
-                ->whereIn('cliente_id', $cids)
-                ->where('fecha_norm', '>=', $fechaInicioHist)
-                ->where('fecha_norm', '<=', $fechaFinHist)
-                ->where('monto_final', '>', 0)
-                ->where(function ($q): void {
-                    $q->whereNull('revertida')->orWhereRaw("UPPER(TRIM(revertida)) != 'SI'");
-                })
-                ->select([
-                    'cliente_id',
-                    'producto_id',
-                    DB::raw("COALESCE(TRIM(codigo), '') as codigo_producto"),
-                    DB::raw("COALESCE(TRIM(producto), 'SKU') as producto"),
-                    DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
-                    DB::raw("COUNT(DISTINCT fecha_norm) as dias_con_compra"),
-                    DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
-                    DB::raw("SUM(cantidad) as total_unidades"),
-                    DB::raw("SUM(monto_final) as total_bs"),
-                    DB::raw("SUBSTRING(GROUP_CONCAT(CONCAT(DATE(fecha_norm), ':', cantidad, ':', ROUND(monto_final, 2)) ORDER BY fecha_norm DESC SEPARATOR '|'), 1, 2048) as detalle_compras_raw"),
-                ])
-                ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo), '')"), DB::raw("COALESCE(TRIM(producto), 'SKU')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
-                ->get();
-
-            // También preventas previas en la ventana
+            // 2. Historial de compras exclusivamente en fact_preventas (últimas 13 semanas previas)
             $histPrev = DB::connection('supervisor')->table('fact_preventas')
                 ->whereIn('cliente_id', $cids)
                 ->where('fecha_norm', '>=', $fechaInicioHist)
@@ -192,8 +168,8 @@ class GetDetalleReposicionRutaAction
                     DB::raw("COALESCE(TRIM(codigo_producto), '') as codigo_producto"),
                     DB::raw("COALESCE(TRIM(producto), 'SKU') as producto"),
                     DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
+                    DB::raw("COUNT(DISTINCT fecha_norm) as frecuencia_compra"),
                     DB::raw("COUNT(DISTINCT fecha_norm) as dias_con_compra"),
-                    DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
                     DB::raw("SUM(cantidad) as total_unidades"),
                     DB::raw("SUM(monto_final) as total_bs"),
                     DB::raw("SUBSTRING(GROUP_CONCAT(CONCAT(DATE(fecha_norm), ':', cantidad, ':', ROUND(monto_final, 2)) ORDER BY fecha_norm DESC SEPARATOR '|'), 1, 2048) as detalle_compras_raw"),
@@ -203,66 +179,59 @@ class GetDetalleReposicionRutaAction
 
             $historialPorCliente = [];
 
-            $procesarHistorial = function ($coleccion) use (&$historialPorCliente): void {
-                foreach ($coleccion as $hv) {
-                    $cid = (int) $hv->cliente_id;
-                    $pid = (int) $hv->producto_id;
-                    $cod = trim((string) $hv->codigo_producto);
-                    $prod = trim((string) $hv->producto);
-                    $prodNorm = $this->normalizar($prod);
+            foreach ($histPrev as $hv) {
+                $cid = (int) $hv->cliente_id;
+                $pid = (int) $hv->producto_id;
+                $cod = trim((string) $hv->codigo_producto);
+                $prod = trim((string) $hv->producto);
+                $prodNorm = $this->normalizar($prod);
 
-                    $key = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : "nom_{$prodNorm}");
+                $key = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : "nom_{$prodNorm}");
 
-                    if (!isset($historialPorCliente[$cid])) {
-                        $historialPorCliente[$cid] = [];
-                    }
+                if (!isset($historialPorCliente[$cid])) {
+                    $historialPorCliente[$cid] = [];
+                }
 
-                    if (!isset($historialPorCliente[$cid][$key])) {
-                        $historialPorCliente[$cid][$key] = [
-                            'producto_id' => $pid,
-                            'codigo_producto' => $cod,
-                            'producto' => $prod,
-                            'categoria' => $hv->categoria,
-                            'dias_con_compra' => 0,
-                            'semanas_con_compra' => 0,
-                            'total_unidades' => 0,
-                            'total_bs' => 0.0,
-                        ];
-                    }
+                if (!isset($historialPorCliente[$cid][$key])) {
+                    $historialPorCliente[$cid][$key] = [
+                        'producto_id' => $pid,
+                        'codigo_producto' => $cod,
+                        'producto' => $prod,
+                        'categoria' => $hv->categoria,
+                        'frecuencia_compra' => 0,
+                        'dias_con_compra' => 0,
+                        'total_unidades' => 0,
+                        'total_bs' => 0.0,
+                        'historial_compras' => [],
+                    ];
+                }
 
-                    $historialPorCliente[$cid][$key]['dias_con_compra'] = max(
-                        $historialPorCliente[$cid][$key]['dias_con_compra'],
-                        (int) $hv->dias_con_compra
-                    );
-                    $historialPorCliente[$cid][$key]['semanas_con_compra'] = max(
-                        $historialPorCliente[$cid][$key]['semanas_con_compra'],
-                        (int) $hv->semanas_con_compra
-                    );
-                    $historialPorCliente[$cid][$key]['total_unidades'] += (int) $hv->total_unidades;
-                    $historialPorCliente[$cid][$key]['total_bs'] += (float) $hv->total_bs;
+                $historialPorCliente[$cid][$key]['frecuencia_compra'] = max(
+                    $historialPorCliente[$cid][$key]['frecuencia_compra'],
+                    (int) $hv->frecuencia_compra
+                );
+                $historialPorCliente[$cid][$key]['dias_con_compra'] = max(
+                    $historialPorCliente[$cid][$key]['dias_con_compra'],
+                    (int) $hv->dias_con_compra
+                );
+                $historialPorCliente[$cid][$key]['total_unidades'] += (int) $hv->total_unidades;
+                $historialPorCliente[$cid][$key]['total_bs'] += (float) $hv->total_bs;
 
-                    // Parsear desglose de compras históricas para trazabilidad
-                    if (!isset($historialPorCliente[$cid][$key]['historial_compras'])) {
-                        $historialPorCliente[$cid][$key]['historial_compras'] = [];
-                    }
-                    $rawTxs = (string) ($hv->detalle_compras_raw ?? '');
-                    if ($rawTxs !== '') {
-                        foreach (explode('|', $rawTxs) as $b) {
-                            $partes = explode(':', trim($b));
-                            if (count($partes) >= 3) {
-                                $historialPorCliente[$cid][$key]['historial_compras'][] = [
-                                    'fecha' => $partes[0],
-                                    'unidades' => (int) $partes[1],
-                                    'monto_bs' => round((float) $partes[2], 2),
-                                ];
-                            }
+                // Parsear desglose de compras históricas para trazabilidad
+                $rawTxs = (string) ($hv->detalle_compras_raw ?? '');
+                if ($rawTxs !== '') {
+                    foreach (explode('|', $rawTxs) as $b) {
+                        $partes = explode(':', trim($b));
+                        if (count($partes) >= 3) {
+                            $historialPorCliente[$cid][$key]['historial_compras'][] = [
+                                'fecha' => $partes[0],
+                                'unidades' => (int) $partes[1],
+                                'monto_bs' => round((float) $partes[2], 2),
+                            ];
                         }
                     }
                 }
-            };
-
-            $procesarHistorial($histVentas);
-            $procesarHistorial($histPrev);
+            }
 
             // 3. Evaluar reposición tienda por tienda (Match Ponderado por semanas con compra f_i)
             $tiendas = [];
@@ -304,8 +273,9 @@ class GetDetalleReposicionRutaAction
                     $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
                     $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
 
-                    // Peso f_i = semanas con compra del SKU en la ventana de historia
-                    $pesoFi = max(1, (int) ($hab['semanas_con_compra'] ?? 1));
+                    // Peso f_i = frecuencia de compra (fechas distintas con preventa) en el historial de 91 días
+                    $freqCompra = max(1, (int) ($hab['frecuencia_compra'] ?? count($hab['historial_compras'] ?? [])));
+                    $pesoFi = $freqCompra;
                     $puntosEsperadosTienda += $pesoFi;
 
                     if ($esMatch) {
@@ -314,7 +284,8 @@ class GetDetalleReposicionRutaAction
                         $puntosMatchTienda += $pesoFi;
                     }
 
-                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $semanas)));
+                    // Cantidad promedio por preventa esperada (unidades habituales por pedido)
+                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $freqCompra)));
 
                     $canastaBase[] = [
                         'producto_id' => $hab['producto_id'],
@@ -324,9 +295,9 @@ class GetDetalleReposicionRutaAction
                         'categoria' => $hab['categoria'],
                         'tipo_origen' => 'HABITO_CLIENTE',
                         'peso_fi' => $pesoFi,
+                        'frecuencia_compra' => $freqCompra,
                         'unidades_acumuladas' => $hab['total_unidades'],
-                        'semanas_con_compra' => $hab['semanas_con_compra'],
-                        'dias_con_compra' => $hab['dias_con_compra'],
+                        'dias_con_compra' => $freqCompra,
                         'cantidad_repo' => $cantRepo,
                         'monto_acumulado_bs' => round($hab['total_bs'], 2),
                         'unidades_hoy' => $unidadesHoy,

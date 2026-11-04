@@ -294,75 +294,7 @@ class GetCumplimientoDataAction
             $fechaFin90 = $carbonFecha->copy()->subDays(1)->toDateString();
 
             try {
-                // Historial de ventas cerradas (agrupado por cliente y SKU con conteo de semanas distintas)
-                $histVentas = DB::connection('supervisor')->table('fact_ventas')
-                    ->whereIn('cliente_id', $compradoresIds)
-                    ->where('fecha_norm', '>=', $fechaInicio90)
-                    ->where('fecha_norm', '<=', $fechaFin90)
-                    ->where('monto_final', '>', 0)
-                    ->where(function ($q): void {
-                        $q->whereNull('revertida')->orWhereRaw("UPPER(TRIM(revertida)) != 'SI'");
-                    })
-                    ->select([
-                        'cliente_id',
-                        'producto_id',
-                        DB::raw("COALESCE(TRIM(codigo), '') as codigo_producto"),
-                        DB::raw("COALESCE(TRIM(producto), '') as producto"),
-                        DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
-                        DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
-                    ])
-                    ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo), '')"), DB::raw("COALESCE(TRIM(producto), '')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
-                    ->get();
-
-                foreach ($histVentas as $hv) {
-                    $cId = (int) $hv->cliente_id;
-                    if (!isset($historial90DiasPorCliente[$cId])) {
-                        $historial90DiasPorCliente[$cId] = [
-                            'skus' => [],
-                            'keys' => [],
-                            'keys_map' => [],
-                            'canonical_keys' => [],
-                            'categorias' => [],
-                            'total_lineas' => 0,
-                        ];
-                    }
-                    $cod = trim((string) $hv->codigo_producto);
-                    $pid = (int) $hv->producto_id;
-                    $prodNorm = mb_strtolower(trim((string) $hv->producto));
-                    $sem = max(1, (int) ($hv->semanas_con_compra ?? 1));
-
-                    $canonicalKey = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : ($prodNorm !== '' ? "nom_{$prodNorm}" : ''));
-                    if ($canonicalKey !== '') {
-                        $prevSem = $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] ?? 0;
-                        $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] = max($prevSem, $sem);
-                    }
-
-                    if ($cod !== '') {
-                        $historial90DiasPorCliente[$cId]['skus'][$cod] = true;
-                        $historial90DiasPorCliente[$cId]['keys']["cod_{$cod}"] = true;
-                        if ($canonicalKey !== '') {
-                            $historial90DiasPorCliente[$cId]['keys_map']["cod_{$cod}"] = $canonicalKey;
-                        }
-                    }
-                    if ($pid > 0) {
-                        $historial90DiasPorCliente[$cId]['keys']["id_{$pid}"] = true;
-                        if ($canonicalKey !== '') {
-                            $historial90DiasPorCliente[$cId]['keys_map']["id_{$pid}"] = $canonicalKey;
-                        }
-                    }
-                    if ($prodNorm !== '') {
-                        $historial90DiasPorCliente[$cId]['keys']["nom_{$prodNorm}"] = true;
-                        if ($canonicalKey !== '') {
-                            $historial90DiasPorCliente[$cId]['keys_map']["nom_{$prodNorm}"] = $canonicalKey;
-                        }
-                    }
-                    if (!empty($hv->categoria)) {
-                        $historial90DiasPorCliente[$cId]['categorias'][trim(strtoupper((string) $hv->categoria))] = true;
-                    }
-                    $historial90DiasPorCliente[$cId]['total_lineas']++;
-                }
-
-                // Historial de preventas previas en la ventana
+                // Historial de compras exclusivamente en fact_preventas (últimas 13 semanas previas)
                 $histPrev = DB::connection('supervisor')->table('fact_preventas')
                     ->whereIn('cliente_id', $compradoresIds)
                     ->where('fecha_norm', '>=', $fechaInicio90)
@@ -374,7 +306,7 @@ class GetCumplimientoDataAction
                         DB::raw("COALESCE(TRIM(codigo_producto), '') as codigo_producto"),
                         DB::raw("COALESCE(TRIM(producto), '') as producto"),
                         DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
-                        DB::raw("COUNT(DISTINCT YEARWEEK(fecha_norm, 1)) as semanas_con_compra"),
+                        DB::raw("COUNT(DISTINCT fecha_norm) as frecuencia_compra"),
                     ])
                     ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo_producto), '')"), DB::raw("COALESCE(TRIM(producto), '')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
                     ->get();
@@ -394,12 +326,11 @@ class GetCumplimientoDataAction
                     $cod = trim((string) $hp->codigo_producto);
                     $pid = (int) $hp->producto_id;
                     $prodNorm = mb_strtolower(trim((string) $hp->producto));
-                    $sem = max(1, (int) ($hp->semanas_con_compra ?? 1));
+                    $freq = max(1, (int) ($hp->frecuencia_compra ?? 1));
 
                     $canonicalKey = $cod !== '' ? "cod_{$cod}" : ($pid > 0 ? "id_{$pid}" : ($prodNorm !== '' ? "nom_{$prodNorm}" : ''));
                     if ($canonicalKey !== '') {
-                        $prevSem = $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] ?? 0;
-                        $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] = max($prevSem, $sem);
+                        $historial90DiasPorCliente[$cId]['canonical_keys'][$canonicalKey] = $freq;
                     }
 
                     if ($cod !== '') {
