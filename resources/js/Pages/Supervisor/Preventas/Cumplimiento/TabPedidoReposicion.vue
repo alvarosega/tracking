@@ -188,55 +188,23 @@
                   </div>
 
                   <!-- Detalle auditado en tablas -->
-                  <div v-else-if="detallePorRuta[r.ruta]" class="space-y-3">
-                    <!-- Barra de Resumen de la Ruta -->
-                    <div class="apple-glass-card rounded-[12px] p-2.5 flex flex-wrap items-center justify-between gap-2 border border-black/[0.06] bg-[#F8F8FA]">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
-                        <span class="text-[12px] font-bold text-[#1D1D1F]">
-                          Nivel 2 · Auditoría de Canastas de Tiendas:
-                          <strong class="font-mono text-[#0071E3]">{{ r.ruta }}</strong>
-                        </span>
-                        <span class="text-[#86868B] font-medium text-[11px]">
-                          ({{ detallePorRuta[r.ruta].vendedor || r.vendedor }})
-                        </span>
-                      </div>
-
-                      <div class="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-                        <span class="apple-control-pill px-2.5 py-1 rounded-[6px] text-[#6E6E73]">
-                          Compradores: <strong class="text-[#1D1D1F]">{{ (detallePorRuta[r.ruta].tiendas || []).length }}</strong>
-                        </span>
-                        <span class="apple-control-pill px-2.5 py-1 rounded-[6px] text-[#6E6E73]">
-                          SKUs Base Total: <strong class="text-[#1D1D1F]">{{ detallePorRuta[r.ruta].totales?.skus_esperados_total || 0 }}</strong>
-                        </span>
-                        <span class="apple-control-pill px-2.5 py-1 rounded-[6px] text-[#1E6B37]">
-                          Recomprados: <strong class="text-[#1E6B37]">{{ detallePorRuta[r.ruta].totales?.skus_con_match_total || 0 }}</strong>
-                        </span>
-                        <span
-                          class="apple-control-pill px-2.5 py-1 rounded-[6px] font-bold"
-                          :class="(detallePorRuta[r.ruta].totales?.porcentaje_reposicion_ruta || 0) >= 60.0 ? 'text-[#1E6B37]' : 'text-[#C9342C]'"
-                        >
-                          Promedio Reposición: {{ Number(detallePorRuta[r.ruta].totales?.porcentaje_reposicion_ruta || 0).toFixed(1) }}%
-                        </span>
-
-                        <!-- Botones de colapso global de tiendas -->
-                        <div class="flex items-center gap-1 ml-2">
-                          <button
-                            type="button"
-                            @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, true)"
-                            class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#0071E3] font-sans font-semibold border border-black/[0.08] cursor-pointer"
-                          >
-                            Expandir Todo
-                          </button>
-                          <button
-                            type="button"
-                            @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, false)"
-                            class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#86868B] font-sans font-semibold border border-black/[0.08] cursor-pointer"
-                          >
-                            Colapsar
-                          </button>
-                        </div>
-                      </div>
+                  <div v-else-if="detallePorRuta[r.ruta]" class="space-y-1.5">
+                    <!-- Botones de expansión rápida -->
+                    <div v-if="(detallePorRuta[r.ruta].tiendas || []).length > 0" class="flex justify-end items-center gap-1.5 pb-0.5">
+                      <button
+                        type="button"
+                        @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, true)"
+                        class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#0071E3] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
+                      >
+                        Expandir Todo
+                      </button>
+                      <button
+                        type="button"
+                        @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, false)"
+                        class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#86868B] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
+                      >
+                        Colapsar
+                      </button>
                     </div>
 
                     <!-- Sin tiendas -->
@@ -306,27 +274,17 @@
                           </div>
                         </div>
 
-                        <!-- Contenido Desplegable: 2 Tablas (Nivel 3) -->
+                        <!-- Contenido Desplegable: 2 Tablas -->
                         <div
                           v-if="isClienteAbierto(r.ruta, t.cliente_id, tIdx)"
-                          class="grid grid-cols-1 xl:grid-cols-12 gap-3 pt-1"
+                          class="grid grid-cols-1 xl:grid-cols-12 gap-2.5 pt-1"
                         >
                           <!-- ═════════════════════════════════════════════════ -->
                           <!-- Panel Izquierdo (7 cols): Canasta Histórica       -->
                           <!-- ═════════════════════════════════════════════════ -->
-                          <div class="xl:col-span-7 border border-black/[0.06] rounded-[10px] bg-[#F8F8FA]/70 p-2.5 space-y-2">
-                            <div class="text-[11px] font-bold text-[#1D1D1F] uppercase tracking-tight flex items-center justify-between border-b border-black/[0.06] pb-1.5">
-                              <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-                                <span>Nivel 3 · Canasta de Reposición Histórica del Cliente</span>
-                              </div>
-                              <span class="font-mono text-[#0071E3] font-bold">
-                                {{ t.skus_con_match || 0 }} / {{ t.skus_esperados || 0 }} Recomprados
-                              </span>
-                            </div>
-
+                          <div class="xl:col-span-7 border border-black/[0.06] rounded-[10px] bg-[#F8F8FA]/70 p-2 space-y-1.5">
                             <div class="overflow-x-auto max-h-80 custom-scroll rounded-[8px] border border-black/[0.06] bg-white">
-                              <table class="w-full min-w-[500px] text-left text-[11px] border-collapse font-num">
+                              <table class="w-full min-w-[460px] text-left text-[11px] border-collapse font-num">
                                 <thead class="bg-[#F8F8FA] text-[#6E6E73] text-[9px] font-bold uppercase tracking-tight border-b border-black/[0.06] sticky top-0 z-10 select-none">
                                   <tr>
                                     <th class="py-1.5 px-2.5">Producto (Historial del Cliente)</th>
@@ -339,14 +297,13 @@
                                     <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada de reposición (Cant. Comprada / ${semanasFiltro} sem, mín 1)`">
                                       Cantidad Repo
                                     </th>
-                                    <th class="py-1.5 px-2 text-center">Pedido Hoy</th>
-                                    <th class="py-1.5 px-2 text-center">Estatus</th>
+                                    <th class="py-1.5 px-2 text-center w-14">Estatus</th>
                                   </tr>
                                 </thead>
 
                                 <tbody class="divide-y divide-black/[0.04]">
                                   <tr v-if="(t.canasta_base || []).length === 0">
-                                    <td colspan="6" class="py-4 text-center text-[#86868B] text-[10px] italic">
+                                    <td colspan="5" class="py-4 text-center text-[#86868B] text-[10px] italic">
                                       Cliente sin historial de compras en las últimas {{ semanasFiltro }} semanas (Apertura de cliente).
                                     </td>
                                   </tr>
@@ -356,7 +313,7 @@
                                     <tr class="hover:bg-blue-50/20 transition-colors">
                                       <td class="py-2 px-2.5 font-bold text-[#1D1D1F]">
                                         <div class="flex items-center gap-1.5">
-                                          <!-- Botón de expandir transacciones Nivel 4 -->
+                                          <!-- Botón de expandir transacciones -->
                                           <button
                                             type="button"
                                             @click="toggleSkuDetalle(r.ruta, t.cliente_id, item.codigo_producto || item.producto || sIdx)"
@@ -401,41 +358,25 @@
                                         </span>
                                       </td>
 
-                                      <!-- Pedido Hoy -->
+                                      <!-- Estatus (Check o X) -->
                                       <td class="py-2 px-2 text-center font-bold">
-                                        <span v-if="item.recomprado_hoy" class="text-[#1E6B37]">
-                                          {{ item.unidades_hoy }} uds (Bs {{ formatBs(item.monto_hoy) }})
-                                        </span>
-                                        <span v-else class="text-[#86868B]">—</span>
-                                      </td>
-
-                                      <!-- Estatus -->
-                                      <td class="py-2 px-2 text-center">
                                         <span
-                                          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold"
-                                          :class="item.recomprado_hoy
-                                            ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
-                                            : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
+                                          class="text-[14px] font-black leading-none"
+                                          :class="item.recomprado_hoy ? 'text-[#1E6B37]' : 'text-[#C9342C]'"
+                                          :title="item.recomprado_hoy ? 'Recomprado hoy' : 'No recomprado hoy'"
                                         >
-                                          {{ item.recomprado_hoy ? '✓ RECOMPRADO' : 'PENDIENTE' }}
+                                          {{ item.recomprado_hoy ? '✓' : '✕' }}
                                         </span>
                                       </td>
                                     </tr>
 
-                                    <!-- Nivel 4: Histórico Cronológico de Transacciones (Sub-fila inline) -->
+                                    <!-- Histórico Cronológico de Transacciones (Sub-fila inline) -->
                                     <tr
                                       v-if="isSkuDetalleAbierto(r.ruta, t.cliente_id, item.codigo_producto || item.producto || sIdx)"
                                       class="bg-[#F8F9FA] border-b border-black/[0.06]"
                                     >
-                                      <td colspan="6" class="p-2.5 pl-8">
-                                        <div class="bg-white rounded-[8px] border border-black/[0.08] p-2 max-w-xl space-y-1.5 shadow-2xs">
-                                          <div class="flex justify-between items-center text-[9px] font-bold text-[#6E6E73] uppercase pb-1 border-b border-black/[0.06]">
-                                            <span>Nivel 4 · Historial de Compras en las últimas {{ semanasFiltro }} semanas</span>
-                                            <span class="text-[#0071E3] font-mono">
-                                              {{ (item.historial_compras || []).length }} compras ({{ item.unidades_acumuladas || 0 }} uds · Bs {{ formatBs(item.monto_acumulado_bs) }})
-                                            </span>
-                                          </div>
-
+                                      <td colspan="5" class="p-2 pl-6">
+                                        <div class="bg-white rounded-[8px] border border-black/[0.08] p-2 max-w-xl space-y-1 shadow-2xs">
                                           <div v-if="(item.historial_compras || []).length === 0" class="py-2 text-center text-[#86868B] text-[9px] italic">
                                             Sin detalle desglosado de fechas para este SKU.
                                           </div>
@@ -462,6 +403,13 @@
                                                   <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">Bs {{ formatBs(tx.monto_bs) }}</td>
                                                 </tr>
                                               </tbody>
+                                              <tfoot class="bg-[#F8F8FA] border-t-2 border-black/[0.08] font-bold text-[#1D1D1F] sticky bottom-0">
+                                                <tr>
+                                                  <td colspan="2" class="py-1 px-2 text-left uppercase text-[8.5px]">Total</td>
+                                                  <td class="py-1 px-2 text-center font-bold">{{ item.unidades_acumuladas || totalTxUnidades(item.historial_compras) }} uds</td>
+                                                  <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">Bs {{ formatBs(item.monto_acumulado_bs || totalTxMonto(item.historial_compras)) }}</td>
+                                                </tr>
+                                              </tfoot>
                                             </table>
                                           </div>
                                         </div>
@@ -469,26 +417,37 @@
                                     </tr>
                                   </template>
                                 </tbody>
+
+                                <!-- Fila de Totales Siempre Visible -->
+                                <tfoot v-if="(t.canasta_base || []).length > 0" class="bg-[#F8F8FA] border-t-2 border-black/[0.1] text-[#1D1D1F] font-bold text-[10px] sticky bottom-0 z-10">
+                                  <tr>
+                                    <td class="py-1.5 px-2.5 uppercase font-bold text-[#1D1D1F]">
+                                      Total ({{ t.canasta_base.length }} SKUs)
+                                    </td>
+                                    <td class="py-1.5 px-2 text-center font-bold">
+                                      {{ totalCanastaUnidades(t.canasta_base) }} uds
+                                    </td>
+                                    <td class="py-1.5 px-2 text-center font-bold text-[#0071E3]">
+                                      {{ t.puntos_esperados || totalCanastaFi(t.canasta_base) }} pts
+                                    </td>
+                                    <td class="py-1.5 px-2 text-center font-bold text-[#1E6B37]">
+                                      {{ totalCanastaRepo(t.canasta_base) }} uds
+                                    </td>
+                                    <td class="py-1.5 px-2 text-center font-bold font-mono text-[10px]" :class="(t.skus_con_match || 0) > 0 ? 'text-[#1E6B37]' : 'text-[#86868B]'">
+                                      {{ t.skus_con_match || totalCanastaMatches(t.canasta_base) }}/{{ t.canasta_base.length }}
+                                    </td>
+                                  </tr>
+                                </tfoot>
                               </table>
                             </div>
                           </div>
 
                           <!-- ═════════════════════════════════════════════════ -->
-                          <!-- Panel Derecho (5 cols): Pedido Real Comprado Hoy  -->
+                          <!-- Panel Derecho (5 cols): Pedido Real Facturado Hoy -->
                           <!-- ═════════════════════════════════════════════════ -->
-                          <div class="xl:col-span-5 border border-black/[0.06] rounded-[10px] bg-white p-2.5 space-y-2">
-                            <div class="text-[11px] font-bold text-[#1D1D1F] uppercase tracking-tight flex items-center justify-between border-b border-black/[0.06] pb-1.5">
-                              <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-[#1E6B37]"></span>
-                                <span>Pedido Real Facturado Hoy</span>
-                              </div>
-                              <span class="font-mono text-[#1E6B37] font-bold">
-                                {{ (t.pedidos_hoy || []).length }} SKUs Totales
-                              </span>
-                            </div>
-
+                          <div class="xl:col-span-5 border border-black/[0.06] rounded-[10px] bg-white p-2 space-y-1.5">
                             <div class="overflow-x-auto max-h-80 custom-scroll rounded-[8px] border border-black/[0.06]">
-                              <table class="w-full min-w-[420px] text-left text-[11px] border-collapse font-num">
+                              <table class="w-full min-w-[380px] text-left text-[11px] border-collapse font-num">
                                 <thead class="bg-[#F8F8FA] text-[#6E6E73] text-[9px] font-bold uppercase tracking-tight border-b border-black/[0.06] sticky top-0 z-10 select-none">
                                   <tr>
                                     <th class="py-1.5 px-2">Producto Pedido</th>
@@ -536,6 +495,22 @@
                                     </td>
                                   </tr>
                                 </tbody>
+
+                                <!-- Fila de Totales Siempre Visible -->
+                                <tfoot v-if="(t.pedidos_hoy || []).length > 0" class="bg-[#F8F8FA] border-t-2 border-black/[0.1] text-[#1D1D1F] font-bold text-[10px] sticky bottom-0 z-10">
+                                  <tr>
+                                    <td class="py-1.5 px-2 uppercase font-bold text-[#1D1D1F]">
+                                      Total ({{ t.pedidos_hoy.length }} SKUs)
+                                    </td>
+                                    <td class="py-1.5 px-2 text-center font-bold">
+                                      {{ totalPedidosHoyUnidades(t.pedidos_hoy) }} uds
+                                    </td>
+                                    <td class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
+                                      Bs {{ formatBs(totalPedidosHoyBs(t.pedidos_hoy)) }}
+                                    </td>
+                                    <td></td>
+                                  </tr>
+                                </tfoot>
                               </table>
                             </div>
                           </div>
@@ -660,6 +635,39 @@ function getPuntosObtenidos(r) {
   if (pct === null || pct < 40.0) return 0.0
   if (pct >= 70.0) return 15.0
   return Number((15.0 * ((pct - 40.0) / 30.0)).toFixed(2))
+}
+
+// ── Helpers de Totales para Tablas ────────────────────────────────────────
+function totalCanastaUnidades(canasta) {
+  return (canasta || []).reduce((acc, it) => acc + (Number(it.unidades_acumuladas) || 0), 0)
+}
+
+function totalCanastaFi(canasta) {
+  return (canasta || []).reduce((acc, it) => acc + (Number(it.peso_fi) || 0), 0)
+}
+
+function totalCanastaRepo(canasta) {
+  return (canasta || []).reduce((acc, it) => acc + (Number(it.cantidad_repo) || 0), 0)
+}
+
+function totalCanastaMatches(canasta) {
+  return (canasta || []).filter(it => it.recomprado_hoy).length
+}
+
+function totalPedidosHoyUnidades(pedidos) {
+  return (pedidos || []).reduce((acc, it) => acc + (Number(it.unidades || it.unidades_hoy) || 0), 0)
+}
+
+function totalPedidosHoyBs(pedidos) {
+  return (pedidos || []).reduce((acc, it) => acc + (Number(it.monto_bs || it.monto_hoy) || 0), 0)
+}
+
+function totalTxUnidades(txs) {
+  return (txs || []).reduce((acc, tx) => acc + (Number(tx.unidades) || 0), 0)
+}
+
+function totalTxMonto(txs) {
+  return (txs || []).reduce((acc, tx) => acc + (Number(tx.monto_bs) || 0), 0)
 }
 
 // ── Control de expansión de clientes ──────────────────────────────────────
