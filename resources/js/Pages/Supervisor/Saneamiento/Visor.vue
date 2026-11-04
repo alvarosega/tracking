@@ -140,6 +140,50 @@
             </svg>
           </button>
 
+          <!-- Filtro Dropdown: Días de Visita (Móvil) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('dias', $event)"
+            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+            :class="{ 'bg-slate-200 font-semibold border-slate-300': filtroDias.length < diasSemana.length }"
+            title="Filtrar por días de visita"
+          >
+            <span class="text-slate-500 font-normal">Días:</span>
+            <span class="font-bold text-slate-900">{{ labelDias }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Selector de Modo de Coloración (Móvil) -->
+          <div class="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0 text-xs font-medium select-none shadow-2xs">
+            <span class="text-[10px] font-mono text-slate-400 px-1.5 self-center">Color:</span>
+            <button
+              type="button"
+              @click="setModoColor('ruta')"
+              class="px-2 py-0.5 rounded-md transition-all cursor-pointer text-[10px]"
+              :class="modoColor === 'ruta' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500'"
+            >
+              Ruta
+            </button>
+            <button
+              type="button"
+              @click="setModoColor('dia')"
+              class="px-2 py-0.5 rounded-md transition-all cursor-pointer text-[10px]"
+              :class="modoColor === 'dia' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500'"
+            >
+              Día
+            </button>
+            <button
+              type="button"
+              @click="setModoColor('canal')"
+              class="px-2 py-0.5 rounded-md transition-all cursor-pointer text-[10px]"
+              :class="modoColor === 'canal' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500'"
+            >
+              Canal
+            </button>
+          </div>
+
           <!-- Filtro Dropdown: Meses Históricos (Móvil) -->
           <button
             type="button"
@@ -327,7 +371,7 @@
           </button>
 
           <!-- Selector de Modo de Coloración -->
-          <div class="hidden lg:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <span class="text-[10px] font-mono text-slate-400 px-1.5">Color por:</span>
             <button
               type="button"
@@ -390,7 +434,7 @@
           </div>
 
           <!-- Filtros Dinámicos GIS: Puntos (Rutas), Frontera Ruta y Frontera Día -->
-          <div class="hidden lg:flex items-center space-x-2 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
+          <div class="flex items-center space-x-2 text-xs pl-2 border-l border-slate-200 font-medium text-slate-700 shrink-0">
             <!-- Botón Dropdown Dinámico: Rutas (Puntos) -->
             <button
               type="button"
@@ -500,6 +544,51 @@
               class="w-full py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
             >
               Consultar
+            </button>
+          </div>
+        </div>
+
+        <!-- Menú Días de Visita (Móvil y Pantallas Pequeñas) -->
+        <div
+          v-if="menuAbierto === 'dias'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-60 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans max-h-[75vh] flex flex-col"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 shrink-0">
+            <span class="font-bold text-[11px] text-slate-700 uppercase tracking-tight">Días de Visita</span>
+            <div class="flex items-center gap-2">
+              <button type="button" @click="filtroDias = diasSemana.map(d => d.key); renderizarEnMapa(true)" class="text-[11px] text-sky-600 font-semibold hover:underline cursor-pointer">Todos</button>
+              <button type="button" @click="filtroDias = []; renderizarEnMapa(true)" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
+            </div>
+          </div>
+          <div class="overflow-y-auto space-y-1 py-0.5 custom-scroll flex-1">
+            <label
+              v-for="d in diasSemana"
+              :key="d.key"
+              class="flex items-center justify-between px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer select-none"
+            >
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :value="d.key"
+                  v-model="filtroDias"
+                  @change="renderizarEnMapa(true)"
+                  class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
+                />
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: d.color }"></span>
+                <span class="font-medium text-slate-800">{{ d.label }}</span>
+              </div>
+              <span class="text-[10px] font-mono text-slate-400 uppercase font-bold">{{ d.corto }}</span>
+            </label>
+          </div>
+          <div class="pt-2 mt-1.5 border-t border-slate-100 flex justify-end shrink-0">
+            <button
+              type="button"
+              @click="menuAbierto = null"
+              class="w-full py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            >
+              Listo
             </button>
           </div>
         </div>
@@ -1564,29 +1653,58 @@
             <span>{{ toastMensaje }}</span>
           </div>
 
-          <!-- Leyenda Dinámica en Tiempo Real -->
-          <div
-            v-if="clientes.length > 0"
-            class="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-xl z-30 text-xs max-w-xs max-h-64 overflow-y-auto"
+          <!-- Botón Flotante para Abrir Leyenda cuando está Colapsada -->
+          <button
+            v-if="clientes.length > 0 && leyendaColapsada"
+            type="button"
+            @click="leyendaColapsada = false"
+            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl px-2.5 py-1.5 shadow-xl z-30 text-xs flex items-center gap-1.5 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
+            title="Mostrar leyenda de colores"
           >
-            <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                Codificación: {{ tituloCodificacionLeyenda }}
-              </p>
-              <span class="text-[10px] font-mono text-slate-500">{{ elementosLeyenda.length }} grupos</span>
+            <span class="flex -space-x-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-500 border border-white"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></span>
+            </span>
+            <span class="font-bold text-[11px] text-slate-800 font-mono">Leyenda</span>
+            <span class="text-[9.5px] px-1 py-0.2 rounded bg-slate-100 text-slate-500 font-mono font-semibold">{{ elementosLeyenda.length }}</span>
+          </button>
+
+          <!-- Leyenda Dinámica en Tiempo Real (Expandida) -->
+          <div
+            v-if="clientes.length > 0 && !leyendaColapsada"
+            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-xl z-30 text-xs w-[220px] sm:w-72 max-h-44 sm:max-h-64 flex flex-col"
+          >
+            <div class="flex items-center justify-between pb-1 mb-1.5 border-b border-slate-100 shrink-0 gap-1.5">
+              <div class="min-w-0 flex-1">
+                <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono truncate" :title="tituloCodificacionLeyenda">
+                  {{ tituloCodificacionLeyenda }}
+                </p>
+                <span class="text-[9px] font-mono text-slate-500">{{ elementosLeyenda.length }} grupos</span>
+              </div>
+              <button
+                type="button"
+                @click="leyendaColapsada = true"
+                class="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer transition-colors shrink-0"
+                title="Minimizar leyenda"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
             </div>
 
-            <div class="space-y-1.5 text-[11px]">
+            <div class="space-y-1 text-[10px] sm:text-[11px] overflow-y-auto custom-scroll flex-1 pr-0.5">
               <div
                 v-for="item in elementosLeyenda"
                 :key="item.id"
-                class="flex items-center justify-between gap-2 px-1.5 py-0.5 rounded hover:bg-slate-50 font-mono"
+                class="flex items-center justify-between gap-1.5 px-1.5 py-0.5 rounded hover:bg-slate-50 font-mono"
               >
-                <div class="flex items-center gap-2 truncate">
-                  <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: item.color }"></span>
-                  <span class="text-slate-800 font-medium truncate">{{ item.nombre }}</span>
+                <div class="flex items-center gap-1.5 truncate min-w-0">
+                  <span class="w-2 h-2 rounded-full shrink-0 border border-slate-300" :style="{ backgroundColor: item.color }"></span>
+                  <span class="text-slate-800 font-medium truncate text-[10px] sm:text-[11px]">{{ item.nombre }}</span>
                 </div>
-                <span class="text-[10px] text-slate-400 font-semibold tabular-nums shrink-0">{{ item.conteo }} pts</span>
+                <span class="text-[9.5px] text-slate-400 font-semibold tabular-nums shrink-0">{{ item.conteo }} pts</span>
               </div>
             </div>
           </div>
@@ -2231,17 +2349,23 @@
           <div
             id="modal-ajuste-rtm-dialog"
             tabindex="-1"
-            class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150 outline-none"
+            class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col overflow-hidden text-slate-900 font-sans animate-in fade-in zoom-in-95 duration-150 outline-none"
           >
             <!-- Header Modal con Datos del Cliente -->
-            <div class="px-3.5 sm:px-5 py-3 sm:py-3.5 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-2.5 shrink-0">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2 flex-wrap">
+            <div class="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                   <span
                     class="text-[10px] font-mono font-bold px-2 py-0.5 rounded text-white shadow-2xs"
                     :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"
                   >
                     {{ formatRuta(modalAjusteRtm.cliente?.ruta) }}
+                  </span>
+                  <span class="text-[10px] text-slate-600 font-mono font-bold">
+                    ID: {{ modalAjusteRtm.cliente?.cliente_id }}
+                  </span>
+                  <span v-if="modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta)" class="text-[9.5px] text-slate-400 font-mono">
+                    ({{ modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta) }})
                   </span>
                   <span
                     class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase"
@@ -2254,74 +2378,77 @@
                     type="button"
                     @click="activarClienteDirecto(modalAjusteRtm.cliente)"
                     :disabled="activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id)"
-                    class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                    class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9.5px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
                     title="Reactivar cliente a estado Activo inmediatamente"
                   >
                     <span v-if="activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id)" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                     <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
-                    <span>{{ activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id) ? 'Activando...' : 'Activar Cliente' }}</span>
+                    <span>{{ activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id) ? '...' : 'Activar' }}</span>
                   </button>
-                  <span class="text-[11px] text-slate-500 font-mono">
-                    ID: {{ modalAjusteRtm.cliente?.cliente_id }}
-                  </span>
-                  <span v-if="modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta)" class="text-[10px] text-slate-400 font-mono">
-                    ({{ modalAjusteRtm.cliente?.canal || getCanalRuta(modalAjusteRtm.cliente?.ruta) }})
-                  </span>
                 </div>
 
-                <h3 class="text-sm font-bold text-slate-900 mt-1 line-clamp-1 leading-snug">
-                  {{ modalAjusteRtm.cliente?.nombre }}
-                </h3>
-                <p class="text-[11px] text-slate-500 truncate mt-0.5">
-                  {{ modalAjusteRtm.cliente?.direccion || 'Sin dirección registrada' }}
-                </p>
-
-                <!-- Acciones Rápidas (Maps, WA, Llamar) -->
-                <div class="flex items-center gap-1.5 mt-2 flex-wrap text-[10px] font-semibold">
-                  <a
-                    v-if="modalAjusteRtm.cliente?.latitud && modalAjusteRtm.cliente?.longitud"
-                    :href="'https://www.google.com/maps?q=' + modalAjusteRtm.cliente?.latitud + ',' + modalAjusteRtm.cliente?.longitud"
-                    target="_blank"
-                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-1 transition-colors"
-                  >
-                    Maps
-                  </a>
-                  <a
-                    v-if="getCleanTel(modalAjusteRtm.cliente)"
-                    :href="'https://wa.me/591' + getCleanTel(modalAjusteRtm.cliente)"
-                    target="_blank"
-                    class="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-white rounded flex items-center gap-1 transition-colors"
-                  >
-                    WhatsApp
-                  </a>
-                  <a
-                    v-if="getCleanTel(modalAjusteRtm.cliente)"
-                    :href="'tel:' + getCleanTel(modalAjusteRtm.cliente)"
-                    class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-1 transition-colors"
-                  >
-                    Tel: {{ modalAjusteRtm.cliente?.celular || modalAjusteRtm.cliente?.contacto }}
-                  </a>
-                </div>
+                <!-- Botón Cerrar Táctil ✕ -->
+                <button
+                  type="button"
+                  @click="cerrarModalAjusteRtm"
+                  class="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 cursor-pointer transition-colors shrink-0"
+                  title="Cerrar modal"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              <button
-                type="button"
-                @click="cerrarModalAjusteRtm"
-                class="text-slate-400 hover:text-slate-600 font-bold text-lg leading-none p-1 rounded-md hover:bg-slate-100 cursor-pointer transition-colors"
-                title="Cerrar modal"
-              >
-                Cerrar
-              </button>
+              <!-- Nombre y Dirección + Acciones Rápidas -->
+              <div class="mt-1 min-w-0">
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 leading-snug" :title="modalAjusteRtm.cliente?.nombre">
+                  {{ modalAjusteRtm.cliente?.nombre }}
+                </h3>
+                <div class="flex items-center justify-between gap-2 mt-0.5">
+                  <p class="text-[10.5px] text-slate-500 truncate flex-1" :title="modalAjusteRtm.cliente?.direccion">
+                    {{ modalAjusteRtm.cliente?.direccion || 'Sin dirección registrada' }}
+                  </p>
+                  <div class="flex items-center gap-1 shrink-0 text-[9.5px] font-semibold">
+                    <a
+                      v-if="modalAjusteRtm.cliente?.latitud && modalAjusteRtm.cliente?.longitud"
+                      :href="'https://www.google.com/maps?q=' + modalAjusteRtm.cliente?.latitud + ',' + modalAjusteRtm.cliente?.longitud"
+                      target="_blank"
+                      class="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-0.5 transition-colors"
+                      title="Abrir en Google Maps"
+                    >
+                      Maps
+                    </a>
+                    <a
+                      v-if="getCleanTel(modalAjusteRtm.cliente)"
+                      :href="'https://wa.me/591' + getCleanTel(modalAjusteRtm.cliente)"
+                      target="_blank"
+                      class="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-white rounded flex items-center gap-0.5 transition-colors"
+                      title="Enviar WhatsApp"
+                    >
+                      WA
+                    </a>
+                    <a
+                      v-if="getCleanTel(modalAjusteRtm.cliente)"
+                      :href="'tel:' + getCleanTel(modalAjusteRtm.cliente)"
+                      class="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 flex items-center gap-0.5 transition-colors"
+                      title="Llamar teléfono"
+                    >
+                      Tel
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Selector de Pestañas del Modal -->
-            <div class="flex items-center border-b border-slate-200 bg-slate-100 px-4 pt-1 gap-2 text-xs shrink-0 select-none">
+            <div class="flex items-center border-b border-slate-200 bg-slate-100 px-3 sm:px-4 pt-1 gap-2 text-xs shrink-0 select-none">
               <button
                 type="button"
                 @click="modalAjusteRtm.tabActivo = 'rtm'"
-                class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+                class="pb-1.5 px-2.5 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
                 :class="modalAjusteRtm.tabActivo === 'rtm' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'"
               >
                 <span>Ajustar RTM (Ruta / Día)</span>
@@ -2330,7 +2457,7 @@
               <button
                 type="button"
                 @click="modalAjusteRtm.tabActivo = 'visitas'"
-                class="pb-2 px-3 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+                class="pb-1.5 px-2.5 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
                 :class="modalAjusteRtm.tabActivo === 'visitas' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'"
               >
                 <span>Fotos y Visitas</span>
@@ -2341,33 +2468,43 @@
             </div>
 
             <!-- CUERPO DEL MODAL (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-3 sm:p-5 custom-scroll text-xs space-y-3.5 sm:space-y-4">
-              <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
-              <div class="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4 custom-scroll text-xs space-y-3">
+              <!-- MÉTRICAS DE COMPRA FACT_VENTAS (Acordeón Plegable) -->
+              <div class="rounded-xl bg-slate-50 border border-slate-200/90 overflow-hidden">
+                <button
+                  type="button"
+                  @click="mostrarVentasDetalle = !mostrarVentasDetalle"
+                  class="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-slate-100/70 transition-colors cursor-pointer select-none"
+                >
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span class="text-[11px] font-bold text-slate-800 uppercase tracking-wider font-mono">
-                      Comportamiento de Compra (fact_ventas)
+                    <span class="text-[10.5px] font-bold text-slate-800 uppercase tracking-wider font-mono">
+                      Compras fact_ventas
+                    </span>
+                    <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
+                      ({{ periodosVisibles.length }}M)
                     </span>
                   </div>
-                  <span v-if="kpisVentasCliente" class="text-[10px] font-mono text-slate-500">
-                    {{ periodosVisibles.length }} Mes{{ periodosVisibles.length > 1 ? 'es' : '' }} Visibles
-                  </span>
-                </div>
+                  <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono shrink-0">
+                    <span>{{ mostrarVentasDetalle ? 'Ocultar' : 'Ver detalle' }}</span>
+                    <svg class="w-3.5 h-3.5 transition-transform" :class="mostrarVentasDetalle ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </button>
 
                 <!-- Estado de Carga -->
-                <div v-if="cargandoKpisVentas" class="py-3 text-center text-xs text-slate-400 animate-pulse font-mono flex items-center justify-center gap-1.5">
+                <div v-if="cargandoKpisVentas" class="py-2.5 px-3 text-center text-xs text-slate-400 animate-pulse font-mono flex items-center justify-center gap-1.5 border-t border-slate-200/60">
                   <div class="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
                   <span>Consultando fact_ventas...</span>
                 </div>
 
-                <!-- Grilla de Meses Históricos Seleccionados -->
+                <!-- Grilla de Meses Históricos Seleccionados (cuando está expandido) -->
                 <div
-                  v-else-if="kpisVentasCliente"
-                  class="grid gap-2 sm:gap-2.5"
+                  v-else-if="mostrarVentasDetalle && kpisVentasCliente"
+                  class="p-2.5 border-t border-slate-200/60 grid gap-2"
                   :class="{
                     'grid-cols-1': periodosVisibles.length === 1,
                     'grid-cols-2': periodosVisibles.length === 2,
@@ -2377,7 +2514,7 @@
                   <div
                     v-for="p in periodosVisibles"
                     :key="p.periodo"
-                    class="p-2.5 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-1"
+                    class="p-2 rounded-lg bg-white border border-slate-200/90 shadow-2xs space-y-0.5"
                   >
                     <div class="flex items-center justify-between text-[10px] font-mono">
                       <span
@@ -2395,16 +2532,16 @@
                       </span>
                     </div>
                     <div>
-                      <div class="text-[9.5px] text-slate-500 font-mono">Monto Acum.:</div>
+                      <div class="text-[9px] text-slate-400 font-mono">Monto:</div>
                       <div
-                        class="text-xs font-bold font-mono leading-tight"
+                        class="text-[11px] font-bold font-mono leading-tight"
                         :class="p.es_actual ? 'text-slate-900' : 'text-slate-700'"
                       >
                         {{ formatMonto(getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.monto_acumulado ?? getVentaClientePeriodo(modalAjusteRtm.cliente, p.periodo)) }}
                       </div>
                     </div>
-                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between text-[9.5px] font-mono">
-                      <span class="text-slate-500">Frec:</span>
+                    <div class="pt-0.5 border-t border-slate-100 flex items-center justify-between text-[9px] font-mono">
+                      <span class="text-slate-400">Frec:</span>
                       <span
                         class="font-bold"
                         :class="p.es_actual ? 'text-slate-800' : 'text-slate-700'"
@@ -2415,55 +2552,49 @@
                   </div>
                 </div>
 
-                <div v-else class="py-2 text-center text-[11px] text-slate-400 font-mono">
+                <div v-else-if="mostrarVentasDetalle && !kpisVentasCliente" class="py-2 text-center text-[10.5px] text-slate-400 font-mono border-t border-slate-200/60">
                   Sin registros de compra en fact_ventas para este cliente.
                 </div>
               </div>
 
               <!-- TAB 1: FORMULARIO DE AJUSTE RTM -->
-              <form v-if="modalAjusteRtm.tabActivo === 'rtm'" @submit.prevent="confirmarAjusteRtm" class="space-y-4">
-                <!-- Comparativa RTM Actual vs Nueva Propuesta -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  <!-- Tarjeta Actual -->
-                  <div class="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
-                    <div class="text-[10px] text-slate-500 uppercase font-bold font-mono tracking-wider">
-                      Asignación Actual
+              <div v-if="modalAjusteRtm.tabActivo === 'rtm'" class="space-y-3">
+                <!-- Comparativa Compacta: Asignación Actual vs Nueva -->
+                <div class="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                  <div class="space-y-0.5 min-w-0">
+                    <div class="text-[9px] text-slate-400 uppercase font-bold font-mono tracking-wider">Actual</div>
+                    <div class="flex items-center gap-1 min-w-0">
+                      <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"></span>
+                      <span class="font-bold font-mono text-[11px] text-slate-800 truncate">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</span>
                     </div>
-                    <div class="flex items-center gap-1.5 mt-1">
-                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"></span>
-                      <span class="font-bold font-mono text-xs text-slate-800">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</span>
+                    <div class="text-[10px] font-mono" :style="{ color: getDiaColor(modalAjusteRtm.cliente?.dia_norm) }">
+                      {{ modalAjusteRtm.cliente?.dia_norm || 'S/D' }}
                     </div>
-                    <div class="text-[11px] text-slate-600 font-mono">
-                      Día: <b :style="{ color: getDiaColor(modalAjusteRtm.cliente?.dia_norm) }">{{ modalAjusteRtm.cliente?.dia_norm || 'S/D' }}</b>
-                    </div>
-                    <div class="text-[10px] text-slate-400 truncate">
-                      Vendedor: {{ getVendedorRuta(modalAjusteRtm.cliente?.ruta) }}
+                    <div class="text-[9px] text-slate-400 truncate">
+                      {{ getVendedorRuta(modalAjusteRtm.cliente?.ruta) }}
                     </div>
                   </div>
 
-                  <!-- Tarjeta Propuesta -->
-                  <div class="p-3 rounded-lg bg-slate-100 border border-slate-300 space-y-1">
-                    <div class="text-[10px] text-slate-700 uppercase font-bold font-mono tracking-wider">
-                      Nueva Asignación RTM
+                  <div class="space-y-0.5 pl-2 border-l border-slate-200 min-w-0">
+                    <div class="text-[9px] text-sky-600 uppercase font-bold font-mono tracking-wider">Nueva Propuesta</div>
+                    <div class="flex items-center gap-1 min-w-0">
+                      <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(formRtm.ruta_propuesta) }"></span>
+                      <span class="font-bold font-mono text-[11px] text-slate-900 truncate">{{ formatRuta(formRtm.ruta_propuesta) }}</span>
                     </div>
-                    <div class="flex items-center gap-1.5 mt-1">
-                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(formRtm.ruta_propuesta) }"></span>
-                      <span class="font-bold font-mono text-xs text-slate-900">{{ formatRuta(formRtm.ruta_propuesta) }}</span>
+                    <div class="text-[10px] font-mono font-bold" :style="{ color: getDiaColor(formRtm.dia_propuesto) }">
+                      {{ formRtm.dia_propuesto }}
                     </div>
-                    <div class="text-[11px] text-slate-800 font-mono">
-                      Día: <b :style="{ color: getDiaColor(formRtm.dia_propuesto) }">{{ formRtm.dia_propuesto }}</b>
-                    </div>
-                    <div class="text-[10px] text-slate-500 truncate">
-                      Vendedor: {{ getVendedorRuta(formRtm.ruta_propuesta) }}
+                    <div class="text-[9px] text-slate-500 truncate">
+                      {{ getVendedorRuta(formRtm.ruta_propuesta) }}
                     </div>
                   </div>
                 </div>
 
                 <!-- Selectores de Ruta y Día -->
-                <div class="space-y-3 pt-1">
+                <div class="space-y-2.5 pt-0.5">
                   <!-- Selector de Nueva Ruta -->
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    <label class="block text-[10.5px] font-bold text-slate-700 mb-1">
                       Nueva Ruta RTM:
                     </label>
                     <select
@@ -2479,7 +2610,7 @@
 
                   <!-- Selector de Nuevo Día de Visita -->
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    <label class="block text-[10.5px] font-bold text-slate-700 mb-1">
                       Nuevo Día de Visita:
                     </label>
                     <select
@@ -2495,7 +2626,7 @@
 
                   <!-- Motivo / Observaciones -->
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                    <label class="block text-[10.5px] font-bold text-slate-700 mb-1">
                       Motivo / Observación del Ajuste:
                     </label>
                     <input
@@ -2509,17 +2640,17 @@
                   <!-- Toggle para Activar Cliente si es Inactivo -->
                   <div
                     v-if="(modalAjusteRtm.cliente?.estado || '').toLowerCase() !== 'activo'"
-                    class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between gap-2"
+                    class="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between gap-2"
                   >
-                    <div class="text-[11px] text-emerald-950">
+                    <div class="text-[10.5px] text-emerald-950">
                       <span class="font-bold flex items-center gap-1">
                         <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                         </svg>
-                        Activar cliente al guardar ajuste:
+                        Activar cliente al guardar:
                       </span>
-                      <p class="text-[10.5px] text-emerald-700 mt-0.5">
-                        El cliente pasará inmediatamente a estado <b>Activo</b> en el padrón.
+                      <p class="text-[9.5px] text-emerald-700">
+                        Pasará inmediatamente a <b>Activo</b> en <code>pan_ruteo</code>.
                       </p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2530,75 +2661,44 @@
                       />
                     </label>
                   </div>
-
-                  <!-- Nota Informativa de Propuesta Saneamiento -->
-                  <div class="p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-[11px] text-slate-800 select-none">
-                    <span class="font-bold">Registro de Auditoría:</span>
-                    <p class="text-slate-600 text-[10.5px] mt-0.5 leading-relaxed">
-                      Este ajuste se guarda como propuesta en <b>Auditoría y Saneamiento</b>. Si se activó el cliente, su estado se actualiza a Activo en <code>pan_ruteo</code>.
-                    </p>
-                  </div>
                 </div>
-
-                <!-- Botones de Acción del Formulario -->
-                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    @click="cerrarModalAjusteRtm"
-                    class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold cursor-pointer transition-colors"
-                  >
-                    Cancelar
-                  </button>
-
-                  <button
-                    type="submit"
-                    :disabled="guardandoRtm"
-                    title="Confirmar ajuste RTM (Presiona Enter)"
-                    class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    <span v-if="guardandoRtm" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span>{{ guardandoRtm ? 'Guardando Ajuste...' : 'Confirmar Ajuste RTM' }}</span>
-                    <span class="hidden sm:inline-block text-[10px] bg-slate-800 text-slate-300 px-1 py-0.2 rounded border border-slate-700 font-mono ml-0.5">Enter</span>
-                  </button>
-                </div>
-              </form>
+              </div>
 
               <!-- TAB 2: HISTORIAL DE VISITAS & FOTOS DE PREVENTA -->
               <div v-else class="space-y-3">
-                <div v-if="cargandoVisitas" class="py-10 text-center text-xs text-slate-400 animate-pulse flex flex-col items-center justify-center gap-2">
+                <div v-if="cargandoVisitas" class="py-8 text-center text-xs text-slate-400 animate-pulse flex flex-col items-center justify-center gap-2">
                   <span class="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin"></span>
                   <span>Cargando fotos y visitas registradas en terreno...</span>
                 </div>
 
-                <div v-else-if="visitasCliente.length === 0" class="py-10 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div v-else-if="visitasCliente.length === 0" class="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                   <p class="font-medium text-slate-600">Sin visitas recientes con fotografía</p>
-                  <p class="text-[11px] text-slate-400 mt-1">Este cliente no registra evidencias fotográficas de preventa aún.</p>
+                  <p class="text-[10.5px] text-slate-400 mt-1">Este cliente no registra evidencias fotográficas de preventa aún.</p>
                 </div>
 
-                <div v-else class="space-y-3">
+                <div v-else class="space-y-2.5">
                   <div
                     v-for="vis in visitasCliente"
                     :key="vis.id"
-                    class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl text-xs space-y-2 shadow-2xs"
+                    class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs space-y-1.5 shadow-2xs"
                   >
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
-                        <span class="font-mono text-slate-700 font-bold text-[11px]">{{ vis.fecha }} {{ vis.hora }}</span>
-                        <span class="text-slate-400 font-mono text-[10px]">Ruta: {{ formatRuta(vis.route) }}</span>
+                        <span class="font-mono text-slate-700 font-bold text-[10.5px]">{{ vis.fecha }} {{ vis.hora }}</span>
+                        <span class="text-slate-400 font-mono text-[9.5px]">Ruta: {{ formatRuta(vis.route) }}</span>
                       </div>
                       <span
-                        class="px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-bold"
+                        class="px-1.5 py-0.2 rounded text-[9.5px] font-mono uppercase font-bold"
                         :class="vis.status === 'VISITED' ? 'bg-slate-200 text-slate-800 border border-slate-300' : 'bg-slate-100 text-slate-700'"
                       >
                         {{ vis.status || 'VISITADO' }}
                       </span>
                     </div>
 
-                    <p v-if="vis.comments" class="text-[11px] text-slate-600 italic bg-white p-2 rounded-lg border border-slate-200/60">
+                    <p v-if="vis.comments" class="text-[10.5px] text-slate-600 italic bg-white p-1.5 rounded-lg border border-slate-200/60">
                       "{{ vis.comments }}"
                     </p>
 
-                    <!-- Thumbnail con Visor Lightbox y Rotación -->
                     <div
                       v-if="vis.photo_url"
                       class="mt-1 group/photo relative cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-slate-900"
@@ -2608,7 +2708,7 @@
                       <img
                         :src="vis.photo_url"
                         alt="Foto de visita"
-                        class="w-full h-44 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                        class="w-full h-36 sm:h-44 object-cover group-hover/photo:scale-105 transition-transform duration-200"
                       />
                       <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold backdrop-blur-[1px]">
                         <svg class="w-4 h-4 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -2620,6 +2720,30 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- FOOTER FIJO (Sticky Bottom) - Siempre accesible en cualquier resolución -->
+            <div class="px-3.5 sm:px-5 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                @click="cerrarModalAjusteRtm"
+                class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                {{ modalAjusteRtm.tabActivo === 'rtm' ? 'Cancelar' : 'Cerrar' }}
+              </button>
+
+              <button
+                v-if="modalAjusteRtm.tabActivo === 'rtm'"
+                type="button"
+                @click="confirmarAjusteRtm"
+                :disabled="guardandoRtm"
+                title="Confirmar ajuste RTM (Presiona Enter)"
+                class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                <span v-if="guardandoRtm" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span>{{ guardandoRtm ? 'Guardando Ajuste...' : 'Confirmar Ajuste RTM' }}</span>
+                <span class="hidden sm:inline-block text-[10px] bg-slate-800 text-slate-300 px-1 py-0.2 rounded border border-slate-700 font-mono ml-0.5">Enter</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2847,6 +2971,17 @@ const labelCanales = computed(() => {
   if (filtroCanales.value.length === 1) return filtroCanales.value[0];
   return `${filtroCanales.value.length} sel.`;
 });
+
+const labelDias = computed(() => {
+  if (filtroDias.value.length === 0 || filtroDias.value.length === diasSemana.length) return 'Todos';
+  if (filtroDias.value.length <= 2) {
+    return filtroDias.value.map(k => diasSemana.find(d => d.key === k)?.corto || k).join(', ');
+  }
+  return `${filtroDias.value.length} días`;
+});
+
+const leyendaColapsada = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+const mostrarVentasDetalle = ref(false);
 
 const labelRutasPuntos = computed(() => {
   const total = rutasDisponiblesParaFronteras.value.length;
@@ -3305,7 +3440,7 @@ const elementosLeyenda = computed(() => {
 });
 
 // ── TABLA INFERIOR DE REGISTRO DE CAMBIOS ──
-const tablaCambiosVisible = ref(true);
+const tablaCambiosVisible = ref(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
 const busquedaTablaCambios = ref('');
 const filtroMatrizInferior = ref('cambios'); // 'cambios' | 'todos'
 
@@ -4098,9 +4233,14 @@ function toggleMenu(nombre, e) {
   }
   const rect = e.currentTarget.getBoundingClientRect();
   const menuWidth = (nombre === 'meses_historicos') ? 288 : 260;
+  const menuEstHeight = 300;
+  let top = rect.bottom + 6;
+  if (top + menuEstHeight > window.innerHeight && rect.top > menuEstHeight) {
+    top = Math.max(10, rect.top - menuEstHeight - 6);
+  }
   const left = Math.max(10, Math.min(rect.left, window.innerWidth - menuWidth - 10));
   posicionMenu.value = {
-    top: rect.bottom + 6,
+    top: Math.max(10, top),
     left: left,
   };
   menuAbierto.value = nombre;
