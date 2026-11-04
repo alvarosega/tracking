@@ -479,20 +479,22 @@ class GetCumplimientoDataAction
             $carteraPlanClientes = $carteraRuta;
             $cPlanCount = $carteraPlanClientes->count();
 
-            // Clientes del plan de hoy indexados por nombre normalizado
+            // Clientes del plan de hoy indexados por nombre normalizado a su cliente_id
             $planClientesKeys = [];
             foreach ($carteraRuta as $cRow) {
+                $cid = (int) $cRow->cliente_id;
                 $n1 = $this->normalizarTexto((string) $cRow->cliente);
                 $n2 = $this->normalizarTexto((string) $cRow->cliente_norm);
                 $a1 = $this->normalizarAlfanumerico((string) $cRow->cliente);
                 $a2 = $this->normalizarAlfanumerico((string) $cRow->cliente_norm);
-                if ($n1 !== '') $planClientesKeys[$n1] = true;
-                if ($n2 !== '') $planClientesKeys[$n2] = true;
-                if ($a1 !== '') $planClientesKeys[$a1] = true;
-                if ($a2 !== '') $planClientesKeys[$a2] = true;
+                if ($n1 !== '') $planClientesKeys[$n1] = $cid;
+                if ($n2 !== '') $planClientesKeys[$n2] = $cid;
+                if ($a1 !== '') $planClientesKeys[$a1] = $cid;
+                if ($a2 !== '') $planClientesKeys[$a2] = $cid;
             }
 
             // Conteo de visitas únicas desde fact_visitas (exclusivamente)
+            $visitasDetallePorCliente = [];
             $visitadosPlanUnicos = [];
             $visitadosFueraPlanUnicos = [];
 
@@ -507,13 +509,28 @@ class GetCumplimientoDataAction
                     continue;
                 }
 
-                $esEnPlan = isset($planClientesKeys[$n1])
-                    || isset($planClientesKeys[$n2])
-                    || isset($planClientesKeys[$a1])
-                    || isset($planClientesKeys[$a2]);
+                $cId = $planClientesKeys[$n1]
+                    ?? $planClientesKeys[$n2]
+                    ?? $planClientesKeys[$a1]
+                    ?? $planClientesKeys[$a2]
+                    ?? null;
 
-                if ($esEnPlan) {
-                    $visitadosPlanUnicos[$keyNom] = true;
+                $detalleKey = $cId ?: 'fp_' . md5($keyNom);
+
+                if (!isset($visitasDetallePorCliente[$detalleKey])) {
+                    $visitasDetallePorCliente[$detalleKey] = [
+                        'cliente_id' => $cId,
+                        'cliente_nombre' => $vw->cliente ?? $keyNom,
+                        'check_in' => $vw->check_in,
+                        'check_out' => $vw->check_out ?? null,
+                        'tiempo_pdv' => $vw->tiempo_pdv ?? null,
+                        'origen' => 'WEB',
+                        'fotos_count' => 0,
+                    ];
+                }
+
+                if ($cId !== null) {
+                    $visitadosPlanUnicos[$cId] = true;
                 } else {
                     $visitadosFueraPlanUnicos[$keyNom] = true;
                 }
@@ -735,13 +752,8 @@ class GetCumplimientoDataAction
             foreach ($carteraRuta as $cRow) {
                 $cId = (int) $cRow->cliente_id;
                 $visInfo = $visitasDetallePorCliente[$cId] ?? null;
-                $esActivo = in_array(strtoupper(trim((string) $cRow->estado)), ['ACTIVO', 'ACTIVA', 'VIGENTE'], true);
                 $fueVisitado = ($visInfo !== null);
-
-                $tipoVisita = 'Pendiente';
-                if ($fueVisitado) {
-                    $tipoVisita = $esActivo ? 'En Plan' : 'Inactivo Visitado';
-                }
+                $tipoVisita = $fueVisitado ? 'En Plan' : 'Pendiente';
 
                 $listaClientesVisitas[] = [
                     'cliente_id' => $cId,
