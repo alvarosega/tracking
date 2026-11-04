@@ -3,17 +3,9 @@
     <!-- Encabezado Compacto y Parámetros -->
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · KPI 6: Pedido de Reposición (Match Ponderado f_i)
-          </h3>
-          <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
-            15 pts Base · Histórico {{ semanasFiltro }} Semanas · Escala Gradual 40% a 70%
-          </span>
-        </div>
-        <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Regla: Coincidencia ponderada por frecuencia semanal histórica (<strong class="text-[#1D1D1F]">f_i</strong> = semanas con compra). Escala: &lt; 40% (0 pts) · 40% a 69.9% (gradual hasta 14.95 pts) · &ge; 70% (15 pts). Clientes nuevos son neutros.
-        </p>
+        <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
+          Pizarra Modelo Unilever · KPI 6: Pedido de Reposición
+        </h3>
       </div>
 
       <div class="flex items-center gap-2.5 text-[11px]">
@@ -127,7 +119,7 @@
                 <td class="px-3 py-1.5 text-center font-mono font-bold border-r border-black/[0.04]">
                   <span
                     v-if="getPctReposicion(r) !== null"
-                    :class="getPctReposicion(r) >= 70.0 ? 'text-[#1E6B37]' : (getPctReposicion(r) >= 40.0 ? 'text-[#0071E3]' : 'text-[#C9342C]')"
+                    :class="getPctReposicion(r) >= 20.0 ? 'text-[#1E6B37]' : 'text-[#C9342C]'"
                   >
                     {{ Number(getPctReposicion(r)).toFixed(1) }}%
                   </span>
@@ -138,14 +130,13 @@
                 <td class="px-3 py-2 text-center border-r border-black/[0.04]">
                   <span
                     v-if="getPctReposicion(r) !== null"
-                    class="inline-flex px-2 py-0.5 rounded-[5px] text-[10px] font-bold"
-                    :class="getPctReposicion(r) >= 70.0
+                    class="inline-flex items-center justify-center w-6 h-6 rounded-[6px] text-[12px] font-bold leading-none select-none"
+                    :class="getCumpleKpi(r)
                       ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
-                      : (getPctReposicion(r) >= 40.0
-                        ? 'bg-[#EFF6FF] text-[#1D4ED8] border border-[#DBEAFE]'
-                        : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]')"
+                      : 'bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]'"
+                    :title="getCumpleKpi(r) ? 'Cumple Reposición (≥ 20%)' : 'Déficit (< 20%)'"
                   >
-                    {{ getPctReposicion(r) >= 70.0 ? '≥ 70% ÓPTIMO' : (getPctReposicion(r) >= 40.0 ? '40-70% GRADUAL' : '< 40% DÉFICIT') }}
+                    {{ getCumpleKpi(r) ? '✓' : '✕' }}
                   </span>
                   <span v-else class="text-[#86868B] text-[11px] font-mono">—</span>
                 </td>
@@ -154,14 +145,11 @@
                 <td class="px-3 py-1.5 text-right font-mono font-bold text-[12px]">
                   <span
                     v-if="getPuntosObtenidos(r) > 0"
-                    class="inline-flex items-center justify-center min-w-[32px] px-1.5 py-0.5 rounded-[4px] text-[11px] font-bold font-mono"
-                    :class="getPuntosObtenidos(r) >= 15.0
-                      ? 'text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]'
-                      : 'text-[#1D4ED8] bg-[#EFF6FF] border border-[#DBEAFE]'"
+                    class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]"
                   >
-                    +{{ getPuntosObtenidos(r).toFixed(1) }}
+                    15
                   </span>
-                  <span v-else class="text-[#86868B] font-mono">0 pts</span>
+                  <span v-else class="text-[#86868B] text-[11px]">—</span>
                 </td>
               </tr>
 
@@ -607,7 +595,7 @@ function getCumpleKpi(r) {
     return Boolean(r.kpi6_reposicion.cumple)
   }
   const pct = getPctReposicion(r)
-  return pct !== null && pct >= 40.0
+  return pct !== null && pct >= 20.0
 }
 
 function getPuntosObtenidos(r) {
@@ -617,10 +605,7 @@ function getPuntosObtenidos(r) {
   if (detallePorRuta[r.ruta]?.totales?.puntos_obtenidos !== undefined) {
     return Number(detallePorRuta[r.ruta].totales.puntos_obtenidos)
   }
-  const pct = getPctReposicion(r)
-  if (pct === null || pct < 40.0) return 0.0
-  if (pct >= 70.0) return 15.0
-  return Number((15.0 * ((pct - 40.0) / 30.0)).toFixed(2))
+  return getCumpleKpi(r) ? 15.0 : 0.0
 }
 
 // ── Helpers de Totales para Tablas ────────────────────────────────────────

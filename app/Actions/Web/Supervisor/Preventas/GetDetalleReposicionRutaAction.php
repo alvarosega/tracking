@@ -84,8 +84,8 @@ class GetDetalleReposicionRutaAction
                     'configuracion' => [
                         'semanas_historia' => $semanas,
                         'dias_historia' => $diasHistoria,
-                        'piso_pct' => 40.0,
-                        'tope_pct' => 70.0,
+                        'piso_pct' => 20.0,
+                        'tope_pct' => 20.0,
                         'puntos_max' => 15.0,
                     ],
                     'totales' => [
@@ -100,7 +100,7 @@ class GetDetalleReposicionRutaAction
                         'porcentaje_reposicion_ruta' => 0.0,
                         'cumple_umbral' => false,
                         'puntos_obtenidos' => 0.0,
-                        'estatus_ruta' => '< 40% DÉFICIT',
+                        'estatus_ruta' => 'DÉFICIT',
                     ],
                     'tiendas' => [],
                 ];
@@ -360,7 +360,7 @@ class GetDetalleReposicionRutaAction
 
                 if (!$esClienteNuevo) {
                     $pctReposicionTienda = round(($puntosMatchTienda / $puntosEsperadosTienda) * 100.0, 1);
-                    $cumpleTienda = ($pctReposicionTienda >= 60.0);
+                    $cumpleTienda = ($pctReposicionTienda >= 20.0);
 
                     $totalPuntosEsperadosRuta += $puntosEsperadosTienda;
                     $totalPuntosMatchRuta += $puntosMatchTienda;
@@ -414,20 +414,15 @@ class GetDetalleReposicionRutaAction
                 $pctReposicionRuta = 0.0;
             }
 
-            // Paso 3: Asignación de Puntos por Escala Proporcional (15 Puntos)
-            if ($pctReposicionRuta < 40.0 || $cntTiendas === 0) {
+            // Paso 3: Asignación de Puntos (15 Puntos a partir de 20% de reposición)
+            if ($cntTiendas === 0 || $pctReposicionRuta < 20.0) {
                 $puntosObtenidos = 0.0;
                 $cumpleUmbral = false;
-                $estatusRuta = '< 40% DÉFICIT';
-            } elseif ($pctReposicionRuta >= 70.0) {
+                $estatusRuta = 'DÉFICIT';
+            } else {
                 $puntosObtenidos = 15.0;
                 $cumpleUmbral = true;
-                $estatusRuta = '≥ 70% ÓPTIMO';
-            } else {
-                // Entre 40.0% y 69.9%: 15 * (($pct - 40.0) / 30.0)
-                $puntosObtenidos = round(15.0 * (($pctReposicionRuta - 40.0) / 30.0), 2);
-                $cumpleUmbral = true;
-                $estatusRuta = 'PROPORCIONAL';
+                $estatusRuta = 'CUMPLE';
             }
 
             return [
@@ -438,8 +433,8 @@ class GetDetalleReposicionRutaAction
                 'configuracion' => [
                     'semanas_historia' => $semanas,
                     'dias_historia' => $diasHistoria,
-                    'piso_pct' => 40.0,
-                    'tope_pct' => 70.0,
+                    'piso_pct' => 20.0,
+                    'tope_pct' => 20.0,
                     'puntos_max' => 15.0,
                 ],
                 'totales' => [

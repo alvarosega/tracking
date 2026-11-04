@@ -15,8 +15,8 @@ class GetCumplimientoDataAction
     private const UMBRAL_HORARIO_SEGUNDOS = 29400; // 08:10:00 (8*3600 + 10*60)
     private const UMBRAL_EFECTIVIDAD_PCT = 55.0;
     private const UMBRAL_COMPRA_MINIMA_BS = 70.0;
-    private const UMBRAL_REPOSICION_PCT = 70.0;
-    private const PISO_REPOSICION_PCT = 40.0;
+    private const UMBRAL_REPOSICION_PCT = 20.0;
+    private const PISO_REPOSICION_PCT = 20.0;
     private const UMBRAL_AMPLIACION_PCT = 60.0;
     private const UMBRAL_COVERS_PCT = 60.0;
     private const EVALUAR_KPI6_REPOSICION = true; // KPI 6: Pedido de Reposición (Canasta Habitual 60% · 15 pts) activado
@@ -731,16 +731,12 @@ class GetCumplimientoDataAction
                     $tasaReposicion = 0.0;
                 }
 
-                // Paso 3: Asignación de Puntos por Escala Proporcional (15 Puntos)
-                if ($tasaReposicion < self::PISO_REPOSICION_PCT || $totalCompradores === 0) {
+                // Paso 3: Asignación de Puntos (15 Puntos a partir de 20% de reposición)
+                if ($totalCompradores === 0 || $tasaReposicion < self::UMBRAL_REPOSICION_PCT) {
                     $kpi6Puntos = 0.0;
                     $kpi6Cumple = false;
-                } elseif ($tasaReposicion >= self::UMBRAL_REPOSICION_PCT) {
-                    $kpi6Puntos = 15.0;
-                    $kpi6Cumple = true;
                 } else {
-                    // Entre 40.0% y 69.9%: 15 * (($tasa - 40.0) / 30.0)
-                    $kpi6Puntos = round(15.0 * (($tasaReposicion - self::PISO_REPOSICION_PCT) / (self::UMBRAL_REPOSICION_PCT - self::PISO_REPOSICION_PCT)), 2);
+                    $kpi6Puntos = 15.0;
                     $kpi6Cumple = true;
                 }
             } else {
