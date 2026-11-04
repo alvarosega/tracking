@@ -89,7 +89,6 @@ class GetCumplimientoDataAction
                       ->orWhereIn('pr.dia', $diasFiltro);
                 })
                 ->where('pr.cliente_id', '>', 0)
-                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(pr.estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
                 ->select([
                     'pr.id',
                     'pr.ruta',
@@ -474,90 +473,56 @@ class GetCumplimientoDataAction
 
             // ----------------------------------------------------
             // KPI 2: Clientes Visitados (5 Puntos)
+            // Cartera Plan: Clientes de pan_ruteo para la ruta hoy
+            // Visitados: Clientes registrados en fact_visitas cruzados por cliente
             // ----------------------------------------------------
-            $carteraPlanClientes = $carteraRuta->filter(fn ($c) => in_array(strtoupper(trim((string) $c->estado)), ['ACTIVO', 'ACTIVA', 'VIGENTE'], true));
+            $carteraPlanClientes = $carteraRuta;
             $cPlanCount = $carteraPlanClientes->count();
-            $cPlanIds = $carteraPlanClientes->pluck('cliente_id')->map(fn ($id) => (int) $id)->unique()->toArray();
-            $cPlanIdsFlip = array_flip($cPlanIds);
 
-            // Mapeo normalizado para clientes de esta ruta en pan_ruteo
-            $clienteNormToId = [];
+            // Clientes del plan de hoy indexados por nombre normalizado
+            $planClientesKeys = [];
             foreach ($carteraRuta as $cRow) {
-                $cn = $this->normalizarTexto((string) ($cRow->cliente_norm ?: $cRow->cliente));
-                if ($cn !== '') {
-                    $clienteNormToId[$cn] = (int) $cRow->cliente_id;
-                }
+                $n1 = $this->normalizarTexto((string) $cRow->cliente);
+                $n2 = $this->normalizarTexto((string) $cRow->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $cRow->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $cRow->cliente_norm);
+                if ($n1 !== '') $planClientesKeys[$n1] = true;
+                if ($n2 !== '') $planClientesKeys[$n2] = true;
+                if ($a1 !== '') $planClientesKeys[$a1] = true;
+                if ($a2 !== '') $planClientesKeys[$a2] = true;
             }
 
-            // Clientes visitados únicos entre web y móvil
-            $visitadosIds = [];
-            $visitasDetallePorCliente = [];
+            // Conteo de visitas únicas desde fact_visitas (exclusivamente)
+            $visitadosPlanUnicos = [];
+            $visitadosFueraPlanUnicos = [];
 
             foreach ($visitasWebRuta as $vw) {
-                $cn = $this->normalizarTexto((string) ($vw->cliente_norm ?: $vw->cliente));
-                $cId = $clienteNormToId[$cn] ?? null;
-                $key = $cId ? (int) $cId : 'web_' . ($vw->id ?? md5($cn));
+                $n1 = $this->normalizarTexto((string) $vw->cliente);
+                $n2 = $this->normalizarTexto((string) $vw->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $vw->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $vw->cliente_norm);
 
-                $visitadosIds[$key] = true;
-                if (!isset($visitasDetallePorCliente[$key])) {
-                    $visitasDetallePorCliente[$key] = [
-                        'cliente_id' => $cId,
-                        'cliente_nombre' => $vw->cliente ?? "Cliente {$key}",
-                        'check_in' => $vw->check_in,
-                        'check_out' => $vw->check_out ?? null,
-                        'tiempo_pdv' => $vw->tiempo_pdv ?? null,
-                        'origen' => 'WEB',
-                        'fotos_count' => 0,
-                    ];
+                $keyNom = $n1 ?: ($n2 ?: ($a1 ?: $a2));
+                if ($keyNom === '') {
+                    continue;
                 }
-            }
 
-            foreach ($visitasMovilRuta as $vm) {
-                $cId = (int) ($vm->client_id ?? 0);
-                if ($cId > 0) {
-                    $visitadosIds[$cId] = true;
-                    if (!isset($visitasDetallePorCliente[$cId])) {
-                        $visitasDetallePorCliente[$cId] = [
-                            'cliente_id' => $cId,
-                            'cliente_nombre' => null,
-                            'check_in' => $vm->visited_at,
-                            'check_out' => null,
-                            'tiempo_pdv' => null,
-                            'origen' => 'APP',
-                            'fotos_count' => !empty($vm->photo_path) ? 1 : 0,
-                        ];
-                    } else {
-                        if (!empty($vm->photo_path)) {
-                            $visitasDetallePorCliente[$cId]['fotos_count']++;
-                        }
-                    }
-                }
-            }
+                $esEnPlan = isset($planClientesKeys[$n1])
+                    || isset($planClientesKeys[$n2])
+                    || isset($planClientesKeys[$a1])
+                    || isset($planClientesKeys[$a2]);
 
-            $visitadosTotalCount = count($visitadosIds);
-            $vActivosCount = 0;
-            foreach (array_keys($visitadosIds) as $k) {
-                if (is_int($k) && isset($cPlanIdsFlip[$k])) {
-                    $vActivosCount++;
-                }
-            }
-
-            $carteraTotalIds = $carteraRuta->pluck('cliente_id')->map(fn ($id) => (int) $id)->unique()->toArray();
-            $carteraTotalIdsFlip = array_flip($carteraTotalIds);
-            $inactivosVisitadosCount = 0;
-            $fueraDePlanCount = 0;
-
-            foreach (array_keys($visitadosIds) as $k) {
-                if (is_int($k)) {
-                    if (!isset($cPlanIdsFlip[$k]) && isset($carteraTotalIdsFlip[$k])) {
-                        $inactivosVisitadosCount++;
-                    } elseif (!isset($carteraTotalIdsFlip[$k])) {
-                        $fueraDePlanCount++;
-                    }
+                if ($esEnPlan) {
+                    $visitadosPlanUnicos[$keyNom] = true;
                 } else {
-                    $fueraDePlanCount++;
+                    $visitadosFueraPlanUnicos[$keyNom] = true;
                 }
             }
+
+            $vActivosCount = count($visitadosPlanUnicos);
+            $fueraDePlanCount = count($visitadosFueraPlanUnicos);
+            $visitadosTotalCount = $vActivosCount + $fueraDePlanCount;
+            $inactivosVisitadosCount = 0;
 
             $kpi2Cumple = ($cPlanCount > 0) ? ($vActivosCount >= $cPlanCount) : ($vActivosCount > 0);
             $kpi2Puntos = $kpi2Cumple ? 5 : 0;

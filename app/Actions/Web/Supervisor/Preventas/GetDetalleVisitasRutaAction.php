@@ -44,7 +44,7 @@ class GetDetalleVisitasRutaAction
         $rutaClean = strtoupper(trim($ruta));
 
         try {
-            // 1. Cartera de la ruta para el día según pan_ruteo (Clientes ACTIVOS del día, igual que en Efectividad)
+            // 1. Cartera de la ruta para el día según pan_ruteo (Plan de hoy para la ruta)
             $carteraTotalRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where(function ($q) use ($diasFiltro): void {
@@ -52,7 +52,6 @@ class GetDetalleVisitasRutaAction
                       ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
-                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
@@ -330,7 +329,7 @@ class GetDetalleVisitasRutaAction
 
                 $enFactVisitas = ($web !== null);
                 $enVisitasApp = ($app !== null);
-                $visitado = ($enFactVisitas || $enVisitasApp);
+                $visitado = $enFactVisitas; // Fuente oficial: fact_visitas
 
                 $montoFinal = max((float) ($web['monto'] ?? 0.0), $montoPrev);
                 $hWeb = $web['check_in'] ?? null;
@@ -372,7 +371,7 @@ class GetDetalleVisitasRutaAction
                     'estado_ruteo' => $st,
                 ];
 
-                $pasaCriterio = $estricto ? $enVisitasApp : $visitado;
+                $pasaCriterio = $visitado;
                 if ($pasaCriterio) {
                     $visitadosActivos[] = $cRow;
                 } else {
@@ -380,17 +379,12 @@ class GetDetalleVisitasRutaAction
                 }
             }
 
-            // Visitas fuera de plan o a clientes inactivos
+            // Visitas fuera de plan
             foreach ($visitasFueraPlan as $fp) {
                 $diffInfo = $this->calcularDiferencia($fp['check_in'], $fp['hora_app']);
                 $fp['diferencia_segundos'] = $diffInfo['segundos'];
                 $fp['diferencia_texto'] = $diffInfo['texto'];
-
-                if (!empty($fp['es_inactivo'])) {
-                    $visitadosInactivos[] = $fp;
-                } else {
-                    $fueraPlan[] = $fp;
-                }
+                $fueraPlan[] = $fp;
             }
 
             return [
@@ -402,13 +396,11 @@ class GetDetalleVisitasRutaAction
                     'cartera_plan' => $totalPlanActivo,
                     'visitados' => count($visitadosActivos),
                     'no_visitados' => count($noVisitadosActivos),
-                    'visitados_inactivos' => count($visitadosInactivos),
                     'fuera_plan' => count($fueraPlan),
                     'diferencia' => count($visitadosActivos) - $totalPlanActivo,
                 ],
                 'no_visitados' => $noVisitadosActivos,
                 'visitados' => $visitadosActivos,
-                'visitados_inactivos' => $visitadosInactivos,
                 'fuera_plan' => $fueraPlan,
             ];
         } catch (\Throwable $e) {

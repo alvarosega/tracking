@@ -69,25 +69,13 @@
             </th>
 
             <th
-              @click="toggleSort('inactivos')"
-              class="px-3 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-              :class="sortCol === 'inactivos' ? 'bg-blue-50/70 text-[#0071E3]' : ''"
-              title="Ordenar por Inactivos"
-            >
-              <div class="flex items-center justify-center gap-1">
-                <span>Inactivos</span>
-                <span v-if="sortCol === 'inactivos'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
-              </div>
-            </th>
-
-            <th
               @click="toggleSort('fueraPlan')"
               class="px-3 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
               :class="sortCol === 'fueraPlan' ? 'bg-blue-50/70 text-[#0071E3]' : ''"
-              title="Ordenar por Fuera Plan"
+              title="Ordenar por Fuera de Plan"
             >
               <div class="flex items-center justify-center gap-1">
-                <span>Fuera Plan</span>
+                <span>Fuera de Plan</span>
                 <span v-if="sortCol === 'fueraPlan'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
             </th>
@@ -138,13 +126,13 @@
                 <div class="h-3.5 w-12 sm:w-16 skeleton mb-1"></div>
                 <div class="h-3 w-16 sm:w-28 skeleton"></div>
               </td>
-              <td v-for="c in 6" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-10 mx-auto skeleton"></div></td>
+              <td v-for="c in 5" :key="c" class="px-3 py-2 text-center"><div class="h-4 w-10 mx-auto skeleton"></div></td>
               <td class="px-3 py-2 text-right"><div class="h-4 w-8 ml-auto skeleton"></div></td>
             </tr>
           </template>
 
           <tr v-else-if="rutasOrdenadas.length === 0">
-            <td colspan="9" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
+            <td colspan="8" class="p-8 text-center text-[#86868B] text-[12px] font-medium">
               No se encontraron rutas para los filtros seleccionados.
             </td>
           </tr>
@@ -196,11 +184,6 @@
                   {{ metricasFila(r).visitados }}
                 </td>
 
-                <!-- Inactivos -->
-                <td class="px-3 py-1.5 text-center font-mono text-[#6E6E73] border-r border-black/[0.04]">
-                  {{ metricasFila(r).inactivos }}
-                </td>
-
                 <!-- Fuera Plan -->
                 <td class="px-3 py-1.5 text-center font-mono text-[#6E6E73] border-r border-black/[0.04]">
                   {{ metricasFila(r).fueraPlan }}
@@ -238,7 +221,7 @@
 
               <!-- Fila Acordeón: Auditoría Consolidada de Cartera -->
               <tr v-if="acordeonAbierto[r.ruta]">
-                <td colspan="9" class="p-3 bg-white/60 border-b border-black/[0.06]">
+                <td colspan="8" class="p-3 bg-white/60 border-b border-black/[0.06]">
                   <div v-if="cargandoDetalle[r.ruta]" class="p-4 text-center text-[#6E6E73] text-[11px] font-medium">
                     Auditando cobertura de cartera para {{ r.ruta }}...
                   </div>
@@ -261,9 +244,6 @@
                         <span class="px-2 py-0.5 rounded-[6px] bg-[#FDF0EF] text-[#C9342C] border border-[#FADCD5]">
                           No Visitados: <strong>{{ detallePorRuta[r.ruta].totales?.no_visitados || 0 }}</strong>
                         </span>
-                        <span class="apple-control-pill px-2 py-0.5 rounded-[6px]">
-                          Visita Inactivo: <strong>{{ detallePorRuta[r.ruta].totales?.visitados_inactivos || 0 }}</strong>
-                        </span>
                         <span class="px-2 py-0.5 rounded-[6px] bg-[#FFF5E5] text-[#B25E00] border border-amber-200">
                           Fuera de Plan: <strong>{{ detallePorRuta[r.ruta].totales?.fuera_plan || 0 }}</strong>
                         </span>
@@ -276,9 +256,8 @@
                         type="button"
                         v-for="st in [
                           { id: 'todos', label: 'Todos' },
-                          { id: 'visitados', label: 'Visitados Activos' },
+                          { id: 'visitados', label: 'Visitados' },
                           { id: 'no_visitados', label: 'No Visitados' },
-                          { id: 'inactivos', label: 'Inactivos' },
                           { id: 'fuera_plan', label: 'Fuera de Plan' }
                         ]"
                         :key="st.id"
@@ -513,8 +492,7 @@ const sortLabels = {
   puntos: 'Puntos (5)',
   plan: 'Cartera Plan',
   visitados: 'Visitados',
-  inactivos: 'Inactivos',
-  fueraPlan: 'Fuera Plan',
+  fueraPlan: 'Fuera de Plan',
   dif: 'Diferencia',
   estatus: 'Estatus',
   ruta: 'Ruta'
@@ -525,7 +503,6 @@ function metricasFila(r) {
   return {
     plan: m.cartera_plan || 0,
     visitados: m.visitados || 0,
-    inactivos: m.inactivos || 0,
     fueraPlan: m.fueraPlan || 0,
     dif: m.dif !== undefined ? m.dif : ((m.visitados || 0) - (m.cartera_plan || 0))
   }
@@ -559,9 +536,6 @@ const rutasOrdenadas = computed(() => {
     } else if (col === 'visitados') {
       valA = mA.visitados
       valB = mB.visitados
-    } else if (col === 'inactivos') {
-      valA = mA.inactivos
-      valB = mB.inactivos
     } else if (col === 'fueraPlan') {
       valA = mA.fueraPlan
       valB = mB.fueraPlan
@@ -673,17 +647,15 @@ function clientesVisitasFiltrados(ruta) {
   if (!d) return []
   const tab = subTabRuta[ruta] || 'todos'
 
-  const visitados = (d.visitados || []).map(c => ({ ...c, categoria: 'Visitado Activo' }))
+  const visitados = (d.visitados || []).map(c => ({ ...c, categoria: 'Visitado' }))
   const noVisitados = (d.no_visitados || []).map(c => ({ ...c, categoria: 'No Visitado' }))
-  const inactivos = (d.visitados_inactivos || []).map(c => ({ ...c, categoria: 'Visita Inactivo' }))
   const fueraPlan = (d.fuera_plan || []).map(c => ({ ...c, categoria: 'Fuera de Plan' }))
 
   let lista = []
   if (tab === 'visitados') lista = visitados
   else if (tab === 'no_visitados') lista = noVisitados
-  else if (tab === 'inactivos') lista = inactivos
   else if (tab === 'fuera_plan') lista = fueraPlan
-  else lista = [...visitados, ...noVisitados, ...inactivos, ...fueraPlan]
+  else lista = [...visitados, ...noVisitados, ...fueraPlan]
 
   const { col, dir } = getSubtablaSort(ruta)
   const mul = dir === 'asc' ? 1 : -1

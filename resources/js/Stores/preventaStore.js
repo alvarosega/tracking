@@ -243,7 +243,6 @@ function enriquecerRuta(r) {
       metricas: {
         cartera_plan: Number(k2.cartera_plan || 0),
         visitados: Number(k2.visitados_activos || 0),
-        inactivos: Number(k2.inactivos_visitados || 0),
         fueraPlan: Number(k2.fuera_de_plan || 0),
         dif: Number(k2.visitados_activos || 0) - Number(k2.cartera_plan || 0),
         cobertura_pct: Number(k2.cobertura_pct || 0)
