@@ -155,6 +155,7 @@ class GetDetalleObjetivoRutaAction
             $metaDia = ($metaMes > 0 && !$esMesCerrado) ? round($brecha / $divisorPreventa, 2) : 0.0;
 
             $clientesDict = [];
+            $productosDict = [];
             $totalPreventaHoy = 0.0;
 
             foreach ($preventasDetalle as $it) {
@@ -167,6 +168,11 @@ class GetDetalleObjetivoRutaAction
                 $precioUnit = (float) ($it->precio_lista ?: ($cantItem > 0 ? $montoItem / $cantItem : 0.0));
                 $totalPreventaHoy += $montoItem;
 
+                $codProd = trim((string) $it->codigo_producto);
+                $nomProd = trim((string) $it->producto);
+                $pKey = $codProd !== '' ? $codProd : mb_strtolower($nomProd);
+
+                // 1. Agrupación por Cliente (Cliente -> Productos)
                 if (!isset($clientesDict[$cKey])) {
                     $clientesDict[$cKey] = [
                         'cliente_id' => $cid > 0 ? $cid : ($it->codigo_cliente ?: 'S/C'),
@@ -184,12 +190,38 @@ class GetDetalleObjetivoRutaAction
                     $clientesDict[$cKey]['nros_preventa_set'][$nro] = true;
                 }
 
-                // Desglose de cada producto comprado por el cliente
                 $clientesDict[$cKey]['items'][] = [
                     'nro_preventa' => $nro,
-                    'codigo_producto' => $it->codigo_producto ?: ('SKU-' . (count($clientesDict[$cKey]['items']) + 1)),
-                    'producto' => $it->producto,
+                    'codigo_producto' => $codProd ?: ('SKU-' . (count($clientesDict[$cKey]['items']) + 1)),
+                    'producto' => $nomProd,
                     'categoria' => $it->categoria,
+                    'cantidad' => $cantItem,
+                    'precio_unitario' => round($precioUnit, 2),
+                    'monto_final' => round($montoItem, 2),
+                ];
+
+                // 2. Agrupación por Producto (Producto -> Clientes)
+                if (!isset($productosDict[$pKey])) {
+                    $productosDict[$pKey] = [
+                        'codigo_producto' => $codProd ?: 'S/C',
+                        'producto' => $nomProd,
+                        'categoria' => $it->categoria,
+                        'cantidad_total' => 0,
+                        'total_bs' => 0.0,
+                        'clientes_set' => [],
+                        'clientes' => [],
+                    ];
+                }
+
+                $productosDict[$pKey]['cantidad_total'] += $cantItem;
+                $productosDict[$pKey]['total_bs'] = round($productosDict[$pKey]['total_bs'] + $montoItem, 2);
+                $productosDict[$pKey]['clientes_set'][$cKey] = true;
+
+                $productosDict[$pKey]['clientes'][] = [
+                    'cliente_id' => $cid > 0 ? $cid : ($it->codigo_cliente ?: 'S/C'),
+                    'codigo_cliente' => (string) ($it->codigo_cliente ?: ($cid > 0 ? $cid : '—')),
+                    'cliente' => $cNombre,
+                    'nro_preventa' => $nro,
                     'cantidad' => $cantItem,
                     'precio_unitario' => round($precioUnit, 2),
                     'monto_final' => round($montoItem, 2),
@@ -205,6 +237,15 @@ class GetDetalleObjetivoRutaAction
             }
 
             usort($clientesLista, fn ($a, $b) => $b['total_bs'] <=> $a['total_bs']);
+
+            $productosLista = [];
+            foreach ($productosDict as $pObj) {
+                $pObj['clientes_count'] = count($pObj['clientes_set']);
+                unset($pObj['clientes_set']);
+                $productosLista[] = $pObj;
+            }
+
+            usort($productosLista, fn ($a, $b) => $b['total_bs'] <=> $a['total_bs']);
 
             $totalPreventaHoy = round($totalPreventaHoy, 2);
             $diferenciaDia = round($totalPreventaHoy - $metaDia, 2);
@@ -233,6 +274,8 @@ class GetDetalleObjetivoRutaAction
                 ],
                 'total_clientes' => count($clientesLista),
                 'clientes' => $clientesLista,
+                'total_productos' => count($productosLista),
+                'productos' => $productosLista,
             ];
         } catch (\Throwable $e) {
             Log::warning("Error en GetDetalleObjetivoRutaAction para {$ruta}: " . $e->getMessage());
@@ -255,6 +298,8 @@ class GetDetalleObjetivoRutaAction
                 ],
                 'total_clientes' => 0,
                 'clientes' => [],
+                'total_productos' => 0,
+                'productos' => [],
             ];
         }
     }

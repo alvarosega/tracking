@@ -274,115 +274,263 @@
                       </div>
                     </div>
 
-                    <!-- Tabla de Clientes con Pedido -->
+                    <!-- Tabla de Clientes / Productos con Pedido -->
                     <div class="apple-glass-card rounded-[12px] overflow-hidden">
-                      <div class="px-3 py-2 border-b border-black/[0.06] flex items-center justify-between bg-white/50 text-[11px]">
-                        <span class="font-bold text-[#1D1D1F]">
-                          Pedidos Levantados en el Día: {{ r.ruta }} ({{ r.vendedor }})
-                        </span>
+                      <div class="px-3 py-2 border-b border-black/[0.06] flex items-center justify-between flex-wrap gap-2 bg-white/50 text-[11px]">
+                        <div class="flex items-center gap-3 flex-wrap">
+                          <span class="font-bold text-[#1D1D1F]">
+                            Pedidos Levantados en el Día: {{ r.ruta }} ({{ r.vendedor }})
+                          </span>
+
+                          <!-- Selector de Vista: Por Cliente vs Por Producto -->
+                          <div class="flex items-center p-0.5 bg-black/[0.05] rounded-[8px] gap-0.5">
+                            <button
+                              type="button"
+                              @click.stop="setModoVista(r.ruta, 'clientes')"
+                              class="px-2.5 py-1 rounded-[6px] text-[10.5px] font-semibold transition-all cursor-pointer"
+                              :class="getModoVista(r.ruta) === 'clientes'
+                                ? 'bg-white text-[#0071E3] shadow-xs font-bold'
+                                : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                            >
+                              Por Cliente ({{ detallePorRuta[r.ruta].total_clientes || 0 }})
+                            </button>
+                            <button
+                              type="button"
+                              @click.stop="setModoVista(r.ruta, 'productos')"
+                              class="px-2.5 py-1 rounded-[6px] text-[10.5px] font-semibold transition-all cursor-pointer"
+                              :class="getModoVista(r.ruta) === 'productos'
+                                ? 'bg-white text-[#0071E3] shadow-xs font-bold'
+                                : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                            >
+                              Por Producto ({{ detallePorRuta[r.ruta].total_productos || (detallePorRuta[r.ruta].productos || []).length }})
+                            </button>
+                          </div>
+                        </div>
+
                         <span class="apple-control-pill px-2 py-0.5 rounded-[6px] font-mono text-[10px] text-[#6E6E73]">
-                          Total Compradores: <strong>{{ detallePorRuta[r.ruta].total_clientes || 0 }}</strong>
+                          <template v-if="getModoVista(r.ruta) === 'clientes'">
+                            Total Compradores: <strong>{{ detallePorRuta[r.ruta].total_clientes || 0 }}</strong>
+                          </template>
+                          <template v-else>
+                            Total SKUs Vendidos: <strong>{{ detallePorRuta[r.ruta].total_productos || (detallePorRuta[r.ruta].productos || []).length }}</strong>
+                          </template>
                         </span>
                       </div>
 
-                      <div v-if="(detallePorRuta[r.ruta].clientes || []).length === 0" class="p-6 text-center text-[#86868B] text-[11px]">
-                        No se registraron transacciones de preventa para esta ruta en el día.
-                      </div>
+                      <!-- Vista 1: Por Cliente (Cliente -> Productos) -->
+                      <template v-if="getModoVista(r.ruta) === 'clientes'">
+                        <div v-if="(detallePorRuta[r.ruta].clientes || []).length === 0" class="p-6 text-center text-[#86868B] text-[11px]">
+                          No se registraron transacciones de preventa para esta ruta en el día.
+                        </div>
 
-                      <div v-else class="overflow-x-auto max-h-80 custom-scroll">
-                        <table class="w-full text-left border-collapse text-[11px]">
-                          <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
-                            <tr>
-                              <th class="px-2.5 py-1.5 text-center w-8">#</th>
-                              <th class="px-2.5 py-1.5 w-20">Código</th>
-                              <th class="px-3 py-1.5">Cliente / PDV</th>
-                              <th class="px-2.5 py-1.5 text-center">Ítems SKU</th>
-                              <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Venta (Bs)</th>
-                              <th class="px-2.5 py-1.5 text-center w-20">Detalle</th>
-                            </tr>
-                          </thead>
-                          <tbody class="divide-y divide-black/[0.03]">
-                            <template v-for="(c, cIdx) in detallePorRuta[r.ruta].clientes" :key="c.cliente_id || cIdx">
-                              <tr
-                                @click="toggleSubCliente(`${r.ruta}_${c.cliente_id}`)"
-                                class="hover:bg-black/[0.02] cursor-pointer transition-colors"
-                              >
-                                <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ cIdx + 1 }}</td>
-                                <td class="px-2.5 py-1 font-mono text-[10px] text-[#6E6E73]">{{ c.cliente_id }}</td>
-                                <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="c.cliente">
-                                  <span>{{ c.cliente }}</span>
-                                  <span v-if="c.nro_preventas" class="text-[9px] font-mono text-[#86868B] ml-1.5">({{ c.nro_preventas }})</span>
-                                </td>
-                                <td class="px-2.5 py-1 text-center font-mono font-bold text-[#1D1D1F]">
-                                  <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#0071E3]/10 text-[#0071E3]">
-                                    {{ (c.items || []).length }} SKU
-                                  </span>
-                                </td>
-                                <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
-                                  Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                                </td>
-                                <td class="px-2.5 py-1 text-center">
-                                  <button
-                                    type="button"
-                                    class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold transition-all cursor-pointer"
-                                    :class="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]
-                                      ? 'bg-black/[0.08] text-[#1D1D1F]'
-                                      : 'bg-[#0071E3] text-white hover:bg-[#0077ED] shadow-xs'"
-                                  >
-                                    {{ subClienteAbierto[`${r.ruta}_${c.cliente_id}`] ? 'Ocultar' : 'Ver SKU' }}
-                                  </button>
-                                </td>
+                        <div v-else class="overflow-x-auto max-h-80 custom-scroll">
+                          <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
+                              <tr>
+                                <th class="px-2.5 py-1.5 text-center w-8">#</th>
+                                <th class="px-2.5 py-1.5 w-20">Código</th>
+                                <th class="px-3 py-1.5">Cliente / PDV</th>
+                                <th class="px-2.5 py-1.5 text-center">Ítems SKU</th>
+                                <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Venta (Bs)</th>
+                                <th class="px-2.5 py-1.5 text-center w-20">Detalle</th>
                               </tr>
+                            </thead>
+                            <tbody class="divide-y divide-black/[0.03]">
+                              <template v-for="(c, cIdx) in detallePorRuta[r.ruta].clientes" :key="c.cliente_id || cIdx">
+                                <tr
+                                  @click="toggleSubCliente(`${r.ruta}_${c.cliente_id}`)"
+                                  class="hover:bg-black/[0.02] cursor-pointer transition-colors"
+                                >
+                                  <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ cIdx + 1 }}</td>
+                                  <td class="px-2.5 py-1 font-mono text-[10px] text-[#6E6E73]">{{ c.cliente_id }}</td>
+                                  <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="c.cliente">
+                                    <span>{{ c.cliente }}</span>
+                                    <span v-if="c.nro_preventas" class="text-[9px] font-mono text-[#86868B] ml-1.5">({{ c.nro_preventas }})</span>
+                                  </td>
+                                  <td class="px-2.5 py-1 text-center font-mono font-bold text-[#1D1D1F]">
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#0071E3]/10 text-[#0071E3]">
+                                      {{ (c.items || []).length }} SKU
+                                    </span>
+                                  </td>
+                                  <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                    Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                  </td>
+                                  <td class="px-2.5 py-1 text-center">
+                                    <button
+                                      type="button"
+                                      class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold transition-all cursor-pointer"
+                                      :class="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]
+                                        ? 'bg-black/[0.08] text-[#1D1D1F]'
+                                        : 'bg-[#0071E3] text-white hover:bg-[#0077ED] shadow-xs'"
+                                    >
+                                      {{ subClienteAbierto[`${r.ruta}_${c.cliente_id}`] ? 'Ocultar' : 'Ver SKU' }}
+                                    </button>
+                                  </td>
+                                </tr>
 
-                              <!-- Desglose de SKUs del pedido -->
-                              <tr v-if="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]">
-                                <td colspan="6" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
-                                  <div class="apple-glass-card rounded-[8px] overflow-hidden">
-                                    <table class="w-full text-left border-collapse text-[10px]">
-                                      <thead class="border-b border-black/[0.05] bg-black/[0.02] text-[#86868B] font-bold uppercase">
-                                        <tr>
-                                          <th class="px-2.5 py-1 w-24">Código SKU</th>
-                                          <th class="px-3 py-1">Producto / Presentación</th>
-                                          <th class="px-2.5 py-1 text-center">Categoría</th>
-                                          <th class="px-2.5 py-1 text-right font-mono">Cantidad</th>
-                                          <th class="px-2.5 py-1 text-right font-mono">Precio Unit. (Bs)</th>
-                                          <th class="px-3 py-1 text-right font-mono font-bold">Subtotal (Bs)</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody class="divide-y divide-black/[0.03]">
-                                        <tr v-for="(it, itIdx) in (c.items || [])" :key="`${it.codigo_producto}_${itIdx}`" class="hover:bg-black/[0.01]">
-                                          <td class="px-2.5 py-1 font-mono text-[#6E6E73]">{{ it.codigo_producto || '—' }}</td>
-                                          <td class="px-3 py-1 font-medium text-[#1D1D1F]">{{ it.producto }}</td>
-                                          <td class="px-2.5 py-1 text-center text-[#86868B]">{{ it.categoria || '—' }}</td>
-                                          <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">{{ it.cantidad }}</td>
-                                          <td class="px-2.5 py-1 text-right font-mono text-[#6E6E73]">
-                                            {{ Number(it.precio_unitario || 0).toFixed(2) }}
-                                          </td>
-                                          <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
-                                            {{ Number(it.monto_final || 0).toFixed(2) }}
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                      <tfoot class="border-t border-black/[0.06] bg-black/[0.02] font-bold">
-                                        <tr>
-                                          <td colspan="3" class="px-2.5 py-1 text-right uppercase text-[9px] text-[#6E6E73]">Total Pedido:</td>
-                                          <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
-                                            {{ (c.items || []).reduce((acc, x) => acc + (x.cantidad || 0), 0) }}
-                                          </td>
-                                          <td></td>
-                                          <td class="px-3 py-1 text-right font-mono font-bold text-[#0071E3]">
-                                            Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                                          </td>
-                                        </tr>
-                                      </tfoot>
-                                    </table>
-                                  </div>
-                                </td>
+                                <!-- Desglose de SKUs del pedido -->
+                                <tr v-if="subClienteAbierto[`${r.ruta}_${c.cliente_id}`]">
+                                  <td colspan="6" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
+                                    <div class="apple-glass-card rounded-[8px] overflow-hidden">
+                                      <table class="w-full text-left border-collapse text-[10px]">
+                                        <thead class="border-b border-black/[0.05] bg-black/[0.02] text-[#86868B] font-bold uppercase">
+                                          <tr>
+                                           <th class="px-2.5 py-1 w-24">Código SKU</th>
+                                            <th class="px-3 py-1">Producto / Presentación</th>
+                                            <th class="px-2.5 py-1 text-center">Categoría</th>
+                                            <th class="px-2.5 py-1 text-right font-mono">Cantidad</th>
+                                            <th class="px-2.5 py-1 text-right font-mono">Precio Unit. (Bs)</th>
+                                            <th class="px-3 py-1 text-right font-mono font-bold">Subtotal (Bs)</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-black/[0.03]">
+                                          <tr v-for="(it, itIdx) in (c.items || [])" :key="`${it.codigo_producto}_${itIdx}`" class="hover:bg-black/[0.01]">
+                                            <td class="px-2.5 py-1 font-mono text-[#6E6E73]">{{ it.codigo_producto || '—' }}</td>
+                                            <td class="px-3 py-1 font-medium text-[#1D1D1F]">{{ it.producto }}</td>
+                                            <td class="px-2.5 py-1 text-center text-[#86868B]">{{ it.categoria || '—' }}</td>
+                                            <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">{{ it.cantidad }}</td>
+                                            <td class="px-2.5 py-1 text-right font-mono text-[#6E6E73]">
+                                              {{ Number(it.precio_unitario || 0).toFixed(2) }}
+                                            </td>
+                                            <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                              {{ Number(it.monto_final || 0).toFixed(2) }}
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                        <tfoot class="border-t border-black/[0.06] bg-black/[0.02] font-bold">
+                                          <tr>
+                                            <td colspan="3" class="px-2.5 py-1 text-right uppercase text-[9px] text-[#6E6E73]">Total Pedido:</td>
+                                            <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                              {{ (c.items || []).reduce((acc, x) => acc + (x.cantidad || 0), 0) }}
+                                            </td>
+                                            <td></td>
+                                            <td class="px-3 py-1 text-right font-mono font-bold text-[#0071E3]">
+                                              Bs {{ Number(c.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </template>
+                            </tbody>
+                          </table>
+                        </div>
+                      </template>
+
+                      <!-- Vista 2: Por Producto (Producto -> Clientes) -->
+                      <template v-else-if="getModoVista(r.ruta) === 'productos'">
+                        <div v-if="(detallePorRuta[r.ruta].productos || []).length === 0" class="p-6 text-center text-[#86868B] text-[11px]">
+                          No se registraron productos vendidos para esta ruta en el día.
+                        </div>
+
+                        <div v-else class="overflow-x-auto max-h-80 custom-scroll">
+                          <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
+                              <tr>
+                                <th class="px-2.5 py-1.5 text-center w-8">#</th>
+                                <th class="px-2.5 py-1.5 w-24">Código SKU</th>
+                                <th class="px-3 py-1.5">Producto / Presentación</th>
+                                <th class="px-2.5 py-1.5 text-center">Categoría</th>
+                                <th class="px-2.5 py-1.5 text-right font-mono font-bold">Cantidad Total</th>
+                                <th class="px-2.5 py-1.5 text-center">Clientes</th>
+                                <th class="px-3 py-1.5 text-right font-mono font-bold">Monto Total (Bs)</th>
+                                <th class="px-2.5 py-1.5 text-center w-24">Detalle</th>
                               </tr>
-                            </template>
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody class="divide-y divide-black/[0.03]">
+                              <template v-for="(p, pIdx) in detallePorRuta[r.ruta].productos" :key="p.codigo_producto || pIdx">
+                                <tr
+                                  @click="toggleSubProducto(`${r.ruta}_${p.codigo_producto}`)"
+                                  class="hover:bg-black/[0.02] cursor-pointer transition-colors"
+                                >
+                                  <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ pIdx + 1 }}</td>
+                                  <td class="px-2.5 py-1 font-mono text-[10px]">
+                                    <span class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold text-neutral-700 bg-neutral-100 border border-neutral-200">
+                                      {{ p.codigo_producto }}
+                                    </span>
+                                  </td>
+                                  <td class="px-3 py-1 font-semibold text-[#1D1D1F] truncate max-w-[280px]" :title="p.producto">
+                                    {{ p.producto }}
+                                  </td>
+                                  <td class="px-2.5 py-1 text-center text-[#86868B] text-[10px]">{{ p.categoria || '—' }}</td>
+                                  <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                    {{ p.cantidad_total }}
+                                  </td>
+                                  <td class="px-2.5 py-1 text-center font-mono font-bold text-[#1D1D1F]">
+                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#0071E3]/10 text-[#0071E3]">
+                                      {{ p.clientes_count }} clientes
+                                    </span>
+                                  </td>
+                                  <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                    Bs {{ Number(p.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                  </td>
+                                  <td class="px-2.5 py-1 text-center">
+                                    <button
+                                      type="button"
+                                      class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold transition-all cursor-pointer"
+                                      :class="subProductoAbierto[`${r.ruta}_${p.codigo_producto}`]
+                                        ? 'bg-black/[0.08] text-[#1D1D1F]'
+                                        : 'bg-[#0071E3] text-white hover:bg-[#0077ED] shadow-xs'"
+                                    >
+                                      {{ subProductoAbierto[`${r.ruta}_${p.codigo_producto}`] ? 'Ocultar' : 'Ver Clientes' }}
+                                    </button>
+                                  </td>
+                                </tr>
+
+                                <!-- Desglose de Clientes que compraron este producto -->
+                                <tr v-if="subProductoAbierto[`${r.ruta}_${p.codigo_producto}`]">
+                                  <td colspan="8" class="p-2.5 bg-blue-50/20 border-b border-black/[0.05]">
+                                    <div class="apple-glass-card rounded-[8px] overflow-hidden">
+                                      <table class="w-full text-left border-collapse text-[10px]">
+                                        <thead class="border-b border-black/[0.05] bg-black/[0.02] text-[#86868B] font-bold uppercase">
+                                          <tr>
+                                            <th class="px-2.5 py-1 text-center w-8">#</th>
+                                            <th class="px-2.5 py-1 w-20">Código</th>
+                                            <th class="px-3 py-1">Cliente / PDV</th>
+                                            <th class="px-2.5 py-1 text-center">N° Preventa</th>
+                                            <th class="px-2.5 py-1 text-right font-mono">Cantidad</th>
+                                            <th class="px-2.5 py-1 text-right font-mono">Precio Unit. (Bs)</th>
+                                            <th class="px-3 py-1 text-right font-mono font-bold">Subtotal (Bs)</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-black/[0.03]">
+                                          <tr v-for="(cl, clIdx) in (p.clientes || [])" :key="`${cl.cliente_id}_${clIdx}`" class="hover:bg-black/[0.01]">
+                                            <td class="px-2.5 py-1 text-center font-mono text-[#86868B]">{{ clIdx + 1 }}</td>
+                                            <td class="px-2.5 py-1 font-mono text-[#6E6E73]">{{ cl.cliente_id }}</td>
+                                            <td class="px-3 py-1 font-medium text-[#1D1D1F]">{{ cl.cliente }}</td>
+                                            <td class="px-2.5 py-1 text-center font-mono text-[#86868B]">{{ cl.nro_preventa || '—' }}</td>
+                                            <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">{{ cl.cantidad }}</td>
+                                            <td class="px-2.5 py-1 text-right font-mono text-[#6E6E73]">
+                                              {{ Number(cl.precio_unitario || 0).toFixed(2) }}
+                                            </td>
+                                            <td class="px-3 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                              {{ Number(cl.monto_final || 0).toFixed(2) }}
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                        <tfoot class="border-t border-black/[0.06] bg-black/[0.02] font-bold">
+                                          <tr>
+                                            <td colspan="4" class="px-2.5 py-1 text-right uppercase text-[9px] text-[#6E6E73]">Total SKU:</td>
+                                            <td class="px-2.5 py-1 text-right font-mono font-bold text-[#1D1D1F]">
+                                              {{ p.cantidad_total }}
+                                            </td>
+                                            <td></td>
+                                            <td class="px-3 py-1 text-right font-mono font-bold text-[#0071E3]">
+                                              Bs {{ Number(p.total_bs || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </template>
+                            </tbody>
+                          </table>
+                        </div>
+                      </template>
                     </div>
                   </div>
                 </td>
@@ -476,15 +624,28 @@ const rutasOrdenadas = computed(() => {
 
 const acordeonAbierto = reactive({})
 const subClienteAbierto = reactive({})
+const subProductoAbierto = reactive({})
+const modoVistaRuta = reactive({})
 const cargandoDetalle = reactive({})
 const errorDetalle = reactive({})
 const detallePorRuta = reactive({})
+
+function getModoVista(ruta) {
+  return modoVistaRuta[ruta] || 'clientes'
+}
+
+function setModoVista(ruta, modo) {
+  modoVistaRuta[ruta] = modo
+}
 
 watch(
   () => store.fecha,
   () => {
     Object.keys(acordeonAbierto).forEach(k => delete acordeonAbierto[k])
     Object.keys(detallePorRuta).forEach(k => delete detallePorRuta[k])
+    Object.keys(subClienteAbierto).forEach(k => delete subClienteAbierto[k])
+    Object.keys(subProductoAbierto).forEach(k => delete subProductoAbierto[k])
+    Object.keys(modoVistaRuta).forEach(k => delete modoVistaRuta[k])
   }
 )
 
@@ -515,6 +676,10 @@ async function toggleObjetivoAcordeon(r) {
 
 function toggleSubCliente(key) {
   subClienteAbierto[key] = !subClienteAbierto[key]
+}
+
+function toggleSubProducto(key) {
+  subProductoAbierto[key] = !subProductoAbierto[key]
 }
 </script>
 
