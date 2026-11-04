@@ -284,8 +284,8 @@ class GetDetalleReposicionRutaAction
                         $puntosMatchTienda += $pesoFi;
                     }
 
-                    // Cantidad promedio por preventa esperada (unidades habituales por pedido)
-                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $freqCompra)));
+                    // Cantidad de reposición esperada: cantidad comprada sobre la ventana de tiempo (semanas de historia, mín 1)
+                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $semanas)));
 
                     $canastaBase[] = [
                         'producto_id' => $hab['producto_id'],

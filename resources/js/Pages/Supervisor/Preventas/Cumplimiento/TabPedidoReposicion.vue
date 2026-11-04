@@ -257,7 +257,7 @@
                                 Canasta: <strong class="text-[#1D1D1F]">{{ t.skus_esperados || 0 }} SKUs</strong> ({{ t.puntos_esperados || 0 }} pts f_i)
                               </span>
                               <span class="text-[#6E6E73]">
-                                Cant. Repo Sugerida: <strong class="text-[#1D1D1F]">{{ totalCanastaRepo(t.canasta_base) }} uds</strong>
+                                Cant. Repo: <strong class="text-[#1D1D1F]">{{ totalCanastaRepo(t.canasta_base) }} uds</strong>
                               </span>
                               <span class="text-[#6E6E73]">
                                 Match Ponderado: <strong class="text-[#1E6B37] font-bold">{{ t.puntos_match || 0 }}</strong> / {{ t.puntos_esperados || 0 }} pts
