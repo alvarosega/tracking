@@ -431,13 +431,38 @@
                                 <span v-if="ev.en_plan === false" class="px-1 py-0.2 rounded text-[8.5px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-300 shrink-0" title="Cliente no programado hoy en pan_ruteo">
                                   Fuera Plan
                                 </span>
+                                <span
+                                  v-if="ev.visitas_count > 1"
+                                  class="px-1.5 py-0.2 rounded text-[8.5px] font-bold text-purple-700 bg-purple-50 border border-purple-200 shrink-0 cursor-help"
+                                  :title="formatearDetalleVisitas(ev)"
+                                >
+                                  {{ ev.visitas_count }} visitas
+                                </span>
                               </div>
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_web ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
-                              {{ ev.hora_web || '—' }}
+                              <div class="flex items-center justify-center gap-1">
+                                <span>{{ ev.hora_web || '—' }}</span>
+                                <span
+                                  v-if="ev.visitas_web_count > 1"
+                                  class="text-[9px] font-semibold text-purple-600 hover:text-purple-800 cursor-help"
+                                  :title="`Marcajes Web (${ev.visitas_web_count}): ${ev.marcajes_web?.join(', ')}`"
+                                >
+                                  (+{{ ev.visitas_web_count - 1 }})
+                                </span>
+                              </div>
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="ev.hora_app ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
-                              {{ ev.hora_app || '—' }}
+                              <div class="flex items-center justify-center gap-1">
+                                <span>{{ ev.hora_app || '—' }}</span>
+                                <span
+                                  v-if="ev.visitas_app_count > 1"
+                                  class="text-[9px] font-semibold text-purple-600 hover:text-purple-800 cursor-help"
+                                  :title="`Marcajes App (${ev.visitas_app_count}): ${ev.marcajes_app?.join(', ')}`"
+                                >
+                                  (+{{ ev.visitas_app_count - 1 }})
+                                </span>
+                              </div>
                             </td>
                             <td class="px-2.5 py-1 text-center">
                               <span
@@ -786,6 +811,19 @@ async function toggleRecorridoAcordeon(r) {
   } finally {
     cargandoDetalle[ruta] = false
   }
+}
+
+function formatearDetalleVisitas(ev) {
+  const partes = []
+  if (ev?.visitas_web_count > 0) {
+    const lista = (ev.marcajes_web && ev.marcajes_web.length > 0) ? ev.marcajes_web.join(', ') : ev.hora_web
+    partes.push(`Web (${ev.visitas_web_count}): ${lista}`)
+  }
+  if (ev?.visitas_app_count > 0) {
+    const lista = (ev.marcajes_app && ev.marcajes_app.length > 0) ? ev.marcajes_app.join(', ') : ev.hora_app
+    partes.push(`App (${ev.visitas_app_count}): ${lista}`)
+  }
+  return partes.join(' | ') || `${ev?.visitas_count || 1} visitas registradas`
 }
 
 function badgeColorTipo(tipo) {

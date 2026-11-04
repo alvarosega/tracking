@@ -274,7 +274,17 @@
                       <table class="w-full text-left border-collapse text-[11px]">
                         <thead class="sticky top-0 z-10 border-b border-black/[0.06] text-[10px] font-bold uppercase text-[#6E6E73] bg-[#F8F8FA]">
                           <tr>
-                            <th class="px-2.5 py-1.5 text-center w-8">#</th>
+                            <th
+                              @click.stop="toggleSubtablaSort(r.ruta, 'orden')"
+                              class="px-2.5 py-1.5 text-center w-8 cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                              :class="getSubtablaSort(r.ruta).col === 'orden' ? 'text-[#0071E3]' : ''"
+                              title="Ordenar por Secuencia Cronológica"
+                            >
+                              <div class="flex items-center justify-center gap-0.5">
+                                <span>#</span>
+                                <span v-if="getSubtablaSort(r.ruta).col === 'orden'">{{ getSubtablaSort(r.ruta).dir === 'desc' ? '↓' : '↑' }}</span>
+                              </div>
+                            </th>
                             <th class="px-2.5 py-1.5 w-20">Código</th>
                             <th class="px-3 py-1.5">Cliente / PDV</th>
                             <th
@@ -332,7 +342,7 @@
                             :key="c.cliente_id || cIdx"
                             class="hover:bg-black/[0.02] transition-colors"
                           >
-                            <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ cIdx + 1 }}</td>
+                            <td class="px-2.5 py-1 text-center font-mono text-[10px] text-[#86868B]">{{ c.orden || (cIdx + 1) }}</td>
                             <td class="px-2.5 py-1 font-mono text-[10px]">
                               <span v-if="c.cliente_id" class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold text-[#0071E3] bg-blue-50 border border-blue-200">
                                 #{{ c.cliente_id }}
@@ -345,13 +355,38 @@
                                 <span v-if="c.categoria === 'Fuera de Plan'" class="px-1 py-0.2 rounded text-[8.5px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-300 shrink-0" title="Cliente no programado hoy en pan_ruteo">
                                   Fuera Plan
                                 </span>
+                                <span
+                                  v-if="c.visitas_count > 1"
+                                  class="px-1.5 py-0.2 rounded text-[8.5px] font-bold text-purple-700 bg-purple-50 border border-purple-200 shrink-0 cursor-help"
+                                  :title="formatearDetalleVisitas(c)"
+                                >
+                                  {{ c.visitas_count }} visitas
+                                </span>
                               </div>
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="c.check_in ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
-                              {{ c.check_in || '—' }}
+                              <div class="flex items-center justify-center gap-1">
+                                <span>{{ c.check_in || '—' }}</span>
+                                <span
+                                  v-if="c.visitas_web_count > 1"
+                                  class="text-[9px] font-semibold text-purple-600 hover:text-purple-800 cursor-help"
+                                  :title="`Marcajes Web (${c.visitas_web_count}): ${c.marcajes_web?.join(', ')}`"
+                                >
+                                  (+{{ c.visitas_web_count - 1 }})
+                                </span>
+                              </div>
                             </td>
                             <td class="px-2.5 py-1 text-center font-mono text-[11px]" :class="c.hora_app ? 'font-bold text-[#1D1D1F]' : 'text-[#C7C7CC]'">
-                              {{ c.hora_app || '—' }}
+                              <div class="flex items-center justify-center gap-1">
+                                <span>{{ c.hora_app || '—' }}</span>
+                                <span
+                                  v-if="c.visitas_app_count > 1"
+                                  class="text-[9px] font-semibold text-purple-600 hover:text-purple-800 cursor-help"
+                                  :title="`Marcajes App (${c.visitas_app_count}): ${c.marcajes_app?.join(', ')}`"
+                                >
+                                  (+{{ c.visitas_app_count - 1 }})
+                                </span>
+                              </div>
                             </td>
                             <td class="px-2.5 py-1 text-center">
                               <span
@@ -642,6 +677,19 @@ function badgeColorDiferencia(c) {
   return 'bg-rose-50 text-rose-700 border border-rose-200'
 }
 
+function formatearDetalleVisitas(c) {
+  const partes = []
+  if (c?.visitas_web_count > 0) {
+    const lista = (c.marcajes_web && c.marcajes_web.length > 0) ? c.marcajes_web.join(', ') : c.check_in
+    partes.push(`Web (${c.visitas_web_count}): ${lista}`)
+  }
+  if (c?.visitas_app_count > 0) {
+    const lista = (c.marcajes_app && c.marcajes_app.length > 0) ? c.marcajes_app.join(', ') : c.hora_app
+    partes.push(`App (${c.visitas_app_count}): ${lista}`)
+  }
+  return partes.join(' | ') || `${c?.visitas_count || 1} visitas registradas`
+}
+
 function clientesVisitasFiltrados(ruta) {
   const d = detallePorRuta[ruta]
   if (!d) return []
@@ -661,6 +709,14 @@ function clientesVisitasFiltrados(ruta) {
   const mul = dir === 'asc' ? 1 : -1
 
   return [...lista].sort((a, b) => {
+    if (col === 'orden') {
+      const hA = a.hora_orden || '99:99:99'
+      const hB = b.hora_orden || '99:99:99'
+      if (hA !== hB) {
+        return mul * hA.localeCompare(hB)
+      }
+      return mul * String(a.cliente || '').localeCompare(String(b.cliente || ''))
+    }
     if (col === 'cliente') {
       return mul * String(a.cliente || '').localeCompare(String(b.cliente || ''))
     }

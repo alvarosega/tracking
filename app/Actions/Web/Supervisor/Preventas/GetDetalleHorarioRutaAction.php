@@ -56,7 +56,7 @@ class GetDetalleHorarioRutaAction
                       ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
-                ->whereIn(DB::raw("UPPER(TRIM(COALESCE(estado, 'ACTIVO')))"), ['ACTIVO', 'ACTIVA', 'VIGENTE'])
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
@@ -79,6 +79,7 @@ class GetDetalleHorarioRutaAction
             $otrosClientesRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
@@ -154,13 +155,21 @@ class GetDetalleHorarioRutaAction
                     'tipo' => trim((string) $fs->tipo),
                     'motivo' => trim((string) $fs->motivo),
                     'monto' => (float) ($fs->monto ?: 0.0),
+                    'visitas_web_count' => 1,
+                    'marcajes_web' => [$hIn],
                 ];
 
-                if ($a1 !== '' && !isset($factVisitasPorNombreAlfa[$a1])) {
-                    $factVisitasPorNombreAlfa[$a1] = $itemWeb;
-                }
-                if ($a2 !== '' && !isset($factVisitasPorNombreAlfa[$a2])) {
-                    $factVisitasPorNombreAlfa[$a2] = $itemWeb;
+                foreach (array_unique(array_filter([$a1, $a2])) as $alfaKey) {
+                    if (!isset($factVisitasPorNombreAlfa[$alfaKey])) {
+                        $factVisitasPorNombreAlfa[$alfaKey] = $itemWeb;
+                    } else {
+                        $factVisitasPorNombreAlfa[$alfaKey]['visitas_web_count']++;
+                        $factVisitasPorNombreAlfa[$alfaKey]['marcajes_web'][] = $hIn;
+                        if (strcmp($hIn, $factVisitasPorNombreAlfa[$alfaKey]['check_in']) < 0) {
+                            $factVisitasPorNombreAlfa[$alfaKey]['check_in'] = $hIn;
+                        }
+                        $factVisitasPorNombreAlfa[$alfaKey]['monto'] += (float) ($fs->monto ?: 0.0);
+                    }
                 }
 
                 // El cruce sólo reconoce clientes que forman parte de la cartera planificada de hoy
@@ -174,6 +183,8 @@ class GetDetalleHorarioRutaAction
                     if (!isset($visitasWebPorCid[$cid])) {
                         $visitasWebPorCid[$cid] = $itemWeb;
                     } else {
+                        $visitasWebPorCid[$cid]['visitas_web_count']++;
+                        $visitasWebPorCid[$cid]['marcajes_web'][] = $hIn;
                         if (strcmp($hIn, $visitasWebPorCid[$cid]['check_in']) < 0) {
                             $visitasWebPorCid[$cid]['check_in'] = $hIn;
                         }
@@ -247,17 +258,23 @@ class GetDetalleHorarioRutaAction
                     if (!isset($visitasMovilPorCid[$cid])) {
                         $visitasMovilPorCid[$cid] = [
                             'hora_app' => $horaM,
+                            'visitas_app_count' => 1,
+                            'marcajes_app' => [$horaM],
                             'foto_url' => $fotoUrl,
                             'fotos_count' => $fotoUrl ? 1 : 0,
                             'status' => (string) ($fm->status ?? ''),
                             'comments' => (string) ($fm->comments ?? ''),
                         ];
                     } else {
+                        $visitasMovilPorCid[$cid]['visitas_app_count']++;
+                        $visitasMovilPorCid[$cid]['marcajes_app'][] = $horaM;
                         if (strcmp($horaM, $visitasMovilPorCid[$cid]['hora_app']) < 0) {
                             $visitasMovilPorCid[$cid]['hora_app'] = $horaM;
                         }
-                        if ($fotoUrl && empty($visitasMovilPorCid[$cid]['foto_url'])) {
-                            $visitasMovilPorCid[$cid]['foto_url'] = $fotoUrl;
+                        if ($fotoUrl) {
+                            if (empty($visitasMovilPorCid[$cid]['foto_url'])) {
+                                $visitasMovilPorCid[$cid]['foto_url'] = $fotoUrl;
+                            }
                             $visitasMovilPorCid[$cid]['fotos_count']++;
                         }
                         if (!empty($fm->status) && empty($visitasMovilPorCid[$cid]['status'])) {
@@ -293,7 +310,11 @@ class GetDetalleHorarioRutaAction
                             'client_id' => $cid > 0 ? $cid : null,
                             'cliente' => $nombreFp,
                             'hora_app' => $horaM,
+                            'visitas_app_count' => 1,
+                            'marcajes_app' => [$horaM],
                             'hora_web' => $webFp['check_in'] ?? null,
+                            'visitas_web_count' => $webFp['visitas_web_count'] ?? ($webFp ? 1 : 0),
+                            'marcajes_web' => $webFp['marcajes_web'] ?? ($webFp['check_in'] ? [$webFp['check_in']] : []),
                             'check_out_web' => $webFp['check_out'] ?? null,
                             'tiempo_pdv_web' => $webFp['tiempo_pdv'] ?? null,
                             'monto' => $montoFp,
@@ -303,11 +324,15 @@ class GetDetalleHorarioRutaAction
                             'direccion' => $direccionFp,
                         ];
                     } else {
+                        $visitasFueraPlan[$fpKey]['visitas_app_count']++;
+                        $visitasFueraPlan[$fpKey]['marcajes_app'][] = $horaM;
                         if (strcmp($horaM, $visitasFueraPlan[$fpKey]['hora_app']) < 0) {
                             $visitasFueraPlan[$fpKey]['hora_app'] = $horaM;
                         }
-                        if ($fotoUrl && empty($visitasFueraPlan[$fpKey]['foto_url'])) {
-                            $visitasFueraPlan[$fpKey]['foto_url'] = $fotoUrl;
+                        if ($fotoUrl) {
+                            if (empty($visitasFueraPlan[$fpKey]['foto_url'])) {
+                                $visitasFueraPlan[$fpKey]['foto_url'] = $fotoUrl;
+                            }
                             $visitasFueraPlan[$fpKey]['fotos_count']++;
                         }
                     }
@@ -352,12 +377,24 @@ class GetDetalleHorarioRutaAction
 
                 $diffInfo = $this->calcularDiferencia($hWeb, $hApp);
 
+                $visitasWebCount = (int) ($web['visitas_web_count'] ?? ($web !== null ? 1 : 0));
+                $visitasAppCount = (int) ($app['visitas_app_count'] ?? ($app !== null ? 1 : 0));
+                $marcajesWeb = array_values(array_unique($web['marcajes_web'] ?? ($hWeb ? [$hWeb] : [])));
+                $marcajesApp = array_values(array_unique($app['marcajes_app'] ?? ($hApp ? [$hApp] : [])));
+                sort($marcajesWeb);
+                sort($marcajesApp);
+
                 $paradas["id_{$cidInt}"] = [
                     'cliente' => trim((string) $pCli->cliente) ?: "Cliente #{$cidInt}",
                     'client_id' => $cidInt,
                     'hora_web' => $hWeb,
                     'hora_app' => $hApp,
                     'hora_orden' => $hOrden,
+                    'visitas_count' => max($visitasWebCount, $visitasAppCount),
+                    'visitas_web_count' => $visitasWebCount,
+                    'visitas_app_count' => $visitasAppCount,
+                    'marcajes_web' => $marcajesWeb,
+                    'marcajes_app' => $marcajesApp,
                     'diferencia_segundos' => $diffInfo['segundos'],
                     'diferencia_texto' => $diffInfo['texto'],
                     'tipo' => $tipoFinal,
@@ -388,12 +425,24 @@ class GetDetalleHorarioRutaAction
 
                 $diffInfo = $this->calcularDiferencia($hWeb, $hApp);
 
+                $visitasWebCount = (int) ($fp['visitas_web_count'] ?? ($hWeb !== null ? 1 : 0));
+                $visitasAppCount = (int) ($fp['visitas_app_count'] ?? ($hApp !== null ? 1 : 0));
+                $marcajesWeb = array_values(array_unique($fp['marcajes_web'] ?? ($hWeb ? [$hWeb] : [])));
+                $marcajesApp = array_values(array_unique($fp['marcajes_app'] ?? ($hApp ? [$hApp] : [])));
+                sort($marcajesWeb);
+                sort($marcajesApp);
+
                 $paradas["fp_{$fpKey}"] = [
                     'cliente' => $fp['cliente'],
                     'client_id' => $fp['client_id'],
                     'hora_web' => $hWeb,
                     'hora_app' => $hApp,
                     'hora_orden' => $hOrden,
+                    'visitas_count' => max($visitasWebCount, $visitasAppCount),
+                    'visitas_web_count' => $visitasWebCount,
+                    'visitas_app_count' => $visitasAppCount,
+                    'marcajes_web' => $marcajesWeb,
+                    'marcajes_app' => $marcajesApp,
                     'diferencia_segundos' => $diffInfo['segundos'],
                     'diferencia_texto' => $diffInfo['texto'],
                     'tipo' => $fp['tipo'],
