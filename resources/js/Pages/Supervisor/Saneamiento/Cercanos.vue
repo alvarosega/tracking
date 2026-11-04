@@ -52,7 +52,7 @@
         </div>
 
         <!-- Fila 2: Mi Ubicación, Buscador Maps / Coordenadas, Selector de Radio -->
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pt-0.5">
+        <div class="flex items-center gap-2 flex-wrap pt-0.5">
           <!-- Botón de GPS Actual -->
           <button
             type="button"
@@ -120,7 +120,7 @@
       <!-- DESKTOP HEADER (>= md): 1 FILA COMPLETA   -->
       <!-- ========================================== -->
       <div class="hidden md:flex bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2 items-center justify-between gap-2.5 shrink-0 relative z-30">
-        <div class="flex items-center gap-2.5 overflow-x-auto no-scrollbar scroll-touch py-0.5 flex-1 min-w-0">
+        <div class="flex items-center gap-2.5 flex-wrap py-0.5 flex-1 min-w-0">
           <!-- Botón de GPS Actual -->
           <button
             type="button"
