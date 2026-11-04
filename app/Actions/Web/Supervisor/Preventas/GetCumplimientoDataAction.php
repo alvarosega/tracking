@@ -89,6 +89,7 @@ class GetCumplimientoDataAction
                       ->orWhereIn('pr.dia', $diasFiltro);
                 })
                 ->where('pr.cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(pr.estado, ''))) = 'ACTIVO'")
                 ->select([
                     'pr.id',
                     'pr.ruta',
@@ -133,6 +134,7 @@ class GetCumplimientoDataAction
             $clientesRutasTodas = DB::connection('supervisor')->table('pan_ruteo')
                 ->whereIn(DB::raw("TRIM(UPPER(ruta))"), array_map('strtoupper', array_map('trim', $rutasFiltradas)))
                 ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select(['cliente', 'cliente_norm', 'ruta'])
                 ->get();
 

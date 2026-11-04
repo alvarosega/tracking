@@ -52,6 +52,7 @@ class GetDetalleVisitasRutaAction
                       ->orWhereIn(DB::raw("LOWER(TRIM(dia))"), $diasFiltro);
                 })
                 ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
@@ -73,6 +74,7 @@ class GetDetalleVisitasRutaAction
             $otrosClientesRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
                 ->select([
                     'cliente_id',
                     DB::raw("MAX(COALESCE(TRIM(cliente), 'S/N')) as cliente"),
