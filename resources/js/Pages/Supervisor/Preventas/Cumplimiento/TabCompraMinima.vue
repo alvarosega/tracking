@@ -4,16 +4,13 @@
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
         <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · KPI 5: Ticket de Compra Mínima (70 Bs)
+          <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
+            Pizarra Modelo Unilever · Ticket de Compra Mínima (70 Bs)
           </h3>
           <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
             5 pts Base · Criterio Binario
           </span>
         </div>
-        <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Regla: El 100% de los clientes compradores deben facturar al menos 70.00 Bs en la jornada para sumar 5 puntos (Cero tolerancia a tickets menores).
-        </p>
       </div>
       <div class="flex items-center gap-2 text-[11px]">
         <span class="apple-control-pill px-2.5 py-1 rounded-[8px] font-semibold text-[#6E6E73]">

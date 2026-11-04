@@ -4,16 +4,13 @@
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
         <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · KPI 7: Ampliación de Portafolio
+          <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
+            Pizarra Modelo Unilever · Ampliación de Portafolio
           </h3>
           <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
             20 pts Base · Criterio &ge; 30%
           </span>
         </div>
-        <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Regla: Incorporación de SKUs no comprados en las últimas 13 semanas (historial preventas). Se exige que la preventa de la ruta alcance al menos 30% de ampliación para sumar los 20 puntos.
-        </p>
       </div>
 
       <div class="flex items-center gap-2.5 text-[11px]">

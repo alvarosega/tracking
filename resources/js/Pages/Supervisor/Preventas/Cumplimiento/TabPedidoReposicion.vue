@@ -3,8 +3,8 @@
     <!-- Encabezado Compacto y Parámetros -->
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
-        <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-          Pizarra Modelo Unilever · KPI 6: Pedido de Reposición
+        <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
+          Pizarra Modelo Unilever · Pedido de Reposición
         </h3>
       </div>
 

@@ -3,12 +3,9 @@
     <!-- Encabezado Compacto -->
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
-        <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
+        <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
           Pizarra Modelo Unilever
         </h3>
-        <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Matriz de cumplimiento de preventa · Criterio Binario (Todo o Nada) · 100 Pts Base
-        </p>
       </div>
       <div class="flex items-center gap-2 text-[11px]">
         <span class="apple-control-pill px-2.5 py-1 rounded-[8px] font-semibold text-[#6E6E73]">

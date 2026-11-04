@@ -4,16 +4,13 @@
     <div class="px-3.5 py-2.5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-2 bg-white/40">
       <div>
         <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-[13px] font-bold text-[#1D1D1F] tracking-tight leading-tight">
-            Pizarra Modelo Unilever · KPI 2: Cobertura de Visitas a Cartera Programada
+          <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
+            Pizarra Modelo Unilever · Cobertura de Visitas a Cartera Programada
           </h3>
           <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
             5 pts Base · Criterio Binario
           </span>
         </div>
-        <p class="text-[11px] text-[#6E6E73] font-medium mt-0.5">
-          Regla: Los clientes activos visitados deben cubrir el 100% de la cartera planificada activa. Visitas a inactivos o fuera de plan no suman a la meta del día.
-        </p>
       </div>
       <div class="flex items-center gap-2 text-[11px]">
         <span class="apple-control-pill px-2.5 py-1 rounded-[8px] font-semibold text-[#6E6E73]">
