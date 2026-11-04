@@ -131,14 +131,43 @@ class GetAvanceHorariosMatrizAction
             }
         }
 
-        // 3. Obtener marcajes de fact_visitas (Sistema Web)
+        // 3. Diccionario de Clientes de pan_ruteo a Ruta (Cruce estricto por cliente, NUNCA por vendedor)
+        $clienteARutaNorm = [];
+        $clienteARutaAlfa = [];
+        try {
+            $carteraClientes = DB::connection('supervisor')->table('pan_ruteo')
+                ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    'cliente',
+                    'cliente_norm',
+                ])
+                ->get();
+
+            foreach ($carteraClientes as $c) {
+                $r = (string) $c->ruta_clean;
+                $n1 = $this->normalizarTexto((string) $c->cliente);
+                $n2 = $this->normalizarTexto((string) $c->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $c->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $c->cliente_norm);
+                if ($n1 !== '' && !isset($clienteARutaNorm[$n1])) $clienteARutaNorm[$n1] = $r;
+                if ($n2 !== '' && !isset($clienteARutaNorm[$n2])) $clienteARutaNorm[$n2] = $r;
+                if ($a1 !== '' && !isset($clienteARutaAlfa[$a1])) $clienteARutaAlfa[$a1] = $r;
+                if ($a2 !== '' && !isset($clienteARutaAlfa[$a2])) $clienteARutaAlfa[$a2] = $r;
+            }
+        } catch (\Throwable $e) {
+            Log::debug('Error precargando rutas de clientes en Matriz Horarios: ' . $e->getMessage());
+        }
+
+        // Obtener marcajes de fact_visitas (Sistema Web)
         $filasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
             ->where('fv.fecha_norm', '>=', $fechaInicio)
             ->where('fv.fecha_norm', '<=', $fechaFin)
             ->select([
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha"),
-                DB::raw("COALESCE(fv.empleado, '') as empleado"),
-                DB::raw("COALESCE(fv.empleado_norm, '') as empleado_norm"),
+                DB::raw("COALESCE(fv.cliente, '') as cliente"),
+                DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
                 DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
                 DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
             ])
@@ -147,33 +176,23 @@ class GetAvanceHorariosMatrizAction
             ->get();
 
         $sisMap = [];
-        $cacheResolucion = [];
 
         foreach ($filasSistema as $row) {
-            $empKey = $this->normalizarTexto((string) ($row->empleado_norm ?: $row->empleado));
-            if ($empKey === '') {
+            $n1 = $this->normalizarTexto((string) $row->cliente);
+            $n2 = $this->normalizarTexto((string) $row->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $row->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $row->cliente_norm);
+
+            $rNombre = $clienteARutaNorm[$n1]
+                ?? $clienteARutaNorm[$n2]
+                ?? $clienteARutaAlfa[$a1]
+                ?? $clienteARutaAlfa[$a2]
+                ?? null;
+
+            if (!$rNombre || !isset($dimRutas[$rNombre])) {
                 continue;
             }
 
-            if (!isset($cacheResolucion[$empKey])) {
-                $match = $vendedorMap[$empKey] ?? null;
-                if (!$match) {
-                    foreach ($vendedorMap as $vKey => $info) {
-                        if (str_contains($empKey, $vKey) || str_contains($vKey, $empKey)) {
-                            $match = $info;
-                            break;
-                        }
-                    }
-                }
-                $cacheResolucion[$empKey] = $match;
-            }
-
-            $infoRuta = $cacheResolucion[$empKey];
-            if (!$infoRuta) {
-                continue;
-            }
-
-            $rNombre = $infoRuta['ruta'];
             $fFecha = (string) $row->fecha;
             $k = "{$rNombre}|{$fFecha}";
 

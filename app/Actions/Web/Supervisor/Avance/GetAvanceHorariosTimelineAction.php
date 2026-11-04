@@ -33,29 +33,56 @@ class GetAvanceHorariosTimelineAction
         $vendedorNombre = $rutaInfo ? (string) $rutaInfo->vendedor : 'No Asignado';
         $vendedorNorm = $rutaInfo ? $this->normalizarTexto((string) ($rutaInfo->vendedor_norm ?: $rutaInfo->vendedor)) : '';
 
-        // 2. Obtener marcajes de fact_visitas (Sistema Web)
-        $querySis = DB::connection('supervisor')->table('fact_visitas as fv')
-            ->where('fv.fecha_norm', $fecha);
+        // 2. Obtener clientes de esta ruta desde pan_ruteo para el cruce estricto por cliente (NUNCA por vendedor)
+        $carteraRuta = DB::connection('supervisor')->table('pan_ruteo')
+            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+            ->where('cliente_id', '>', 0)
+            ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
+            ->select(['cliente', 'cliente_norm'])
+            ->get();
 
-        if ($vendedorNorm !== '') {
-            $querySis->where(function ($q) use ($vendedorNorm, $vendedorNombre) {
-                $q->where(DB::raw("LOWER(TRIM(fv.empleado))"), mb_strtolower($vendedorNombre, 'UTF-8'))
-                  ->orWhere(DB::raw("LOWER(TRIM(fv.empleado_norm))"), $vendedorNorm);
-            });
+        $clientesNorm = [];
+        $clientesAlfa = [];
+        foreach ($carteraRuta as $c) {
+            $n1 = $this->normalizarTexto((string) $c->cliente);
+            $n2 = $this->normalizarTexto((string) $c->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $c->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $c->cliente_norm);
+            if ($n1 !== '') $clientesNorm[$n1] = true;
+            if ($n2 !== '') $clientesNorm[$n2] = true;
+            if ($a1 !== '') $clientesAlfa[$a1] = true;
+            if ($a2 !== '') $clientesAlfa[$a2] = true;
         }
 
-        $filasSistema = $querySis->select([
-            'fv.id',
-            DB::raw("COALESCE(fv.cliente, 'Cliente S/N') as cliente"),
-            DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
-            DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
-            DB::raw("COALESCE(fv.tiempo_pdv, '-') as tiempo_pdv"),
-            DB::raw("COALESCE(fv.monto, 0.0) as monto"),
-            DB::raw("COALESCE(fv.motivo, '') as motivo"),
-        ])
-        ->orderBy('fv.check_in')
-        ->orderBy('fv.id')
-        ->get();
+        // Obtener marcajes de fact_visitas (Sistema Web) del día
+        $rawSistema = DB::connection('supervisor')->table('fact_visitas as fv')
+            ->where('fv.fecha_norm', $fecha)
+            ->select([
+                'fv.id',
+                DB::raw("COALESCE(fv.cliente, 'Cliente S/N') as cliente"),
+                DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
+                DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
+                DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
+                DB::raw("COALESCE(fv.tiempo_pdv, '-') as tiempo_pdv"),
+                DB::raw("COALESCE(fv.monto, 0.0) as monto"),
+                DB::raw("COALESCE(fv.motivo, '') as motivo"),
+            ])
+            ->orderBy('fv.check_in')
+            ->orderBy('fv.id')
+            ->get();
+
+        // Cruzar exclusivamente por cliente con la cartera de la ruta
+        $filasSistema = $rawSistema->filter(function ($row) use ($clientesNorm, $clientesAlfa) {
+            $n1 = $this->normalizarTexto((string) $row->cliente);
+            $n2 = $this->normalizarTexto((string) $row->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $row->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $row->cliente_norm);
+
+            return isset($clientesNorm[$n1])
+                || isset($clientesNorm[$n2])
+                || isset($clientesAlfa[$a1])
+                || isset($clientesAlfa[$a2]);
+        });
 
         // 3. Obtener marcajes de visitas (App Móvil en MySQL)
         $fInicioTime = "{$fecha} 00:00:00";

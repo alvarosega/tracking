@@ -297,23 +297,42 @@ class GetPreventaDiariaDataAction
             }
         }
 
-        // 4. Visitas registradas en fact_visitas
-        $vendedoresNorm = $universoRutas->pluck('vendedor_norm')->filter()->unique()->toArray();
-        $vendedorToRutaClean = [];
-        foreach ($universoRutas as $ur) {
-            if ($ur->vendedor_norm) {
-                $vendedorToRutaClean[$ur->vendedor_norm] = $ur->ruta_clean;
+        // 4. Visitas registradas en fact_visitas (Cruce estricto por cliente con pan_ruteo, NUNCA por vendedor)
+        $clienteARutaNorm = [];
+        $clienteARutaAlfa = [];
+        try {
+            $carteraClientes = DB::connection('supervisor')->table('pan_ruteo')
+                ->where('cliente_id', '>', 0)
+                ->whereRaw("TRIM(UPPER(COALESCE(estado, ''))) = 'ACTIVO'")
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    'cliente',
+                    'cliente_norm',
+                ])
+                ->get();
+
+            foreach ($carteraClientes as $c) {
+                $r = (string) $c->ruta_clean;
+                $n1 = $this->normalizarTexto((string) $c->cliente);
+                $n2 = $this->normalizarTexto((string) $c->cliente_norm);
+                $a1 = $this->normalizarAlfanumerico((string) $c->cliente);
+                $a2 = $this->normalizarAlfanumerico((string) $c->cliente_norm);
+                if ($n1 !== '' && !isset($clienteARutaNorm[$n1])) $clienteARutaNorm[$n1] = $r;
+                if ($n2 !== '' && !isset($clienteARutaNorm[$n2])) $clienteARutaNorm[$n2] = $r;
+                if ($a1 !== '' && !isset($clienteARutaAlfa[$a1])) $clienteARutaAlfa[$a1] = $r;
+                if ($a2 !== '' && !isset($clienteARutaAlfa[$a2])) $clienteARutaAlfa[$a2] = $r;
             }
+        } catch (\Throwable $e) {
+            Log::debug('Error precargando rutas en preventa diaria: ' . $e->getMessage());
         }
 
         $visitasVendedor = DB::connection('supervisor')->table('fact_visitas')
             ->where('fecha_norm', $fechaNorm)
             ->whereNotNull('cliente')
             ->whereRaw("TRIM(COALESCE(cliente_norm, cliente)) != ''")
-            ->whereIn(DB::raw("TRIM(LOWER(COALESCE(empleado_norm, empleado)))"), $vendedoresNorm)
             ->select([
-                DB::raw("TRIM(LOWER(COALESCE(empleado_norm, empleado))) as emp_norm"),
-                DB::raw("TRIM(LOWER(COALESCE(cliente_norm, cliente))) as cliente_norm"),
+                'cliente',
+                'cliente_norm',
             ])
             ->distinct()
             ->get();
@@ -321,11 +340,22 @@ class GetPreventaDiariaDataAction
         $visitasPlanPorRuta = [];
         $visitasExtraPorRuta = [];
         foreach ($visitasVendedor as $vv) {
-            $rClean = $vendedorToRutaClean[$vv->emp_norm] ?? null;
+            $n1 = $this->normalizarTexto((string) $vv->cliente);
+            $n2 = $this->normalizarTexto((string) $vv->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $vv->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $vv->cliente_norm);
+
+            $rClean = $clienteARutaNorm[$n1]
+                ?? $clienteARutaNorm[$n2]
+                ?? $clienteARutaAlfa[$a1]
+                ?? $clienteARutaAlfa[$a2]
+                ?? null;
+
             if (!$rClean) {
                 continue;
             }
-            $cn = $vv->cliente_norm;
+
+            $cn = trim((string) ($vv->cliente_norm ?: $vv->cliente));
             if (isset($planSetPorRuta[$rClean][$cn])) {
                 $visitasPlanPorRuta[$rClean] = ($visitasPlanPorRuta[$rClean] ?? 0) + 1;
             } else {
@@ -441,6 +471,19 @@ class GetPreventaDiariaDataAction
         }
 
         return $resultado;
+    }
+
+    private function normalizarTexto(?string $txt): string
+    {
+        if ($txt === null) return '';
+        $str = mb_strtolower(trim($txt), 'UTF-8');
+        return preg_replace('/[^a-z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $str) ?: $str) ?: '';
+    }
+
+    private function normalizarAlfanumerico(?string $txt): string
+    {
+        if ($txt === null) return '';
+        return preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($txt))) ?: '';
     }
 }
 

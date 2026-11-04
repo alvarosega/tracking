@@ -108,10 +108,32 @@ class GetPreventaDetalleRutaAction
             ->orderBy('check_in', 'asc')
             ->get();
 
+        $planClientesNorm = [];
+        $planClientesAlfa = [];
+        foreach ($filasPlan as $fp) {
+            $n1 = $this->normalizarTexto((string) $fp->cliente);
+            $n2 = $this->normalizarTexto((string) $fp->cliente_norm);
+            $a1 = $this->normalizarAlfanumerico((string) $fp->cliente);
+            $a2 = $this->normalizarAlfanumerico((string) $fp->cliente_norm);
+            if ($n1 !== '') $planClientesNorm[$n1] = true;
+            if ($n2 !== '') $planClientesNorm[$n2] = true;
+            if ($a1 !== '') $planClientesAlfa[$a1] = true;
+            if ($a2 !== '') $planClientesAlfa[$a2] = true;
+        }
+
+        // Cruzar exclusivamente por cliente con pan_ruteo (NUNCA por columna vendedor)
         $visitasVendedor = [];
         foreach ($todasVisitas as $v) {
-            $empNorm = $this->normalizarTexto($v->empleado_norm ?: $v->empleado);
-            if ($empNorm === $vendedorNorm) {
+            $n1 = $this->normalizarTexto((string) $v->cliente_visita);
+            $n2 = $this->normalizarTexto((string) $v->cliente_raw);
+            $a1 = $this->normalizarAlfanumerico((string) $v->cliente_visita);
+            $a2 = $this->normalizarAlfanumerico((string) $v->cliente_raw);
+
+            if (isset($planClientesNorm[$n1])
+                || isset($planClientesNorm[$n2])
+                || isset($planClientesAlfa[$a1])
+                || isset($planClientesAlfa[$a2])
+            ) {
                 $visitasVendedor[] = $v;
             }
         }
