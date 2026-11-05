@@ -157,8 +157,8 @@
 
         <!-- FILA 2: CONTROLES DE CAPAS EN EL MAPA (PINES ANDROID, PINES WEB, RECORRIDO, DESVIACIÓN) -->
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap pt-1.5 mt-1 border-t border-slate-100 text-xs">
-          <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider hidden sm:inline mr-1">
-            Capas en Mapa:
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline mr-1">
+            Capas:
           </span>
 
           <!-- TOGGLE: Pines Android (Marcadores de la App Móvil) -->
@@ -166,11 +166,11 @@
             type="button"
             @click="toggleCapa('android')"
             class="h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer select-none border"
-            :class="capasVisibles.android ? 'bg-sky-600 text-white border-sky-600 shadow-2xs font-bold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            :class="capasVisibles.android ? 'bg-sky-700 text-white border-sky-700 shadow-2xs font-semibold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
             title="Activar u ocultar los pines donde el vendedor marcó la visita en Android"
           >
             <span class="w-2 h-2 rounded-full" :class="capasVisibles.android ? 'bg-white' : 'bg-sky-500'"></span>
-            <span>📱 Pines Android ({{ visitasAndroid.length }})</span>
+            <span>Pines Android ({{ visitasAndroid.length }})</span>
           </button>
 
           <!-- TOGGLE: Pines Web (Padrón pan_ruteo) -->
@@ -178,11 +178,11 @@
             type="button"
             @click="toggleCapa('web')"
             class="h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer select-none border"
-            :class="capasVisibles.web ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs font-bold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            :class="capasVisibles.web ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs font-semibold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
             title="Activar u ocultar los pines oficiales de clientes registrados en el padrón web"
           >
             <span class="w-2 h-2 rounded-full" :class="capasVisibles.web ? 'bg-white' : 'bg-emerald-500'"></span>
-            <span>🌐 Pines Web / Padrón ({{ puntosWeb.length }})</span>
+            <span>Pines Web ({{ puntosWeb.length }})</span>
           </button>
 
           <!-- TOGGLE: Línea del Recorrido -->
@@ -190,13 +190,13 @@
             type="button"
             @click="toggleCapa('recorrido')"
             class="h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer select-none border"
-            :class="capasVisibles.recorrido ? 'bg-slate-900 text-white border-slate-900 shadow-2xs font-bold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            :class="capasVisibles.recorrido ? 'bg-slate-900 text-white border-slate-900 shadow-2xs font-semibold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
             title="Trazado de la trayectoria cronológica del vendedor a lo largo de la jornada"
           >
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            <span>🛣️ Recorrido ({{ tramos.length }} tramos)</span>
+            <span>Recorrido ({{ tramos.length }} tramos)</span>
           </button>
 
           <!-- TOGGLE: Líneas de Desviación (Android <-> Web) -->
@@ -204,11 +204,11 @@
             type="button"
             @click="toggleCapa('desviacion')"
             class="h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer select-none border"
-            :class="capasVisibles.desviacion ? 'bg-amber-600 text-white border-amber-600 shadow-2xs font-bold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            :class="capasVisibles.desviacion ? 'bg-amber-700 text-white border-amber-700 shadow-2xs font-semibold' : 'bg-[#FBFBFD] text-slate-600 border-[#E5E5EA] hover:bg-[#F2F2F7]'"
             title="Líneas punteadas que muestran la distancia entre donde se tomó la visita y la tienda real"
           >
             <span class="w-2 h-2 rounded-full" :class="capasVisibles.desviacion ? 'bg-white' : 'bg-amber-500'"></span>
-            <span>📏 Desviación (Android vs Web)</span>
+            <span>Desviación Android vs Web</span>
           </button>
         </div>
       </header>
@@ -386,11 +386,11 @@
 
                       <!-- Subtítulo con Horas y Desviación -->
                       <div class="flex items-center gap-2 text-[10.5px] font-mono text-slate-500 mt-1 flex-wrap">
-                        <span>📱 {{ v.hora }}</span>
+                        <span class="font-medium text-slate-700">App: {{ v.hora }}</span>
                         
                         <span v-if="v.check_in_web" class="text-slate-400">|</span>
                         <span v-if="v.check_in_web" class="text-slate-600" title="Check-in registrado en Web">
-                          🌐 {{ v.check_in_web }}
+                          Web: {{ v.check_in_web }}
                         </span>
 
                         <span class="text-slate-400">|</span>
@@ -553,12 +553,12 @@
 
           <!-- LEYENDA DEL MAPA FLOTANTE -->
           <div class="hidden sm:block absolute bottom-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl p-3 shadow-lg z-[500] text-xs max-w-[260px] font-sans">
-            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Comportamiento en Mapa</p>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Capas del Mapa</p>
             
             <div class="space-y-1.5 text-[11px] pb-2 border-b border-slate-100">
               <div class="flex items-center gap-2">
                 <span class="w-3.5 h-3.5 rounded-full bg-sky-600 text-white font-mono font-bold text-[9px] flex items-center justify-center shrink-0">1</span>
-                <span>Pin Android (Ubicación Celular)</span>
+                <span>Pin Android (Visita App)</span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="w-3.5 h-3.5 rounded-md bg-emerald-700 text-white font-mono font-bold text-[9px] flex items-center justify-center shrink-0">W</span>
@@ -570,7 +570,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <span class="w-4 border-b-2 border-dashed border-amber-500 shrink-0"></span>
-                <span>Línea Desviación (Desfase)</span>
+                <span>Línea de Desviación</span>
               </div>
             </div>
 
@@ -985,8 +985,8 @@ function renderizarMapa() {
         </span>
       </div>
       <div style="font-size: 10.5px; color: #64748b; margin-bottom: 4px;">
-        📱 Marcado Android: <b>${v.hora}</b>
-        ${v.check_in_web ? `<br>🌐 Check-in Web: <b>${v.check_in_web}</b>` : ''}
+        Marcación App: <b>${v.hora}</b>
+        ${v.check_in_web ? `<br>Check-in Web: <b>${v.check_in_web}</b>` : ''}
       </div>
       <div style="background-color: ${v.desviacion_metros > 50 ? '#fee2e2' : '#f0fdf4'}; color: ${v.desviacion_metros > 50 ? '#991b1b' : '#166534'}; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 6px;">
         Desviación respecto a Padrón: ${v.desviacion_metros} metros
@@ -1054,8 +1054,9 @@ function renderizarMapa() {
 
     const popupWeb = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; line-height: 1.4; color: #0f172a; min-width: 210px;">
-        <div style="font-weight: 800; font-size: 12px; margin-bottom: 2px; color: #047857;">
-          🌐 ${w.cliente}
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+          <span style="font-weight: 800; font-size: 12px; color: #047857;">${w.cliente}</span>
+          <span style="background-color: #ecfdf5; color: #047857; font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 4px; border: 1px solid #a7f3d0;">Padrón Web</span>
         </div>
         <div style="font-size: 10px; color: #64748b; margin-bottom: 4px;">
           Código #${w.cliente_id} • Ruta: <b>${w.ruta}</b> (${w.dia || 'Sin día'})

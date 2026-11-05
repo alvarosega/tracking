@@ -905,6 +905,10 @@
                   <b :class="p.es_actual ? 'text-sky-700' : 'text-slate-600'">{{ p.corto }}:</b> {{ formatMonto(getVentaRutaPeriodo(balanceRutaSeleccionada, p.periodo)) }}
                 </span>
               </template>
+              <span class="text-slate-300">|</span>
+              <span class="text-amber-800 font-semibold bg-amber-50 px-1 py-0.2 rounded border border-amber-200" :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'">
+                <b>Prom:</b> {{ formatMonto(getPromedioVentaRutaPeriodos(balanceRutaSeleccionada)) }}
+              </span>
             </div>
 
             <template v-if="rutaParaAjustarFrontera">
@@ -1096,9 +1100,9 @@
                   v-if="periodosVisibles.length > 0"
                   class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
                   :class="{
-                    'grid-cols-1': periodosVisibles.length === 1,
-                    'grid-cols-2': periodosVisibles.length === 2,
-                    'grid-cols-3': periodosVisibles.length >= 3,
+                    'grid-cols-2': (periodosVisibles.length + 1) === 2,
+                    'grid-cols-3': (periodosVisibles.length + 1) === 3,
+                    'grid-cols-4': (periodosVisibles.length + 1) >= 4,
                   }"
                 >
                   <div
@@ -1119,6 +1123,19 @@
                       :class="p.es_actual ? 'text-slate-900' : 'text-slate-800'"
                     >
                       {{ formatMonto(getVentaRutaPeriodo(b, p.periodo)) }}
+                    </div>
+                  </div>
+
+                  <!-- Promedio de Meses Seleccionados -->
+                  <div
+                    class="border rounded px-1.5 py-0.5 bg-amber-50/90 border-amber-200"
+                    :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'"
+                  >
+                    <div class="text-[8px] font-bold text-amber-700 truncate">
+                      Prom ({{ periodosVisibles.length }}M)
+                    </div>
+                    <div class="font-bold truncate text-amber-900">
+                      {{ formatMonto(getPromedioVentaRutaPeriodos(b)) }}
                     </div>
                   </div>
                 </div>
@@ -1315,6 +1332,10 @@
                           <b :class="p.es_actual ? 'text-sky-700' : 'text-slate-500'">{{ p.corto }}:</b> {{ formatMonto(getVentaClientePeriodo(c, p.periodo)) }}
                         </span>
                       </template>
+                      <span class="text-slate-300">•</span>
+                      <span class="text-amber-800 font-semibold bg-amber-50 px-1 py-0.2 rounded border border-amber-200" :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'">
+                        <b>Prom:</b> {{ formatMonto(getPromedioVentaClientePeriodos(c)) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1348,9 +1369,9 @@
                       v-if="periodosVisibles.length > 0"
                       class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
                       :class="{
-                        'grid-cols-1': periodosVisibles.length === 1,
-                        'grid-cols-2': periodosVisibles.length === 2,
-                        'grid-cols-3': periodosVisibles.length >= 3,
+                        'grid-cols-2': (periodosVisibles.length + 1) === 2,
+                        'grid-cols-3': (periodosVisibles.length + 1) === 3,
+                        'grid-cols-4': (periodosVisibles.length + 1) >= 4,
                       }"
                     >
                       <div
@@ -1371,6 +1392,19 @@
                           :class="p.es_actual ? 'text-slate-900' : 'text-slate-800'"
                         >
                           {{ formatMonto(getVentaRutaPeriodo(b, p.periodo)) }}
+                        </div>
+                      </div>
+
+                      <!-- Promedio de Meses Seleccionados -->
+                      <div
+                        class="border rounded px-1.5 py-0.5 bg-amber-50/90 border-amber-200"
+                        :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'"
+                      >
+                        <div class="text-[8px] font-bold text-amber-700 truncate">
+                          Prom ({{ periodosVisibles.length }}M)
+                        </div>
+                        <div class="font-bold truncate text-amber-900">
+                          {{ formatMonto(getPromedioVentaRutaPeriodos(b)) }}
                         </div>
                       </div>
                     </div>
@@ -1498,9 +1532,9 @@
                   v-else-if="kpisVentasCliente"
                   class="grid gap-1.5"
                   :class="{
-                    'grid-cols-1': periodosVisibles.length === 1,
-                    'grid-cols-2': periodosVisibles.length === 2,
-                    'grid-cols-3': periodosVisibles.length >= 3,
+                    'grid-cols-2': (periodosVisibles.length + 1) === 2,
+                    'grid-cols-3': (periodosVisibles.length + 1) === 3,
+                    'grid-cols-4': (periodosVisibles.length + 1) >= 4,
                   }"
                 >
                   <div
@@ -1534,6 +1568,25 @@
                       <span class="font-bold">
                         {{ getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.frecuencia_compra ?? getFrecuenciaClientePeriodo(clienteSeleccionado, p.periodo) }}
                       </span>
+                    </div>
+                  </div>
+
+                  <!-- Promedio Mensual -->
+                  <div
+                    v-if="periodosVisibles.length > 0"
+                    class="p-2 rounded-lg bg-amber-50/80 border border-amber-200 space-y-1"
+                    :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'"
+                  >
+                    <div class="flex items-center justify-between text-[8.5px] font-mono">
+                      <span class="font-bold uppercase text-amber-800">PROMEDIO</span>
+                      <span class="font-bold text-amber-700">{{ periodosVisibles.length }}M</span>
+                    </div>
+                    <div class="text-[10px] font-bold font-mono leading-tight text-amber-950">
+                      {{ formatMonto(getPromedioKpisClientePeriodos(kpisVentasCliente, clienteSeleccionado)) }}
+                    </div>
+                    <div class="text-[8.5px] font-mono text-amber-700 pt-0.5 border-t border-amber-200 flex items-center justify-between">
+                      <span class="text-amber-600/80">Base:</span>
+                      <span class="font-bold text-amber-800">{{ periodosVisibles.length }} m</span>
                     </div>
                   </div>
                 </div>
@@ -2035,6 +2088,28 @@
                     </span>
                   </div>
                 </th>
+                <!-- Columna de Promedio según Meses Seleccionados -->
+                <th
+                  v-if="periodosVisibles.length > 0"
+                  @click="ordenarPor('promedio_ventas')"
+                  class="py-1.5 px-3 font-bold text-right whitespace-nowrap cursor-pointer transition-colors bg-amber-50/70 hover:bg-amber-100/70 border-l border-amber-200 text-amber-900"
+                  :title="'Clic para ordenar por Promedio Mensual (' + periodosVisibles.length + ' meses seleccionados)'"
+                >
+                  <div class="inline-flex items-center justify-end gap-1 w-full">
+                    <div>
+                      <div>Promedio</div>
+                      <div class="text-[8.5px] font-normal text-amber-700">
+                        ({{ periodosVisibles.length }}M)
+                      </div>
+                    </div>
+                    <span
+                      class="text-[9px]"
+                      :class="columnaOrden === 'promedio_ventas' ? 'text-amber-950 font-bold' : 'text-amber-400'"
+                    >
+                      {{ columnaOrden === 'promedio_ventas' ? (direccionOrden === 'asc' ? '▲' : '▼') : '↕' }}
+                    </span>
+                  </div>
+                </th>
                 <th
                   @click="ordenarPor('frecuencia_mes_actual')"
                   class="py-1.5 px-3 font-bold text-center whitespace-nowrap bg-sky-50/50 cursor-pointer hover:bg-sky-100/60 transition-colors"
@@ -2190,6 +2265,19 @@
                   </span>
                 </td>
 
+                <!-- Promedio de Ventas según Meses Seleccionados -->
+                <td
+                  v-if="periodosVisibles.length > 0"
+                  class="py-2 px-3 text-right font-mono whitespace-nowrap bg-amber-50/30 border-l border-amber-100"
+                >
+                  <span
+                    class="font-bold text-xs"
+                    :class="getPromedioVentaClientePeriodos(c) > 0 ? 'text-amber-900' : 'text-slate-300'"
+                  >
+                    {{ formatMonto(getPromedioVentaClientePeriodos(c)) }}
+                  </span>
+                </td>
+
                 <!-- 3. Frecuencia de Compra Mes Actual -->
                 <td class="py-2 px-3 text-center font-mono whitespace-nowrap bg-sky-50/20">
                   <span
@@ -2292,6 +2380,13 @@
                   :class="p.es_actual ? 'bg-sky-100/70 text-slate-900 border-l border-slate-200' : 'bg-slate-200/70 text-slate-800'"
                 >
                   {{ formatMonto(totalesMatrizInferiorPorPeriodo[p.periodo] || 0) }}
+                </td>
+                <td
+                  v-if="periodosVisibles.length > 0"
+                  class="py-2 px-3 text-right whitespace-nowrap bg-amber-100/90 text-amber-950 border-l border-amber-300 font-bold"
+                  :title="'Promedio mensual de totales (' + periodosVisibles.length + ' meses seleccionados)'"
+                >
+                  {{ formatMonto(totalPromedioMatrizInferior) }}
                 </td>
                 <td colspan="5" class="py-2 px-3"></td>
               </tr>
@@ -2532,9 +2627,9 @@
                   v-else-if="mostrarVentasDetalle && kpisVentasCliente"
                   class="p-2.5 border-t border-slate-200/60 grid gap-2"
                   :class="{
-                    'grid-cols-1': periodosVisibles.length === 1,
-                    'grid-cols-2': periodosVisibles.length === 2,
-                    'grid-cols-2 sm:grid-cols-3': periodosVisibles.length >= 3,
+                    'grid-cols-2': (periodosVisibles.length + 1) === 2,
+                    'grid-cols-2 sm:grid-cols-3': (periodosVisibles.length + 1) === 3,
+                    'grid-cols-2 sm:grid-cols-4': (periodosVisibles.length + 1) >= 4,
                   }"
                 >
                   <div
@@ -2574,6 +2669,30 @@
                       >
                         {{ getKpisPeriodoCliente(kpisVentasCliente, p.periodo)?.frecuencia_compra ?? getFrecuenciaClientePeriodo(modalAjusteRtm.cliente, p.periodo) }} comp
                       </span>
+                    </div>
+                  </div>
+
+                  <!-- Promedio de Meses Seleccionados -->
+                  <div
+                    v-if="periodosVisibles.length > 0"
+                    class="p-2 rounded-lg bg-amber-50/80 border border-amber-200 shadow-2xs space-y-0.5"
+                    :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'"
+                  >
+                    <div class="flex items-center justify-between text-[10px] font-mono">
+                      <span class="font-bold uppercase tracking-wide text-amber-800">PROMEDIO</span>
+                      <span class="text-[8.5px] font-bold px-1 py-0.2 rounded font-mono bg-amber-100 text-amber-800 border border-amber-300">
+                        {{ periodosVisibles.length }}M
+                      </span>
+                    </div>
+                    <div>
+                      <div class="text-[9px] text-amber-700/80 font-mono">Prom/Mes:</div>
+                      <div class="text-[11px] font-bold font-mono leading-tight text-amber-950">
+                        {{ formatMonto(getPromedioKpisClientePeriodos(kpisVentasCliente, modalAjusteRtm.cliente)) }}
+                      </div>
+                    </div>
+                    <div class="pt-0.5 border-t border-amber-200 flex items-center justify-between text-[9px] font-mono text-amber-700">
+                      <span>Base:</span>
+                      <span class="font-bold">{{ periodosVisibles.length }} mes{{ periodosVisibles.length > 1 ? 'es' : '' }}</span>
                     </div>
                   </div>
                 </div>
@@ -3691,6 +3810,30 @@ function getKpisPeriodoCliente(kpiObj, periodo) {
   return null;
 }
 
+// Helpers para cálculo de promedios según meses seleccionados (periodosVisibles)
+function getPromedioVentaClientePeriodos(c) {
+  if (!c || periodosVisibles.value.length === 0) return 0;
+  const total = periodosVisibles.value.reduce((acc, p) => acc + getVentaClientePeriodo(c, p.periodo), 0);
+  return Math.round((total / periodosVisibles.value.length) * 100) / 100;
+}
+
+function getPromedioVentaRutaPeriodos(b) {
+  if (!b || periodosVisibles.value.length === 0) return 0;
+  const total = periodosVisibles.value.reduce((acc, p) => acc + getVentaRutaPeriodo(b, p.periodo), 0);
+  return Math.round((total / periodosVisibles.value.length) * 100) / 100;
+}
+
+function getPromedioKpisClientePeriodos(kpiObj, cliente) {
+  if (periodosVisibles.value.length === 0) return 0;
+  let total = 0;
+  for (const p of periodosVisibles.value) {
+    const kpiP = getKpisPeriodoCliente(kpiObj, p.periodo);
+    const monto = kpiP ? (Number(kpiP.monto_acumulado) || 0) : getVentaClientePeriodo(cliente, p.periodo);
+    total += monto;
+  }
+  return Math.round((total / periodosVisibles.value.length) * 100) / 100;
+}
+
 // Compatibilidad con funciones previas
 const opcionesMesesHistoricos = computed(() => {
   return periodosHistoricos.value.slice(0, 3).map((p) => ({
@@ -3732,7 +3875,7 @@ function ordenarPor(col) {
     direccionOrden.value = direccionOrden.value === 'asc' ? 'desc' : 'asc';
   } else {
     columnaOrden.value = col;
-    if (col.startsWith('venta_periodo_') || ['venta_mes_actual', 'venta_mes_anterior', 'venta_mes_anterior_2', 'frecuencia_mes_actual', 'frecuencia_mes_anterior', 'frecuencia_mes_anterior_2'].includes(col)) {
+    if (col.startsWith('venta_periodo_') || col === 'promedio_ventas' || ['venta_mes_actual', 'venta_mes_anterior', 'venta_mes_anterior_2', 'frecuencia_mes_actual', 'frecuencia_mes_anterior', 'frecuencia_mes_anterior_2'].includes(col)) {
       direccionOrden.value = 'desc';
     } else {
       direccionOrden.value = 'asc';
@@ -3804,6 +3947,11 @@ const clientesConCambioFiltrados = computed(() => {
         valB = Number(b.venta_mes_anterior_2) || 0;
         return (valA - valB) * dir;
 
+      case 'promedio_ventas':
+        valA = getPromedioVentaClientePeriodos(a);
+        valB = getPromedioVentaClientePeriodos(b);
+        return (valA - valB) * dir;
+
       case 'frecuencia_mes_actual':
         valA = Number(a.frecuencia_mes_actual) || 0;
         valB = Number(b.frecuencia_mes_actual) || 0;
@@ -3866,6 +4014,13 @@ const totalesMatrizInferiorPorPeriodo = computed(() => {
     });
   }
   return tot;
+});
+
+const totalPromedioMatrizInferior = computed(() => {
+  const pCount = periodosVisibles.value.length;
+  if (pCount === 0) return 0;
+  const sumTotales = periodosVisibles.value.reduce((acc, p) => acc + (totalesMatrizInferiorPorPeriodo.value[p.periodo] || 0), 0);
+  return Math.round((sumTotales / pCount) * 100) / 100;
 });
 
 const totalesMatrizInferior = computed(() => {
@@ -3954,6 +4109,7 @@ function exportarPropuestasExcel(soloSeleccionados = false) {
     'Latitud',
     'Longitud',
     ...periodos.map(p => `Venta ${p.nombre} (Bs)`),
+    `Promedio Mensual (${periodos.length}M) (Bs)`,
   ];
 
   const rows = [headers];
@@ -3993,6 +4149,7 @@ function exportarPropuestasExcel(soloSeleccionados = false) {
         const v = getVentaClientePeriodo(c, p.periodo);
         return typeof v === 'number' ? v : (Number(v) || 0);
       }),
+      getPromedioVentaClientePeriodos(c),
     ];
 
     rows.push(row);
@@ -5511,6 +5668,16 @@ async function actualizarKpisEnPopup(c) {
   const numMesesVisibles = Math.min(periodosVisibles.value.length, 3) || 1;
   el.style.gridTemplateColumns = `repeat(${numMesesVisibles}, 1fr)`;
 
+  const headerEl = document.getElementById(`rtm-kpis-header-${c.id}`);
+  if (headerEl && periodosVisibles.value.length > 0) {
+    const totalMonto = periodosVisibles.value.reduce((sum, p) => {
+      const kpiP = getKpisPeriodoCliente(data, p.periodo);
+      return sum + (kpiP ? (Number(kpiP.monto_acumulado) || 0) : getVentaClientePeriodo(c, p.periodo));
+    }, 0);
+    const prom = Math.round((totalMonto / periodosVisibles.value.length) * 100) / 100;
+    headerEl.innerHTML = `Prom (${periodosVisibles.value.length}M): <b style="color: #B45309;">${formatMonto(prom)}</b>`;
+  }
+
   if (periodosVisibles.value.length === 0) {
     el.innerHTML = `
       <div style="grid-column: span ${numMesesVisibles}; text-align: center; color: #94A3B8; font-size: 9px; padding: 4px;">
@@ -5922,8 +6089,10 @@ function generarPopupHtmlRtm(c) {
       <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MESES HISTÓRICOS SELECCIONADOS) -->
       <div id="rtm-kpis-${c.id}" style="margin: 4px 0 6px 0; padding: 5px 6px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-family: monospace; font-size: 10px;">
         <div style="color: #64748B; font-size: 8.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
-          <span style="color: #0F172A;">COMPORTAMIENTO COMPRA (fact_ventas)</span>
-          <span style="font-size: 8px; color: #64748B;">${numMesesVisibles} Mes${numMesesVisibles > 1 ? 'es' : ''}</span>
+          <span style="color: #0F172A;">COMPORTAMIENTO COMPRA</span>
+          <span id="rtm-kpis-header-${c.id}" style="font-size: 8px; color: #475569;">
+            ${periodosVisibles.value.length > 0 ? `Prom (${periodosVisibles.value.length}M): <b style="color: #B45309;">${formatMonto(getPromedioVentaClientePeriodos(c))}</b>` : ''}
+          </span>
         </div>
         <div id="rtm-kpis-content-${c.id}" style="display: grid; grid-template-columns: repeat(${numMesesVisibles}, 1fr); gap: 3.5px;">
           ${kpisHtml}
