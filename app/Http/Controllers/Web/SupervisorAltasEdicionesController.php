@@ -8,6 +8,7 @@ use App\Actions\Web\Supervisor\AltasEdiciones\CambiarEstadoRevisionAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
+use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionRequest;
 use Illuminate\Http\JsonResponse;
@@ -97,6 +98,31 @@ class SupervisorAltasEdicionesController extends Controller
                 'alertas_duplicidad' => ['Error en consulta de cercanos: ' . $e->getMessage()],
                 'clientes_cercanos' => [],
             ], 200);
+        }
+    }
+
+    /**
+     * Retorna las fotografías históricas de visitas de un cliente.
+     */
+    public function fotosCliente(int $clienteId, GetFotosClienteAction $action): JsonResponse
+    {
+        try {
+            $fotos = $action->execute($clienteId);
+
+            return response()->json([
+                'success' => true,
+                'cliente_id' => $clienteId,
+                'total' => $fotos->count(),
+                'fotos' => $fotos,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("Error al obtener fotos del cliente #{$clienteId}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'fotos' => [],
+            ], 500);
         }
     }
 

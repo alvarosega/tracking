@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Web\Supervisor\AltasEdiciones;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class GetClientesCercanosAltasAction
 {
@@ -60,14 +61,19 @@ class GetClientesCercanosAltasAction
                 'id',
                 'cliente_id',
                 DB::raw("COALESCE(NULLIF(cliente, ''), cliente_norm, 'Cliente Sin Nombre') as cliente"),
+                'cliente_norm',
+                'nombre_factura',
+                'nit',
+                'ci',
                 'ruta',
                 'vendedor',
+                DB::raw("COALESCE(TRIM(dia_norm), TRIM(dia), 'SIN DIA') as dia"),
                 'direccion',
                 'referencia',
                 'tipo_negocio',
                 DB::raw("COALESCE(NULLIF(celular, ''), telefono) as celular"),
                 'telefono',
-                'nit',
+                DB::raw("COALESCE(NULLIF(estado, ''), 'Activo') as estado"),
                 'latitud',
                 'longitud',
                 DB::raw("ROUND({$haversineFormula}) AS distancia_metros"),
@@ -78,6 +84,48 @@ class GetClientesCercanosAltasAction
 
         // Deduplicar en memoria por cliente_id para soportar clientes con múltiples días de visita
         $clientesQuery = $clientesRaw->unique('cliente_id');
+
+        // Consultar fotografías registradas en visitas para los clientes encontrados
+        $clienteIds = $clientesQuery->pluck('cliente_id')->filter()->unique()->toArray();
+        $fotosVisitasMap = [];
+        if (!empty($clienteIds)) {
+            try {
+                $visitasFotos = DB::table('visitas')
+                    ->whereIn('client_id', $clienteIds)
+                    ->whereNotNull('photo_path')
+                    ->where('photo_path', '!=', '')
+                    ->select([
+                        'client_id',
+                        DB::raw('COUNT(*) as total_fotos'),
+                        DB::raw('MAX(photo_path) as ultima_foto'),
+                        DB::raw('MAX(visited_at) as ultima_fecha'),
+                    ])
+                    ->groupBy('client_id')
+                    ->get();
+
+                foreach ($visitasFotos as $vf) {
+                    $rawPath = ltrim(str_replace('\\', '/', (string) $vf->ultima_foto), '/');
+                    $url = '';
+                    if ($rawPath !== '') {
+                        if (str_starts_with($rawPath, 'http://') || str_starts_with($rawPath, 'https://')) {
+                            $url = $rawPath;
+                        } elseif (str_starts_with($rawPath, 'storage/')) {
+                            $url = '/' . $rawPath;
+                        } else {
+                            $url = '/storage/' . $rawPath;
+                        }
+                    }
+
+                    $fotosVisitasMap[(int) $vf->client_id] = [
+                        'total_fotos' => (int) $vf->total_fotos,
+                        'ultima_foto' => $url,
+                        'ultima_fecha' => $vf->ultima_fecha ? date('d/m/Y H:i', strtotime((string) $vf->ultima_fecha)) : null,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Silencioso si visitas no está accesible
+            }
+        }
 
         // 3. Consulta de Altas pendientes en saneamiento_base
         $haversineAltas = "(6371000 * 2 * ASIN(SQRT(
@@ -117,7 +165,12 @@ class GetClientesCercanosAltasAction
                 'tipo_negocio',
                 'celular',
                 'telefono',
+                'contacto',
                 'nit',
+                'nombre_factura',
+                'zona',
+                'lista_precios',
+                'photo_path',
                 'latitude as latitud',
                 'longitude as longitud',
                 DB::raw("ROUND({$haversineAltas}) AS distancia_metros"),
@@ -148,24 +201,41 @@ class GetClientesCercanosAltasAction
                 $alertasGlobales[] = $alerta;
             }
 
+            $cidInt = (int) $c->cliente_id;
+            $fotoInfo = $fotosVisitasMap[$cidInt] ?? null;
+
             $clientesCercanos[] = [
-                'cliente_id' => (int) $c->cliente_id,
+                'id' => (int) $c->id,
+                'cliente_id' => $cidInt,
+                'saneamiento_id' => null,
                 'es_alta_pendiente' => false,
                 'cliente' => trim((string) $c->cliente),
+                'cliente_norm' => trim((string) ($c->cliente_norm ?? '')),
+                'nombre_factura' => trim((string) ($c->nombre_factura ?? '')),
+                'nit' => trim((string) ($c->nit ?? '')),
+                'ci' => trim((string) ($c->ci ?? '')),
                 'ruta' => trim((string) $c->ruta),
                 'vendedor' => trim((string) ($c->vendedor ?? '')),
+                'dia' => trim((string) ($c->dia ?? 'SIN DIA')),
                 'tipo_negocio' => trim((string) ($c->tipo_negocio ?? '')),
                 'direccion' => trim((string) ($c->direccion ?? '')),
                 'referencia' => trim((string) ($c->referencia ?? '')),
                 'celular' => trim((string) ($c->celular ?? '')),
                 'telefono' => trim((string) ($c->telefono ?? '')),
-                'nit' => trim((string) ($c->nit ?? '')),
+                'contacto' => '',
+                'zona' => '',
+                'lista_precios' => '',
+                'estado' => trim((string) ($c->estado ?? 'Activo')),
                 'latitud' => (float) $c->latitud,
                 'longitud' => (float) $c->longitud,
                 'distancia_metros' => (int) $c->distancia_metros,
                 'tiene_duplicidad' => !empty($analisis['coincidencias']),
                 'coincidencias' => $analisis['coincidencias'],
                 'alertas' => $analisis['alertas'],
+                'fotos_count' => $fotoInfo ? (int) $fotoInfo['total_fotos'] : 0,
+                'ultima_foto' => $fotoInfo['ultima_foto'] ?? null,
+                'photo_url' => $fotoInfo['ultima_foto'] ?? null,
+                'foto_fecha' => $fotoInfo['ultima_fecha'] ?? null,
             ];
         }
 
@@ -188,25 +258,51 @@ class GetClientesCercanosAltasAction
                 $alertasGlobales[] = $alerta;
             }
 
+            $fotoUrl = null;
+            if (!empty($a->photo_path)) {
+                $rawPath = ltrim(str_replace('\\', '/', (string) $a->photo_path), '/');
+                if (str_starts_with($rawPath, 'http://') || str_starts_with($rawPath, 'https://')) {
+                    $fotoUrl = $rawPath;
+                } elseif (str_starts_with($rawPath, 'storage/')) {
+                    $fotoUrl = '/' . $rawPath;
+                } else {
+                    $fotoUrl = '/storage/' . $rawPath;
+                }
+            }
+
             $clientesCercanos[] = [
+                'id' => (int) $a->saneamiento_id,
                 'cliente_id' => null,
                 'saneamiento_id' => (int) $a->saneamiento_id,
                 'es_alta_pendiente' => true,
                 'cliente' => trim((string) $a->cliente) . ' (Alta en revisión)',
+                'cliente_norm' => '',
+                'nombre_factura' => trim((string) ($a->nombre_factura ?? '')),
+                'nit' => trim((string) ($a->nit ?? '')),
+                'ci' => '',
                 'ruta' => trim((string) $a->ruta),
                 'vendedor' => '',
+                'dia' => 'PENDIENTE',
                 'tipo_negocio' => trim((string) ($a->tipo_negocio ?? '')),
                 'direccion' => trim((string) ($a->direccion ?? '')),
                 'referencia' => trim((string) ($a->referencia ?? '')),
                 'celular' => trim((string) ($a->celular ?? '')),
                 'telefono' => trim((string) ($a->telefono ?? '')),
-                'nit' => trim((string) ($a->nit ?? '')),
+                'contacto' => trim((string) ($a->contacto ?? '')),
+                'zona' => trim((string) ($a->zona ?? '')),
+                'lista_precios' => trim((string) ($a->lista_precios ?? '')),
+                'estado' => 'Alta en revisión',
                 'latitud' => (float) $a->latitud,
                 'longitud' => (float) $a->longitud,
                 'distancia_metros' => (int) $a->distancia_metros,
                 'tiene_duplicidad' => !empty($analisis['coincidencias']),
                 'coincidencias' => $analisis['coincidencias'],
                 'alertas' => $analisis['alertas'],
+                'photo_path' => $a->photo_path,
+                'photo_url' => $fotoUrl,
+                'fotos_count' => $fotoUrl ? 1 : 0,
+                'ultima_foto' => $fotoUrl,
+                'foto_fecha' => null,
             ];
         }
 

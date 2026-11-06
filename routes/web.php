@@ -263,6 +263,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
         Route::middleware('module.access:altas-ediciones,cercanos')->group(function () {
             Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
+            Route::get('/fotos-cliente/{clienteId}', [SupervisorAltasEdicionesController::class, 'fotosCliente'])->name('fotos-cliente');
         });
     });
 
