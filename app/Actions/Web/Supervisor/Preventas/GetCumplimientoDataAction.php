@@ -248,25 +248,43 @@ class GetCumplimientoDataAction
 
         $preventasPorRuta = $preventasRaw->groupBy('ruta');
 
-        // E. fact_metas: Cuota volumétrica mensual asignada por ruta
+        // E. fact_metas: Cuota volumétrica mensual asignada por ruta del mes seleccionado en el filtro
         $metasPorRuta = collect();
         try {
             $mes = (int) $carbonFecha->month;
             $anio = (int) $carbonFecha->year;
+            $patrones = $this->construirPatronesMes($anio, $mes);
+            $mes2d = sprintf('%02d', $mes);
 
-            try {
-                $metasPorRuta = DB::connection('supervisor')->table('fact_metas')
-                    ->whereIn('ruta', $rutasFiltradas)
-                    ->where('mes', $mes)
-                    ->where('anio', $anio)
-                    ->get()
-                    ->keyBy('ruta');
-            } catch (\Throwable) {
-                $metasPorRuta = DB::connection('supervisor')->table('fact_metas')
-                    ->whereIn('ruta', $rutasFiltradas)
-                    ->get()
-                    ->keyBy('ruta');
-            }
+            $mesesEspCompleto = [
+                1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+                5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+                9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+            ];
+            $mesesEspAbr = [
+                1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+                7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic',
+            ];
+            $nom = $mesesEspCompleto[$mes] ?? '';
+            $abr = $mesesEspAbr[$mes] ?? '';
+
+            $rutasUpper = array_values(array_unique(array_filter(array_map('strtoupper', array_map('trim', $rutasFiltradas)))));
+
+            $metasPorRuta = DB::connection('supervisor')->table('fact_metas')
+                ->whereIn(DB::raw("TRIM(UPPER(ruta))"), $rutasUpper)
+                ->where(function ($q) use ($patrones, $nom, $abr, $anio, $mes2d): void {
+                    $q->whereIn(DB::raw("LOWER(TRIM(mes))"), $patrones)
+                      ->orWhere('mes', 'like', "%{$nom}%")
+                      ->orWhere('mes', 'like', "%{$anio}-{$mes2d}%")
+                      ->orWhere('mes', 'like', "%{$abr}%");
+                })
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    DB::raw("MAX(CAST(COALESCE(objetivo_de_venta, 0.0) AS DECIMAL(14, 2))) as objetivo_de_venta"),
+                ])
+                ->groupBy(DB::raw("TRIM(UPPER(ruta))"))
+                ->get()
+                ->keyBy('ruta_clean');
         } catch (\Throwable $e) {
             Log::warning('Error consultando fact_metas en Cumplimiento: ' . $e->getMessage());
         }
@@ -371,17 +389,34 @@ class GetCumplimientoDataAction
             }
         }
 
-        // 4. Cálculo de Días Hábiles Restantes y Divisor de Preventa (para KPI 3)
-        $diasHabilesRestantes = 0;
-        $cursorDia = $carbonFecha->copy();
-        $finMes = $carbonFecha->copy()->endOfMonth();
-        while ($cursorDia->lte($finMes)) {
-            // Lunes (1) a Sábado (6) son días hábiles comerciales
-            if ($cursorDia->dayOfWeekIso <= 6) {
-                $diasHabilesRestantes++;
+        // 4. Cálculo de Días Hábiles y Divisor en base al día seleccionado (para KPI 3)
+        $inicioMes = $carbonFecha->copy()->startOfMonth()->toDateString();
+        $diasTotales = 25;
+        try {
+            $rowCal = DB::connection('supervisor')->table('dim_calendario_mensual')
+                ->where('year', (int) $carbonFecha->year)
+                ->where('month', (int) $carbonFecha->month)
+                ->first();
+            if ($rowCal && isset($rowCal->dias_habiles)) {
+                $diasTotales = (int) $rowCal->dias_habiles;
             }
-            $cursorDia->addDay();
+        } catch (\Throwable) {
+            // Default 25
         }
+
+        $diasOperados = 1;
+        try {
+            $diasOperados = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '>=', $inicioMes)
+                ->where('fecha_norm', '<=', $fecha)
+                ->where('monto_final', '>', 0)
+                ->distinct()
+                ->count('fecha_norm');
+        } catch (\Throwable) {
+            $diasOperados = 1;
+        }
+
+        $diasHabilesRestantes = max(1, $diasTotales - $diasOperados);
         $divisorPreventa = max(1, $diasHabilesRestantes - 2);
 
         // 5. Evaluación Exhaustiva de los 8 KPIs por Ruta
@@ -580,11 +615,12 @@ class GetCumplimientoDataAction
             // ----------------------------------------------------
             // KPI 3: Cumplimiento de Objetivo Diario (10 Puntos)
             // ----------------------------------------------------
-            $metaRutaObj = $metasPorRuta->get($rutaCodigo);
+            $rutaClean = trim(strtoupper((string) $rutaCodigo));
+            $metaRutaObj = $metasPorRuta->get($rutaClean) ?? $metasPorRuta->get($rutaCodigo);
             $metaMensual = $metaRutaObj ? (float) (is_array($metaRutaObj) ? ($metaRutaObj['objetivo_de_venta'] ?? 0.0) : ($metaRutaObj->objetivo_de_venta ?? 0.0)) : 0.0;
-            $facturadoPrevio = (float) ($facturadoPrevioPorRuta[$rutaCodigo] ?? 0.0);
+            $facturadoPrevio = (float) ($facturadoPrevioPorRuta[$rutaCodigo] ?? $facturadoPrevioPorRuta[$rutaClean] ?? 0.0);
             $brecha = max(0.0, $metaMensual - $facturadoPrevio);
-            $cuotaDiaria = ($divisorPreventa > 0) ? round($brecha / $divisorPreventa, 2) : 0.0;
+            $cuotaDiaria = ($metaMensual > 0) ? round($brecha / $divisorPreventa, 2) : 0.0;
 
             // Venta Preventa Hoy
             $ventaPreventaHoy = (float) $preventasRuta->sum('monto_final');
@@ -1194,5 +1230,44 @@ class GetCumplimientoDataAction
         }
         $s = $this->normalizarTexto($texto);
         return preg_replace('/[^a-z0-9]/', '', $s) ?? '';
+    }
+
+    /**
+     * Construye patrones de texto para filtrar el campo 'mes' en fact_metas.
+     *
+     * @return array<int, string>
+     */
+    private function construirPatronesMes(int $year, int $month): array
+    {
+        $mesesEspAbr = [
+            1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+            7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic',
+        ];
+        $mesesEspCompleto = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril', 5 => 'mayo', 6 => 'junio',
+            7 => 'julio', 8 => 'agosto', 9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        ];
+
+        $yy = substr((string) $year, -2);
+        $abr = $mesesEspAbr[$month] ?? '';
+        $nom = $mesesEspCompleto[$month] ?? '';
+        $mes2d = sprintf('%02d', $month);
+
+        return array_values(array_unique(array_filter([
+            "{$nom} {$year}",
+            "{$nom}_{$year}",
+            "{$nom}-{$year}",
+            "{$year}-{$mes2d}",
+            "{$year}-{$mes2d}-01",
+            "{$abr}-{$yy}",
+            "{$abr}.-{$yy}",
+            "{$abr}_{$yy}",
+            "{$abr}-{$year}",
+            "{$nom} {$yy}",
+            $nom,
+            $abr,
+            $mes2d,
+            (string) $month,
+        ])));
     }
 }

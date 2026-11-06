@@ -62,19 +62,29 @@ class GetDetalleObjetivoRutaAction
                 }
             }
 
-            // 2. Meta del mes en fact_metas
-            $patronesMes = [
-                self::MESES_ESP_ABR[$month] ?? '',
-                sprintf('%04d-%02d', $year, $month),
-                (string) $month,
+            // 2. Meta del mes en fact_metas para el mes seleccionado
+            $patronesMes = $this->construirPatronesMes($year, $month);
+            $mesesEspCompleto = [
+                1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+                5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+                9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
             ];
+            $mesesEspAbr = [
+                1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+                7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic',
+            ];
+            $nom = $mesesEspCompleto[$month] ?? '';
+            $abr = $mesesEspAbr[$month] ?? '';
+            $mes2d = sprintf('%02d', $month);
 
             $metaRow = DB::connection('supervisor')->table('fact_metas')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                ->where(function ($q) use ($patronesMes, $fInicioMes, $month): void {
+                ->where(function ($q) use ($patronesMes, $nom, $abr, $year, $mes2d, $fInicioMes): void {
                     $q->where('mes', $fInicioMes)
-                      ->orWhereIn(DB::raw("LOWER(TRIM(mes))"), array_filter($patronesMes))
-                      ->orWhere('mes', 'like', '%' . (self::MESES_ESP_ABR[$month] ?? 'xxx') . '%');
+                      ->orWhereIn(DB::raw("LOWER(TRIM(mes))"), $patronesMes)
+                      ->orWhere('mes', 'like', "%{$nom}%")
+                      ->orWhere('mes', 'like', "%{$year}-{$mes2d}%")
+                      ->orWhere('mes', 'like', "%{$abr}%");
                 })
                 ->selectRaw("MAX(CAST(COALESCE(objetivo_de_venta, 0.0) AS DECIMAL(14, 2))) as meta_vol")
                 ->first();
@@ -103,9 +113,7 @@ class GetDetalleObjetivoRutaAction
                 $factPrevio = (float) $prevRow->venta_prev;
             }
 
-            // 4. Días hábiles
-            $hoy = Carbon::today();
-            $esMesCerrado = ($year < $hoy->year) || ($year === $hoy->year && $month < $hoy->month);
+            // 4. Días hábiles en base al día seleccionado
             $diasTotales = 25;
 
             $rowCal = DB::connection('supervisor')->table('dim_calendario_mensual')
@@ -118,16 +126,18 @@ class GetDetalleObjetivoRutaAction
             }
 
             $diasOperados = 1;
-            if (!$esMesCerrado) {
+            try {
                 $diasOperados = DB::connection('supervisor')->table('fact_preventas')
                     ->where('fecha_norm', '>=', $fInicioMes)
                     ->where('fecha_norm', '<=', $fechaNorm)
                     ->where('monto_final', '>', 0)
                     ->distinct()
                     ->count('fecha_norm');
+            } catch (\Throwable) {
+                $diasOperados = 1;
             }
 
-            $diasRestantes = $esMesCerrado ? 0 : max(0, $diasTotales - $diasOperados);
+            $diasRestantes = max(1, $diasTotales - $diasOperados);
             $divisorPreventa = max(1, $diasRestantes - 2);
 
             // 5. Preventas del día detalladas con ítems y SKUs
@@ -152,7 +162,7 @@ class GetDetalleObjetivoRutaAction
                 ->get();
 
             $brecha = max(0.0, $metaMes - $factPrevio);
-            $metaDia = ($metaMes > 0 && !$esMesCerrado) ? round($brecha / $divisorPreventa, 2) : 0.0;
+            $metaDia = ($metaMes > 0) ? round($brecha / $divisorPreventa, 2) : 0.0;
 
             $clientesDict = [];
             $productosDict = [];
@@ -302,5 +312,44 @@ class GetDetalleObjetivoRutaAction
                 'productos' => [],
             ];
         }
+    }
+
+    /**
+     * Construye patrones de texto para filtrar el campo 'mes' en fact_metas.
+     *
+     * @return array<int, string>
+     */
+    private function construirPatronesMes(int $year, int $month): array
+    {
+        $mesesEspAbr = [
+            1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+            7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic',
+        ];
+        $mesesEspCompleto = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril', 5 => 'mayo', 6 => 'junio',
+            7 => 'julio', 8 => 'agosto', 9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        ];
+
+        $yy = substr((string) $year, -2);
+        $abr = $mesesEspAbr[$month] ?? '';
+        $nom = $mesesEspCompleto[$month] ?? '';
+        $mes2d = sprintf('%02d', $month);
+
+        return array_values(array_unique(array_filter([
+            "{$nom} {$year}",
+            "{$nom}_{$year}",
+            "{$nom}-{$year}",
+            "{$year}-{$mes2d}",
+            "{$year}-{$mes2d}-01",
+            "{$abr}-{$yy}",
+            "{$abr}.-{$yy}",
+            "{$abr}_{$yy}",
+            "{$abr}-{$year}",
+            "{$nom} {$yy}",
+            $nom,
+            $abr,
+            $mes2d,
+            (string) $month,
+        ])));
     }
 }
