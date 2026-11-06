@@ -907,7 +907,7 @@
                 </div>
                 <div
                   v-if="registroSeleccionado.photo_url"
-                  @click="abrirLightbox(registroSeleccionado.photo_url)"
+                  @click="abrirFotosRegistroActual"
                   class="w-full h-44 rounded-[6px] overflow-hidden bg-[#F2F2F7] border border-[#E5E5EA] cursor-pointer group relative"
                 >
                   <img
@@ -1895,7 +1895,7 @@
                   <div
                     v-for="(f, fIdx) in fotosModalCercano"
                     :key="fIdx"
-                    @click="abrirFotosCliente(clienteCercanoDetalle)"
+                    @click="abrirFotoIndividual(f, fIdx)"
                     class="bg-[#FBFBFD] border border-[#E5E5EA] rounded-[10px] overflow-hidden cursor-pointer group shadow-2xs hover:border-[#0071E3] transition-all"
                   >
                     <div class="h-44 bg-[#F2F2F7] overflow-hidden relative">
@@ -2266,17 +2266,21 @@ const cargandoFotosModalCercano = ref(false);
 const fotosModalCercano = ref([]);
 
 const modalFotos = reactive({
+  abierto: false,
   open: false,
+  cargando: false,
+  errorMsg: null,
+  clienteNombre: '',
+  clienteId: null,
+  ruta: '',
   fotos: [],
   indice: 0,
-  titulo: '',
-  subtitulo: '',
   isZoomed: false,
 });
 
 const fotoActualModal = computed(() => {
   if (!modalFotos.fotos || modalFotos.fotos.length === 0) return null;
-  return modalFotos.fotos[modalFotos.indice] || modalFotos.fotos[0];
+  return modalFotos.fotos[modalFotos.indice] || modalFotos.fotos[0] || null;
 });
 
 const clientesCercanosFiltrados = computed(() => {
@@ -2644,6 +2648,9 @@ function limpiarRutas() {
 
 function abrirLightbox(url) {
   lightboxUrl.value = url;
+  if (url) {
+    abrirFotosRegistroActual();
+  }
 }
 
 async function cambiarEstadoRevision(registro, nuevoEstado) {
@@ -2957,10 +2964,16 @@ function cerrarDetalleCercano() {
 
 async function cargarFotosCliente(clienteId) {
   cargandoFotosModalCercano.value = true;
+  fotosModalCercano.value = [];
   try {
-    const url = typeof route === 'function'
-      ? route('supervisor.altas-ediciones.fotos-cliente', { clienteId })
-      : `/supervisor/altas-ediciones/fotos-cliente/${clienteId}`;
+    let url = `/supervisor/altas-ediciones/fotos-cliente/${clienteId}`;
+    try {
+      if (typeof route === 'function') {
+        url = route('supervisor.altas-ediciones.fotos-cliente', { clienteId });
+      }
+    } catch (e) {
+      url = `/supervisor/altas-ediciones/fotos-cliente/${clienteId}`;
+    }
     const res = await axios.get(url);
     if (res.data && res.data.success && Array.isArray(res.data.fotos)) {
       fotosModalCercano.value = res.data.fotos;
@@ -2975,57 +2988,104 @@ async function cargarFotosCliente(clienteId) {
   }
 }
 
-async function abrirFotosCliente(c) {
+function abrirFotosCliente(c) {
+  if (!c) return;
+  modalFotos.abierto = true;
   modalFotos.open = true;
+  modalFotos.cargando = false;
+  modalFotos.errorMsg = null;
+  modalFotos.clienteNombre = c.cliente || 'Cliente Cercano';
+  modalFotos.clienteId = c.cliente_id || c.saneamiento_id || null;
+  modalFotos.ruta = c.ruta || '';
+  modalFotos.fotos = [];
   modalFotos.indice = 0;
   modalFotos.isZoomed = false;
-  modalFotos.titulo = c.cliente || 'Cliente';
-  modalFotos.subtitulo = c.cliente_id ? `Código #${c.cliente_id} · Ruta ${c.ruta}` : `Solicitud #${c.saneamiento_id || ''} · Ruta ${c.ruta}`;
-  modalFotos.fotos = [];
 
-  if (c.cliente_id) {
-    try {
-      const url = typeof route === 'function'
-        ? route('supervisor.altas-ediciones.fotos-cliente', { clienteId: c.cliente_id })
-        : `/supervisor/altas-ediciones/fotos-cliente/${c.cliente_id}`;
-      const res = await axios.get(url);
-      if (res.data && res.data.success && Array.isArray(res.data.fotos) && res.data.fotos.length > 0) {
-        modalFotos.fotos = res.data.fotos;
-        return;
-      }
-    } catch (err) {
-      console.error('Error al abrir fotos del cliente:', err);
-    }
+  // 1. Mostrar de inmediato la foto disponible (fachada o última visita)
+  const fotoInicial = c.photo_url || c.ultima_foto;
+  if (fotoInicial) {
+    modalFotos.fotos.push({
+      url: fotoInicial,
+      photo_url: fotoInicial,
+      fecha: c.foto_fecha || 'Evidencia Registrada',
+      hora: '',
+      vendedor: c.vendedor || '',
+      comments: c.es_alta_pendiente ? 'Fotografía de fachada del alta en revisión' : 'Evidencia registrada del punto',
+    });
   }
 
-  if (c.ultima_foto || c.photo_url) {
-    modalFotos.fotos = [
-      {
-        url: c.ultima_foto || c.photo_url,
-        fecha: c.foto_fecha || 'Reciente',
-        vendedor: c.vendedor || '',
-        comments: 'Evidencia fotográfica del punto',
+  // 2. Si es un cliente existente en padrón (cliente_id), cargar historial completo de visitas
+  if (c.cliente_id) {
+    modalFotos.cargando = modalFotos.fotos.length === 0;
+    let url = `/supervisor/altas-ediciones/fotos-cliente/${c.cliente_id}`;
+    try {
+      if (typeof route === 'function') {
+        url = route('supervisor.altas-ediciones.fotos-cliente', { clienteId: c.cliente_id });
       }
-    ];
+    } catch (e) {
+      url = `/supervisor/altas-ediciones/fotos-cliente/${c.cliente_id}`;
+    }
+
+    axios.get(url)
+      .then(res => {
+        if (res.data && res.data.success && Array.isArray(res.data.fotos) && res.data.fotos.length > 0) {
+          modalFotos.fotos = res.data.fotos;
+        }
+      })
+      .catch(err => {
+        console.error('Error al abrir fotos del cliente:', err);
+        if (modalFotos.fotos.length === 0) {
+          modalFotos.errorMsg = 'No fue posible recuperar el historial fotográfico del cliente.';
+        }
+      })
+      .finally(() => {
+        modalFotos.cargando = false;
+      });
   }
 }
 
 function abrirFotosRegistroActual() {
   if (!registroSeleccionado.value) return;
   const r = registroSeleccionado.value;
+  modalFotos.abierto = true;
   modalFotos.open = true;
+  modalFotos.cargando = false;
+  modalFotos.errorMsg = null;
+  modalFotos.clienteNombre = r.cliente || 'Solicitud de Alta';
+  modalFotos.clienteId = r.id;
+  modalFotos.ruta = r.ruta || '';
   modalFotos.indice = 0;
   modalFotos.isZoomed = false;
-  modalFotos.titulo = r.cliente || 'Solicitud de Alta';
-  modalFotos.subtitulo = `Solicitud #${r.id} · Ruta ${r.ruta || ''} · ${r.vendedor || ''}`;
-  modalFotos.fotos = [
-    {
-      url: r.foto_url,
-      fecha: r.created_at || 'Fecha de solicitud',
-      vendedor: r.usuario || r.vendedor || '',
-      comments: 'Fotografía de fachada del punto capturada en campo',
-    }
-  ];
+
+  const fotoSrc = r.photo_url || r.foto_url;
+  if (fotoSrc) {
+    modalFotos.fotos = [
+      {
+        url: fotoSrc,
+        photo_url: fotoSrc,
+        fecha: r.created_at || r.fecha_registro || 'Fecha de registro',
+        hora: '',
+        vendedor: r.usuario || r.vendedor || '',
+        comments: 'Fotografía de fachada del punto capturada en campo',
+      }
+    ];
+  } else {
+    modalFotos.fotos = [];
+  }
+}
+
+function abrirFotoIndividual(f, idx = 0) {
+  if (!f) return;
+  modalFotos.abierto = true;
+  modalFotos.open = true;
+  modalFotos.cargando = false;
+  modalFotos.errorMsg = null;
+  modalFotos.clienteNombre = clienteCercanoDetalle.value?.cliente || 'Fotografía de Evidencia';
+  modalFotos.clienteId = clienteCercanoDetalle.value?.cliente_id || null;
+  modalFotos.ruta = clienteCercanoDetalle.value?.ruta || '';
+  modalFotos.fotos = fotosModalCercano.value.length > 0 ? fotosModalCercano.value : [f];
+  modalFotos.indice = (idx >= 0 && idx < modalFotos.fotos.length) ? idx : 0;
+  modalFotos.isZoomed = false;
 }
 
 function anteriorFotoModal() {
@@ -3049,7 +3109,10 @@ function siguienteFotoModal() {
 }
 
 function cerrarModalFotos() {
+  modalFotos.abierto = false;
   modalFotos.open = false;
+  modalFotos.cargando = false;
+  modalFotos.errorMsg = null;
   modalFotos.fotos = [];
   modalFotos.indice = 0;
   modalFotos.isZoomed = false;
@@ -3185,12 +3248,12 @@ function enfocarCercano(c) {
 
 function manejarTeclasModal(e) {
   if (e.key === 'Escape') {
-    if (modalFotos.open) {
+    if (modalFotos.abierto || modalFotos.open) {
       cerrarModalFotos();
     } else if (clienteCercanoDetalle.value) {
       cerrarDetalleCercano();
     }
-  } else if (modalFotos.open) {
+  } else if (modalFotos.abierto || modalFotos.open) {
     if (e.key === 'ArrowLeft') {
       anteriorFotoModal();
     } else if (e.key === 'ArrowRight') {

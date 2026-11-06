@@ -256,6 +256,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Altas & Ediciones.');
         })->name('index');
 
+        Route::get('/fotos-cliente/{clienteId}', [SupervisorAltasEdicionesController::class, 'fotosCliente'])->name('fotos-cliente');
+
         Route::middleware('module.access:altas-ediciones,listado')->group(function () {
             Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
             Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
@@ -263,7 +265,6 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
         Route::middleware('module.access:altas-ediciones,cercanos')->group(function () {
             Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
-            Route::get('/fotos-cliente/{clienteId}', [SupervisorAltasEdicionesController::class, 'fotosCliente'])->name('fotos-cliente');
         });
     });
 
