@@ -190,6 +190,8 @@ class GetAvanceClienteDetalleFechasAction
                     'precio_ultima_compra' => 0.0,
                     'facturas' => [],
                     'fechas' => [],
+                    'compras_3m' => [],
+                    'compras_mes_actual' => [],
                     'por_mes' => [
                         $mesesCerrados[0]['ym'] => 0.0,
                         $mesesCerrados[1]['ym'] => 0.0,
@@ -209,13 +211,25 @@ class GetAvanceClienteDetalleFechasAction
 
             $prodMap[$prodKey]['total_bs'] += $monto;
             $prodMap[$prodKey]['total_cantidad'] += $cant;
+
+            $itemDetalle = [
+                'fecha' => $f,
+                'nro_factura' => $r->nro_factura ?: 'S/F',
+                'cantidad' => $cant,
+                'precio_unitario' => ($cant > 0 && $monto > 0) ? round($monto / $cant, 2) : 0.0,
+                'monto_bs' => round($monto, 2),
+                'vendedor' => $r->vendedor ?: 'Sin Asignar',
+            ];
+
             if ($es3m) {
                 $prodMap[$prodKey]['total_bs_3m'] += $monto;
                 $prodMap[$prodKey]['total_cantidad_3m'] += $cant;
+                $prodMap[$prodKey]['compras_3m'][] = $itemDetalle;
             }
             if ($esMesActual) {
                 $prodMap[$prodKey]['total_bs_mes_actual'] += $monto;
                 $prodMap[$prodKey]['total_cantidad_mes_actual'] += $cant;
+                $prodMap[$prodKey]['compras_mes_actual'][] = $itemDetalle;
             }
             if (isset($prodMap[$prodKey]['por_mes'][$ym])) {
                 $prodMap[$prodKey]['por_mes'][$ym] += $monto;
