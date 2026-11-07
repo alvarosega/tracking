@@ -961,109 +961,54 @@
                                   </td>
                                 </template>
                               </tr>
-                              <!-- Detalle acordeón de facturas y fechas del cliente -->
+                              <!-- Detalle acordeón de productos, sugeridos y compras del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 12 : 7" class="p-2.5 border-y border-black/[0.05]">
-                                  <div class="apple-glass-card rounded-[10px] p-3 space-y-2.5 bg-white/95 border border-black/[0.06] shadow-2xs">
-                                    <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
+                                <td :colspan="modoActivo === 'cob_core' ? 12 : 7" class="p-3 border-y border-black/[0.05]">
+                                  <div class="apple-glass-card rounded-[12px] p-3 space-y-3 bg-white/95 border border-black/[0.06] shadow-sm">
+                                    <!-- Indicador de carga -->
+                                    <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
-                                      <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
+                                      <span>Cargando productos y sugeridos de {{ cli.cliente }}...</span>
                                     </div>
+
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
-                                      <!-- Resumen Superior del Cliente: Contraste Histórico vs Cuota Asignada vs Hábito Sugerido vs MTD -->
-                                      <div class="p-2.5 rounded-[10px] bg-[#F8F8FA] border border-black/[0.05] space-y-2 text-[10px] font-mono">
-                                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.04] pb-1.5">
-                                          <div class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                            <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
-                                            <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
+                                      <!-- Barra Sobria Superior de Resumen y Contraste Clave -->
+                                      <div class="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-[10px] bg-[#F8F8FA] border border-black/[0.05]">
+                                        <div class="flex items-center gap-2">
+                                          <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3] shrink-0"></span>
+                                          <span class="font-sans font-bold text-[#1D1D1F] text-[12px]">{{ cli.cliente }}</span>
+                                          <span class="text-[#86868B] font-mono text-[10px]">ID: {{ cli.cliente_id }}</span>
+                                          <span class="text-[#86868B] font-sans text-[10px]">· Ruta {{ r.ruta }}</span>
+                                        </div>
+
+                                        <!-- Métricas Clave Sobrias en línea -->
+                                        <div class="flex flex-wrap items-center gap-4 text-[10px] font-mono">
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">Cuota Objetivo: </span>
+                                            <strong class="text-[#6B21A8] font-bold">{{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}</strong>
+                                            <span class="text-[9px] text-[#86868B] font-sans ml-1">({{ formatPct(cli.peso_3m) }})</span>
                                           </div>
-                                          <div class="flex items-center gap-3 text-[10px]">
-                                            <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
-                                            <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
-                                            <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">Total Sugerido: </span>
+                                            <strong class="text-purple-900 font-bold">Bs {{ formatNum(totalClienteSugeridoBs(cli.cliente_id), 2) }}</strong>
+                                            <span class="text-[9px] text-purple-700 font-sans ml-1">({{ totalClienteSugeridoCant(cli.cliente_id) }} u)</span>
+                                          </div>
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">Comprado MTD: </span>
+                                            <strong :class="totalClienteMtdBs(cli.cliente_id) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                              Bs {{ formatNum(totalClienteMtdBs(cli.cliente_id), 2) }}
+                                            </strong>
+                                            <span v-if="totalClienteMtdCant(cli.cliente_id) > 0" class="text-[9px] text-emerald-600 font-sans ml-1">({{ totalClienteMtdCant(cli.cliente_id) }} u)</span>
                                           </div>
                                         </div>
 
-                                        <!-- Tarjetas de Contraste: Objetivo Asignado vs Hábito Sugerido vs Real Comprado MTD -->
-                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-sans">
-                                          <div class="p-2 rounded-[8px] bg-white border border-black/[0.04]">
-                                            <div class="text-[9px] text-[#6E6E73] font-medium">Cuota Objetivo (Meta Mes)</div>
-                                            <div class="text-[12px] font-bold text-[#6B21A8] font-mono">
-                                              {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
-                                            </div>
-                                            <div class="text-[9px] text-[#86868B]">Peso en ruta: {{ formatPct(cli.peso_3m) }}</div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-purple-50/50 border border-purple-100">
-                                            <div class="text-[9px] text-purple-900 font-bold flex items-center justify-between">
-                                              <span>Sugerido Hábitos (3M / 3)</span>
-                                              <span class="text-[8px] px-1 py-0.2 rounded bg-purple-200/70 text-purple-900 font-mono">Teórico</span>
-                                            </div>
-                                            <div class="text-[12px] font-bold text-purple-900 font-mono">
-                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_monto_sugerido_bs, 2) }}
-                                            </div>
-                                            <div class="text-[9px] text-purple-800 font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_unidades_sugeridas || 0 }} u en {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
-                                            </div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-emerald-50/40 border border-emerald-100">
-                                            <div class="text-[9px] text-emerald-900 font-bold">Comprado Mes Actual (MTD)</div>
-                                            <div class="text-[12px] font-bold font-mono" :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
-                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}
-                                            </div>
-                                            <div class="text-[9px] text-emerald-800 font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades_mes_actual || 0 }} u facturadas
-                                            </div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-blue-50/40 border border-blue-100">
-                                            <div class="text-[9px] text-blue-900 font-bold">Cobertura SKUs MTD</div>
-                                            <div class="text-[12px] font-bold text-[#0071E3] font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_cubiertos_mtd || 0 }} / {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
-                                            </div>
-                                            <div class="text-[9px] text-blue-800 font-mono">
-                                              {{ formatPct(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.pct_cobertura_skus) }} de variedad cubierta
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <!-- Barra de Controles: Agrupación y Filtro -->
-                                      <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <!-- Selector de Agrupación: Por Fecha de Compra vs Por Producto -->
-                                        <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
-                                          <button
-                                            type="button"
-                                            @click="modoHistorialCliente = 'fechas'"
-                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
-                                            :class="modoHistorialCliente === 'fechas' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                                            title="Ver historial cronológico agrupado por fechas de compra"
-                                          >
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                            <span>Por Fecha de Compra ({{ fechasHistorialFiltradas(cli.cliente_id).length }})</span>
-                                          </button>
-                                          <button
-                                            type="button"
-                                            @click="modoHistorialCliente = 'productos'"
-                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
-                                            :class="modoHistorialCliente === 'productos' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                                            title="Ver historial agrupado por producto / SKU"
-                                          >
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                            </svg>
-                                            <span>Por Producto ({{ productosHistorialFiltrados(cli.cliente_id).length }})</span>
-                                          </button>
-                                        </div>
-
-                                        <!-- Buscador rápido dentro del historial del cliente -->
+                                        <!-- Buscador interno de productos -->
                                         <div class="relative">
                                           <input
                                             v-model="busquedaHistorialCliente"
                                             type="text"
-                                            placeholder="Filtrar producto, código, fecha..."
-                                            class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-52 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
+                                            placeholder="Buscar producto o código..."
+                                            class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-48 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
                                           />
                                           <svg class="w-3 h-3 text-[#86868B] absolute left-2 top-1.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1071,271 +1016,223 @@
                                         </div>
                                       </div>
 
-                                      <!-- VISTA A: AGRUPACIÓN POR FECHA DE COMPRA -->
-                                      <div
-                                        v-if="modoHistorialCliente === 'fechas'"
-                                        class="space-y-1.5 max-h-[280px] overflow-y-auto custom-scroll pr-1 font-mono"
-                                      >
-                                        <div
-                                          v-for="dia in fechasHistorialFiltradas(cli.cliente_id)"
-                                          :key="dia.fecha"
-                                          class="p-2 rounded-[8px] border border-black/[0.04] bg-white space-y-1 text-[10px]"
-                                        >
-                                          <div class="flex items-center justify-between border-b border-black/[0.04] pb-1">
-                                            <div class="flex items-center gap-2">
-                                              <span class="font-bold text-[#1D1D1F] text-[11px]">{{ dia.fecha }}</span>
-                                              <span
-                                                class="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold"
-                                                :class="dia.es_mes_actual ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'"
-                                              >
-                                                {{ dia.es_mes_actual ? 'Mes Actual' : 'Histórico 3M' }}
-                                              </span>
-                                              <span class="text-[9px] text-[#86868B] font-sans">Factura(s): {{ dia.facturas }}</span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                              <span class="text-[#86868B] text-[9px]">{{ dia.total_cantidad }} u</span>
-                                              <span class="font-bold text-[#0071E3] text-[11px]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs, 2) }}</span>
-                                            </div>
-                                          </div>
-                                          <div class="text-[9px] text-[#86868B] font-sans flex items-center justify-between">
-                                            <span>Preventista: {{ dia.vendedor }}</span>
-                                            <span>{{ (dia.items || []).length }} referencias</span>
-                                          </div>
-                                          <div v-if="dia.items && dia.items.length > 0" class="mt-1 space-y-0.5">
-                                            <div
-                                              v-for="(item, iidx) in dia.items"
-                                              :key="iidx"
-                                              class="flex items-center justify-between text-[9px] py-0.5 px-2 rounded bg-black/[0.02]"
-                                            >
-                                              <div class="flex items-center gap-1.5 truncate max-w-[420px]">
-                                                <span class="font-bold text-[#6E6E73] shrink-0 font-mono">[{{ item.codigo }}]</span>
-                                                <span class="text-[#1D1D1F] truncate font-sans">{{ item.producto }}</span>
-                                              </div>
-                                              <span class="font-bold text-[#1D1D1F] font-mono shrink-0 ml-2">
-                                                {{ item.cantidad }} u · Bs {{ formatNum(item.monto_bs, 2) }}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div v-if="fechasHistorialFiltradas(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
-                                          No se encontraron fechas de compra para el criterio de búsqueda.
-                                        </div>
-                                      </div>
-
-                                      <!-- VISTA B: AGRUPACIÓN POR PRODUCTO (CONTRASTE HISTÓRICO VS HÁBITOS SUGERIDOS VS MES ACTUAL) -->
-                                      <div
-                                        v-else-if="modoHistorialCliente === 'productos'"
-                                        class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[320px]"
-                                      >
+                                      <!-- TABLA PRINCIPAL DEL CLIENTE: PRODUCTO, TOTAL 3M, SUGERIDO, COMPRA MTD -->
+                                      <div class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[10px]">
                                         <table class="w-full text-left border-collapse text-[10px] font-mono whitespace-nowrap">
                                           <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06] select-none">
                                             <tr>
-                                              <th class="py-1.5 px-2 text-center w-8">#</th>
-                                              <th class="py-1.5 px-2 text-left w-20 cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('codigo')">
-                                                <div class="flex items-center gap-1">
-                                                  <span>Código</span>
-                                                  <span v-if="sortProdCol === 'codigo'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
-                                                <div class="flex items-center gap-1">
-                                                  <span>Producto</span>
+                                              <!-- Columna 1: Producto -->
+                                              <th class="py-2 px-3 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
+                                                <div class="flex items-center gap-1.5">
+                                                  <span class="text-[#1D1D1F] font-bold">Producto</span>
                                                   <span v-if="sortProdCol === 'producto'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right">
-                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.corto || 'Mes -3' }} (Bs)
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right">
-                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.corto || 'Mes -2' }} (Bs)
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right">
-                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.corto || 'Mes -1' }} (Bs)
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right font-bold text-[#1D1D1F] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')">
-                                                <div class="flex items-center justify-end gap-1">
-                                                  <span>Total 3M (Bs)</span>
-                                                  <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_cantidad_3m')">
-                                                <div class="flex items-center justify-end gap-1">
-                                                  <span>Cant 3M</span>
-                                                  <span v-if="sortProdCol === 'total_cantidad_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                  <span class="text-[8px] text-[#86868B] lowercase font-normal">(clic fila para fechas)</span>
                                                 </div>
                                               </th>
 
-                                              <!-- CONTRASTE: LO QUE SE LE PIDE QUE COMPRE (HÁBITO DE COMPRA) -->
-                                              <th class="py-1.5 px-2 text-right bg-amber-50/60 text-amber-900 font-bold cursor-pointer hover:bg-amber-100/60" @click="ordenarProductos('precio_ultima_compra')" title="Precio unitario de la última compra registrada">
+                                              <!-- Columna 2: Total Compra 3M -->
+                                              <th class="py-2 px-3 text-right font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>P. Últ. Compra</span>
-                                                  <span v-if="sortProdCol === 'precio_ultima_compra'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                  <span class="text-[#1D1D1F] font-bold">Total Compra 3M</span>
+                                                  <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2 text-center bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('cant_sugerida')" title="Hábito sugerido: Cantidad 3M / 3 redondeado al entero superior">
-                                                <div class="flex items-center justify-center gap-1">
-                                                  <span>Sugerido (Cant)</span>
-                                                  <span v-if="sortProdCol === 'cant_sugerida'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('monto_sugerido')" title="Monto sugerido = Cant. Sugerida x Precio Últ. Compra">
+
+                                              <!-- Columna 3: Sugerido a Comprar -->
+                                              <th class="py-2 px-3 text-right bg-purple-50/60 font-sans cursor-pointer hover:bg-purple-100/60" @click="ordenarProductos('monto_sugerido')" title="Sugerido = ceil(Cant 3M / 3) x Precio Últ. Compra">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Sugerido (Bs)</span>
+                                                  <span class="text-purple-900 font-bold">Sugerido a Comprar</span>
                                                   <span v-if="sortProdCol === 'monto_sugerido'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
 
-                                              <!-- CONTRASTE: LO QUE YA COMPRÓ EN EL MES ACTUAL (MTD) -->
-                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_cantidad_mes_actual')" title="Unidades compradas en el mes actual">
+                                              <!-- Columna 4: Compra MTD -->
+                                              <th class="py-2 px-3 text-right bg-emerald-50/40 font-sans cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_bs_mes_actual')" title="Compra acumulada del mes en curso">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Compró MTD (u)</span>
-                                                  <span v-if="sortProdCol === 'total_cantidad_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_bs_mes_actual')" title="Monto facturado en el mes actual">
-                                                <div class="flex items-center justify-end gap-1">
-                                                  <span>Compró MTD (Bs)</span>
+                                                  <span class="text-emerald-900 font-bold">Compra MTD</span>
                                                   <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-
-                                              <!-- ESTADO DE COBERTURA -->
-                                              <th class="py-1.5 px-2 text-center cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('estado_cobertura')">
-                                                <div class="flex items-center justify-center gap-1">
-                                                  <span>Cobertura</span>
-                                                  <span v-if="sortProdCol === 'estado_cobertura'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2 text-center text-[#86868B] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('ultima_fecha')">
-                                                <div class="flex items-center justify-center gap-1">
-                                                  <span>Últ. Compra</span>
-                                                  <span v-if="sortProdCol === 'ultima_fecha'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
                                             </tr>
                                           </thead>
                                           <tbody class="divide-y divide-black/[0.03] bg-white">
-                                            <tr
-                                              v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)"
-                                              :key="prod.codigo + pidx"
-                                              class="hover:bg-blue-50/20 transition-colors"
-                                            >
-                                              <td class="py-1 px-2 text-center text-[#86868B]">{{ pidx + 1 }}</td>
-                                              <td class="py-1 px-2 font-bold text-[#6E6E73]">{{ prod.codigo }}</td>
-                                              <td class="py-1 px-2 font-sans font-medium text-[#1D1D1F] max-w-[200px] truncate" :title="prod.producto">
-                                                {{ prod.producto }}
-                                                <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
-                                              </td>
-                                              <td class="py-1 px-2 text-right text-[#48484A]">
-                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym], 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right text-[#48484A]">
-                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym], 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right text-[#48484A]">
-                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym], 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">
-                                                {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right text-[#6E6E73]">
-                                                {{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '-' }}
-                                              </td>
+                                            <template v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)" :key="prod.codigo || prod.producto || pidx">
+                                              <!-- Fila Principal del Producto -->
+                                              <tr 
+                                                @click="toggleProductoExpandido(prod.codigo || prod.producto)"
+                                                class="hover:bg-blue-50/30 transition-colors cursor-pointer select-none"
+                                                :class="productoExpandidoKey === (prod.codigo || prod.producto) ? 'bg-blue-50/25' : ''"
+                                              >
+                                                <!-- 1. Producto -->
+                                                <td class="py-2 px-3 font-sans">
+                                                  <div class="flex items-center gap-2">
+                                                    <button
+                                                      type="button"
+                                                      class="w-4 h-4 inline-flex items-center justify-center rounded hover:bg-black/10 text-[#6E6E73] transition-transform duration-150"
+                                                      :class="productoExpandidoKey === (prod.codigo || prod.producto) ? 'rotate-90 text-[#0071E3]' : ''"
+                                                      title="Ver fechas de compra"
+                                                    >
+                                                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                                      </svg>
+                                                    </button>
+                                                    <span class="font-bold text-[#6E6E73] font-mono text-[9px]">[{{ prod.codigo }}]</span>
+                                                    <span class="font-medium text-[#1D1D1F]">{{ prod.producto }}</span>
+                                                    <span v-if="prod.categoria" class="text-[8px] text-[#86868B] px-1 py-0.2 rounded bg-black/[0.03]">{{ prod.categoria }}</span>
+                                                  </div>
+                                                </td>
 
-                                              <!-- CONTRASTE: LO QUE SE LE PIDE -->
-                                              <td class="py-1 px-2 text-right font-mono text-amber-900 bg-amber-50/20 font-medium">
-                                                {{ prod.precio_ultima_compra > 0 ? `Bs ${formatNum(prod.precio_ultima_compra, 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-center font-bold text-purple-900 bg-purple-50/30">
-                                                <span v-if="prod.cant_sugerida > 0" class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[9px]">
-                                                  {{ prod.cant_sugerida }} u
-                                                </span>
-                                                <span v-else class="text-[#86868B]">-</span>
-                                              </td>
-                                              <td class="py-1 px-2 text-right font-bold text-purple-900 bg-purple-50/30">
-                                                {{ prod.monto_sugerido > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
-                                              </td>
+                                                <!-- 2. Total Compra 3M -->
+                                                <td class="py-2 px-3 text-right">
+                                                  <div class="font-bold text-[#1D1D1F]">
+                                                    {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
+                                                  </div>
+                                                  <div class="text-[9px] text-[#86868B]">
+                                                    {{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}
+                                                  </div>
+                                                </td>
 
-                                              <!-- CONTRASTE: LO QUE YA COMPRÓ MES ACTUAL -->
-                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
-                                                {{ (prod.total_cantidad_mes_actual || 0) > 0 ? `${prod.total_cantidad_mes_actual} u` : '-' }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
-                                                {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
-                                              </td>
+                                                <!-- 3. Sugerido a Comprar -->
+                                                <td class="py-2 px-3 text-right bg-purple-50/20">
+                                                  <div class="font-bold text-purple-900">
+                                                    {{ (prod.monto_sugerido || 0) > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
+                                                  </div>
+                                                  <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
+                                                    <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
+                                                    <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
+                                                  </div>
+                                                </td>
 
-                                              <!-- ESTADO COBERTURA -->
-                                              <td class="py-1 px-2 text-center">
-                                                <span
-                                                  v-if="prod.cumple_sugerido"
-                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-800"
-                                                  title="Compró igual o más de la cantidad mensual sugerida"
-                                                >
-                                                  CUMPLE
-                                                </span>
-                                                <span
-                                                  v-else-if="prod.compro_mes_actual"
-                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-100 text-amber-800"
-                                                  title="Compró en el mes pero no alcanzó la cantidad sugerida"
-                                                >
-                                                  PARCIAL
-                                                </span>
-                                                <span
-                                                  v-else-if="prod.cant_sugerida > 0"
-                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-medium bg-black/[0.04] text-[#86868B]"
-                                                >
-                                                  PENDIENTE
-                                                </span>
-                                                <span v-else class="text-[#86868B] text-[8px]">-</span>
-                                              </td>
-                                              <td class="py-1 px-2 text-center text-[#86868B] text-[9px] whitespace-nowrap">
-                                                {{ prod.ultima_fecha }}
-                                              </td>
-                                            </tr>
+                                                <!-- 4. Compra MTD -->
+                                                <td class="py-2 px-3 text-right bg-emerald-50/20">
+                                                  <div class="flex items-center justify-end gap-2">
+                                                    <span 
+                                                      class="text-[8px] px-1.5 py-0.2 rounded font-sans font-bold"
+                                                      :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-[#86868B]'"
+                                                    >
+                                                      {{ (prod.total_cantidad_mes_actual || 0) > 0 ? 'Compró' : 'Sin compra' }}
+                                                    </span>
+                                                    <div class="text-right">
+                                                      <div class="font-bold" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                        {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
+                                                      </div>
+                                                      <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[9px] text-emerald-600">
+                                                        {{ prod.total_cantidad_mes_actual }} u
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                              </tr>
+
+                                              <!-- Sub-fila de Detalle de Fechas: 2 Tablas Paralelas (3M vs MTD) -->
+                                              <tr v-if="productoExpandidoKey === (prod.codigo || prod.producto)" class="bg-[#F8F8FA]/60">
+                                                <td colspan="4" class="p-3 border-y border-black/[0.06]">
+                                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <!-- TABLA 1: Compras 3 Meses Cerrados -->
+                                                    <div class="bg-white rounded-[8px] border border-black/[0.06] overflow-hidden shadow-2xs">
+                                                      <div class="px-2.5 py-1.5 bg-[#F0F2F5] border-b border-black/[0.05] flex items-center justify-between text-[10px]">
+                                                        <div class="flex items-center gap-1.5 font-sans font-bold text-[#1D1D1F]">
+                                                          <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+                                                          <span>Histórico 3 Meses Cerrados</span>
+                                                        </div>
+                                                        <span class="text-[9px] text-[#6E6E73] font-mono">{{ (prod.compras_3m || []).length }} compra(s)</span>
+                                                      </div>
+                                                      <div class="max-h-[180px] overflow-y-auto custom-scroll">
+                                                        <table class="w-full text-left text-[9px] font-mono">
+                                                          <thead class="bg-[#FAFAFA] text-[#86868B] uppercase text-[8px] sticky top-0 border-b border-black/[0.04]">
+                                                            <tr>
+                                                              <th class="py-1 px-2">Fecha</th>
+                                                              <th class="py-1 px-2">Factura</th>
+                                                              <th class="py-1 px-2 text-right">Cant</th>
+                                                              <th class="py-1 px-2 text-right">P. Unit</th>
+                                                              <th class="py-1 px-2 text-right">Total Bs</th>
+                                                              <th class="py-1 px-2 font-sans">Preventista</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody class="divide-y divide-black/[0.02]">
+                                                            <tr v-for="(it, itidx) in (prod.compras_3m || [])" :key="itidx" class="hover:bg-blue-50/20">
+                                                              <td class="py-1 px-2 font-bold text-[#1D1D1F]">{{ it.fecha }}</td>
+                                                              <td class="py-1 px-2 text-[#6E6E73]">{{ it.nro_factura }}</td>
+                                                              <td class="py-1 px-2 text-right font-bold text-[#0071E3]">{{ it.cantidad }} u</td>
+                                                              <td class="py-1 px-2 text-right text-[#48484A]">Bs {{ formatNum(it.precio_unitario, 2) }}</td>
+                                                              <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">Bs {{ formatNum(it.monto_bs, 2) }}</td>
+                                                              <td class="py-1 px-2 font-sans text-[#6E6E73] truncate max-w-[100px]">{{ it.vendedor }}</td>
+                                                            </tr>
+                                                            <tr v-if="!(prod.compras_3m && prod.compras_3m.length > 0)">
+                                                              <td colspan="6" class="py-3 text-center text-[#86868B] font-sans">Sin registros en los 3 meses cerrados</td>
+                                                            </tr>
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    </div>
+
+                                                    <!-- TABLA 2: Compras Mes Actual (MTD) -->
+                                                    <div class="bg-white rounded-[8px] border border-black/[0.06] overflow-hidden shadow-2xs">
+                                                      <div class="px-2.5 py-1.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between text-[10px]">
+                                                        <div class="flex items-center gap-1.5 font-sans font-bold text-emerald-900">
+                                                          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                          <span>Compras Mes Actual (MTD)</span>
+                                                        </div>
+                                                        <span class="text-[9px] text-emerald-800 font-mono font-bold">{{ (prod.compras_mes_actual || []).length }} compra(s)</span>
+                                                      </div>
+                                                      <div class="max-h-[180px] overflow-y-auto custom-scroll">
+                                                        <table class="w-full text-left text-[9px] font-mono">
+                                                          <thead class="bg-emerald-50/30 text-emerald-900 uppercase text-[8px] sticky top-0 border-b border-emerald-100">
+                                                            <tr>
+                                                              <th class="py-1 px-2">Fecha</th>
+                                                              <th class="py-1 px-2">Factura</th>
+                                                              <th class="py-1 px-2 text-right">Cant</th>
+                                                              <th class="py-1 px-2 text-right">P. Unit</th>
+                                                              <th class="py-1 px-2 text-right">Total Bs</th>
+                                                              <th class="py-1 px-2 font-sans">Preventista</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody class="divide-y divide-black/[0.02]">
+                                                            <tr v-for="(it, itidx) in (prod.compras_mes_actual || [])" :key="itidx" class="hover:bg-emerald-50/20">
+                                                              <td class="py-1 px-2 font-bold text-emerald-900">{{ it.fecha }}</td>
+                                                              <td class="py-1 px-2 text-[#6E6E73]">{{ it.nro_factura }}</td>
+                                                              <td class="py-1 px-2 text-right font-bold text-emerald-700">{{ it.cantidad }} u</td>
+                                                              <td class="py-1 px-2 text-right text-[#48484A]">Bs {{ formatNum(it.precio_unitario, 2) }}</td>
+                                                              <td class="py-1 px-2 text-right font-bold text-emerald-900">Bs {{ formatNum(it.monto_bs, 2) }}</td>
+                                                              <td class="py-1 px-2 font-sans text-[#6E6E73] truncate max-w-[100px]">{{ it.vendedor }}</td>
+                                                            </tr>
+                                                            <tr v-if="!(prod.compras_mes_actual && prod.compras_mes_actual.length > 0)">
+                                                              <td colspan="6" class="py-3 text-center text-[#86868B] font-sans">Sin compras registradas en el mes actual</td>
+                                                            </tr>
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            </template>
                                           </tbody>
-                                          <!-- Totalizado Monográfico de Productos -->
-                                          <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono border-t border-black/[0.08]">
+                                          <!-- Pie de Tabla: TOTALES DEL CLIENTE -->
+                                          <tfoot class="bg-[#F8F8FA] border-t-2 border-black/[0.08] text-[10px] font-mono font-bold">
                                             <tr>
-                                              <td colspan="3" class="py-1.5 px-2 text-center text-[9px] text-[#6E6E73] font-sans">
-                                                TOTAL ({{ productosHistorialFiltrados(cli.cliente_id).length }} SKUs)
+                                              <td class="py-2 px-3 font-sans text-[#1D1D1F]">
+                                                TOTAL CLIENTE ({{ productosHistorialFiltrados(cli.cliente_id).length }} productos)
                                               </td>
-                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
-                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym), 2)}` : '-' }}
+                                              <td class="py-2 px-3 text-right text-[#1D1D1F]">
+                                                <div>Bs {{ formatNum(totalCliente3mBs(cli.cliente_id), 2) }}</div>
+                                                <div class="text-[9px] text-[#86868B] font-normal">{{ totalCliente3mCant(cli.cliente_id) }} u</div>
                                               </td>
-                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
-                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym), 2)}` : '-' }}
+                                              <td class="py-2 px-3 text-right text-purple-900 bg-purple-50/30">
+                                                <div>Bs {{ formatNum(totalClienteSugeridoBs(cli.cliente_id), 2) }}</div>
+                                                <div class="text-[9px] text-purple-700 font-normal">{{ totalClienteSugeridoCant(cli.cliente_id) }} u</div>
                                               </td>
-                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
-                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym), 2)}` : '-' }}
+                                              <td class="py-2 px-3 text-right bg-emerald-50/30">
+                                                <div :class="totalClienteMtdBs(cli.cliente_id) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                  Bs {{ formatNum(totalClienteMtdBs(cli.cliente_id), 2) }}
+                                                </div>
+                                                <div class="text-[9px] text-emerald-600 font-normal">{{ totalClienteMtdCant(cli.cliente_id) }} u</div>
                                               </td>
-                                              <td class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
-                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_3m'), 2) }}
-                                              </td>
-                                              <td class="py-1.5 px-2 text-right text-[#6E6E73]">
-                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_3m') }} u
-                                              </td>
-                                              <td class="py-1.5 px-2 text-center text-[#86868B] bg-amber-50/20">-</td>
-                                              <td class="py-1.5 px-2 text-center text-purple-900 bg-purple-100/60 font-bold">
-                                                {{ totalProdCol(cli.cliente_id, 'cant_sugerida') }} u
-                                              </td>
-                                              <td class="py-1.5 px-2 text-right text-purple-900 bg-purple-100/60 font-bold">
-                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'monto_sugerido'), 2) }}
-                                              </td>
-                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
-                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_mes_actual') }} u
-                                              </td>
-                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
-                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_mes_actual'), 2) }}
-                                              </td>
-                                              <td class="py-1.5 px-2 text-center text-[9px] text-[#0071E3] font-sans">
-                                                {{ totalSkusCubiertosFiltrados(cli.cliente_id) }}/{{ totalSkusSugeridosFiltrados(cli.cliente_id) }} cub.
-                                              </td>
-                                              <td class="py-1.5 px-2 text-center text-[#86868B] text-[8px]">-</td>
                                             </tr>
                                           </tfoot>
                                         </table>
-                                        <div v-if="productosHistorialFiltrados(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
-                                          No se encontraron productos facturados para el criterio de búsqueda.
+                                        <div v-if="productosHistorialFiltrados(cli.cliente_id).length === 0" class="text-center py-6 text-[11px] text-[#86868B] font-sans">
+                                          No se encontraron productos registrados para este cliente.
                                         </div>
                                       </div>
                                     </template>
@@ -1649,6 +1546,41 @@ function ordenarClientes(col) {
 // Acordeón de clientes
 const clienteExpandidoId = ref(null)
 const cargandoAccordionCliente = ref(false)
+const productoExpandidoKey = ref(null)
+
+function toggleProductoExpandido(key) {
+  productoExpandidoKey.value = productoExpandidoKey.value === key ? null : key
+}
+
+function totalCliente3mCant(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.total_cantidad_3m) || 0), 0)
+}
+
+function totalCliente3mBs(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.total_bs_3m) || 0), 0)
+}
+
+function totalClienteSugeridoCant(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.cant_sugerida) || 0), 0)
+}
+
+function totalClienteSugeridoBs(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.monto_sugerido) || 0), 0)
+}
+
+function totalClienteMtdCant(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.total_cantidad_mes_actual) || 0), 0)
+}
+
+function totalClienteMtdBs(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.total_bs_mes_actual) || 0), 0)
+}
 const detalleClienteFechasMap = reactive({})
 const modoHistorialCliente = ref('fechas') // 'fechas' | 'productos'
 const busquedaHistorialCliente = ref('')
