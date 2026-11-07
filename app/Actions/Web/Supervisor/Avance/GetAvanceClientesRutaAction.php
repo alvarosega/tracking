@@ -209,6 +209,8 @@ class GetAvanceClientesRutaAction
         $carteraClientIds = array_values(array_filter(array_keys($cartera), fn ($id) => is_numeric($id) && (int) $id > 0));
 
         $historico3mRaw = [];
+        $sugeridoClienteMap = [];
+
         if (!empty($carteraClientIds)) {
             $historicoQuery = DB::connection('supervisor')->table('fact_ventas')
                 ->whereIn('cliente_id', $carteraClientIds)
@@ -227,6 +229,65 @@ class GetAvanceClientesRutaAction
                 ])
                 ->groupBy('cliente_id', DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
                 ->get();
+
+            // Extracción de productos de los 3 meses cerrados para calcular el Total Sugerido por Cliente
+            $prodsRutaRaw = DB::connection('supervisor')->table('fact_ventas')
+                ->whereIn('cliente_id', $carteraClientIds)
+                ->where('fecha_norm', '>=', $histInicio)
+                ->where('fecha_norm', '<=', $histFin)
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                })
+                ->select([
+                    'cliente_id',
+                    DB::raw("TRIM(codigo) as codigo"),
+                    DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
+                    DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
+                    DB::raw("COALESCE(cantidad, 0) as cantidad"),
+                    DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
+                ])
+                ->orderBy('fecha_norm', 'desc')
+                ->get();
+
+            $clienteProdsMap = [];
+            foreach ($prodsRutaRaw as $pr) {
+                $cId = (int) $pr->cliente_id;
+                $pKey = $pr->codigo ?: $pr->producto;
+                $cant = (int) $pr->cantidad;
+                $monto = (float) $pr->monto_final;
+                $f = (string) $pr->fecha;
+
+                if (!isset($clienteProdsMap[$cId][$pKey])) {
+                    $clienteProdsMap[$cId][$pKey] = [
+                        'cantidad_3m' => 0,
+                        'precio_ultima_compra' => 0.0,
+                        'fecha_precio' => null,
+                    ];
+                }
+
+                $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
+
+                if ($cant > 0 && $monto > 0) {
+                    if ($clienteProdsMap[$cId][$pKey]['fecha_precio'] === null || $f >= $clienteProdsMap[$cId][$pKey]['fecha_precio']) {
+                        $clienteProdsMap[$cId][$pKey]['fecha_precio'] = $f;
+                        $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($monto / $cant, 2);
+                    }
+                }
+            }
+
+            foreach ($clienteProdsMap as $cId => $pList) {
+                $totalSug = 0.0;
+                foreach ($pList as $pKey => $pData) {
+                    $c3m = $pData['cantidad_3m'];
+                    if ($c3m > 0) {
+                        $cantSug = (int) ceil($c3m / 3.0);
+                        $pUlt = $pData['precio_ultima_compra'];
+                        $totalSug += round($cantSug * $pUlt, 2);
+                    }
+                }
+                $sugeridoClienteMap[$cId] = round($totalSug, 2);
+            }
         }
 
         $histClienteMap = [];
@@ -292,7 +353,7 @@ class GetAvanceClientesRutaAction
                 }
             }
 
-            // Datos del histórico de 3 meses cerrados
+            // Datos del histórico de 3 meses cerrados y sugerido
             $m1Val = round($histClienteMap[$cid][$mesesCerrados[0]['ym']] ?? 0.0, 2);
             $m2Val = round($histClienteMap[$cid][$mesesCerrados[1]['ym']] ?? 0.0, 2);
             $m3Val = round($histClienteMap[$cid][$mesesCerrados[2]['ym']] ?? 0.0, 2);
@@ -301,6 +362,7 @@ class GetAvanceClientesRutaAction
             $cuotaObjetivo = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                 ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
                 : 0.0;
+            $totalSugeridoCli = round($sugeridoClienteMap[$cid] ?? 0.0, 2);
             $mesesConCompra = ($m1Val > 0 ? 1 : 0) + ($m2Val > 0 ? 1 : 0) + ($m3Val > 0 ? 1 : 0);
 
             $clientesLista[] = [
@@ -323,6 +385,7 @@ class GetAvanceClientesRutaAction
                 'monto_mes_3' => $m3Val,
                 'total_monto_3m' => $totalCli3m,
                 'peso_3m' => $pesoCli3m,
+                'total_sugerido' => $totalSugeridoCli,
                 'cuota_objetivo' => $cuotaObjetivo,
                 'meses_con_compra' => $mesesConCompra,
                 'tiene_historico' => ($totalCli3m > 0),
@@ -383,6 +446,8 @@ class GetAvanceClientesRutaAction
             ];
         }
 
+        $totalSugeridoRuta = round(array_sum($sugeridoClienteMap), 2);
+
         return [
             'ruta' => $rutaClean,
             'kpi' => $kpiClave,
@@ -394,7 +459,9 @@ class GetAvanceClientesRutaAction
                 'mes_2' => round($totalesMesesRuta[$mesesCerrados[1]['ym']] ?? 0.0, 2),
                 'mes_3' => round($totalesMesesRuta[$mesesCerrados[2]['ym']] ?? 0.0, 2),
                 'total_3m' => round($totalRutaAcum3m, 2),
+                'total_sugerido' => $totalSugeridoRuta,
                 'objetivo_mes' => round($objetivoMensualRuta, 2),
+                'total_objetivo' => round($objetivoMensualRuta, 2),
             ],
             'clientes' => $clientesLista,
             'por_dia' => $diasOrdenados,
@@ -404,6 +471,7 @@ class GetAvanceClientesRutaAction
                 'con_historico_3m' => count(array_filter($clientesLista, fn ($c) => ($c['total_monto_3m'] ?? 0) > 0)),
                 'venta_total_bs' => round($totalVentaRuta, 2),
                 'venta_historica_3m_bs' => round($totalRutaAcum3m, 2),
+                'total_sugerido_ruta' => $totalSugeridoRuta,
                 'objetivo_mensual_ruta' => round($objetivoMensualRuta, 2),
                 'dias_con_venta' => count($diasOrdenados),
             ],

@@ -371,8 +371,9 @@ class GetAvanceCumplimientoDataAction
         $objKpi = $kpisMap[$clave];
         $esCobertura = ($objKpi['tipo'] === 'COBERTURA');
 
-        // Histórico de 3 meses cerrados por ruta (para Cobertura Core u otros análisis)
+        // Histórico de 3 meses cerrados por ruta y cálculo de Sugerido por Ruta
         $histRutasMap = [];
+        $sugeridoRutasMap = [];
         if ($clave === 'cob_core') {
             $histInicio = $mesesCerrados[0]['inicio'];
             $histFin = $mesesCerrados[2]['fin'];
@@ -396,6 +397,59 @@ class GetAvanceCumplimientoDataAction
                 $rClean = (string) $hr->ruta_clean;
                 $ym = (string) $hr->mes_ym;
                 $histRutasMap[$rClean][$ym] = (float) $hr->total_monto;
+            }
+
+            // Cálculo del Total Sugerido por Ruta (hábitos: 3M / 3 por cliente y producto a precio de última compra)
+            $sugRaw = DB::connection('supervisor')->table('fact_ventas')
+                ->whereNotNull('ruta')
+                ->where('fecha_norm', '>=', $histInicio)
+                ->where('fecha_norm', '<=', $histFin)
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                })
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    'cliente_id',
+                    DB::raw("TRIM(codigo) as codigo"),
+                    DB::raw("COALESCE(producto, '') as producto"),
+                    DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
+                    DB::raw("COALESCE(cantidad, 0) as cantidad"),
+                    DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
+                ])
+                ->orderBy('fecha_norm', 'desc')
+                ->get();
+
+            $prodMapRuta = [];
+            foreach ($sugRaw as $row) {
+                $r = (string) $row->ruta_clean;
+                if (!$r || $r === 'SIN RUTA') continue;
+                $cid = (int) $row->cliente_id;
+                $pkey = $row->codigo ?: $row->producto;
+                $itemKey = "{$cid}_{$pkey}";
+
+                if (!isset($prodMapRuta[$r][$itemKey])) {
+                    $prodMapRuta[$r][$itemKey] = [
+                        'cantidad' => 0,
+                        'precio' => 0.0,
+                    ];
+                    if ($row->cantidad > 0 && $row->monto_final > 0) {
+                        $prodMapRuta[$r][$itemKey]['precio'] = round($row->monto_final / $row->cantidad, 2);
+                    }
+                }
+                $prodMapRuta[$r][$itemKey]['cantidad'] += (int) $row->cantidad;
+            }
+
+            foreach ($prodMapRuta as $r => $items) {
+                $sumSug = 0.0;
+                foreach ($items as $it) {
+                    $c3m = $it['cantidad'];
+                    if ($c3m > 0) {
+                        $cantSug = (int) ceil($c3m / 3.0);
+                        $sumSug += round($cantSug * $it['precio'], 2);
+                    }
+                }
+                $sugeridoRutasMap[$r] = round($sumSug, 2);
             }
         }
 
@@ -442,20 +496,23 @@ class GetAvanceCumplimientoDataAction
                 $pctProy = $this->calcPct((float) $proy, (float) $meta);
             }
 
-            // Para Cobertura Core: no tiene meta fija, el avance porcentual es respecto a la cartera total
+            // Para Cobertura Core: histórico de 3 meses cerrados, objetivo mensual asignado y sugerido de hábitos
             $m1Bs = 0.0;
             $m2Bs = 0.0;
             $m3Bs = 0.0;
             $total3mBs = 0.0;
+            $objetivoMesRuta = 0.0;
+            $sugeridoRuta = 0.0;
             if ($clave === 'cob_core') {
                 $m1Bs = round($histRutasMap[$ruta][$mesesCerrados[0]['ym']] ?? 0.0, 2);
                 $m2Bs = round($histRutasMap[$ruta][$mesesCerrados[1]['ym']] ?? 0.0, 2);
                 $m3Bs = round($histRutasMap[$ruta][$mesesCerrados[2]['ym']] ?? 0.0, 2);
                 $total3mBs = round($m1Bs + $m2Bs + $m3Bs, 2);
                 $pctAv = ($carteraRuta > 0) ? round(($logrado / $carteraRuta) * 100.0, 1) : 0.0;
-                $meta = 0.0;
-                $brecha = 0.0;
-                $cuota = 0;
+                $objetivoMesRuta = $this->obtenerMetaMesRuta($ruta, $carbonCorte->format('Y-m'));
+                $sugeridoRuta = round($sugeridoRutasMap[$ruta] ?? 0.0, 2);
+                $meta = $objetivoMesRuta;
+                $brecha = round(max(0.0, $objetivoMesRuta - (float) ($acumVol[$ruta]['vol_general'] ?? 0.0)), 2);
             }
 
             // Desglose de Esfuerzo Útil: Venta de Apertura vs Venta de Repetición (Coberturas)
@@ -547,7 +604,10 @@ class GetAvanceCumplimientoDataAction
                 'mes_2_bs' => $m2Bs,
                 'mes_3_bs' => $m3Bs,
                 'total_3m_bs' => $total3mBs,
-                'sin_meta' => ($clave === 'cob_core'),
+                'total_sugerido' => $sugeridoRuta,
+                'objetivo_mes' => $objetivoMesRuta,
+                'venta_mtd' => round($acumVol[$ruta]['vol_general'] ?? 0.0, 2),
+                'sin_meta' => false,
             ];
         }
 
@@ -570,6 +630,9 @@ class GetAvanceCumplimientoDataAction
         $totM3 = array_sum(array_column($filas, 'mes_3_bs'));
         $tot3m = array_sum(array_column($filas, 'total_3m_bs'));
         $totCartera = array_sum(array_column($filas, 'cartera'));
+        $totSugerido = array_sum(array_column($filas, 'total_sugerido'));
+        $totObjetivoMes = array_sum(array_column($filas, 'objetivo_mes'));
+        $totVentaMtd = array_sum(array_column($filas, 'venta_mtd'));
 
         $totales = [
             'meta' => round($totMeta, 2),
@@ -591,6 +654,9 @@ class GetAvanceCumplimientoDataAction
             'mes_2_bs' => round($totM2, 2),
             'mes_3_bs' => round($totM3, 2),
             'total_3m_bs' => round($tot3m, 2),
+            'total_sugerido' => round($totSugerido, 2),
+            'objetivo_mes' => round($totObjetivoMes, 2),
+            'venta_mtd' => round($totVentaMtd, 2),
         ];
 
         return [
