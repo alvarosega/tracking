@@ -9,14 +9,14 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta" />
 
-      <!-- Segmented Control de KPIs Oficiales (Submenú sobrio sin tarjetones) -->
+      <!-- Segmented Control de KPIs Oficiales -->
       <div class="apple-glass-card rounded-[14px] p-1.5 flex items-center gap-1 w-full overflow-x-auto custom-scroll select-none">
         <button
           type="button"
           @click="cambiarModo('resumen')"
           class="px-3 py-1.5 rounded-[9px] text-[11px] transition-all whitespace-nowrap cursor-pointer shrink-0 font-bold"
           :class="modoActivo === 'resumen'
-            ? 'glass-active-pill font-bold shadow-xs text-[#0071E3]'
+            ? 'glass-active-pill font-bold shadow-xs'
             : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/60 font-semibold'"
         >
           Resumen Multi-KPI
@@ -34,7 +34,7 @@
             @click="cambiarModo(kpi.id)"
             class="px-2.5 py-1.5 rounded-[9px] text-[11px] transition-all whitespace-nowrap cursor-pointer font-bold"
             :class="modoActivo === kpi.id
-              ? 'glass-active-pill font-bold shadow-xs text-[#0071E3]'
+              ? 'glass-active-pill font-bold shadow-xs'
               : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/60 font-semibold'"
           >
             {{ kpi.nombre }}
@@ -71,6 +71,7 @@
         v-else-if="modoActivo === 'resumen' && rutasFiltradas.length > 0"
         class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
+        <!-- Sub-header de la tabla -->
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
@@ -89,11 +90,16 @@
           </div>
         </div>
 
+        <!-- Contenedor con SCROLL INTERNO (Vertical para filas + Horizontal para KPIs) -->
         <div class="flex-1 min-h-0 overflow-auto custom-scroll relative">
           <table class="w-full text-left border-separate border-spacing-0 text-[11px]">
             <thead class="text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
               <tr>
-                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
+                <!-- Columna # congelada -->
+                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
+                  #
+                </th>
+                <!-- Columna Ruta congelada -->
                 <th
                   @click="toggleSortResumen('ruta')"
                   class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[160px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
@@ -107,13 +113,14 @@
                     </svg>
                   </div>
                 </th>
+                <!-- Columnas de KPIs congeladas arriba -->
                 <th
                   v-for="kpi in kpisLista"
                   :key="kpi.id"
                   @click="toggleSortResumen(kpi.id)"
                   class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-center whitespace-nowrap cursor-pointer hover:bg-black/[0.04] transition-colors shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] select-none group/th"
                   :class="sortResumenCol === kpi.id ? 'bg-blue-50/70' : ''"
-                  :title="'Ordenar por ' + kpi.nombre"
+                  :title="`Ordenar por ${kpi.nombre}`"
                 >
                   <div class="flex items-center justify-center gap-1.5">
                     <span :class="sortResumenCol === kpi.id ? 'text-[#0071E3] font-bold' : ''">{{ kpi.corto }}</span>
@@ -125,7 +132,7 @@
                       type="button"
                       @click.stop="cambiarModo(kpi.id)"
                       class="p-0.5 rounded hover:bg-black/[0.08] text-[#86868B] hover:text-[#0071E3] transition-colors ml-0.5"
-                      :title="'Ver detalle monográfico de ' + kpi.nombre"
+                      :title="`Ver detalle monográfico de ${kpi.nombre}`"
                     >
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -133,6 +140,7 @@
                     </button>
                   </div>
                 </th>
+                <!-- Columna Score Promedio -->
                 <th
                   @click="toggleSortResumen('score_promedio')"
                   class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-center whitespace-nowrap cursor-pointer hover:bg-black/[0.04] transition-colors shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] select-none"
@@ -182,7 +190,7 @@
                         <span
                           class="font-bold text-[12px]"
                           :class="colorKpiResumen(kpi.id, r.kpis?.[kpi.id])"
-                          :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? ('Ritmo esperado: ' + formatPct(r.kpis?.[kpi.id]?.pct_ritmo)) : undefined"
+                          :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? `Ritmo esperado: ${formatPct(r.kpis?.[kpi.id]?.pct_ritmo)}` : undefined"
                         >
                           {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
                         </span>
@@ -193,11 +201,14 @@
                     </template>
                   </div>
                 </td>
+                <!-- Score Promedio -->
                 <td class="py-2 px-3 text-center font-mono font-bold text-[12px]" :class="colorPct(r.score_promedio)">
                   {{ formatPct(r.score_promedio) }}
                 </td>
               </tr>
             </tbody>
+
+            <!-- Totales Fijos Abajo -->
             <tfoot v-if="totalesResumen" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-30 font-mono tabular-nums shadow-[inset_0_1px_0_rgba(0,0,0,0.08)]">
               <tr>
                 <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
@@ -222,7 +233,7 @@
                       <span
                         class="font-bold text-[12px]"
                         :class="colorKpiResumen(kpi.id, totalesResumen[kpi.id])"
-                        :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? ('Ritmo consolidado: ' + formatPct(totalesResumen[kpi.id]?.pct_ritmo)) : undefined"
+                        :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? `Ritmo consolidado: ${formatPct(totalesResumen[kpi.id]?.pct_ritmo)}` : undefined"
                       >
                         {{ formatPct(totalesResumen[kpi.id]?.pct) }}
                       </span>
@@ -241,16 +252,16 @@
         </div>
       </section>
 
-      <!-- ── VISTA 2: COBERTURA CORE (Histórico 3M, Sugerido y Objetivos) ── -->
+      <!-- ── VISTA 2: DETALLE MONOGRÁFICO POR KPI (1 al 6) ── -->
       <section
-        v-else-if="modoActivo === 'cob_core' && rutasFiltradas.length > 0"
+        v-else-if="modoActivo !== 'resumen' && rutasFiltradas.length > 0"
         class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
             <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
-              Avance por Rutas · Histórico 3M, Sugerido de Hábitos y Objetivos Mensuales
+              {{ kpiActualObj?.nombre }} · Detalle Monográfico
             </span>
           </div>
           <div class="flex items-center gap-3">
@@ -282,79 +293,114 @@
                     </svg>
                   </div>
                 </th>
-                <th
-                  @click="toggleSortKpi('cartera')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'cartera' ? 'bg-blue-50/70' : ''"
-                >
-                  Cartera Oficial
-                </th>
-                <th
-                  @click="toggleSortKpi('logrado')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
-                >
-                  Compradores MTD
-                </th>
-                <th
-                  @click="toggleSortKpi('pct')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
-                >
-                  % Cobertura
-                </th>
-                <th
-                  @click="toggleSortKpi('mes_1_bs')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'mes_1_bs' ? 'bg-blue-50/70' : ''"
-                >
-                  {{ mesesCerradosGlobal[0]?.nombre || 'Mes -3' }} (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('mes_2_bs')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'mes_2_bs' ? 'bg-blue-50/70' : ''"
-                >
-                  {{ mesesCerradosGlobal[1]?.nombre || 'Mes -2' }} (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('mes_3_bs')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'mes_3_bs' ? 'bg-blue-50/70' : ''"
-                >
-                  {{ mesesCerradosGlobal[2]?.nombre || 'Mes -1' }} (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('total_3m_bs')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'total_3m_bs' ? 'bg-blue-50/70' : ''"
-                >
-                  Total 3M (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('total_sugerido')"
-                  class="sticky top-0 z-30 bg-purple-50/60 text-purple-900 py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-purple-100/60 transition-colors select-none font-bold"
-                  :class="sortKpiCol === 'total_sugerido' ? 'bg-purple-100' : ''"
-                  title="Suma total del sugerido por hábitos de los clientes de la ruta"
-                >
-                  Total Sugerido (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('objetivo_mes')"
-                  class="sticky top-0 z-30 bg-blue-50/60 text-[#0071E3] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-blue-100/60 transition-colors select-none font-bold"
-                  :class="sortKpiCol === 'objetivo_mes' ? 'bg-blue-100' : ''"
-                  title="Objetivo mensual asignado a la ruta en fact_metas"
-                >
-                  Objetivo Mes (Bs)
-                </th>
-                <th
-                  @click="toggleSortKpi('venta_mtd')"
-                  class="sticky top-0 z-30 bg-emerald-50/50 text-emerald-900 py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-emerald-100/50 transition-colors select-none font-bold"
-                  :class="sortKpiCol === 'venta_mtd' ? 'bg-emerald-100' : ''"
-                  title="Venta total facturada en el mes actual"
-                >
-                  Venta MTD (Bs)
-                </th>
+                <template v-if="modoActivo === 'cob_core'">
+                  <th
+                    @click="toggleSortKpi('cartera')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'cartera' ? 'bg-blue-50/70' : ''"
+                  >
+                    Cartera Oficial
+                  </th>
+                  <th
+                    @click="toggleSortKpi('logrado')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
+                  >
+                    Compradores MTD
+                  </th>
+                  <th
+                    @click="toggleSortKpi('pct')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
+                  >
+                    % Cobertura
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_1_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_1_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[0]?.nombre || 'Mes -3' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_2_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_2_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[1]?.nombre || 'Mes -2' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_3_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_3_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[2]?.nombre || 'Mes -1' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('total_3m_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'total_3m_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    Total 3M (Bs)
+                  </th>
+                </template>
+                <template v-else>
+                  <th
+                    @click="toggleSortKpi('meta')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'meta' ? 'bg-blue-50/70' : ''"
+                  >
+                    Meta Mes
+                  </th>
+                  <th
+                    @click="toggleSortKpi('logrado')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
+                  >
+                    Logrado
+                  </th>
+                  <th
+                    @click="toggleSortKpi('pct')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
+                  >
+                    % Avance
+                  </th>
+                  <th
+                    @click="toggleSortKpi('brecha')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'brecha' ? 'bg-blue-50/70' : ''"
+                  >
+                    Brecha
+                  </th>
+                  <!-- Columnas exclusivas de Cobertura: Venta Apertura vs Venta Repetición -->
+                  <th
+                    v-if="esCobertura"
+                    @click="toggleSortKpi('venta_apertura')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Venta Apertura
+                  </th>
+                  <th
+                    v-if="esCobertura"
+                    @click="toggleSortKpi('venta_repeticion')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Venta Repetición
+                  </th>
+                  <th
+                    @click="toggleSortKpi('cuota_dia')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Cuota Diaria
+                  </th>
+                  <th
+                    @click="toggleSortKpi('proyeccion_cierre')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Proyección
+                  </th>
+                </template>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
@@ -387,29 +433,55 @@
                       </div>
                     </div>
                   </td>
-                  <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ r.cartera ?? 0 }} Cli</td>
-                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ r.logrado ?? 0 }} Cli</td>
-                  <td class="py-2 px-3 text-right font-bold text-[12px]" :class="colorPct(r.pct)">
-                    {{ formatPct(r.pct) }}
-                  </td>
-                  <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_1_bs, 2) }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_2_bs, 2) }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_3_bs, 2) }}</td>
-                  <td class="py-2 px-3 text-right font-mono font-bold text-[#1D1D1F]">Bs {{ formatNum(r.total_3m_bs, 2) }}</td>
-                  <td class="py-2 px-3 text-right font-mono font-bold text-purple-900 bg-purple-50/30">
-                    Bs {{ formatNum(r.total_sugerido, 2) }}
-                  </td>
-                  <td class="py-2 px-3 text-right font-mono font-bold text-[#6B21A8] bg-blue-50/30">
-                    Bs {{ formatNum(r.objetivo_mes, 2) }}
-                  </td>
-                  <td class="py-2 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/20">
-                    Bs {{ formatNum(r.venta_mtd, 2) }}
-                  </td>
+                  <template v-if="modoActivo === 'cob_core'">
+                    <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ r.cartera ?? 0 }} Cli</td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ r.logrado ?? 0 }} Cli</td>
+                    <td class="py-2 px-3 text-right font-bold text-[12px]" :class="colorPct(r.pct)">
+                      {{ formatPct(r.pct) }}
+                    </td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_1_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_2_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_3_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono font-bold text-[#0071E3]">Bs {{ formatNum(r.total_3m_bs, 2) }}</td>
+                  </template>
+                  <template v-else>
+                    <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
+                    <td
+                      class="py-2 px-3 text-right font-bold text-[12px]"
+                      :class="colorPct(r.pct_proyeccion ?? r.pct)"
+                      :title="r.pct_proyeccion !== undefined ? `Proyección al cierre: ${formatPct(r.pct_proyeccion)}` : undefined"
+                    >
+                      {{ formatPct(r.pct) }}
+                    </td>
+                    <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
+                      {{ formatValorKpi(r.brecha) }}
+                    </td>
+                    <!-- Cobertura: Venta Apertura vs Venta Repetición -->
+                    <td v-if="esCobertura" class="py-2 px-3 text-right">
+                      <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(r.venta_apertura ?? r.venta_cobertura, 1) }}</div>
+                      <div class="text-[9px] text-[#6E6E73] font-sans">{{ formatPct(r.pct_apertura) }}</div>
+                    </td>
+                    <td v-if="esCobertura" class="py-2 px-3 text-right">
+                      <div class="font-bold" :class="(r.venta_repeticion || 0) > 0 ? 'text-[#0071E3]' : 'text-[#86868B]'">
+                        Bs {{ formatNum(r.venta_repeticion, 1) }}
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-sans">
+                        <span v-if="(r.clientes_repeticion || 0) > 0" class="text-[#0071E3] font-semibold">{{ r.clientes_repeticion }} cli ({{ formatPct(r.pct_repeticion) }})</span>
+                        <span v-else>0 cli (0%)</span>
+                      </div>
+                    </td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
+                    <td class="py-2 px-3 text-right">
+                      <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
+                      <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
+                    </td>
+                  </template>
                 </tr>
 
                 <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
                 <tr v-if="rutaExpandida === r.ruta" class="bg-black/[0.02]">
-                  <td :colspan="modoActivo === 'cob_core' ? 12 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                  <td :colspan="modoActivo === 'cob_core' ? 9 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -424,13 +496,16 @@
                               <template v-if="modoDetalleRuta === 'dias'">
                                 <strong>{{ diasRuta.length }} días</strong> con ventas registradas · Total acumulado: <strong class="text-[#0071E3]">Bs {{ formatNum(totalVentaDiasRuta, 2) }}</strong>
                               </template>
-                              <template v-else>
+                              <template v-else-if="modoActivo === 'cob_core'">
                                 {{ carteraClientes.length }} clientes registrados · 
                                 <strong class="text-blue-600 font-bold">{{ clientesConHistorico.length }} con histórico 3M</strong> ·
                                 <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores MTD</strong> ·
                                 Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong> ·
-                                Total Sugerido: <strong class="text-purple-900 font-bold">Bs {{ formatNum(totales3mRuta.total_sugerido || totalSugeridoClientes, 2) }}</strong> ·
-                                Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes || totalObjetivoClientes, 2) }}</strong>
+                                Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes, 2) }}</strong>
+                              </template>
+                              <template v-else>
+                                {{ carteraClientes.length }} clientes registrados · 
+                                <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores únicos</strong>
                               </template>
                             </div>
                           </div>
@@ -463,6 +538,7 @@
                           <template v-if="modoDetalleRuta === 'clientes'">
                             <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
                               <button
+                                v-if="modoActivo === 'cob_core'"
                                 type="button"
                                 @click="filtroClientesTab = 'con_historico'"
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
@@ -476,7 +552,7 @@
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
                                 :class="filtroClientesTab === 'compradores' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
                               >
-                                Compraron MTD ({{ clientesConCompra.length }})
+                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : 'Compradores' }} ({{ clientesConCompra.length }})
                               </button>
                               <button
                                 type="button"
@@ -672,6 +748,7 @@
                                 </div>
                               </th>
 
+                              <template v-if="modoActivo === 'cob_core'">
                                 <th
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
                                   :class="sortClientesCol === 'monto_mes_1' ? 'text-[#0071E3]' : ''"
@@ -728,18 +805,7 @@
                                   </div>
                                 </th>
                                 <th
-                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/50"
-                                  :class="sortClientesCol === 'total_sugerido' ? 'text-[#0071E3]' : ''"
-                                  @click="ordenarClientes('total_sugerido')"
-                                  title="Ordenar por Total Sugerido de Hábitos (Bs)"
-                                >
-                                  <div class="flex items-center justify-end gap-1">
-                                    <span>Sugerido (Bs)</span>
-                                    <span v-if="sortClientesCol === 'total_sugerido'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                  </div>
-                                </th>
-                                <th
-                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-blue-50/50"
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/40"
                                   :class="sortClientesCol === 'cuota_objetivo' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('cuota_objetivo')"
                                   title="Ordenar por Objetivo correspondiente al Cliente según su Peso (Bs)"
@@ -771,32 +837,71 @@
                                     <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
-                              </tr>
-                            </thead>
-                            <tbody class="divide-y divide-black/[0.03] bg-white font-mono tabular-nums">
-                              <template v-for="(cli, cidx) in clientesRutaFiltrados" :key="cli.cliente_id">
-                                <tr class="hover:bg-blue-50/30 transition-colors">
-                                  <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      @click.stop="toggleClienteAccordion(cli, r.ruta)"
-                                      class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
-                                      :class="clienteExpandidoId === cli.cliente_id ? 'rotate-90 text-[#0071E3]' : ''"
-                                      title="Desglosar histórico facturado y sugerido"
-                                    >
-                                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                      </svg>
-                                    </button>
-                                    <span>{{ cidx + 1 }}</span>
-                                  </td>
-                                  <td class="py-1.5 px-2.5 font-bold text-[#6E6E73] cursor-pointer hover:text-[#0071E3]" @click="toggleClienteAccordion(cli, r.ruta)">{{ cli.cliente_id }}</td>
-                                  <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F] cursor-pointer hover:text-[#0071E3]" @click="toggleClienteAccordion(cli, r.ruta)">
-                                    <div class="hover:underline">{{ cli.cliente }}</div>
-                                    <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
-                                  </td>
-                                  <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
+                              </template>
+                              <template v-else>
+                                <th
+                                  class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('tiene_logro')"
+                                  title="Ordenar por Estado KPI"
+                                >
+                                  <div class="flex items-center justify-center gap-1">
+                                    <span>Estado KPI</span>
+                                    <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_bs')"
+                                  title="Ordenar por Monto Bs"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Monto Bs</span>
+                                    <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'pct_ruta' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('pct_ruta')"
+                                  title="Ordenar por % Aporte"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>% Aporte</span>
+                                    <span v-if="sortClientesCol === 'pct_ruta'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                              </template>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-black/[0.03] bg-white font-mono tabular-nums">
+                            <template v-for="(cli, cidx) in clientesRutaFiltrados" :key="cli.cliente_id">
+                              <tr class="hover:bg-blue-50/30 transition-colors">
+                                <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
+                                  <button
+                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0"
+                                    type="button"
+                                    @click="toggleClienteAccordion(cli, r.ruta)"
+                                    class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
+                                    :class="clienteExpandidoId === cli.cliente_id ? 'rotate-90 text-[#0071E3]' : ''"
+                                    title="Desglosar historial de compras"
+                                  >
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                  <span v-else class="inline-block w-4 mr-1"></span>
+                                  <span>{{ cidx + 1 }}</span>
+                                </td>
+                                <td class="py-1.5 px-2.5 font-bold text-[#6E6E73]">{{ cli.cliente_id }}</td>
+                                <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F]">
+                                  {{ cli.cliente }}
+                                  <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
+                                </td>
+                                <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
 
+                                <template v-if="modoActivo === 'cob_core'">
                                   <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
                                     {{ cli.monto_mes_1 > 0 ? `Bs ${formatNum(cli.monto_mes_1, 2)}` : '-' }}
                                   </td>
@@ -812,10 +917,7 @@
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/20">
                                     {{ formatPct(cli.peso_3m) }}
                                   </td>
-                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-purple-900 bg-purple-50/20">
-                                    {{ cli.total_sugerido > 0 ? `Bs ${formatNum(cli.total_sugerido, 2)}` : '-' }}
-                                  </td>
-                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-blue-50/20">
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/20">
                                     {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
                                   </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-medium" :class="cli.monto_bs > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
@@ -835,40 +937,124 @@
                                       Sin compra
                                     </span>
                                   </td>
-                                </tr>
-                                <!-- Detalle acordeón de facturas y fechas del cliente -->
-                                <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                  <td colspan="13" class="p-2.5 border-y border-black/[0.05]">
+                                </template>
+                                <template v-else>
+                                  <td class="py-1.5 px-2.5 text-center">
+                                    <span
+                                      v-if="cli.tiene_logro"
+                                      class="px-1.5 py-0.2 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    >
+                                      CUMPLE
+                                    </span>
+                                    <span
+                                      v-else
+                                      class="px-1.5 py-0.2 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
+                                    >
+                                      PENDIENTE
+                                    </span>
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">
+                                    Bs {{ formatNum(cli.monto_bs, 2) }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
+                                    {{ formatPct(cli.pct_ruta) }}
+                                  </td>
+                                </template>
+                              </tr>
+                              <!-- Detalle acordeón de facturas y fechas del cliente -->
+                              <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
+                                <td :colspan="modoActivo === 'cob_core' ? 12 : 7" class="p-2.5 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[10px] p-3 space-y-2.5 bg-white/95 border border-black/[0.06] shadow-2xs">
-                                    <!-- 1. Cargando detalle del cliente -->
-                                    <div v-if="cargandoClienteId === cli.cliente_id" class="py-6 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
+                                    <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
                                       <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
                                     </div>
-
-                                    <!-- 2. Error al cargar -->
-                                    <div v-else-if="errorClienteMap[cli.cliente_id]" class="py-4 text-center space-y-2 font-sans">
-                                      <div class="text-[11px] text-rose-600 font-medium">
-                                        {{ errorClienteMap[cli.cliente_id] }}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        @click="toggleClienteAccordion(cli, r.ruta, true)"
-                                        class="px-3 py-1 bg-[#0071E3] text-white rounded-[6px] text-[10px] font-medium hover:bg-blue-600 transition cursor-pointer"
-                                      >
-                                        Reintentar
-                                      </button>
-                                    </div>
-
-                                    <!-- 3. Contenido cargado -->
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
-                                      <!-- Cabecera de Productos del Cliente: Contador y Buscador -->
-                                      <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-black/[0.04]">
-                                        <div class="flex items-center gap-2">
-                                          <span class="text-[11px] font-bold text-[#1D1D1F]">Productos Facturados</span>
-                                          <span class="text-[9px] px-1.5 py-0.2 rounded bg-black/[0.04] text-[#6E6E73] font-mono font-bold">
-                                            {{ productosHistorialFiltrados(cli.cliente_id).length }} SKUs
-                                          </span>
+                                      <!-- Resumen Superior del Cliente: Contraste Histórico vs Cuota Asignada vs Hábito Sugerido vs MTD -->
+                                      <div class="p-2.5 rounded-[10px] bg-[#F8F8FA] border border-black/[0.05] space-y-2 text-[10px] font-mono">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.04] pb-1.5">
+                                          <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                            <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
+                                            <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
+                                          </div>
+                                          <div class="flex items-center gap-3 text-[10px]">
+                                            <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
+                                            <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
+                                            <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
+                                          </div>
+                                        </div>
+
+                                        <!-- Tarjetas de Contraste: Objetivo Asignado vs Hábito Sugerido vs Real Comprado MTD -->
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-sans">
+                                          <div class="p-2 rounded-[8px] bg-white border border-black/[0.04]">
+                                            <div class="text-[9px] text-[#6E6E73] font-medium">Cuota Objetivo (Meta Mes)</div>
+                                            <div class="text-[12px] font-bold text-[#6B21A8] font-mono">
+                                              {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
+                                            </div>
+                                            <div class="text-[9px] text-[#86868B]">Peso en ruta: {{ formatPct(cli.peso_3m) }}</div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-purple-50/50 border border-purple-100">
+                                            <div class="text-[9px] text-purple-900 font-bold flex items-center justify-between">
+                                              <span>Sugerido Hábitos (3M / 3)</span>
+                                              <span class="text-[8px] px-1 py-0.2 rounded bg-purple-200/70 text-purple-900 font-mono">Teórico</span>
+                                            </div>
+                                            <div class="text-[12px] font-bold text-purple-900 font-mono">
+                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_monto_sugerido_bs, 2) }}
+                                            </div>
+                                            <div class="text-[9px] text-purple-800 font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_unidades_sugeridas || 0 }} u en {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
+                                            </div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-emerald-50/40 border border-emerald-100">
+                                            <div class="text-[9px] text-emerald-900 font-bold">Comprado Mes Actual (MTD)</div>
+                                            <div class="text-[12px] font-bold font-mono" :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}
+                                            </div>
+                                            <div class="text-[9px] text-emerald-800 font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades_mes_actual || 0 }} u facturadas
+                                            </div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-blue-50/40 border border-blue-100">
+                                            <div class="text-[9px] text-blue-900 font-bold">Cobertura SKUs MTD</div>
+                                            <div class="text-[12px] font-bold text-[#0071E3] font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_cubiertos_mtd || 0 }} / {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
+                                            </div>
+                                            <div class="text-[9px] text-blue-800 font-mono">
+                                              {{ formatPct(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.pct_cobertura_skus) }} de variedad cubierta
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <!-- Barra de Controles: Agrupación y Filtro -->
+                                      <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <!-- Selector de Agrupación: Por Fecha de Compra vs Por Producto -->
+                                        <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
+                                          <button
+                                            type="button"
+                                            @click="modoHistorialCliente = 'fechas'"
+                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
+                                            :class="modoHistorialCliente === 'fechas' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                                            title="Ver historial cronológico agrupado por fechas de compra"
+                                          >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span>Por Fecha de Compra ({{ fechasHistorialFiltradas(cli.cliente_id).length }})</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            @click="modoHistorialCliente = 'productos'"
+                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
+                                            :class="modoHistorialCliente === 'productos' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                                            title="Ver historial agrupado por producto / SKU"
+                                          >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                            <span>Por Producto ({{ productosHistorialFiltrados(cli.cliente_id).length }})</span>
+                                          </button>
                                         </div>
 
                                         <!-- Buscador rápido dentro del historial del cliente -->
@@ -876,8 +1062,8 @@
                                           <input
                                             v-model="busquedaHistorialCliente"
                                             type="text"
-                                            placeholder="Buscar producto o código..."
-                                            class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-56 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
+                                            placeholder="Filtrar producto, código, fecha..."
+                                            class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-52 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
                                           />
                                           <svg class="w-3 h-3 text-[#86868B] absolute left-2 top-1.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -885,258 +1071,266 @@
                                         </div>
                                       </div>
 
-                                      <!-- TABLA DE PRODUCTOS (ACUMULADO 3M, SUGERIDO Y COMPRA ACUMULADA MES) -->
-                                      <div class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[420px]">
+                                      <!-- VISTA A: AGRUPACIÓN POR FECHA DE COMPRA -->
+                                      <div
+                                        v-if="modoHistorialCliente === 'fechas'"
+                                        class="space-y-1.5 max-h-[280px] overflow-y-auto custom-scroll pr-1 font-mono"
+                                      >
+                                        <div
+                                          v-for="dia in fechasHistorialFiltradas(cli.cliente_id)"
+                                          :key="dia.fecha"
+                                          class="p-2 rounded-[8px] border border-black/[0.04] bg-white space-y-1 text-[10px]"
+                                        >
+                                          <div class="flex items-center justify-between border-b border-black/[0.04] pb-1">
+                                            <div class="flex items-center gap-2">
+                                              <span class="font-bold text-[#1D1D1F] text-[11px]">{{ dia.fecha }}</span>
+                                              <span
+                                                class="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold"
+                                                :class="dia.es_mes_actual ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'"
+                                              >
+                                                {{ dia.es_mes_actual ? 'Mes Actual' : 'Histórico 3M' }}
+                                              </span>
+                                              <span class="text-[9px] text-[#86868B] font-sans">Factura(s): {{ dia.facturas }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                              <span class="text-[#86868B] text-[9px]">{{ dia.total_cantidad }} u</span>
+                                              <span class="font-bold text-[#0071E3] text-[11px]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs, 2) }}</span>
+                                            </div>
+                                          </div>
+                                          <div class="text-[9px] text-[#86868B] font-sans flex items-center justify-between">
+                                            <span>Preventista: {{ dia.vendedor }}</span>
+                                            <span>{{ (dia.items || []).length }} referencias</span>
+                                          </div>
+                                          <div v-if="dia.items && dia.items.length > 0" class="mt-1 space-y-0.5">
+                                            <div
+                                              v-for="(item, iidx) in dia.items"
+                                              :key="iidx"
+                                              class="flex items-center justify-between text-[9px] py-0.5 px-2 rounded bg-black/[0.02]"
+                                            >
+                                              <div class="flex items-center gap-1.5 truncate max-w-[420px]">
+                                                <span class="font-bold text-[#6E6E73] shrink-0 font-mono">[{{ item.codigo }}]</span>
+                                                <span class="text-[#1D1D1F] truncate font-sans">{{ item.producto }}</span>
+                                              </div>
+                                              <span class="font-bold text-[#1D1D1F] font-mono shrink-0 ml-2">
+                                                {{ item.cantidad }} u · Bs {{ formatNum(item.monto_bs, 2) }}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div v-if="fechasHistorialFiltradas(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
+                                          No se encontraron fechas de compra para el criterio de búsqueda.
+                                        </div>
+                                      </div>
+
+                                      <!-- VISTA B: AGRUPACIÓN POR PRODUCTO (CONTRASTE HISTÓRICO VS HÁBITOS SUGERIDOS VS MES ACTUAL) -->
+                                      <div
+                                        v-else-if="modoHistorialCliente === 'productos'"
+                                        class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[320px]"
+                                      >
                                         <table class="w-full text-left border-collapse text-[10px] font-mono whitespace-nowrap">
                                           <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06] select-none">
                                             <tr>
-                                              <th class="py-1.5 px-2.5 text-center w-8">#</th>
-                                              <th class="py-1.5 px-2.5 text-left w-20 cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('codigo')">
+                                              <th class="py-1.5 px-2 text-center w-8">#</th>
+                                              <th class="py-1.5 px-2 text-left w-20 cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('codigo')">
                                                 <div class="flex items-center gap-1">
                                                   <span>Código</span>
                                                   <span v-if="sortProdCol === 'codigo'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
+                                              <th class="py-1.5 px-2 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
                                                 <div class="flex items-center gap-1">
                                                   <span>Producto</span>
                                                   <span v-if="sortProdCol === 'producto'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-right cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')" title="Total de lo que compró en el acumulado de los últimos 3 meses">
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.corto || 'Mes -3' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.corto || 'Mes -2' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.corto || 'Mes -1' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right font-bold text-[#1D1D1F] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Total Compra 3M</span>
+                                                  <span>Total 3M (Bs)</span>
                                                   <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-right bg-purple-50/70 text-purple-950 font-bold cursor-pointer hover:bg-purple-100" @click="ordenarProductos('monto_sugerido')" title="Cantidad y monto que se sugiere que compre en el mes">
+                                              <th class="py-1.5 px-2 text-right cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_cantidad_3m')">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Sugerido a Comprar</span>
+                                                  <span>Cant 3M</span>
+                                                  <span v-if="sortProdCol === 'total_cantidad_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+
+                                              <!-- CONTRASTE: LO QUE SE LE PIDE QUE COMPRE (HÁBITO DE COMPRA) -->
+                                              <th class="py-1.5 px-2 text-right bg-amber-50/60 text-amber-900 font-bold cursor-pointer hover:bg-amber-100/60" @click="ordenarProductos('precio_ultima_compra')" title="Precio unitario de la última compra registrada">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>P. Últ. Compra</span>
+                                                  <span v-if="sortProdCol === 'precio_ultima_compra'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-center bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('cant_sugerida')" title="Hábito sugerido: Cantidad 3M / 3 redondeado al entero superior">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Sugerido (Cant)</span>
+                                                  <span v-if="sortProdCol === 'cant_sugerida'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('monto_sugerido')" title="Monto sugerido = Cant. Sugerida x Precio Últ. Compra">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Sugerido (Bs)</span>
                                                   <span v-if="sortProdCol === 'monto_sugerido'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-right bg-emerald-50/70 text-emerald-950 font-bold cursor-pointer hover:bg-emerald-100" @click="ordenarProductos('total_bs_mes_actual')" title="Compra acumulada del mes: en qué cantidad y monto va">
+
+                                              <!-- CONTRASTE: LO QUE YA COMPRÓ EN EL MES ACTUAL (MTD) -->
+                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_cantidad_mes_actual')" title="Unidades compradas en el mes actual">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Compra Acumulada Mes</span>
+                                                  <span>Compró MTD (u)</span>
+                                                  <span v-if="sortProdCol === 'total_cantidad_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_bs_mes_actual')" title="Monto facturado en el mes actual">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Compró MTD (Bs)</span>
                                                   <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+
+                                              <!-- ESTADO DE COBERTURA -->
+                                              <th class="py-1.5 px-2 text-center cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('estado_cobertura')">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Cobertura</span>
+                                                  <span v-if="sortProdCol === 'estado_cobertura'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-center text-[#86868B] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('ultima_fecha')">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Últ. Compra</span>
+                                                  <span v-if="sortProdCol === 'ultima_fecha'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
                                             </tr>
                                           </thead>
                                           <tbody class="divide-y divide-black/[0.03] bg-white">
-                                            <template
+                                            <tr
                                               v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)"
                                               :key="prod.codigo + pidx"
+                                              class="hover:bg-blue-50/20 transition-colors"
                                             >
-                                              <tr class="hover:bg-purple-50/20 transition-colors">
-                                                <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
-                                                  <button
-                                                    type="button"
-                                                    @click="toggleProductoExpandido(cli.cliente_id + '_' + (prod.codigo || prod.producto))"
-                                                    class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-150 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
-                                                    :class="productoExpandidoKey === (cli.cliente_id + '_' + (prod.codigo || prod.producto)) ? 'rotate-90 text-[#0071E3]' : ''"
-                                                    title="Ver compras por fecha (Histórico 3M vs Mes Actual)"
-                                                  >
-                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                  </button>
-                                                  <span>{{ pidx + 1 }}</span>
-                                                </td>
-                                                <td class="py-1.5 px-2.5 font-bold text-[#6E6E73] cursor-pointer" @click="toggleProductoExpandido(cli.cliente_id + '_' + (prod.codigo || prod.producto))">
-                                                  {{ prod.codigo }}
-                                                </td>
-                                                <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F] max-w-[260px] truncate cursor-pointer" :title="prod.producto" @click="toggleProductoExpandido(cli.cliente_id + '_' + (prod.codigo || prod.producto))">
-                                                  {{ prod.producto }}
-                                                  <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
-                                                </td>
+                                              <td class="py-1 px-2 text-center text-[#86868B]">{{ pidx + 1 }}</td>
+                                              <td class="py-1 px-2 font-bold text-[#6E6E73]">{{ prod.codigo }}</td>
+                                              <td class="py-1 px-2 font-sans font-medium text-[#1D1D1F] max-w-[200px] truncate" :title="prod.producto">
+                                                {{ prod.producto }}
+                                                <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">
+                                                {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#6E6E73]">
+                                                {{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '-' }}
+                                              </td>
 
-                                                <!-- Total Compra 3M -->
-                                                <td class="py-1.5 px-2.5 text-right font-mono">
-                                                  <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(prod.total_bs_3m, 2) }}</div>
-                                                  <div class="text-[9px] text-[#6E6E73]">{{ prod.total_cantidad_3m }} u</div>
-                                                </td>
+                                              <!-- CONTRASTE: LO QUE SE LE PIDE -->
+                                              <td class="py-1 px-2 text-right font-mono text-amber-900 bg-amber-50/20 font-medium">
+                                                {{ prod.precio_ultima_compra > 0 ? `Bs ${formatNum(prod.precio_ultima_compra, 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-center font-bold text-purple-900 bg-purple-50/30">
+                                                <span v-if="prod.cant_sugerida > 0" class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[9px]">
+                                                  {{ prod.cant_sugerida }} u
+                                                </span>
+                                                <span v-else class="text-[#86868B]">-</span>
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold text-purple-900 bg-purple-50/30">
+                                                {{ prod.monto_sugerido > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
+                                              </td>
 
-                                                <!-- Sugerido a Comprar -->
-                                                <td class="py-1.5 px-2.5 text-right font-mono bg-purple-50/30">
-                                                  <div class="font-bold text-purple-900 text-[11px]">Bs {{ formatNum(prod.monto_sugerido, 2) }}</div>
-                                                  <div class="text-[9px] text-purple-800">
-                                                    <span class="inline-block px-1 py-0.2 rounded bg-purple-100 text-purple-900 font-bold">{{ prod.cant_sugerida }} u</span>
-                                                    <span v-if="prod.precio_ultima_compra > 0" class="text-[8px] text-purple-700 ml-1">(P.Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
-                                                  </div>
-                                                </td>
+                                              <!-- CONTRASTE: LO QUE YA COMPRÓ MES ACTUAL -->
+                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                                {{ (prod.total_cantidad_mes_actual || 0) > 0 ? `${prod.total_cantidad_mes_actual} u` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                                {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
+                                              </td>
 
-                                                <!-- Compra Acumulada del Mes: en qué cantidad y monto va -->
-                                                <td class="py-1.5 px-2.5 text-right font-mono" :class="prod.total_cantidad_mes_actual > 0 ? 'bg-emerald-50/30' : ''">
-                                                  <template v-if="prod.total_cantidad_mes_actual > 0">
-                                                    <div class="font-bold text-emerald-800 text-[11px]">Bs {{ formatNum(prod.total_bs_mes_actual, 2) }}</div>
-                                                    <div class="text-[9px] text-emerald-700 flex items-center justify-end gap-1">
-                                                      <span class="font-bold">{{ prod.total_cantidad_mes_actual }} u</span>
-                                                      <span
-                                                        v-if="prod.cumple_sugerido"
-                                                        class="inline-block px-1 py-0.2 rounded text-[7px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
-                                                      >
-                                                        CUMPLE
-                                                      </span>
-                                                      <span
-                                                        v-else-if="prod.cant_sugerida > 0"
-                                                        class="inline-block px-1 py-0.2 rounded text-[7px] font-bold bg-amber-100 text-amber-800 border border-amber-300"
-                                                      >
-                                                        PARCIAL
-                                                      </span>
-                                                    </div>
-                                                  </template>
-                                                  <template v-else>
-                                                    <div class="text-[#86868B]">-</div>
-                                                    <div v-if="prod.cant_sugerida > 0" class="text-[8px] text-[#86868B]">0 u · Pendiente</div>
-                                                  </template>
-                                                </td>
-                                              </tr>
-
-                                              <!-- FILA EXPANDIBLE: Detalle de fechas de compra (Histórico 3M vs Compra Actual) en 2 tablas -->
-                                              <tr v-if="productoExpandidoKey === (cli.cliente_id + '_' + (prod.codigo || prod.producto))" class="bg-slate-50/80">
-                                                <td colspan="6" class="p-2.5 border-y border-black/[0.06]">
-                                                  <div class="rounded-[10px] bg-white border border-black/[0.06] p-2.5 space-y-2 shadow-2xs">
-                                                    <div class="flex items-center justify-between text-[10px] pb-1 border-b border-black/[0.04]">
-                                                      <div class="flex items-center gap-1.5 font-sans font-bold text-[#1D1D1F]">
-                                                        <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-                                                        <span>Fechas de Compra: {{ prod.producto }}</span>
-                                                        <span class="text-[#86868B] font-mono font-normal">({{ prod.codigo }})</span>
-                                                      </div>
-                                                      <div class="text-[9px] text-[#86868B] font-mono">
-                                                        Precio Última Compra: <strong class="text-[#1D1D1F]">Bs {{ formatNum(prod.precio_ultima_compra, 2) }}</strong>
-                                                      </div>
-                                                    </div>
-
-                                                    <!-- Dos Tablas: Histórico 3M vs Compra Actual Mes MTD -->
-                                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-                                                      <!-- TABLA A: FECHAS DE COMPRA HISTÓRICO 3M -->
-                                                      <div class="border border-black/[0.06] rounded-[8px] overflow-hidden bg-white">
-                                                        <div class="px-2.5 py-1.5 bg-[#F8F8FA] border-b border-black/[0.05] flex items-center justify-between text-[9px] font-sans">
-                                                          <span class="font-bold text-[#1D1D1F] uppercase tracking-wider">Histórico Últimos 3 Meses Cerrados</span>
-                                                          <span class="font-mono text-[#6E6E73]">{{ prod.compras_3m?.length || 0 }} compras</span>
-                                                        </div>
-                                                        <div class="max-h-[180px] overflow-y-auto custom-scroll">
-                                                          <table class="w-full text-left border-collapse text-[9px] font-mono">
-                                                            <thead class="bg-[#F8F8FA] text-[#86868B] uppercase sticky top-0 z-10 border-b border-black/[0.04] text-[8px]">
-                                                              <tr>
-                                                                <th class="py-1 px-2 text-center w-6">#</th>
-                                                                <th class="py-1 px-2">Fecha</th>
-                                                                <th class="py-1 px-2">Factura</th>
-                                                                <th class="py-1 px-2 text-right">Cant (u)</th>
-                                                                <th class="py-1 px-2 text-right">P. Unit (Bs)</th>
-                                                                <th class="py-1 px-2 text-right">Monto (Bs)</th>
-                                                                <th class="py-1 px-2 font-sans">Preventista</th>
-                                                              </tr>
-                                                            </thead>
-                                                            <tbody class="divide-y divide-black/[0.03]">
-                                                              <tr v-for="(c, cidx) in prod.compras_3m" :key="'3m_' + cidx" class="hover:bg-black/[0.02]">
-                                                                <td class="py-1 px-2 text-center text-[#86868B]">{{ cidx + 1 }}</td>
-                                                                <td class="py-1 px-2 font-bold text-[#1D1D1F]">{{ c.fecha }}</td>
-                                                                <td class="py-1 px-2 text-[#6E6E73]">{{ c.nro_factura }}</td>
-                                                                <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">{{ c.cantidad }}</td>
-                                                                <td class="py-1 px-2 text-right text-[#6E6E73]">Bs {{ formatNum(c.precio_unitario, 2) }}</td>
-                                                                <td class="py-1 px-2 text-right font-bold text-[#0071E3]">Bs {{ formatNum(c.monto_bs, 2) }}</td>
-                                                                <td class="py-1 px-2 font-sans text-[#6E6E73] truncate max-w-[100px]">{{ c.vendedor }}</td>
-                                                              </tr>
-                                                              <tr v-if="!prod.compras_3m || prod.compras_3m.length === 0">
-                                                                <td colspan="7" class="py-3 text-center text-[#86868B] font-sans italic text-[9px]">
-                                                                  No registra compras en los 3 meses cerrados.
-                                                                </td>
-                                                              </tr>
-                                                            </tbody>
-                                                            <tfoot v-if="prod.compras_3m && prod.compras_3m.length > 0" class="bg-[#F8F8FA] font-bold border-t border-black/[0.06] text-[#1D1D1F]">
-                                                              <tr>
-                                                                <td colspan="3" class="py-1 px-2 text-center text-[8px] font-sans text-[#6E6E73]">TOTAL 3M</td>
-                                                                <td class="py-1 px-2 text-right">{{ prod.total_cantidad_3m }} u</td>
-                                                                <td class="py-1 px-2 text-center text-[#86868B]">-</td>
-                                                                <td class="py-1 px-2 text-right text-[#0071E3]">Bs {{ formatNum(prod.total_bs_3m, 2) }}</td>
-                                                                <td></td>
-                                                              </tr>
-                                                            </tfoot>
-                                                          </table>
-                                                        </div>
-                                                      </div>
-
-                                                      <!-- TABLA B: COMPRA ACTUAL POR FECHAS (MES ACTUAL MTD) -->
-                                                      <div class="border border-black/[0.06] rounded-[8px] overflow-hidden bg-white">
-                                                        <div class="px-2.5 py-1.5 bg-emerald-50/60 border-b border-emerald-100 flex items-center justify-between text-[9px] font-sans">
-                                                          <span class="font-bold text-emerald-900 uppercase tracking-wider">Compra Mes Actual MTD (Fechas)</span>
-                                                          <span class="font-mono text-emerald-800 font-bold">{{ prod.compras_mes_actual?.length || 0 }} compras</span>
-                                                        </div>
-                                                        <div class="max-h-[180px] overflow-y-auto custom-scroll">
-                                                          <table class="w-full text-left border-collapse text-[9px] font-mono">
-                                                            <thead class="bg-[#F8F8FA] text-[#86868B] uppercase sticky top-0 z-10 border-b border-black/[0.04] text-[8px]">
-                                                              <tr>
-                                                                <th class="py-1 px-2 text-center w-6">#</th>
-                                                                <th class="py-1 px-2">Fecha</th>
-                                                                <th class="py-1 px-2">Factura</th>
-                                                                <th class="py-1 px-2 text-right">Cant (u)</th>
-                                                                <th class="py-1 px-2 text-right">P. Unit (Bs)</th>
-                                                                <th class="py-1 px-2 text-right">Monto (Bs)</th>
-                                                                <th class="py-1 px-2 font-sans">Preventista</th>
-                                                              </tr>
-                                                            </thead>
-                                                            <tbody class="divide-y divide-black/[0.03]">
-                                                              <tr v-for="(c, cidx) in prod.compras_mes_actual" :key="'mtd_' + cidx" class="hover:bg-emerald-50/20">
-                                                                <td class="py-1 px-2 text-center text-[#86868B]">{{ cidx + 1 }}</td>
-                                                                <td class="py-1 px-2 font-bold text-emerald-900">{{ c.fecha }}</td>
-                                                                <td class="py-1 px-2 text-[#6E6E73]">{{ c.nro_factura }}</td>
-                                                                <td class="py-1 px-2 text-right font-bold text-emerald-900">{{ c.cantidad }}</td>
-                                                                <td class="py-1 px-2 text-right text-[#6E6E73]">Bs {{ formatNum(c.precio_unitario, 2) }}</td>
-                                                                <td class="py-1 px-2 text-right font-bold text-emerald-700">Bs {{ formatNum(c.monto_bs, 2) }}</td>
-                                                                <td class="py-1 px-2 font-sans text-[#6E6E73] truncate max-w-[100px]">{{ c.vendedor }}</td>
-                                                              </tr>
-                                                              <tr v-if="!prod.compras_mes_actual || prod.compras_mes_actual.length === 0">
-                                                                <td colspan="7" class="py-3 text-center text-[#86868B] font-sans italic text-[9px]">
-                                                                  Sin compras registradas en el mes actual.
-                                                                </td>
-                                                              </tr>
-                                                            </tbody>
-                                                            <tfoot v-if="prod.compras_mes_actual && prod.compras_mes_actual.length > 0" class="bg-emerald-50/50 font-bold border-t border-emerald-100 text-emerald-950">
-                                                              <tr>
-                                                                <td colspan="3" class="py-1 px-2 text-center text-[8px] font-sans text-emerald-800">TOTAL MTD</td>
-                                                                <td class="py-1 px-2 text-right">{{ prod.total_cantidad_mes_actual }} u</td>
-                                                                <td class="py-1 px-2 text-center text-[#86868B]">-</td>
-                                                                <td class="py-1 px-2 text-right text-emerald-800">Bs {{ formatNum(prod.total_bs_mes_actual, 2) }}</td>
-                                                                <td></td>
-                                                              </tr>
-                                                            </tfoot>
-                                                          </table>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            </template>
+                                              <!-- ESTADO COBERTURA -->
+                                              <td class="py-1 px-2 text-center">
+                                                <span
+                                                  v-if="prod.cumple_sugerido"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-800"
+                                                  title="Compró igual o más de la cantidad mensual sugerida"
+                                                >
+                                                  CUMPLE
+                                                </span>
+                                                <span
+                                                  v-else-if="prod.compro_mes_actual"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-100 text-amber-800"
+                                                  title="Compró en el mes pero no alcanzó la cantidad sugerida"
+                                                >
+                                                  PARCIAL
+                                                </span>
+                                                <span
+                                                  v-else-if="prod.cant_sugerida > 0"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-medium bg-black/[0.04] text-[#86868B]"
+                                                >
+                                                  PENDIENTE
+                                                </span>
+                                                <span v-else class="text-[#86868B] text-[8px]">-</span>
+                                              </td>
+                                              <td class="py-1 px-2 text-center text-[#86868B] text-[9px] whitespace-nowrap">
+                                                {{ prod.ultima_fecha }}
+                                              </td>
+                                            </tr>
                                           </tbody>
-                                          <!-- PIE DE TABLA CON TOTALES CONSOLIDADOS -->
+                                          <!-- Totalizado Monográfico de Productos -->
                                           <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono border-t border-black/[0.08]">
                                             <tr>
-                                              <td colspan="3" class="py-2 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
+                                              <td colspan="3" class="py-1.5 px-2 text-center text-[9px] text-[#6E6E73] font-sans">
                                                 TOTAL ({{ productosHistorialFiltrados(cli.cliente_id).length }} SKUs)
                                               </td>
-                                              <td class="py-2 px-2.5 text-right font-mono">
-                                                <div class="font-bold text-[#1D1D1F] text-[11px]">Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_3m'), 2) }}</div>
-                                                <div class="text-[9px] text-[#6E6E73]">{{ totalProdCol(cli.cliente_id, 'total_cantidad_3m') }} u totales</div>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym), 2)}` : '-' }}
                                               </td>
-                                              <td class="py-2 px-2.5 text-right font-mono bg-purple-100 text-purple-950 font-bold border-x border-purple-200">
-                                                <div class="text-[12px] font-black">
-                                                  Bs {{ formatNum(totalProdCol(cli.cliente_id, 'monto_sugerido'), 2) }}
-                                                </div>
-                                                <div class="text-[9px] text-purple-900 font-bold">
-                                                  {{ totalProdCol(cli.cliente_id, 'cant_sugerida') }} u sugeridas
-                                                </div>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym), 2)}` : '-' }}
                                               </td>
-                                              <td class="py-2 px-2.5 text-right font-mono bg-emerald-100 text-emerald-950 font-bold">
-                                                <div class="text-[12px] font-black text-emerald-800">
-                                                  Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_mes_actual'), 2) }}
-                                                </div>
-                                                <div class="text-[9px] text-emerald-800 font-bold">
-                                                  {{ totalProdCol(cli.cliente_id, 'total_cantidad_mes_actual') }} u facturadas
-                                                </div>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym), 2)}` : '-' }}
                                               </td>
+                                              <td class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_3m'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-[#6E6E73]">
+                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_3m') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[#86868B] bg-amber-50/20">-</td>
+                                              <td class="py-1.5 px-2 text-center text-purple-900 bg-purple-100/60 font-bold">
+                                                {{ totalProdCol(cli.cliente_id, 'cant_sugerida') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-purple-900 bg-purple-100/60 font-bold">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'monto_sugerido'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
+                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_mes_actual') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_mes_actual'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[9px] text-[#0071E3] font-sans">
+                                                {{ totalSkusCubiertosFiltrados(cli.cliente_id) }}/{{ totalSkusSugeridosFiltrados(cli.cliente_id) }} cub.
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[#86868B] text-[8px]">-</td>
                                             </tr>
                                           </tfoot>
                                         </table>
@@ -1145,15 +1339,12 @@
                                         </div>
                                       </div>
                                     </template>
-                                    <div v-else class="py-4 text-center text-[10px] text-[#86868B] font-sans">
-                                      No se encontraron datos para este cliente.
-                                    </div>
                                   </div>
                                 </td>
                               </tr>
                             </template>
                           </tbody>
-                          <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
+                          <tfoot v-if="modoActivo === 'cob_core'" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
                             <tr>
                               <td colspan="4" class="py-1.5 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
                                 TOTAL RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
@@ -1173,13 +1364,10 @@
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/30">
                                 100.0%
                               </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-purple-900 bg-purple-100/70 text-[11px]">
-                                Bs {{ formatNum(totales3mRuta.total_sugerido || totalSugeridoClientes, 2) }}
-                              </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-blue-100/70 text-[11px]">
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/30">
                                 Bs {{ formatNum(totales3mRuta.objetivo_mes || totalObjetivoClientes, 2) }}
                               </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-700 bg-emerald-50/30">
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-700">
                                 Bs {{ formatNum(totalVentaCartera, 2) }}
                               </td>
                               <td class="py-1.5 px-2.5 text-center text-[10px] text-emerald-800 font-sans">
@@ -1202,194 +1390,39 @@
                 <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
                   CONSOLIDADO ({{ rutasFiltradas.length }})
                 </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.cartera ?? 0 }} Cli</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.logrado ?? 0 }} Cli</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]" :class="colorPct(totalesKpi?.pct)">
-                  {{ formatPct(totalesKpi?.pct) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_1_bs, 2) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_2_bs, 2) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_3_bs, 2) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] text-[#1D1D1F] font-bold">Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-purple-100/80 text-purple-900 font-bold text-[12px]">
-                  Bs {{ formatNum(totalesKpi?.total_sugerido, 2) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-blue-100/80 text-[#0071E3] font-bold text-[12px]">
-                  Bs {{ formatNum(totalesKpi?.objetivo_mes, 2) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-emerald-100/80 text-emerald-800 font-bold text-[12px]">
-                  Bs {{ formatNum(totalesKpi?.venta_mtd, 2) }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
-
-      <!-- ── VISTA 3: DETALLE MONOGRÁFICO POR KPI (1 al 6) ── -->
-      <section
-        v-else-if="modoActivo !== 'resumen' && rutasFiltradas.length > 0"
-        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
-      >
-        <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-            <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
-              {{ kpiActualObj?.nombre }} · Detalle Monográfico
-            </span>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              Orden: <strong class="text-[#0071E3] font-bold">{{ sortLabelsKpi[sortKpiCol] || sortKpiCol }}</strong>
-              <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
-            </span>
-            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              Rutas: <strong class="text-[#1D1D1F] font-bold">{{ rutasFiltradas.length }}</strong>
-            </span>
-          </div>
-        </div>
-
-        <div class="flex-1 min-h-0 overflow-auto custom-scroll relative">
-          <table class="w-full text-left border-separate border-spacing-0 text-[11px]">
-            <thead class="text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
-              <tr>
-                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
-                <th
-                  @click="toggleSortKpi('ruta')"
-                  class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
-                  title="Ordenar por Ruta"
-                >
-                  <div class="flex items-center gap-1.5">
-                    <span :class="sortKpiCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
-                    <svg v-if="sortKpiCol === 'ruta'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  @click="toggleSortKpi('meta')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'meta' ? 'bg-blue-50/70' : ''"
-                >
-                  Meta Mes
-                </th>
-                <th
-                  @click="toggleSortKpi('logrado')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
-                >
-                  Logrado
-                </th>
-                <th
-                  @click="toggleSortKpi('pct')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
-                >
-                  % Avance
-                </th>
-                <th
-                  @click="toggleSortKpi('brecha')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'brecha' ? 'bg-blue-50/70' : ''"
-                >
-                  Brecha
-                </th>
-                <th v-if="esCobertura" class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
-                  Venta Apertura
-                </th>
-                <th v-if="esCobertura" class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
-                  Venta Repetición
-                </th>
-                <th
-                  @click="toggleSortKpi('cuota_dia')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Cuota Diaria
-                </th>
-                <th
-                  @click="toggleSortKpi('proyeccion_cierre')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Proyección
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
-              <template v-for="(r, idx) in rutasFiltradas" :key="r.ruta">
-                <tr class="hover:bg-blue-50/40 transition-colors group">
-                  <td class="py-2 px-3 text-center font-bold text-[#86868B] text-[10px] sticky left-0 z-20 bg-white group-hover:bg-blue-50/40">
-                    {{ idx + 1 }}
+                <template v-if="modoActivo === 'cob_core'">
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.cartera ?? 0 }} Cli</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.logrado ?? 0 }} Cli</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]" :class="colorPct(totalesKpi?.pct)">
+                    {{ formatPct(totalesKpi?.pct) }}
                   </td>
-                  <td class="py-2 px-3 font-sans sticky left-10 z-20 bg-white group-hover:bg-blue-50/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                    <div class="flex items-center gap-1.5">
-                      <div class="min-w-0">
-                        <div class="font-bold text-[#1D1D1F] inline-flex items-center gap-1">
-                          <span>{{ r.ruta }}</span>
-                          <span v-if="r.canal" class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/[0.04] text-[#6E6E73]">{{ r.canal }}</span>
-                        </div>
-                        <div class="text-[10px] text-[#6E6E73] truncate max-w-[140px]">{{ r.vendedor || 'No Asignado' }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
-                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_1_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_2_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_3_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] text-[#0071E3] font-bold">Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}</td>
+                </template>
+                <template v-else>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
                   <td
-                    class="py-2 px-3 text-right font-bold text-[12px]"
-                    :class="colorPct(r.pct_proyeccion ?? r.pct)"
-                    :title="r.pct_proyeccion !== undefined ? ('Proyección al cierre: ' + formatPct(r.pct_proyeccion)) : undefined"
+                    class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
+                    :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
+                    :title="totalesKpi.pct_proyeccion !== undefined ? `Proyección consolidada: ${formatPct(totalesKpi.pct_proyeccion)}` : undefined"
                   >
-                    {{ formatPct(r.pct) }}
+                    {{ formatPct(totalesKpi.pct) }}
                   </td>
-                  <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
-                    {{ formatValorKpi(r.brecha) }}
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.brecha) }}</td>
+                  <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                    <div class="text-[#1D1D1F]">Bs {{ formatNum(totalesKpi.venta_apertura ?? totalesKpi.venta_cobertura, 1) }}</div>
+                    <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_apertura) }}</div>
                   </td>
-                  <td v-if="esCobertura" class="py-2 px-3 text-right">
-                    <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(r.venta_apertura ?? r.venta_cobertura, 1) }}</div>
-                    <div class="text-[9px] text-[#6E6E73] font-sans">{{ formatPct(r.pct_apertura) }}</div>
+                  <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                    <div class="text-[#0071E3]">Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}</div>
+                    <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_repeticion) }}</div>
                   </td>
-                  <td v-if="esCobertura" class="py-2 px-3 text-right">
-                    <div class="font-bold" :class="(r.venta_repeticion || 0) > 0 ? 'text-[#0071E3]' : 'text-[#86868B]'">
-                      Bs {{ formatNum(r.venta_repeticion, 1) }}
-                    </div>
-                    <div class="text-[9px] text-[#86868B] font-sans">
-                      <span v-if="(r.clientes_repeticion || 0) > 0" class="text-[#0071E3] font-semibold">{{ r.clientes_repeticion }} cli ({{ formatPct(r.pct_repeticion) }})</span>
-                      <span v-else>0 cli (0%)</span>
-                    </div>
-                  </td>
-                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
-                  <td class="py-2 px-3 text-right">
-                    <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
-                    <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-            <tfoot v-if="totalesKpi" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-30 font-mono tabular-nums shadow-[inset_0_1px_0_rgba(0,0,0,0.08)]">
-              <tr>
-                <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
-                <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                  CONSOLIDADO ({{ rutasFiltradas.length }})
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
-                <td
-                  class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
-                  :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
-                >
-                  {{ formatPct(totalesKpi.pct) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]" :class="totalesKpi.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
-                  {{ formatValorKpi(totalesKpi.brecha) }}
-                </td>
-                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
-                  Bs {{ formatNum(totalesKpi.venta_apertura, 1) }}
-                </td>
-                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
-                  Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
+                </template>
               </tr>
             </tfoot>
           </table>
@@ -1397,8 +1430,8 @@
       </section>
 
       <!-- Estado Vacío -->
-      <div v-else class="p-8 text-center text-[#86868B] text-xs font-medium apple-glass-card rounded-[16px]">
-        No se encontraron rutas para los filtros seleccionados.
+      <div v-else class="h-64 apple-glass-card rounded-[14px] p-10 flex items-center justify-center text-[#86868B] text-[12px]">
+        No se encontraron datos para los filtros especificados.
       </div>
 
       <!-- MODAL INFO KPI (?) -->
@@ -1407,10 +1440,14 @@
         class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md"
         @click.self="cerrarModalInfoKpi"
       >
-        <div class="glass-dropdown rounded-[20px] max-w-md w-full p-4 space-y-3 bg-white/95 border border-black/[0.08] shadow-2xl">
-          <div class="flex items-center justify-between pb-2 border-b border-black/[0.06]">
-            <h3 class="text-xs font-bold text-[#1D1D1F]">{{ kpiInfoActivo?.nombre || 'Información de KPI' }}</h3>
-            <button type="button" @click="cerrarModalInfoKpi" class="text-xs text-[#86868B] hover:text-[#1D1D1F] font-bold p-1">✕</button>
+        <div class="glass-dropdown rounded-[20px] max-w-md w-full p-5 space-y-3.5 font-sans border border-white/80 shadow-float">
+          <div class="flex items-center justify-between pb-2.5 border-b border-black/[0.06]">
+            <h3 class="text-[13px] font-bold text-[#1D1D1F]">{{ kpiInfoActivo?.nombre }} ({{ kpiInfoActivo?.unidad }})</h3>
+            <button type="button" @click="cerrarModalInfoKpi" class="w-6 h-6 rounded-full hover:bg-black/[0.05] text-[#86868B] flex items-center justify-center cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
           <div class="space-y-2 text-[11px]">
             <div>
@@ -1419,7 +1456,7 @@
             </div>
             <div>
               <span class="font-bold text-[#86868B] uppercase text-[9px] block">Objetivo Comercial:</span>
-              <p class="text-[#6E6E73]">{{ kpiInfoActivo?.objetivo_comercial || 'Garantizar el cumplimiento del plan comercial.' }}</p>
+              <p class="text-[#6E6E73]">{{ kpiInfoActivo?.objetivo_comercial || 'Garantizar el cumplimiento del plan estratégico.' }}</p>
             </div>
             <div>
               <span class="font-bold text-[#86868B] uppercase text-[9px] block">Criterio de Inclusión:</span>
@@ -1460,22 +1497,31 @@ const props = defineProps({
 
 const store = useAvanceStore()
 
-
-const kpisLista = [
-  { id: 'vol_general', nombre: '1. Volumen General', corto: 'Vol. General', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_general', nombre: '2. Cobertura 100%', corto: 'Cob. General', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'vol_seda', nombre: '3. Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' }
-]
-
-const modoActivo = ref(sessionStorage.getItem('avance_cumplimiento_submodo') || 'cob_core')
+const modoActivo = ref(sessionStorage.getItem('avance_cumplimiento_submodo') || 'resumen')
 
 // Estado de ordenamiento
 const sortResumenCol = ref('vol_general')
 const sortResumenDir = ref('desc')
+
+const sortKpiCol = ref('pct')
+const sortKpiDir = ref('desc')
+
+const sortLabelsKpi = {
+  ruta: 'Ruta',
+  meta: 'Meta Mes',
+  logrado: 'Logrado / Compradores',
+  pct: '% Cobertura',
+  brecha: 'Brecha',
+  venta_apertura: 'Venta Apertura',
+  venta_repeticion: 'Venta Repetición',
+  cuota_dia: 'Cuota Diaria',
+  proyeccion_cierre: 'Proyección',
+  cartera: 'Cartera Oficial',
+  total_3m_bs: 'Total Histórico 3M',
+  mes_1_bs: 'Mes -3',
+  mes_2_bs: 'Mes -2',
+  mes_3_bs: 'Mes -1'
+}
 
 function toggleSortResumen(col) {
   if (sortResumenCol.value === col) {
@@ -1484,29 +1530,6 @@ function toggleSortResumen(col) {
     sortResumenCol.value = col
     sortResumenDir.value = 'desc'
   }
-}
-
-const sortKpiCol = ref('total_3m_bs')
-const sortKpiDir = ref('desc')
-
-const sortLabelsKpi = {
-  ruta: 'Ruta',
-  meta: 'Meta Mes',
-  logrado: 'Logrado',
-  pct: '% Avance / Cobertura',
-  brecha: 'Brecha',
-  venta_apertura: 'Venta Apertura',
-  venta_repeticion: 'Venta Repetición',
-  cuota_dia: 'Cuota Diaria',
-  proyeccion_cierre: 'Proyección',
-  cartera: 'Cartera Oficial',
-  mes_1_bs: 'Mes -3',
-  mes_2_bs: 'Mes -2',
-  mes_3_bs: 'Mes -1',
-  total_3m_bs: 'Total Histórico 3M',
-  total_sugerido: 'Total Sugerido (Bs)',
-  objetivo_mes: 'Objetivo Mes (Bs)',
-  venta_mtd: 'Venta MTD (Bs)'
 }
 
 function toggleSortKpi(col) {
@@ -1518,107 +1541,21 @@ function toggleSortKpi(col) {
   }
 }
 
-const modalInfoKpiVisible = ref(false)
-const kpiInfoActivo = ref(null)
-
-function abrirModalInfoKpi(kpi) {
-  const metas = store.datosCumplimiento?.metadata_kpis || []
-  const encontrado = metas.find(m => m.clave === kpi.id || m.id === kpi.id)
-  kpiInfoActivo.value = encontrado || kpi
-  modalInfoKpiVisible.value = true
-}
-
-function cerrarModalInfoKpi() {
-  modalInfoKpiVisible.value = false
-  kpiInfoActivo.value = null
-}
-
-const kpiActualObj = computed(() => {
-  return kpisLista.find(k => k.id === modoActivo.value) || kpisLista[0]
-})
-
-const esCobertura = computed(() => {
-  return kpiActualObj.value?.tipo === 'COBERTURA'
-})
-
-async function cambiarModo(modo) {
-  if (modoActivo.value === modo) return
-  modoActivo.value = modo
-  sessionStorage.setItem('avance_cumplimiento_submodo', modo)
-  rutaExpandida.value = null
-  diaSeleccionadoInline.value = null
-  clienteExpandidoId.value = null
-
-  if (modo === 'resumen') {
-    store.vistaCumplimiento = 'resumen'
-    sortResumenCol.value = 'vol_general'
-    sortResumenDir.value = 'desc'
-  } else {
-    store.vistaCumplimiento = 'kpi'
-    store.kpiActivo = modo
-    if (modo === 'cob_core') {
-      sortKpiCol.value = 'total_3m_bs'
-      sortKpiDir.value = 'desc'
-    } else {
-      sortKpiCol.value = 'pct'
-      sortKpiDir.value = 'desc'
-    }
-  }
-  await store.cargarCumplimiento()
-}
-
-function formatValorKpi(val) {
-  if (val === null || val === undefined) return '0'
-  if (esCobertura.value) {
-    return Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 }) + ' Cli'
-  }
-  return 'Bs ' + Number(val).toLocaleString('es-BO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-}
-
-function formatLogroResumen(val, tipo) {
-  if (val === null || val === undefined) return '0'
-  if (tipo === 'COBERTURA') {
-    return Number(val).toFixed(0) + 'c'
-  }
-  return 'Bs ' + Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 })
-}
-
-function colorKpiResumen(kpiId, kpiObj) {
-  if (!kpiObj || Number(kpiObj.meta || 0) <= 0) return 'text-[#86868B]'
-  const esVolumen = ['vol_general', 'vol_seda', 'vol_clinical'].includes(kpiId)
-  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct ?? 0))
-  if (esVolumen) {
-    if (evalPct >= 100) return 'text-emerald-600'
-    if (evalPct >= 85) return 'text-amber-600'
-    return 'text-red-600'
-  } else {
-    if (evalPct >= 85) return 'text-emerald-600'
-    if (evalPct >= 70) return 'text-amber-600'
-    return 'text-red-600'
-  }
-}
-
-const totalesResumen = computed(() => {
-  return store.datosCumplimiento?.totales_columnas || {}
-})
-
-const promedioGlobalScore = computed(() => {
-  const rutas = rutasFiltradas.value
-  if (rutas.length === 0) return 0.0
-  const suma = rutas.reduce((acc, r) => acc + Number(r.score_promedio || 0), 0)
-  return suma / rutas.length
-})
-
-const totalesKpi = computed(() => {
-  return store.datosCumplimiento?.totales || {}
-})
-
+const kpisLista = [
+  { id: 'vol_general', nombre: '1. Volumen General', corto: 'Vol. General', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_general', nombre: '2. Cobertura 100%', corto: 'Cob. General', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'vol_seda', nombre: '3. Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' }
+]
 
 const rutaExpandida = ref(null)
 const cargandoClientes = ref(false)
 const carteraClientes = ref([])
 const diasRuta = ref([])
-const modoDetalleRuta = ref('clientes') // 'dias' | 'clientes'
+const modoDetalleRuta = ref('dias') // 'dias' | 'clientes'
 const diaSeleccionadoInline = ref(null)
 
 const mesesCerradosGlobal = computed(() => {
@@ -1679,10 +1616,6 @@ const totalObjetivoClientes = computed(() => {
   return carteraClientes.value.reduce((acc, c) => acc + Number(c.cuota_objetivo || 0), 0)
 })
 
-const totalSugeridoClientes = computed(() => {
-  return carteraClientes.value.reduce((acc, c) => acc + Number(c.total_sugerido || 0), 0)
-})
-
 const nombreMesActualCorto = computed(() => {
   const fc = store.filtrosAplicados?.fechaCorte || store.fechaCorte
   if (!fc) return 'Mes Actual'
@@ -1697,11 +1630,11 @@ const nombreMesActualCorto = computed(() => {
   }
 })
 
-const filtroClientesTab = ref('todos')
+const filtroClientesTab = ref('compradores')
 const busquedaClienteTexto = ref('')
 
 // Ordenamiento de clientes
-const sortClientesCol = ref('peso_3m')
+const sortClientesCol = ref('monto_bs')
 const sortClientesDir = ref('desc')
 
 function ordenarClientes(col) {
@@ -1715,19 +1648,13 @@ function ordenarClientes(col) {
 
 // Acordeón de clientes
 const clienteExpandidoId = ref(null)
-const cargandoClienteId = ref(null)
-const errorClienteMap = ref({})
-const detalleClienteFechasMap = ref({})
-const productoExpandidoKey = ref(null)
-const modoHistorialCliente = ref('sugerido') // 'sugerido' | 'compras_mes' | 'fechas'
+const cargandoAccordionCliente = ref(false)
+const detalleClienteFechasMap = reactive({})
+const modoHistorialCliente = ref('fechas') // 'fechas' | 'productos'
 const busquedaHistorialCliente = ref('')
 
-function toggleProductoExpandido(key) {
-  productoExpandidoKey.value = (productoExpandidoKey.value === key ? null : key)
-}
-
 function fechasHistorialFiltradas(clienteId) {
-  const datos = detalleClienteFechasMap.value?.[clienteId]?.fechas || []
+  const datos = detalleClienteFechasMap[clienteId]?.fechas || []
   if (!busquedaHistorialCliente.value.trim()) {
     return datos
   }
@@ -1757,7 +1684,7 @@ function ordenarProductos(col) {
 }
 
 function productosHistorialFiltrados(clienteId) {
-  const datos = detalleClienteFechasMap.value?.[clienteId]?.productos || []
+  const datos = detalleClienteFechasMap[clienteId]?.productos || []
   let lista = datos
   if (busquedaHistorialCliente.value.trim()) {
     const q = busquedaHistorialCliente.value.toLowerCase().trim()
@@ -1777,12 +1704,6 @@ function productosHistorialFiltrados(clienteId) {
     if (col === 'estado_cobertura') {
       const rank = p => (p.cumple_sugerido ? 3 : (p.compro_mes_actual ? 2 : 1))
       return dir * (rank(a) - rank(b))
-    }
-    if (col === 'compro_mes_actual') {
-      const cA = a.compro_mes_actual ? 1 : 0
-      const cB = b.compro_mes_actual ? 1 : 0
-      if (cA !== cB) return dir * (cA - cB)
-      return dir * (Number(a.total_cantidad_mes_actual || 0) - Number(b.total_cantidad_mes_actual || 0))
     }
     return dir * (Number(a[col] || 0) - Number(b[col] || 0))
   })
@@ -1809,42 +1730,34 @@ function totalSkusSugeridosFiltrados(clienteId) {
   return lista.filter(p => (p.cant_sugerida || 0) > 0).length
 }
 
-async function toggleClienteAccordion(cliente, ruta, forzar = false) {
-  if (!forzar && clienteExpandidoId.value === cliente.cliente_id) {
+async function toggleClienteAccordion(cliente, ruta) {
+  if (clienteExpandidoId.value === cliente.cliente_id) {
     clienteExpandidoId.value = null
     return
   }
 
   clienteExpandidoId.value = cliente.cliente_id
   busquedaHistorialCliente.value = ''
-  productoExpandidoKey.value = null
 
-  if (!forzar && detalleClienteFechasMap.value?.[cliente.cliente_id]) {
+  if (detalleClienteFechasMap[cliente.cliente_id]) {
     return
   }
 
-  cargandoClienteId.value = cliente.cliente_id
-  errorClienteMap.value = { ...errorClienteMap.value, [cliente.cliente_id]: null }
+  cargandoAccordionCliente.value = true
   try {
+    const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
     const res = await axios.post('/supervisor/avance/cumplimiento/cliente-detalle-fechas', {
       cliente_id: cliente.cliente_id,
       ruta,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
-      kpi: modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
+      kpi: kpiParaDetalle
     })
-    detalleClienteFechasMap.value = {
-      ...detalleClienteFechasMap.value,
-      [cliente.cliente_id]: res.data
-    }
+    detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {
     console.error('Error al cargar detalle fechas cliente:', err)
-    errorClienteMap.value = {
-      ...errorClienteMap.value,
-      [cliente.cliente_id]: err.response?.data?.message || 'Error de conexión al cargar el histórico del cliente.'
-    }
   } finally {
-    cargandoClienteId.value = null
+    cargandoAccordionCliente.value = false
   }
 }
 
@@ -1918,9 +1831,6 @@ const clientesRutaFiltrados = computed(() => {
     if (col === 'peso_3m') {
       return dir * (Number(a.peso_3m || 0) - Number(b.peso_3m || 0))
     }
-    if (col === 'total_sugerido') {
-      return dir * (Number(a.total_sugerido || 0) - Number(b.total_sugerido || 0))
-    }
     if (col === 'cuota_objetivo') {
       return dir * (Number(a.cuota_objetivo || 0) - Number(b.cuota_objetivo || 0))
     }
@@ -1928,6 +1838,17 @@ const clientesRutaFiltrados = computed(() => {
   })
 
   return copia
+})
+
+const modalInfoKpiVisible = ref(false)
+const kpiInfoActivo = ref(null)
+
+const kpiActualObj = computed(() => {
+  return kpisLista.find(k => k.id === modoActivo.value) || kpisLista[0]
+})
+
+const esCobertura = computed(() => {
+  return kpiActualObj.value?.tipo === 'COBERTURA'
 })
 
 const rutasFiltradas = computed(() => {
@@ -1967,21 +1888,6 @@ const rutasFiltradas = computed(() => {
       }
       return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
     })
-  } else if (modoActivo.value === 'cob_core') {
-    const col = sortKpiCol.value || 'total_3m_bs'
-    const dir = sortKpiDir.value === 'asc' ? 1 : -1
-
-    copia.sort((a, b) => {
-      if (col === 'ruta') {
-        return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
-      }
-      let valA = Number(a[col] ?? 0)
-      let valB = Number(b[col] ?? 0)
-      if (valA !== valB) {
-        return dir * (valA - valB)
-      }
-      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
-    })
   } else {
     const col = sortKpiCol.value || 'pct'
     const dir = sortKpiDir.value === 'asc' ? 1 : -1
@@ -2001,6 +1907,43 @@ const rutasFiltradas = computed(() => {
 
   return copia
 })
+
+const totalesResumen = computed(() => {
+  return store.datosCumplimiento?.totales_columnas || {}
+})
+
+const promedioGlobalScore = computed(() => {
+  const rutas = rutasFiltradas.value
+  if (rutas.length === 0) return 0.0
+  const suma = rutas.reduce((acc, r) => acc + Number(r.score_promedio || 0), 0)
+  return suma / rutas.length
+})
+
+const totalesKpi = computed(() => {
+  return store.datosCumplimiento?.totales || {}
+})
+
+function cambiarModo(modo) {
+  if (modoActivo.value === modo) return
+  modoActivo.value = modo
+  sessionStorage.setItem('avance_cumplimiento_submodo', modo)
+  rutaExpandida.value = null
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
+
+  if (modo !== 'resumen') {
+    sortKpiCol.value = modo === 'cob_core' ? 'total_3m_bs' : 'pct'
+    sortKpiDir.value = 'desc'
+  }
+
+  if (modo === 'resumen') {
+    store.vistaCumplimiento = 'resumen'
+  } else {
+    store.vistaCumplimiento = 'kpi'
+    store.kpiActivo = modo
+  }
+  ejecutarConsulta()
+}
 
 function ejecutarConsulta() {
   store.aplicarFiltros()
@@ -2026,15 +1969,13 @@ async function toggleDetalleRuta(ruta) {
   diasRuta.value = []
   diaSeleccionadoInline.value = null
   clienteExpandidoId.value = null
-  detalleClienteFechasMap.value = {}
-  errorClienteMap.value = {}
-  cargandoClienteId.value = null
-  productoExpandidoKey.value = null
+  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
 
   try {
+    const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
     const res = await axios.post('/supervisor/avance/cumplimiento/clientes-ruta', {
       ruta,
-      kpi: modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general'),
+      kpi: kpiParaDetalle,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte
     })
@@ -2044,15 +1985,33 @@ async function toggleDetalleRuta(ruta) {
     totales3mRuta.value = res.data.totales_3m_ruta || {}
     diaSeleccionadoInline.value = null
     clienteExpandidoId.value = null
-    modoDetalleRuta.value = 'clientes'
-    filtroClientesTab.value = 'todos'
-    sortClientesCol.value = 'peso_3m'
-    sortClientesDir.value = 'desc'
+
+    if (modoActivo.value === 'cob_core') {
+      modoDetalleRuta.value = 'clientes'
+      filtroClientesTab.value = 'todos'
+      sortClientesCol.value = 'peso_3m'
+      sortClientesDir.value = 'desc'
+    } else {
+      const tienenCompra = carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
+      filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
+    }
   } catch (err) {
     console.error('Error al cargar clientes de la ruta:', err)
   } finally {
     cargandoClientes.value = false
   }
+}
+
+function abrirModalInfoKpi(kpi) {
+  const metas = store.datosCumplimiento?.metadata_kpis || []
+  const encontrado = metas.find(m => m.clave === kpi.id || m.id === kpi.id)
+  kpiInfoActivo.value = encontrado || kpi
+  modalInfoKpiVisible.value = true
+}
+
+function cerrarModalInfoKpi() {
+  modalInfoKpiVisible.value = false
+  kpiInfoActivo.value = null
 }
 
 function formatNum(val, decimals = 1) {
@@ -2061,6 +2020,22 @@ function formatNum(val, decimals = 1) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   })
+}
+
+function formatValorKpi(val) {
+  if (val === null || val === undefined) return '0'
+  if (esCobertura.value) {
+    return `${Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 })} Cli`
+  }
+  return `Bs ${Number(val).toLocaleString('es-BO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
+}
+
+function formatLogroResumen(val, tipo) {
+  if (val === null || val === undefined) return '0'
+  if (tipo === 'COBERTURA') {
+    return `${Number(val).toFixed(0)}c`
+  }
+  return `Bs ${Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 })}`
 }
 
 function formatPct(val) {
@@ -2075,15 +2050,37 @@ function colorPct(pct) {
   return 'text-red-600'
 }
 
+function colorKpiResumen(kpiId, kpiObj) {
+  if (!kpiObj || Number(kpiObj.meta || 0) <= 0) return 'text-[#86868B]'
+  const esVolumen = ['vol_general', 'vol_seda', 'vol_clinical'].includes(kpiId)
+  // El color se evalúa según el ritmo/predicción (pct_ritmo) o porcentaje según sea el caso
+  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct ?? 0))
+
+  if (esVolumen) {
+    if (evalPct >= 100) return 'text-emerald-600'
+    if (evalPct >= 85) return 'text-amber-600'
+    return 'text-red-600'
+  } else {
+    if (evalPct >= 85) return 'text-emerald-600'
+    if (evalPct >= 70) return 'text-amber-600'
+    return 'text-red-600'
+  }
+}
+
+function badgeRitmo(pctRitmo) {
+  const n = Number(pctRitmo || 0)
+  if (n >= 100) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  if (n >= 90) return 'bg-amber-50 text-amber-700 border border-amber-200'
+  return 'bg-rose-50 text-rose-700 border border-rose-200'
+}
+
 onMounted(async () => {
   store.inicializarDesdeStorage(props)
-  const guardado = sessionStorage.getItem('avance_cumplimiento_submodo') || 'cob_core'
-  modoActivo.value = guardado
-  if (guardado === 'resumen') {
+  if (modoActivo.value === 'resumen') {
     store.vistaCumplimiento = 'resumen'
   } else {
     store.vistaCumplimiento = 'kpi'
-    store.kpiActivo = guardado
+    store.kpiActivo = modoActivo.value
   }
   await store.cargarCumplimiento()
 })
