@@ -9,72 +9,10 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta" />
 
-      <!-- Tarjetas de Totales Claras: Objetivo Mes vs Sugerido Hábitos vs Facturado MTD vs Histórico 3M -->
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 w-full select-none">
-        <div class="p-3 rounded-[12px] apple-glass-card bg-white/90 border border-black/[0.05] shadow-xs">
-          <div class="flex items-center justify-between text-[10px] text-[#6E6E73] font-medium pb-1">
-            <span>Objetivo Mes (Metas)</span>
-            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-          </div>
-          <div class="text-[15px] font-bold text-[#0071E3] font-mono tabular-nums">
-            Bs {{ formatNum(totalesKpi?.objetivo_mes, 2) }}
-          </div>
-          <div class="text-[9px] text-[#86868B] font-sans">Meta de la ruta en fact_metas</div>
-        </div>
-
-        <div class="p-3 rounded-[12px] apple-glass-card bg-purple-50/50 border border-purple-200/60 shadow-xs">
-          <div class="flex items-center justify-between text-[10px] text-purple-900 font-bold pb-1">
-            <span>Total Sugerido Hábitos</span>
-            <span class="px-1 py-0.2 rounded bg-purple-200/80 text-[8px] font-mono">3M / 3</span>
-          </div>
-          <div class="text-[15px] font-bold text-purple-900 font-mono tabular-nums">
-            Bs {{ formatNum(totalesKpi?.total_sugerido, 2) }}
-          </div>
-          <div class="text-[9px] text-purple-800 font-sans">Suma reposición teórica mensual</div>
-        </div>
-
-        <div class="p-3 rounded-[12px] apple-glass-card bg-emerald-50/50 border border-emerald-200/60 shadow-xs">
-          <div class="flex items-center justify-between text-[10px] text-emerald-900 font-bold pb-1">
-            <span>Venta MTD (Mes Actual)</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          </div>
-          <div class="text-[15px] font-bold text-emerald-700 font-mono tabular-nums">
-            Bs {{ formatNum(totalesKpi?.venta_mtd, 2) }}
-          </div>
-          <div class="text-[9px] text-emerald-800 font-sans">
-            {{ formatPct((totalesKpi?.objetivo_mes > 0) ? (totalesKpi?.venta_mtd / totalesKpi?.objetivo_mes) * 100 : 0) }} del objetivo mensual
-          </div>
-        </div>
-
-        <div class="p-3 rounded-[12px] apple-glass-card bg-white/90 border border-black/[0.05] shadow-xs">
-          <div class="flex items-center justify-between text-[10px] text-[#6E6E73] font-medium pb-1">
-            <span>Histórico Acumulado 3M</span>
-            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-          </div>
-          <div class="text-[15px] font-bold text-[#1D1D1F] font-mono tabular-nums">
-            Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}
-          </div>
-          <div class="text-[9px] text-[#86868B] font-sans">Venta total últimos 3 meses cerrados</div>
-        </div>
-
-        <div class="p-3 rounded-[12px] apple-glass-card bg-blue-50/40 border border-blue-200/60 shadow-xs">
-          <div class="flex items-center justify-between text-[10px] text-blue-900 font-bold pb-1">
-            <span>Cobertura Clientes MTD</span>
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-          </div>
-          <div class="text-[15px] font-bold text-[#0071E3] font-mono tabular-nums">
-            {{ totalesKpi?.logrado ?? 0 }} / {{ totalesKpi?.cartera ?? 0 }} Cli
-          </div>
-          <div class="text-[9px] text-blue-800 font-sans font-bold">
-            {{ formatPct(totalesKpi?.pct) }} de cartera con compra
-          </div>
-        </div>
-      </div>
-
       <!-- SKELETON LOADER -->
-      <div v-if="store.cargandoCumplimiento" class="h-[calc(100vh-12rem)] apple-glass-card rounded-[16px] p-4 animate-pulse space-y-2 flex flex-col justify-between">
+      <div v-if="store.cargandoCumplimiento" class="h-[calc(100vh-8rem)] apple-glass-card rounded-[16px] p-4 animate-pulse space-y-2 flex flex-col justify-between">
         <div class="h-8 bg-black/[0.04] rounded-[8px]"></div>
-        <div v-for="row in 12" :key="row" class="h-8 bg-black/[0.02] rounded-[8px] flex items-center px-3 gap-3">
+        <div v-for="row in 14" :key="row" class="h-8 bg-black/[0.02] rounded-[8px] flex items-center px-3 gap-3">
           <div class="h-3 bg-black/[0.06] rounded w-6"></div>
           <div class="h-3 bg-black/[0.06] rounded w-32"></div>
           <div class="h-3 bg-black/[0.06] rounded flex-1"></div>
@@ -90,7 +28,7 @@
       <!-- ── VISTA PRINCIPAL: RUTAS, HISTÓRICO 3M, SUGERIDO Y OBJETIVOS ── -->
       <section
         v-else-if="rutasFiltradas.length > 0"
-        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
+        class="h-[calc(100vh-8rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
           <div class="flex items-center gap-2">
@@ -693,66 +631,9 @@
                                       <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
                                     </div>
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
-                                      <!-- Resumen Superior del Cliente: Contraste Histórico vs Cuota Asignada vs Hábito Sugerido vs MTD -->
-                                      <div class="p-2.5 rounded-[10px] bg-[#F8F8FA] border border-black/[0.05] space-y-2 text-[10px] font-mono">
-                                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.04] pb-1.5">
-                                          <div class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                            <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
-                                            <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
-                                          </div>
-                                          <div class="flex items-center gap-3 text-[10px]">
-                                            <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
-                                            <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
-                                            <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
-                                          </div>
-                                        </div>
-
-                                        <!-- Tarjetas de Contraste: Objetivo Asignado vs Hábito Sugerido vs Real Comprado MTD -->
-                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-sans">
-                                          <div class="p-2 rounded-[8px] bg-white border border-black/[0.04]">
-                                            <div class="text-[9px] text-[#6E6E73] font-medium">Cuota Objetivo (Meta Mes)</div>
-                                            <div class="text-[12px] font-bold text-[#6B21A8] font-mono">
-                                              {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
-                                            </div>
-                                            <div class="text-[9px] text-[#86868B]">Peso en ruta: {{ formatPct(cli.peso_3m) }}</div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-purple-50/50 border border-purple-100">
-                                            <div class="text-[9px] text-purple-900 font-bold flex items-center justify-between">
-                                              <span>Sugerido Hábitos (3M / 3)</span>
-                                              <span class="text-[8px] px-1 py-0.2 rounded bg-purple-200/70 text-purple-900 font-mono">Teórico</span>
-                                            </div>
-                                            <div class="text-[12px] font-bold text-purple-900 font-mono">
-                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_monto_sugerido_bs, 2) }}
-                                            </div>
-                                            <div class="text-[9px] text-purple-800 font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_unidades_sugeridas || 0 }} u en {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
-                                            </div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-emerald-50/40 border border-emerald-100">
-                                            <div class="text-[9px] text-emerald-900 font-bold">Comprado Mes Actual (MTD)</div>
-                                            <div class="text-[12px] font-bold font-mono" :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
-                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}
-                                            </div>
-                                            <div class="text-[9px] text-emerald-800 font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades_mes_actual || 0 }} u facturadas
-                                            </div>
-                                          </div>
-                                          <div class="p-2 rounded-[8px] bg-blue-50/40 border border-blue-100">
-                                            <div class="text-[9px] text-blue-900 font-bold">Cobertura SKUs MTD</div>
-                                            <div class="text-[12px] font-bold text-[#0071E3] font-mono">
-                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_cubiertos_mtd || 0 }} / {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
-                                            </div>
-                                            <div class="text-[9px] text-blue-800 font-mono">
-                                              {{ formatPct(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.pct_cobertura_skus) }} de variedad cubierta
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <!-- Barra de Controles: Agrupación y Filtro -->
+                                      <!-- Barra de Controles: Pestañas y Buscador -->
                                       <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <!-- Selector de Pestañas: 1. Acumulado y Sugerido vs 2. Compras Mes Actual vs Fechas -->
+                                        <!-- Selector de Pestañas: Acumulado y Sugerido vs Compras Mes Actual vs Fechas -->
                                         <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
                                           <button
                                             type="button"
@@ -764,7 +645,7 @@
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                             </svg>
-                                            <span>1. Acumulado y Sugerido ({{ productosHistorialFiltrados(cli.cliente_id).length }})</span>
+                                            <span>Acumulado y Sugerido ({{ productosHistorialFiltrados(cli.cliente_id).length }})</span>
                                           </button>
                                           <button
                                             type="button"
@@ -776,7 +657,7 @@
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                             </svg>
-                                            <span>2. Compras Mes Actual MTD</span>
+                                            <span>Compras Mes Actual MTD</span>
                                           </button>
                                           <button
                                             type="button"
@@ -788,7 +669,7 @@
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
-                                            <span>Por Fechas ({{ fechasHistorialFiltradas(cli.cliente_id).length }})</span>
+                                            <span>Por Fechas</span>
                                           </button>
                                         </div>
 
@@ -797,7 +678,7 @@
                                           <input
                                             v-model="busquedaHistorialCliente"
                                             type="text"
-                                            placeholder="Filtrar producto, código, fecha..."
+                                            placeholder="Filtrar producto, código..."
                                             class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-52 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
                                           />
                                           <svg class="w-3 h-3 text-[#86868B] absolute left-2 top-1.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
