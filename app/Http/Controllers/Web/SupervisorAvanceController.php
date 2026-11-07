@@ -66,6 +66,7 @@ class SupervisorAvanceController extends Controller
         $canales = (array) $request->input('canales', []);
         $rutas = (array) $request->input('rutas', []);
         $modoTemporal = (string) $request->input('modo_temporal', 'acumulado');
+        $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
 
         $data = $action->execute(
             vista: $vista,
@@ -74,7 +75,8 @@ class SupervisorAvanceController extends Controller
             fechaCorte: $fechaCorte,
             canales: $canales,
             rutas: $rutas,
-            modoTemporal: $modoTemporal
+            modoTemporal: $modoTemporal,
+            omitirUnitarios3m: $omitirUnitarios
         );
 
         return response()->json($data);
@@ -89,12 +91,14 @@ class SupervisorAvanceController extends Controller
         $kpi = (string) $request->input('kpi', 'vol_general');
         $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
 
         $data = $action->execute(
             ruta: $ruta,
             kpiClave: $kpi,
             fechaInicio: $fechaInicio,
-            fechaCorte: $fechaCorte
+            fechaCorte: $fechaCorte,
+            omitirUnitarios3m: $omitirUnitarios
         );
 
         return response()->json($data);
@@ -110,13 +114,15 @@ class SupervisorAvanceController extends Controller
         $kpi = (string) $request->input('kpi', 'vol_general');
         $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
 
         $data = $action->execute(
             clienteId: $clienteId,
             ruta: $ruta,
             fechaInicio: $fechaInicio,
             fechaCorte: $fechaCorte,
-            kpiClave: $kpi
+            kpiClave: $kpi,
+            omitirUnitarios3m: $omitirUnitarios
         );
 
         return response()->json($data);

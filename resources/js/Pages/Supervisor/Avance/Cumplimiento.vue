@@ -258,11 +258,28 @@
         class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-            <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
-              {{ kpiActualObj?.nombre }} · Detalle Monográfico
-            </span>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+              <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
+                {{ kpiActualObj?.nombre }} · Detalle Monográfico
+              </span>
+            </div>
+
+            <!-- Checkbox para omitir compras de 1 sola unidad en 3M (solo en Cobertura Core) -->
+            <label
+              v-if="modoActivo === 'cob_core'"
+              class="ml-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[8px] bg-purple-50/80 border border-purple-200 text-purple-900 cursor-pointer hover:bg-purple-100 transition-colors select-none font-sans shadow-2xs"
+              title="Omitir del cálculo sugerido aquellos productos donde el cliente solo compró 1 unidad en los 3 meses cerrados"
+            >
+              <input
+                type="checkbox"
+                v-model="store.omitirUnitarios3m"
+                @change="onToggleOmitirUnitarios"
+                class="w-3.5 h-3.5 text-[#0071E3] rounded border-gray-300 focus:ring-[#0071E3] cursor-pointer"
+              />
+              <span class="text-[11px] font-semibold">Omitir compras de 1 unidad en 3M</span>
+            </label>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
@@ -1128,6 +1145,7 @@
                                                   </div>
                                                   <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
                                                     <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
+                                                    <span v-else-if="prod.es_unitario_3m && store.omitirUnitarios3m" class="text-[8px] text-[#86868B] italic">Omitido (1 u en 3M)</span>
                                                     <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
                                                   </div>
                                                 </td>
@@ -1717,7 +1735,8 @@ async function toggleClienteAccordion(cliente, ruta) {
       ruta,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
-      kpi: kpiParaDetalle
+      kpi: kpiParaDetalle,
+      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m)
     })
     detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {
@@ -1922,6 +1941,17 @@ function ejecutarConsulta() {
   return store.cargarCumplimiento()
 }
 
+async function onToggleOmitirUnitarios() {
+  store.guardarEstado()
+  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
+  await ejecutarConsulta()
+  if (rutaExpandida.value) {
+    const r = rutaExpandida.value
+    rutaExpandida.value = null
+    await toggleDetalleRuta(r)
+  }
+}
+
 async function toggleDetalleRuta(ruta) {
   if (rutaExpandida.value === ruta) {
     rutaExpandida.value = null
@@ -1943,7 +1973,8 @@ async function toggleDetalleRuta(ruta) {
       ruta,
       kpi: kpiParaDetalle,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
-      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte
+      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
+      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m)
     })
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []

@@ -39,7 +39,8 @@ class GetAvanceClienteDetalleFechasAction
         string $ruta,
         ?string $fechaInicio = null,
         ?string $fechaCorte = null,
-        string $kpiClave = 'vol_general'
+        string $kpiClave = 'vol_general',
+        bool $omitirUnitarios3m = false
     ): array {
         $rutaClean = strtoupper(trim($ruta));
 
@@ -277,10 +278,12 @@ class GetAvanceClienteDetalleFechasAction
 
             // Hábito sugerido mensual: Total Cantidad 3M / 3 redondeado al entero superior
             $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
-            $cantSugerida = $cant3m > 0 ? (int) ceil($cant3m / 3.0) : 0;
+            $minCant = $omitirUnitarios3m ? 1 : 0;
+            $cantSugerida = $cant3m > $minCant ? (int) ceil($cant3m / 3.0) : 0;
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
             $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+            $p['es_unitario_3m'] = ($cant3m === 1);
             $p['cant_sugerida'] = $cantSugerida;
             $p['monto_sugerido'] = $montoSugerido;
             $p['cumple_sugerido'] = ($cantSugerida > 0 && $cantMtd >= $cantSugerida);

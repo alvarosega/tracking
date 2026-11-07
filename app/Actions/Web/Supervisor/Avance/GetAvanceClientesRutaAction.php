@@ -30,8 +30,13 @@ class GetAvanceClientesRutaAction
      *     resumen: array<string, mixed>
      * }
      */
-    public function execute(string $ruta, string $kpiClave = 'vol_general', ?string $fechaInicio = null, ?string $fechaCorte = null): array
-    {
+    public function execute(
+        string $ruta,
+        string $kpiClave = 'vol_general',
+        ?string $fechaInicio = null,
+        ?string $fechaCorte = null,
+        bool $omitirUnitarios3m = false
+    ): array {
         $rutaClean = strtoupper(trim($ruta));
 
         if (!$fechaCorte) {
@@ -288,9 +293,10 @@ class GetAvanceClientesRutaAction
 
             foreach ($clienteProdsMap as $cId => $pList) {
                 $totalSug = 0.0;
+                $minCant = $omitirUnitarios3m ? 1 : 0;
                 foreach ($pList as $pKey => $pData) {
                     $c3m = $pData['cantidad_3m'];
-                    if ($c3m > 0) {
+                    if ($c3m > $minCant) {
                         $cantSug = (int) ceil($c3m / 3.0);
                         $pUlt = $pData['precio_ultima_compra'];
                         $totalSug += round($cantSug * $pUlt, 2);

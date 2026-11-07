@@ -54,7 +54,8 @@ class GetAvanceCumplimientoDataAction
         ?string $fechaCorte = null,
         array $canales = [],
         array $rutas = [],
-        string $modoTemporal = 'acumulado'
+        string $modoTemporal = 'acumulado',
+        bool $omitirUnitarios3m = false
     ): array {
         $modoTemporal = in_array(strtolower($modoTemporal), ['acumulado', 'diario'], true) ? strtolower($modoTemporal) : 'acumulado';
 
@@ -493,9 +494,10 @@ class GetAvanceCumplimientoDataAction
 
             foreach ($prodMapRuta as $r => $items) {
                 $sumSug = 0.0;
+                $minCant = $omitirUnitarios3m ? 1 : 0;
                 foreach ($items as $it) {
                     $c3m = $it['cantidad'];
-                    if ($c3m > 0) {
+                    if ($c3m > $minCant) {
                         $cantSug = (int) ceil($c3m / 3.0);
                         $sumSug += round($cantSug * $it['precio'], 2);
                     }
