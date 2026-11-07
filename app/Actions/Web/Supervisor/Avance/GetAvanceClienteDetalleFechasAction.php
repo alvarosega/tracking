@@ -167,12 +167,14 @@ class GetAvanceClienteDetalleFechasAction
                 'vendedor' => $r->vendedor ?: 'Sin Asignar',
             ];
 
-            // 2. Agrupación por Producto (SKU)
-            $prodKey = $cod ?: $prod;
+            // 2. Agrupación por Nombre de Producto (no por código)
+            $prodNombre = trim((string) $prod);
+            $prodKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $cod);
             if (!isset($prodMap[$prodKey])) {
                 $prodMap[$prodKey] = [
                     'codigo' => $cod ?: 'S/C',
-                    'producto' => $prod,
+                    'codigos' => [],
+                    'producto' => $prodNombre ?: ($cod ?: 'Sin descripción'),
                     'categoria' => $cat,
                     'jerarquia3' => $j3,
                     'total_bs' => 0.0,
@@ -192,6 +194,13 @@ class GetAvanceClienteDetalleFechasAction
                     'compras_mes_actual' => [],
                     'por_mes' => $porMesTemplate,
                 ];
+            }
+
+            if ($cod && $cod !== 'S/C') {
+                $prodMap[$prodKey]['codigos'][$cod] = true;
+            }
+            if ($cat && empty($prodMap[$prodKey]['categoria'])) {
+                $prodMap[$prodKey]['categoria'] = $cat;
             }
 
             // Registrar el precio unitario de la última compra registrada
@@ -292,6 +301,9 @@ class GetAvanceClienteDetalleFechasAction
             $p['total_bs'] = round($p['total_bs'], 2);
             $p['total_bs_3m'] = round($p['total_bs_3m'], 2);
             $p['total_bs_mes_actual'] = round($p['total_bs_mes_actual'], 2);
+            if (!empty($p['codigos'])) {
+                $p['codigo'] = implode(', ', array_keys($p['codigos']));
+            }
             $p['total_facturas'] = count($p['facturas']);
             $p['total_dias_compra'] = count($p['fechas']);
             $p['facturas'] = implode(', ', array_keys($p['facturas']));

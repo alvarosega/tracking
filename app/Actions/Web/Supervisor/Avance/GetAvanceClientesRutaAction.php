@@ -276,7 +276,8 @@ class GetAvanceClientesRutaAction
             $clienteProdsMap = [];
             foreach ($prodsRutaRaw as $pr) {
                 $cId = (int) $pr->cliente_id;
-                $pKey = $pr->codigo ?: $pr->producto;
+                $prodNombre = trim((string) $pr->producto);
+                $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $pr->codigo);
                 $cant = (int) $pr->cantidad;
                 $monto = (float) $pr->monto_final;
                 $f = (string) $pr->fecha;

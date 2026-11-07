@@ -485,7 +485,8 @@ class GetAvanceCumplimientoDataAction
                     : 'SIN RUTA';
 
                 if (!$r || $r === 'SIN RUTA') continue;
-                $pkey = $row->codigo ?: $row->producto;
+                $prodNombre = trim((string) $row->producto);
+                $pkey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $row->codigo);
                 $itemKey = "{$cid}_{$pkey}";
 
                 if (!isset($prodMapRuta[$r][$itemKey])) {

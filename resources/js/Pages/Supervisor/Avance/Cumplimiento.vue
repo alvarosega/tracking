@@ -1134,12 +1134,12 @@
                                             </tr>
                                           </thead>
                                           <tbody class="divide-y divide-black/[0.03] bg-white">
-                                            <template v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)" :key="prod.codigo || prod.producto || pidx">
+                                            <template v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)" :key="prod.producto || prod.codigo || pidx">
                                               <!-- Fila Principal del Producto -->
                                               <tr 
-                                                @click="toggleProductoExpandido(prod.codigo || prod.producto)"
+                                                @click="toggleProductoExpandido(prod.producto || prod.codigo)"
                                                 class="hover:bg-blue-50/30 transition-colors cursor-pointer select-none"
-                                                :class="productoExpandidoKey === (prod.codigo || prod.producto) ? 'bg-blue-50/25' : ''"
+                                                :class="productoExpandidoKey === (prod.producto || prod.codigo) ? 'bg-blue-50/25' : ''"
                                               >
                                                 <!-- 1. Producto -->
                                                 <td class="py-2 px-3 font-sans">
@@ -1147,7 +1147,7 @@
                                                     <button
                                                       type="button"
                                                       class="w-4 h-4 inline-flex items-center justify-center rounded hover:bg-black/10 text-[#6E6E73] transition-transform duration-150"
-                                                      :class="productoExpandidoKey === (prod.codigo || prod.producto) ? 'rotate-90 text-[#0071E3]' : ''"
+                                                      :class="productoExpandidoKey === (prod.producto || prod.codigo) ? 'rotate-90 text-[#0071E3]' : ''"
                                                       title="Ver fechas de compra"
                                                     >
                                                       <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -1207,7 +1207,7 @@
                                               </tr>
 
                                               <!-- Sub-fila de Detalle de Fechas: 2 Tablas Paralelas (3M vs MTD) -->
-                                              <tr v-if="productoExpandidoKey === (prod.codigo || prod.producto)" class="bg-[#F8F8FA]/60">
+                                              <tr v-if="productoExpandidoKey === (prod.producto || prod.codigo)" class="bg-[#F8F8FA]/60">
                                                 <td colspan="4" class="p-3 border-y border-black/[0.06]">
                                                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     <!-- TABLA 1: Compras 3 Meses Cerrados -->
