@@ -43,6 +43,8 @@ class GetAvanceClientesRutaAction
             $fechaInicio = $carbonCorte->copy()->startOfMonth()->format('Y-m-d');
         }
 
+        $mesesCerrados = $this->cumplimientoAction->obtenerMesesCerrados($carbonCorte);
+
         // 1. Cartera Oficial desde pan_ruteo
         $filasCartera = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
@@ -200,6 +202,64 @@ class GetAvanceClientesRutaAction
             }
         }
 
+        // 3. Extracción de Histórico de los últimos 3 meses cerrados para los clientes de la ruta
+        $histInicio = $mesesCerrados[0]['inicio'];
+        $histFin = $mesesCerrados[2]['fin'];
+
+        $carteraClientIds = array_values(array_filter(array_keys($cartera), fn ($id) => is_numeric($id) && (int) $id > 0));
+
+        $historico3mRaw = [];
+        if (!empty($carteraClientIds)) {
+            $historicoQuery = DB::connection('supervisor')->table('fact_ventas')
+                ->whereIn('cliente_id', $carteraClientIds)
+                ->where('fecha_norm', '>=', $histInicio)
+                ->where('fecha_norm', '<=', $histFin)
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                });
+
+            $historico3mRaw = $historicoQuery
+                ->select([
+                    'cliente_id',
+                    DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
+                    DB::raw("SUM(monto_final) as total_monto"),
+                ])
+                ->groupBy('cliente_id', DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
+                ->get();
+        }
+
+        $histClienteMap = [];
+        foreach ($cartera as $cid => $item) {
+            $histClienteMap[$cid] = [
+                $mesesCerrados[0]['ym'] => 0.0,
+                $mesesCerrados[1]['ym'] => 0.0,
+                $mesesCerrados[2]['ym'] => 0.0,
+            ];
+        }
+
+        foreach ($historico3mRaw as $h) {
+            $cid = (int) $h->cliente_id;
+            $ym = (string) $h->mes_ym;
+            if (isset($histClienteMap[$cid][$ym])) {
+                $histClienteMap[$cid][$ym] += (float) $h->total_monto;
+            }
+        }
+
+        // Totales de la ruta para los 3 meses cerrados
+        $totalesMesesRuta = [
+            $mesesCerrados[0]['ym'] => 0.0,
+            $mesesCerrados[1]['ym'] => 0.0,
+            $mesesCerrados[2]['ym'] => 0.0,
+        ];
+        $totalRutaAcum3m = 0.0;
+        foreach ($histClienteMap as $cid => $mMap) {
+            foreach ($mMap as $ym => $val) {
+                $totalesMesesRuta[$ym] += $val;
+                $totalRutaAcum3m += $val;
+            }
+        }
+
         // Armar resultado de clientes
         $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
         $clientesLista = [];
@@ -230,6 +290,14 @@ class GetAvanceClientesRutaAction
                 }
             }
 
+            // Datos del histórico de 3 meses cerrados
+            $m1Val = round($histClienteMap[$cid][$mesesCerrados[0]['ym']] ?? 0.0, 2);
+            $m2Val = round($histClienteMap[$cid][$mesesCerrados[1]['ym']] ?? 0.0, 2);
+            $m3Val = round($histClienteMap[$cid][$mesesCerrados[2]['ym']] ?? 0.0, 2);
+            $totalCli3m = round($m1Val + $m2Val + $m3Val, 2);
+            $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
+            $mesesConCompra = ($m1Val > 0 ? 1 : 0) + ($m2Val > 0 ? 1 : 0) + ($m3Val > 0 ? 1 : 0);
+
             $clientesLista[] = [
                 'cliente_id' => $cid,
                 'cliente' => $item['cliente'],
@@ -245,19 +313,35 @@ class GetAvanceClientesRutaAction
                 'total_visitas_compra' => count($item['fechas_compra']),
                 'pct_ruta' => $pctRuta,
                 'tiene_logro' => $tieneLogro,
+                'monto_mes_1' => $m1Val,
+                'monto_mes_2' => $m2Val,
+                'monto_mes_3' => $m3Val,
+                'total_monto_3m' => $totalCli3m,
+                'peso_3m' => $pesoCli3m,
+                'meses_con_compra' => $mesesConCompra,
+                'tiene_historico' => ($totalCli3m > 0),
             ];
         }
 
-        // Ordenar clientes: primero compradores de mayor a menor monto, luego no compradores alfabéticamente
-        usort($clientesLista, function ($a, $b) {
-            if ($a['tiene_logro'] !== $b['tiene_logro']) {
-                return $b['tiene_logro'] ? 1 : -1;
-            }
-            if ($a['tiene_logro']) {
-                return $b['monto_bs'] <=> $a['monto_bs'];
-            }
-            return strcmp((string) $a['cliente'], (string) $b['cliente']);
-        });
+        // Ordenar clientes: para Cobertura Core por peso/total histórico 3M descendente; para otros por logro
+        if ($kpiClave === 'cob_core') {
+            usort($clientesLista, function ($a, $b) {
+                if ($a['total_monto_3m'] !== $b['total_monto_3m']) {
+                    return $b['total_monto_3m'] <=> $a['total_monto_3m'];
+                }
+                return strcmp((string) $a['cliente'], (string) $b['cliente']);
+            });
+        } else {
+            usort($clientesLista, function ($a, $b) {
+                if ($a['tiene_logro'] !== $b['tiene_logro']) {
+                    return $b['tiene_logro'] ? 1 : -1;
+                }
+                if ($a['tiene_logro']) {
+                    return $b['monto_bs'] <=> $a['monto_bs'];
+                }
+                return strcmp((string) $a['cliente'], (string) $b['cliente']);
+            });
+        }
 
         // Armar resultado por día cronológico y acumulado progresivo
         ksort($diasAcum);
@@ -298,12 +382,21 @@ class GetAvanceClientesRutaAction
             'kpi' => $kpiClave,
             'fecha_inicio' => $fechaInicio,
             'fecha_corte' => $fechaCorte,
+            'meses_cerrados' => $mesesCerrados,
+            'totales_3m_ruta' => [
+                'mes_1' => round($totalesMesesRuta[$mesesCerrados[0]['ym']] ?? 0.0, 2),
+                'mes_2' => round($totalesMesesRuta[$mesesCerrados[1]['ym']] ?? 0.0, 2),
+                'mes_3' => round($totalesMesesRuta[$mesesCerrados[2]['ym']] ?? 0.0, 2),
+                'total_3m' => round($totalRutaAcum3m, 2),
+            ],
             'clientes' => $clientesLista,
             'por_dia' => $diasOrdenados,
             'resumen' => [
                 'total_cartera' => count($cartera),
                 'compradores_unicos' => count(array_filter($clientesLista, fn ($c) => $c['tiene_logro'])),
+                'con_historico_3m' => count(array_filter($clientesLista, fn ($c) => ($c['total_monto_3m'] ?? 0) > 0)),
                 'venta_total_bs' => round($totalVentaRuta, 2),
+                'venta_historica_3m_bs' => round($totalRutaAcum3m, 2),
                 'dias_con_venta' => count($diasOrdenados),
             ],
         ];

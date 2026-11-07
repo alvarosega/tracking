@@ -175,18 +175,30 @@
                   :class="sortResumenCol === kpi.id ? 'bg-blue-50/20' : ''"
                 >
                   <div class="flex flex-col items-center gap-0.5">
-                    <div class="flex items-center justify-center font-mono">
-                      <span
-                        class="font-bold text-[12px]"
-                        :class="colorKpiResumen(kpi.id, r.kpis?.[kpi.id])"
-                        :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? `Ritmo esperado: ${formatPct(r.kpis?.[kpi.id]?.pct_ritmo)}` : undefined"
-                      >
-                        {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
-                      </span>
-                    </div>
-                    <div class="text-[9px] text-[#86868B] font-mono">
-                      {{ formatLogroResumen(r.kpis?.[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(r.kpis?.[kpi.id]?.meta, kpi.tipo) }}
-                    </div>
+                    <template v-if="kpi.id === 'cob_core'">
+                      <div class="flex items-center justify-center font-mono">
+                        <span class="font-bold text-[12px] text-[#1D1D1F]">
+                          {{ r.kpis?.[kpi.id]?.logrado ?? 0 }} Cli
+                        </span>
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-mono">
+                        Histórico 3M
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="flex items-center justify-center font-mono">
+                        <span
+                          class="font-bold text-[12px]"
+                          :class="colorKpiResumen(kpi.id, r.kpis?.[kpi.id])"
+                          :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? `Ritmo esperado: ${formatPct(r.kpis?.[kpi.id]?.pct_ritmo)}` : undefined"
+                        >
+                          {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
+                        </span>
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-mono">
+                        {{ formatLogroResumen(r.kpis?.[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(r.kpis?.[kpi.id]?.meta, kpi.tipo) }}
+                      </div>
+                    </template>
                   </div>
                 </td>
                 <!-- Score Promedio -->
@@ -209,16 +221,26 @@
                   class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA]"
                 >
                   <div class="flex flex-col items-center gap-0.5">
-                    <span
-                      class="font-bold text-[12px]"
-                      :class="colorKpiResumen(kpi.id, totalesResumen[kpi.id])"
-                      :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? `Ritmo consolidado: ${formatPct(totalesResumen[kpi.id]?.pct_ritmo)}` : undefined"
-                    >
-                      {{ formatPct(totalesResumen[kpi.id]?.pct) }}
-                    </span>
-                    <span class="text-[9px] text-[#6E6E73]">
-                      {{ formatLogroResumen(totalesResumen[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(totalesResumen[kpi.id]?.meta, kpi.tipo) }}
-                    </span>
+                    <template v-if="kpi.id === 'cob_core'">
+                      <span class="font-bold text-[12px] text-[#1D1D1F]">
+                        {{ totalesResumen[kpi.id]?.logrado ?? 0 }} Cli
+                      </span>
+                      <span class="text-[9px] text-[#6E6E73]">
+                        Sin Meta
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span
+                        class="font-bold text-[12px]"
+                        :class="colorKpiResumen(kpi.id, totalesResumen[kpi.id])"
+                        :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? `Ritmo consolidado: ${formatPct(totalesResumen[kpi.id]?.pct_ritmo)}` : undefined"
+                      >
+                        {{ formatPct(totalesResumen[kpi.id]?.pct) }}
+                      </span>
+                      <span class="text-[9px] text-[#6E6E73]">
+                        {{ formatLogroResumen(totalesResumen[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(totalesResumen[kpi.id]?.meta, kpi.tipo) }}
+                      </span>
+                    </template>
                   </div>
                 </td>
                 <td class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA] text-[12px]" :class="colorPct(promedioGlobalScore)">
@@ -271,61 +293,114 @@
                     </svg>
                   </div>
                 </th>
-                <th
-                  @click="toggleSortKpi('meta')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'meta' ? 'bg-blue-50/70' : ''"
-                >
-                  Meta Mes
-                </th>
-                <th
-                  @click="toggleSortKpi('logrado')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
-                >
-                  Logrado
-                </th>
-                <th
-                  @click="toggleSortKpi('pct')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
-                >
-                  % Avance
-                </th>
-                <th
-                  @click="toggleSortKpi('brecha')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  :class="sortKpiCol === 'brecha' ? 'bg-blue-50/70' : ''"
-                >
-                  Brecha
-                </th>
-                <!-- Columnas exclusivas de Cobertura: Venta Apertura vs Venta Repetición -->
-                <th
-                  v-if="esCobertura"
-                  @click="toggleSortKpi('venta_apertura')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Venta Apertura
-                </th>
-                <th
-                  v-if="esCobertura"
-                  @click="toggleSortKpi('venta_repeticion')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Venta Repetición
-                </th>
-                <th
-                  @click="toggleSortKpi('cuota_dia')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Cuota Diaria
-                </th>
-                <th
-                  @click="toggleSortKpi('proyeccion_cierre')"
-                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                >
-                  Proyección
-                </th>
+                <template v-if="modoActivo === 'cob_core'">
+                  <th
+                    @click="toggleSortKpi('cartera')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'cartera' ? 'bg-blue-50/70' : ''"
+                  >
+                    Cartera Oficial
+                  </th>
+                  <th
+                    @click="toggleSortKpi('logrado')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
+                  >
+                    Compradores MTD
+                  </th>
+                  <th
+                    @click="toggleSortKpi('pct')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
+                  >
+                    % Cobertura
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_1_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_1_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[0]?.nombre || 'Mes -3' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_2_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_2_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[1]?.nombre || 'Mes -2' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('mes_3_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'mes_3_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    {{ mesesCerradosGlobal[2]?.nombre || 'Mes -1' }} (Bs)
+                  </th>
+                  <th
+                    @click="toggleSortKpi('total_3m_bs')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'total_3m_bs' ? 'bg-blue-50/70' : ''"
+                  >
+                    Total 3M (Bs)
+                  </th>
+                </template>
+                <template v-else>
+                  <th
+                    @click="toggleSortKpi('meta')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'meta' ? 'bg-blue-50/70' : ''"
+                  >
+                    Meta Mes
+                  </th>
+                  <th
+                    @click="toggleSortKpi('logrado')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
+                  >
+                    Logrado
+                  </th>
+                  <th
+                    @click="toggleSortKpi('pct')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
+                  >
+                    % Avance
+                  </th>
+                  <th
+                    @click="toggleSortKpi('brecha')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                    :class="sortKpiCol === 'brecha' ? 'bg-blue-50/70' : ''"
+                  >
+                    Brecha
+                  </th>
+                  <!-- Columnas exclusivas de Cobertura: Venta Apertura vs Venta Repetición -->
+                  <th
+                    v-if="esCobertura"
+                    @click="toggleSortKpi('venta_apertura')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Venta Apertura
+                  </th>
+                  <th
+                    v-if="esCobertura"
+                    @click="toggleSortKpi('venta_repeticion')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Venta Repetición
+                  </th>
+                  <th
+                    @click="toggleSortKpi('cuota_dia')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Cuota Diaria
+                  </th>
+                  <th
+                    @click="toggleSortKpi('proyeccion_cierre')"
+                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  >
+                    Proyección
+                  </th>
+                </template>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
@@ -358,42 +433,55 @@
                       </div>
                     </div>
                   </td>
-                  <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
-                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
-                  <td
-                    class="py-2 px-3 text-right font-bold text-[12px]"
-                    :class="colorPct(r.pct_proyeccion ?? r.pct)"
-                    :title="r.pct_proyeccion !== undefined ? `Proyección al cierre: ${formatPct(r.pct_proyeccion)}` : undefined"
-                  >
-                    {{ formatPct(r.pct) }}
-                  </td>
-                  <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
-                    {{ formatValorKpi(r.brecha) }}
-                  </td>
-                  <!-- Cobertura: Venta Apertura vs Venta Repetición -->
-                  <td v-if="esCobertura" class="py-2 px-3 text-right">
-                    <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(r.venta_apertura ?? r.venta_cobertura, 1) }}</div>
-                    <div class="text-[9px] text-[#6E6E73] font-sans">{{ formatPct(r.pct_apertura) }}</div>
-                  </td>
-                  <td v-if="esCobertura" class="py-2 px-3 text-right">
-                    <div class="font-bold" :class="(r.venta_repeticion || 0) > 0 ? 'text-[#0071E3]' : 'text-[#86868B]'">
-                      Bs {{ formatNum(r.venta_repeticion, 1) }}
-                    </div>
-                    <div class="text-[9px] text-[#86868B] font-sans">
-                      <span v-if="(r.clientes_repeticion || 0) > 0" class="text-[#0071E3] font-semibold">{{ r.clientes_repeticion }} cli ({{ formatPct(r.pct_repeticion) }})</span>
-                      <span v-else>0 cli (0%)</span>
-                    </div>
-                  </td>
-                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
-                  <td class="py-2 px-3 text-right">
-                    <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
-                    <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
-                  </td>
+                  <template v-if="modoActivo === 'cob_core'">
+                    <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ r.cartera ?? 0 }} Cli</td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ r.logrado ?? 0 }} Cli</td>
+                    <td class="py-2 px-3 text-right font-bold text-[12px]" :class="colorPct(r.pct)">
+                      {{ formatPct(r.pct) }}
+                    </td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_1_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_2_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_3_bs, 2) }}</td>
+                    <td class="py-2 px-3 text-right font-mono font-bold text-[#0071E3]">Bs {{ formatNum(r.total_3m_bs, 2) }}</td>
+                  </template>
+                  <template v-else>
+                    <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
+                    <td
+                      class="py-2 px-3 text-right font-bold text-[12px]"
+                      :class="colorPct(r.pct_proyeccion ?? r.pct)"
+                      :title="r.pct_proyeccion !== undefined ? `Proyección al cierre: ${formatPct(r.pct_proyeccion)}` : undefined"
+                    >
+                      {{ formatPct(r.pct) }}
+                    </td>
+                    <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
+                      {{ formatValorKpi(r.brecha) }}
+                    </td>
+                    <!-- Cobertura: Venta Apertura vs Venta Repetición -->
+                    <td v-if="esCobertura" class="py-2 px-3 text-right">
+                      <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(r.venta_apertura ?? r.venta_cobertura, 1) }}</div>
+                      <div class="text-[9px] text-[#6E6E73] font-sans">{{ formatPct(r.pct_apertura) }}</div>
+                    </td>
+                    <td v-if="esCobertura" class="py-2 px-3 text-right">
+                      <div class="font-bold" :class="(r.venta_repeticion || 0) > 0 ? 'text-[#0071E3]' : 'text-[#86868B]'">
+                        Bs {{ formatNum(r.venta_repeticion, 1) }}
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-sans">
+                        <span v-if="(r.clientes_repeticion || 0) > 0" class="text-[#0071E3] font-semibold">{{ r.clientes_repeticion }} cli ({{ formatPct(r.pct_repeticion) }})</span>
+                        <span v-else>0 cli (0%)</span>
+                      </div>
+                    </td>
+                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
+                    <td class="py-2 px-3 text-right">
+                      <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
+                      <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
+                    </td>
+                  </template>
                 </tr>
 
                 <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
                 <tr v-if="rutaExpandida === r.ruta" class="bg-black/[0.02]">
-                  <td :colspan="esCobertura ? 10 : 8" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                  <td :colspan="modoActivo === 'cob_core' ? 9 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -407,6 +495,12 @@
                             <div class="text-[10px] text-[#6E6E73]">
                               <template v-if="modoDetalleRuta === 'dias'">
                                 <strong>{{ diasRuta.length }} días</strong> con ventas registradas · Total acumulado: <strong class="text-[#0071E3]">Bs {{ formatNum(totalVentaDiasRuta, 2) }}</strong>
+                              </template>
+                              <template v-else-if="modoActivo === 'cob_core'">
+                                {{ carteraClientes.length }} clientes registrados · 
+                                <strong class="text-blue-600 font-bold">{{ clientesConHistorico.length }} con histórico 3M</strong> ·
+                                <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores MTD</strong> ·
+                                Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong>
                               </template>
                               <template v-else>
                                 {{ carteraClientes.length }} clientes registrados · 
@@ -443,12 +537,21 @@
                           <template v-if="modoDetalleRuta === 'clientes'">
                             <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
                               <button
+                                v-if="modoActivo === 'cob_core'"
+                                type="button"
+                                @click="filtroClientesTab = 'con_historico'"
+                                class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
+                                :class="filtroClientesTab === 'con_historico' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
+                              >
+                                Con Histórico ({{ clientesConHistorico.length }})
+                              </button>
+                              <button
                                 type="button"
                                 @click="filtroClientesTab = 'compradores'"
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
                                 :class="filtroClientesTab === 'compradores' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
                               >
-                                Compradores ({{ clientesConCompra.length }})
+                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : 'Compradores' }} ({{ clientesConCompra.length }})
                               </button>
                               <button
                                 type="button"
@@ -611,7 +714,7 @@
                             <tr>
                               <th class="py-1.5 px-2.5 w-12 text-center">#</th>
                               <th
-                                class="py-1.5 px-2.5 w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                class="py-1.5 px-2.5 w-20 cursor-pointer hover:bg-black/[0.04] transition-colors"
                                 :class="sortClientesCol === 'cliente_id' ? 'text-[#0071E3]' : ''"
                                 @click="ordenarClientes('cliente_id')"
                                 title="Ordenar por ID"
@@ -633,49 +736,131 @@
                                 </div>
                               </th>
                               <th
-                                class="py-1.5 px-2.5 w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                class="py-1.5 px-2.5 w-20 cursor-pointer hover:bg-black/[0.04] transition-colors"
                                 :class="sortClientesCol === 'dia_visita' ? 'text-[#0071E3]' : ''"
                                 @click="ordenarClientes('dia_visita')"
                                 title="Ordenar por Día de Visita"
                               >
                                 <div class="flex items-center gap-1">
-                                  <span>Día Visita</span>
+                                  <span>Día</span>
                                   <span v-if="sortClientesCol === 'dia_visita'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                 </div>
                               </th>
-                              <th
-                                class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
-                                @click="ordenarClientes('tiene_logro')"
-                                title="Ordenar por Estado KPI"
-                              >
-                                <div class="flex items-center justify-center gap-1">
-                                  <span>Estado KPI</span>
-                                  <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                </div>
-                              </th>
-                              <th
-                                class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
-                                @click="ordenarClientes('monto_bs')"
-                                title="Ordenar por Monto Bs"
-                              >
-                                <div class="flex items-center justify-end gap-1">
-                                  <span>Monto Bs</span>
-                                  <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                </div>
-                              </th>
-                              <th
-                                class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                :class="sortClientesCol === 'pct_ruta' ? 'text-[#0071E3]' : ''"
-                                @click="ordenarClientes('pct_ruta')"
-                                title="Ordenar por % Aporte"
-                              >
-                                <div class="flex items-center justify-end gap-1">
-                                  <span>% Aporte</span>
-                                  <span v-if="sortClientesCol === 'pct_ruta'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                </div>
-                              </th>
+
+                              <template v-if="modoActivo === 'cob_core'">
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_mes_1' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_mes_1')"
+                                  :title="`Ordenar por ${mesesCerradosRuta[0]?.nombre || 'Mes -3'}`"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>{{ mesesCerradosRuta[0]?.corto || 'Mes -3' }} (Bs)</span>
+                                    <span v-if="sortClientesCol === 'monto_mes_1'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_mes_2' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_mes_2')"
+                                  :title="`Ordenar por ${mesesCerradosRuta[1]?.nombre || 'Mes -2'}`"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>{{ mesesCerradosRuta[1]?.corto || 'Mes -2' }} (Bs)</span>
+                                    <span v-if="sortClientesCol === 'monto_mes_2'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_mes_3' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_mes_3')"
+                                  :title="`Ordenar por ${mesesCerradosRuta[2]?.nombre || 'Mes -1'}`"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>{{ mesesCerradosRuta[2]?.corto || 'Mes -1' }} (Bs)</span>
+                                    <span v-if="sortClientesCol === 'monto_mes_3'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'total_monto_3m' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('total_monto_3m')"
+                                  title="Ordenar por Total Histórico 3M"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Total 3M (Bs)</span>
+                                    <span v-if="sortClientesCol === 'total_monto_3m'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-blue-50/50"
+                                  :class="sortClientesCol === 'peso_3m' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('peso_3m')"
+                                  title="Ordenar por Peso en Acumulado 3M de la Ruta"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Peso 3M (%)</span>
+                                    <span v-if="sortClientesCol === 'peso_3m'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_bs')"
+                                  title="Ordenar por Venta Mes Actual"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Mes Actual</span>
+                                    <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('tiene_logro')"
+                                  title="Ordenar por Estado de Compra Mes Actual"
+                                >
+                                  <div class="flex items-center justify-center gap-1">
+                                    <span>Estado MTD</span>
+                                    <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                              </template>
+                              <template v-else>
+                                <th
+                                  class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('tiene_logro')"
+                                  title="Ordenar por Estado KPI"
+                                >
+                                  <div class="flex items-center justify-center gap-1">
+                                    <span>Estado KPI</span>
+                                    <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_bs')"
+                                  title="Ordenar por Monto Bs"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Monto Bs</span>
+                                    <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'pct_ruta' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('pct_ruta')"
+                                  title="Ordenar por % Aporte"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>% Aporte</span>
+                                    <span v-if="sortClientesCol === 'pct_ruta'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                              </template>
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-black/[0.03] bg-white font-mono tabular-nums">
@@ -703,30 +888,67 @@
                                   <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
                                 </td>
                                 <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
-                                <td class="py-1.5 px-2.5 text-center">
-                                  <span
-                                    v-if="cli.tiene_logro"
-                                    class="px-1.5 py-0.2 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  >
-                                    CUMPLE
-                                  </span>
-                                  <span
-                                    v-else
-                                    class="px-1.5 py-0.2 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
-                                  >
-                                    PENDIENTE
-                                  </span>
-                                </td>
-                                <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">
-                                  Bs {{ formatNum(cli.monto_bs, 2) }}
-                                </td>
-                                <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
-                                  {{ formatPct(cli.pct_ruta) }}
-                                </td>
+
+                                <template v-if="modoActivo === 'cob_core'">
+                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
+                                    {{ cli.monto_mes_1 > 0 ? `Bs ${formatNum(cli.monto_mes_1, 2)}` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
+                                    {{ cli.monto_mes_2 > 0 ? `Bs ${formatNum(cli.monto_mes_2, 2)}` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
+                                    {{ cli.monto_mes_3 > 0 ? `Bs ${formatNum(cli.monto_mes_3, 2)}` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#1D1D1F]">
+                                    Bs {{ formatNum(cli.total_monto_3m, 2) }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/20">
+                                    {{ formatPct(cli.peso_3m) }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-medium" :class="cli.monto_bs > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                    {{ cli.monto_bs > 0 ? `Bs ${formatNum(cli.monto_bs, 2)}` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-center">
+                                    <span
+                                      v-if="cli.tiene_logro"
+                                      class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800"
+                                    >
+                                      Compró
+                                    </span>
+                                    <span
+                                      v-else
+                                      class="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-black/[0.04] text-[#86868B]"
+                                    >
+                                      Sin compra
+                                    </span>
+                                  </td>
+                                </template>
+                                <template v-else>
+                                  <td class="py-1.5 px-2.5 text-center">
+                                    <span
+                                      v-if="cli.tiene_logro"
+                                      class="px-1.5 py-0.2 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    >
+                                      CUMPLE
+                                    </span>
+                                    <span
+                                      v-else
+                                      class="px-1.5 py-0.2 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
+                                    >
+                                      PENDIENTE
+                                    </span>
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-bold text-[#1D1D1F]">
+                                    Bs {{ formatNum(cli.monto_bs, 2) }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
+                                    {{ formatPct(cli.pct_ruta) }}
+                                  </td>
+                                </template>
                               </tr>
                               <!-- Detalle acordeón de facturas y fechas del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td colspan="7" class="p-2.5 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 11 : 7" class="p-2.5 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[10px] p-3 space-y-2 bg-white/95 border border-black/[0.06] shadow-2xs">
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
@@ -803,26 +1025,39 @@
                 <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
                   CONSOLIDADO ({{ rutasFiltradas.length }})
                 </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
-                <td
-                  class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
-                  :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
-                  :title="totalesKpi.pct_proyeccion !== undefined ? `Proyección consolidada: ${formatPct(totalesKpi.pct_proyeccion)}` : undefined"
-                >
-                  {{ formatPct(totalesKpi.pct) }}
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.brecha) }}</td>
-                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
-                  <div class="text-[#1D1D1F]">Bs {{ formatNum(totalesKpi.venta_apertura ?? totalesKpi.venta_cobertura, 1) }}</div>
-                  <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_apertura) }}</div>
-                </td>
-                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
-                  <div class="text-[#0071E3]">Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}</div>
-                  <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_repeticion) }}</div>
-                </td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
-                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
+                <template v-if="modoActivo === 'cob_core'">
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.cartera ?? 0 }} Cli</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.logrado ?? 0 }} Cli</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]" :class="colorPct(totalesKpi?.pct)">
+                    {{ formatPct(totalesKpi?.pct) }}
+                  </td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_1_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_2_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_3_bs, 2) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] text-[#0071E3] font-bold">Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}</td>
+                </template>
+                <template v-else>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
+                  <td
+                    class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
+                    :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
+                    :title="totalesKpi.pct_proyeccion !== undefined ? `Proyección consolidada: ${formatPct(totalesKpi.pct_proyeccion)}` : undefined"
+                  >
+                    {{ formatPct(totalesKpi.pct) }}
+                  </td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.brecha) }}</td>
+                  <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                    <div class="text-[#1D1D1F]">Bs {{ formatNum(totalesKpi.venta_apertura ?? totalesKpi.venta_cobertura, 1) }}</div>
+                    <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_apertura) }}</div>
+                  </td>
+                  <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                    <div class="text-[#0071E3]">Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}</div>
+                    <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_repeticion) }}</div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
+                </template>
               </tr>
             </tfoot>
           </table>
@@ -909,13 +1144,18 @@ const sortKpiDir = ref('desc')
 const sortLabelsKpi = {
   ruta: 'Ruta',
   meta: 'Meta Mes',
-  logrado: 'Logrado',
-  pct: '% Avance',
+  logrado: 'Logrado / Compradores',
+  pct: '% Cobertura',
   brecha: 'Brecha',
   venta_apertura: 'Venta Apertura',
   venta_repeticion: 'Venta Repetición',
   cuota_dia: 'Cuota Diaria',
-  proyeccion_cierre: 'Proyección'
+  proyeccion_cierre: 'Proyección',
+  cartera: 'Cartera Oficial',
+  total_3m_bs: 'Total Histórico 3M',
+  mes_1_bs: 'Mes -3',
+  mes_2_bs: 'Mes -2',
+  mes_3_bs: 'Mes -1'
 }
 
 function toggleSortResumen(col) {
@@ -942,7 +1182,8 @@ const kpisLista = [
   { id: 'vol_seda', nombre: '3. Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
   { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
   { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' }
+  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' }
 ]
 
 const rutaExpandida = ref(null)
@@ -951,6 +1192,12 @@ const carteraClientes = ref([])
 const diasRuta = ref([])
 const modoDetalleRuta = ref('dias') // 'dias' | 'clientes'
 const diaSeleccionadoInline = ref(null)
+
+const mesesCerradosGlobal = computed(() => {
+  return store.datosCumplimiento?.meses_cerrados || []
+})
+const mesesCerradosRuta = ref([])
+const totales3mRuta = ref({})
 
 // Ordenamiento de días
 const sortDiasCol = ref('fecha')
@@ -1051,10 +1298,16 @@ const clientesConCompra = computed(() => {
   return carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
 })
 
+const clientesConHistorico = computed(() => {
+  return carteraClientes.value.filter(c => (c.total_monto_3m || 0) > 0)
+})
+
 const clientesRutaFiltrados = computed(() => {
   let lista = carteraClientes.value
   if (filtroClientesTab.value === 'compradores') {
     lista = clientesConCompra.value
+  } else if (filtroClientesTab.value === 'con_historico') {
+    lista = clientesConHistorico.value
   }
   if (busquedaClienteTexto.value.trim()) {
     const q = busquedaClienteTexto.value.toLowerCase().trim()
@@ -1095,6 +1348,21 @@ const clientesRutaFiltrados = computed(() => {
     }
     if (col === 'pct_ruta') {
       return dir * (Number(a.pct_ruta || 0) - Number(b.pct_ruta || 0))
+    }
+    if (col === 'monto_mes_1') {
+      return dir * (Number(a.monto_mes_1 || 0) - Number(b.monto_mes_1 || 0))
+    }
+    if (col === 'monto_mes_2') {
+      return dir * (Number(a.monto_mes_2 || 0) - Number(b.monto_mes_2 || 0))
+    }
+    if (col === 'monto_mes_3') {
+      return dir * (Number(a.monto_mes_3 || 0) - Number(b.monto_mes_3 || 0))
+    }
+    if (col === 'total_monto_3m') {
+      return dir * (Number(a.total_monto_3m || 0) - Number(b.total_monto_3m || 0))
+    }
+    if (col === 'peso_3m') {
+      return dir * (Number(a.peso_3m || 0) - Number(b.peso_3m || 0))
     }
     return 0
   })
@@ -1194,7 +1462,7 @@ function cambiarModo(modo) {
   clienteExpandidoId.value = null
 
   if (modo !== 'resumen') {
-    sortKpiCol.value = 'pct'
+    sortKpiCol.value = modo === 'cob_core' ? 'total_3m_bs' : 'pct'
     sortKpiDir.value = 'desc'
   }
 
@@ -1241,10 +1509,20 @@ async function toggleDetalleRuta(ruta) {
     })
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []
+    mesesCerradosRuta.value = res.data.meses_cerrados || mesesCerradosGlobal.value || []
+    totales3mRuta.value = res.data.totales_3m_ruta || {}
     diaSeleccionadoInline.value = null
     clienteExpandidoId.value = null
-    const tienenCompra = carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
-    filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
+
+    if (modoActivo.value === 'cob_core') {
+      modoDetalleRuta.value = 'clientes'
+      filtroClientesTab.value = 'todos'
+      sortClientesCol.value = 'peso_3m'
+      sortClientesDir.value = 'desc'
+    } else {
+      const tienenCompra = carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
+      filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
+    }
   } catch (err) {
     console.error('Error al cargar clientes de la ruta:', err)
   } finally {

@@ -28,6 +28,7 @@ class GetAvanceCumplimientoDataAction
         ['id' => 'cob_seda', 'nombre' => '4. Cob. Toque de Seda', 'corto' => 'Cob. Seda', 'tipo' => 'COBERTURA', 'unidad' => 'Cli'],
         ['id' => 'vol_clinical', 'nombre' => '5. Vol. Clinical', 'corto' => 'Vol. Clinical', 'tipo' => 'VOLUMEN', 'unidad' => 'Bs'],
         ['id' => 'cob_clinical', 'nombre' => '6. Cob. Clinical', 'corto' => 'Cob. Clinical', 'tipo' => 'COBERTURA', 'unidad' => 'Cli'],
+        ['id' => 'cob_core', 'nombre' => '7. Cobertura Core', 'corto' => 'Cob. Core', 'tipo' => 'COBERTURA', 'unidad' => 'Cli'],
     ];
 
     public function __construct(
@@ -68,6 +69,7 @@ class GetAvanceCumplimientoDataAction
         }
 
         $mesYm = $carbonCorte->format('Y-m');
+        $mesesCerrados = $this->obtenerMesesCerrados($carbonCorte);
         $infoDias = $this->initAction->calcularDiasHabiles($mesYm, $fechaCorte);
         $dRest = max(1, $infoDias['restantes']);
         $dTrans = max(1, $infoDias['transcurridos']);
@@ -349,6 +351,7 @@ class GetAvanceCumplimientoDataAction
                 'resumen_columnas' => $resumenColumnas,
                 'totales_columnas' => $totalesCol,
                 'rutas' => $matrizRutas,
+                'meses_cerrados' => $mesesCerrados,
                 'metadata_kpis' => $this->obtenerMetadataKpis(),
             ];
         }
@@ -357,6 +360,34 @@ class GetAvanceCumplimientoDataAction
         $clave = isset($kpisMap[$kpiClave]) ? $kpiClave : 'vol_general';
         $objKpi = $kpisMap[$clave];
         $esCobertura = ($objKpi['tipo'] === 'COBERTURA');
+
+        // Histórico de 3 meses cerrados por ruta (para Cobertura Core u otros análisis)
+        $histRutasMap = [];
+        if ($clave === 'cob_core') {
+            $histInicio = $mesesCerrados[0]['inicio'];
+            $histFin = $mesesCerrados[2]['fin'];
+
+            $histRutasRaw = DB::connection('supervisor')->table('fact_ventas')
+                ->where('fecha_norm', '>=', $histInicio)
+                ->where('fecha_norm', '<=', $histFin)
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                })
+                ->select([
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
+                    DB::raw("SUM(monto_final) as total_monto"),
+                ])
+                ->groupBy(DB::raw("TRIM(UPPER(ruta))"), DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
+                ->get();
+
+            foreach ($histRutasRaw as $hr) {
+                $rClean = (string) $hr->ruta_clean;
+                $ym = (string) $hr->mes_ym;
+                $histRutasMap[$rClean][$ym] = (float) $hr->total_monto;
+            }
+        }
 
         $filas = [];
         $totMeta = 0.0;
@@ -376,6 +407,8 @@ class GetAvanceCumplimientoDataAction
 
             $logradoMtd = !$esCobertura ? round($acumVol[$ruta][$clave], 2) : count($acumCob[$ruta][$clave]);
             $logradoDia = !$esCobertura ? round($acumVolDia[$ruta][$clave], 2) : count($acumCobDia[$ruta][$clave]);
+
+            $carteraRuta = (int) ($metasTodas[$ruta]['cob_general'] ?? 0);
 
             if ($modoTemporal === 'diario') {
                 $meta = $metaDia;
@@ -397,6 +430,22 @@ class GetAvanceCumplimientoDataAction
                 $pctAv = $this->calcPct((float) $logrado, (float) $meta);
                 $proy = ($dTrans > 0) ? round(($logrado / $dTrans) * $dTot, 2) : 0.0;
                 $pctProy = $this->calcPct((float) $proy, (float) $meta);
+            }
+
+            // Para Cobertura Core: no tiene meta fija, el avance porcentual es respecto a la cartera total
+            $m1Bs = 0.0;
+            $m2Bs = 0.0;
+            $m3Bs = 0.0;
+            $total3mBs = 0.0;
+            if ($clave === 'cob_core') {
+                $m1Bs = round($histRutasMap[$ruta][$mesesCerrados[0]['ym']] ?? 0.0, 2);
+                $m2Bs = round($histRutasMap[$ruta][$mesesCerrados[1]['ym']] ?? 0.0, 2);
+                $m3Bs = round($histRutasMap[$ruta][$mesesCerrados[2]['ym']] ?? 0.0, 2);
+                $total3mBs = round($m1Bs + $m2Bs + $m3Bs, 2);
+                $pctAv = ($carteraRuta > 0) ? round(($logrado / $carteraRuta) * 100.0, 1) : 0.0;
+                $meta = 0.0;
+                $brecha = 0.0;
+                $cuota = 0;
             }
 
             // Desglose de Esfuerzo Útil: Venta de Apertura vs Venta de Repetición (Coberturas)
@@ -483,10 +532,20 @@ class GetAvanceCumplimientoDataAction
                 'clientes_repeticion' => $cRepeticion,
                 'pct_apertura' => $pctAp,
                 'pct_repeticion' => $pctRep,
+                'cartera' => $carteraRuta,
+                'mes_1_bs' => $m1Bs,
+                'mes_2_bs' => $m2Bs,
+                'mes_3_bs' => $m3Bs,
+                'total_3m_bs' => $total3mBs,
+                'sin_meta' => ($clave === 'cob_core'),
             ];
         }
 
-        usort($filas, fn ($a, $b) => $b['pct'] <=> $a['pct']);
+        if ($clave === 'cob_core') {
+            usort($filas, fn ($a, $b) => $b['total_3m_bs'] <=> $a['total_3m_bs']);
+        } else {
+            usort($filas, fn ($a, $b) => $b['pct'] <=> $a['pct']);
+        }
 
         $totCuotaCalc = ($esCobertura && !$infoDias['cerrado'] && $dRest > 0)
             ? (int) ceil($totBrecha / $dRest)
@@ -496,13 +555,20 @@ class GetAvanceCumplimientoDataAction
         $totPct = $this->calcPct($totLogrado, $totMeta);
         $totalVentaCobGlobal = $totVApertura + $totVRepeticion;
 
+        $totM1 = array_sum(array_column($filas, 'mes_1_bs'));
+        $totM2 = array_sum(array_column($filas, 'mes_2_bs'));
+        $totM3 = array_sum(array_column($filas, 'mes_3_bs'));
+        $tot3m = array_sum(array_column($filas, 'total_3m_bs'));
+        $totCartera = array_sum(array_column($filas, 'cartera'));
+
         $totales = [
             'meta' => round($totMeta, 2),
             'logrado' => round($totLogrado, 2),
+            'cartera' => $totCartera,
             'brecha' => round($totBrecha, 2),
             'cuota_dia' => $totCuotaCalc,
             'cuota_diaria_req' => $totCuotaCalc,
-            'pct' => $totPct,
+            'pct' => ($clave === 'cob_core' && $totCartera > 0) ? round(($totLogrado / $totCartera) * 100.0, 1) : $totPct,
             'pct_avance_mtd' => $totPct,
             'proyeccion_cierre' => $totProyCalc,
             'venta_apertura' => round($totVApertura, 2),
@@ -511,6 +577,10 @@ class GetAvanceCumplimientoDataAction
             'clientes_repeticion' => $totCRepeticion,
             'pct_apertura' => ($totalVentaCobGlobal > 0) ? round(($totVApertura / $totalVentaCobGlobal) * 100.0, 1) : 0.0,
             'pct_repeticion' => ($totalVentaCobGlobal > 0) ? round(($totVRepeticion / $totalVentaCobGlobal) * 100.0, 1) : 0.0,
+            'mes_1_bs' => round($totM1, 2),
+            'mes_2_bs' => round($totM2, 2),
+            'mes_3_bs' => round($totM3, 2),
+            'total_3m_bs' => round($tot3m, 2),
         ];
 
         return [
@@ -527,6 +597,7 @@ class GetAvanceCumplimientoDataAction
             'canales_disponibles' => $canalesDisponibles,
             'totales' => $totales,
             'rutas' => $filas,
+            'meses_cerrados' => $mesesCerrados,
             'metadata_kpis' => $this->obtenerMetadataKpis(),
         ];
     }
@@ -542,7 +613,7 @@ class GetAvanceCumplimientoDataAction
         $cod = trim($codigo);
 
         return match ($kpiClave) {
-            'vol_general', 'cob_general' => true,
+            'vol_general', 'cob_general', 'cob_core' => true,
             'vol_seda', 'cob_seda' => (
                 str_contains($prod, 'toque de seda') ||
                 str_contains($prod, 'toque seda') ||
@@ -640,10 +711,46 @@ class GetAvanceCumplimientoDataAction
                 'cob_seda' => (int) ($esp ? $esp->cob_seda : 0),
                 'vol_clinical' => (float) ($esp ? $esp->vol_clinical : 0.0),
                 'cob_clinical' => (int) ($esp ? $esp->cob_clinical : 0),
+                'cob_core' => 0,
             ];
         }
 
         return $metas;
+    }
+
+    /**
+     * Calcula los últimos 3 meses cerrados previos a la fecha de corte evaluada.
+     *
+     * @return array<int, array{ym: string, nombre: string, corto: string, inicio: string, fin: string}>
+     */
+    public function obtenerMesesCerrados(Carbon $carbonRef): array
+    {
+        $mesesEs = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+        $mesesAbr = [
+            1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr',
+            5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Ago',
+            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic',
+        ];
+
+        $meses = [];
+        for ($i = 3; $i >= 1; $i--) {
+            $dt = $carbonRef->copy()->subMonths($i);
+            $mNum = (int) $dt->format('m');
+            $anio = $dt->format('Y');
+            $meses[] = [
+                'ym' => $dt->format('Y-m'),
+                'nombre' => ($mesesEs[$mNum] ?? '') . ' ' . $anio,
+                'corto' => ($mesesAbr[$mNum] ?? '') . ' ' . substr($anio, -2),
+                'inicio' => $dt->copy()->startOfMonth()->format('Y-m-d'),
+                'fin' => $dt->copy()->endOfMonth()->format('Y-m-d'),
+            ];
+        }
+
+        return $meses;
     }
 
     private function construirPatronesMeta(int $year, int $month): array
@@ -736,6 +843,16 @@ class GetAvanceCumplimientoDataAction
                 'campo_meta' => 'fact_metas_kpi.cob_clinical',
                 'objetivo_comercial' => 'Garantizar distribución numérica de Dove Clinical.',
                 'criterio_productos' => 'Clientes únicos con compra en Dove Clinical.',
+            ],
+            [
+                'id' => 'cob_core',
+                'clave' => 'cob_core',
+                'nombre' => '7. Cobertura Core',
+                'tipo' => 'COBERTURA',
+                'unidad' => 'Cli',
+                'campo_meta' => 'Histórico 3 Meses Cerrados',
+                'objetivo_comercial' => 'Análisis de recurrencia y cobertura histórica en base al comportamiento de los últimos 3 meses cerrados.',
+                'criterio_productos' => 'Historial de compras en fact_ventas de los clientes de la ruta en los 3 meses cerrados previos y su peso relativo.',
             ],
         ];
     }
