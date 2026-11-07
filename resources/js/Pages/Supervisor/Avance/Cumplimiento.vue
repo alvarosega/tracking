@@ -710,26 +710,20 @@
                                               </th>
                                               <th class="py-1.5 px-2.5 text-right cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')" title="Total de lo que compró en el acumulado de los últimos 3 meses">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span>Total que Compró (3M)</span>
+                                                  <span>Total Compra 3M</span>
                                                   <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-right bg-amber-50/60 text-amber-900 font-bold cursor-pointer hover:bg-amber-100/60" @click="ordenarProductos('precio_ultima_compra')" title="Precio unitario registrado en la última compra">
-                                                <div class="flex items-center justify-end gap-1">
-                                                  <span>P. Últ. Compra</span>
-                                                  <span v-if="sortProdCol === 'precio_ultima_compra'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
-                                                </div>
-                                              </th>
-                                              <th class="py-1.5 px-2.5 text-right bg-purple-50/80 text-purple-950 font-bold cursor-pointer hover:bg-purple-100" @click="ordenarProductos('monto_sugerido')" title="Lo que se sugiere que compre (Cantidad y Monto)">
+                                              <th class="py-1.5 px-2.5 text-right bg-purple-50/70 text-purple-950 font-bold cursor-pointer hover:bg-purple-100" @click="ordenarProductos('monto_sugerido')" title="Cantidad y monto que se sugiere que compre en el mes">
                                                 <div class="flex items-center justify-end gap-1">
                                                   <span>Sugerido a Comprar</span>
                                                   <span v-if="sortProdCol === 'monto_sugerido'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
-                                              <th class="py-1.5 px-2.5 text-center text-[#86868B] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('ultima_fecha')">
-                                                <div class="flex items-center justify-center gap-1">
-                                                  <span>Últ. Compra</span>
-                                                  <span v-if="sortProdCol === 'ultima_fecha'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                              <th class="py-1.5 px-2.5 text-right bg-emerald-50/70 text-emerald-950 font-bold cursor-pointer hover:bg-emerald-100" @click="ordenarProductos('total_bs_mes_actual')" title="Compra acumulada del mes: en qué cantidad y monto va">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Compra Acumulada Mes</span>
+                                                  <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
                                             </tr>
@@ -746,25 +740,50 @@
                                                 {{ prod.producto }}
                                                 <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
                                               </td>
+
+                                              <!-- Total Compra 3M -->
                                               <td class="py-1.5 px-2.5 text-right font-mono">
                                                 <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(prod.total_bs_3m, 2) }}</div>
-                                                <div class="text-[9px] text-[#6E6E73]">{{ prod.total_cantidad_3m }} u compradas</div>
+                                                <div class="text-[9px] text-[#6E6E73]">{{ prod.total_cantidad_3m }} u</div>
                                               </td>
-                                              <td class="py-1.5 px-2.5 text-right font-mono text-amber-900 bg-amber-50/20 font-semibold">
-                                                {{ prod.precio_ultima_compra > 0 ? `Bs ${formatNum(prod.precio_ultima_compra, 2)}` : '-' }}
-                                              </td>
-                                              <td class="py-1.5 px-2.5 text-right font-mono bg-purple-50/40">
+
+                                              <!-- Sugerido a Comprar -->
+                                              <td class="py-1.5 px-2.5 text-right font-mono bg-purple-50/30">
                                                 <div class="font-bold text-purple-900 text-[11px]">Bs {{ formatNum(prod.monto_sugerido, 2) }}</div>
-                                                <div class="text-[9px] text-purple-800 font-bold">
-                                                  <span class="inline-block px-1 py-0.2 rounded bg-purple-100 text-purple-900">{{ prod.cant_sugerida }} u</span>
+                                                <div class="text-[9px] text-purple-800">
+                                                  <span class="inline-block px-1 py-0.2 rounded bg-purple-100 text-purple-900 font-bold">{{ prod.cant_sugerida }} u</span>
+                                                  <span v-if="prod.precio_ultima_compra > 0" class="text-[8px] text-purple-700 ml-1">(P.Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
                                                 </div>
                                               </td>
-                                              <td class="py-1.5 px-2.5 text-center text-[#86868B] text-[9px] whitespace-nowrap">
-                                                {{ prod.ultima_fecha }}
+
+                                              <!-- Compra Acumulada del Mes: en qué cantidad y monto va -->
+                                              <td class="py-1.5 px-2.5 text-right font-mono" :class="prod.total_cantidad_mes_actual > 0 ? 'bg-emerald-50/30' : ''">
+                                                <template v-if="prod.total_cantidad_mes_actual > 0">
+                                                  <div class="font-bold text-emerald-800 text-[11px]">Bs {{ formatNum(prod.total_bs_mes_actual, 2) }}</div>
+                                                  <div class="text-[9px] text-emerald-700 flex items-center justify-end gap-1">
+                                                   <span class="font-bold">{{ prod.total_cantidad_mes_actual }} u</span>
+                                                   <span
+                                                     v-if="prod.cumple_sugerido"
+                                                     class="inline-block px-1 py-0.2 rounded text-[7px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                                   >
+                                                     CUMPLE
+                                                   </span>
+                                                   <span
+                                                     v-else-if="prod.cant_sugerida > 0"
+                                                     class="inline-block px-1 py-0.2 rounded text-[7px] font-bold bg-amber-100 text-amber-800 border border-amber-300"
+                                                   >
+                                                     PARCIAL
+                                                   </span>
+                                                  </div>
+                                                </template>
+                                                <template v-else>
+                                                  <div class="text-[#86868B]">-</div>
+                                                  <div v-if="prod.cant_sugerida > 0" class="text-[8px] text-[#86868B]">0 u · Pendiente</div>
+                                                </template>
                                               </td>
                                             </tr>
                                           </tbody>
-                                          <!-- PIE DE TABLA: Total de lo que compró y CUÁNTO SUMA EL TOTAL DEL SUGERIDO -->
+                                          <!-- PIE DE TABLA CON TOTALES CONSOLIDADOS -->
                                           <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono border-t border-black/[0.08]">
                                             <tr>
                                               <td colspan="3" class="py-2 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
@@ -774,7 +793,6 @@
                                                 <div class="font-bold text-[#1D1D1F] text-[11px]">Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_3m'), 2) }}</div>
                                                 <div class="text-[9px] text-[#6E6E73]">{{ totalProdCol(cli.cliente_id, 'total_cantidad_3m') }} u totales</div>
                                               </td>
-                                              <td class="py-2 px-2.5 text-center text-[#86868B] bg-amber-50/20">-</td>
                                               <td class="py-2 px-2.5 text-right font-mono bg-purple-100 text-purple-950 font-bold border-x border-purple-200">
                                                 <div class="text-[12px] font-black">
                                                   Bs {{ formatNum(totalProdCol(cli.cliente_id, 'monto_sugerido'), 2) }}
@@ -783,7 +801,14 @@
                                                   {{ totalProdCol(cli.cliente_id, 'cant_sugerida') }} u sugeridas
                                                 </div>
                                               </td>
-                                              <td class="py-2 px-2.5 text-center text-[#86868B] text-[8px]">-</td>
+                                              <td class="py-2 px-2.5 text-right font-mono bg-emerald-100 text-emerald-950 font-bold">
+                                                <div class="text-[12px] font-black text-emerald-800">
+                                                  Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_mes_actual'), 2) }}
+                                                </div>
+                                                <div class="text-[9px] text-emerald-800 font-bold">
+                                                  {{ totalProdCol(cli.cliente_id, 'total_cantidad_mes_actual') }} u facturadas
+                                                </div>
+                                              </td>
                                             </tr>
                                           </tfoot>
                                         </table>
