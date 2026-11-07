@@ -67,6 +67,7 @@ class SupervisorAvanceController extends Controller
         $rutas = (array) $request->input('rutas', []);
         $modoTemporal = (string) $request->input('modo_temporal', 'acumulado');
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
+        $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
 
         $data = $action->execute(
             vista: $vista,
@@ -76,7 +77,8 @@ class SupervisorAvanceController extends Controller
             canales: $canales,
             rutas: $rutas,
             modoTemporal: $modoTemporal,
-            omitirUnitarios3m: $omitirUnitarios
+            omitirUnitarios3m: $omitirUnitarios,
+            mesesHistorico: $mesesHistorico
         );
 
         return response()->json($data);
@@ -92,13 +94,15 @@ class SupervisorAvanceController extends Controller
         $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
+        $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
 
         $data = $action->execute(
             ruta: $ruta,
             kpiClave: $kpi,
             fechaInicio: $fechaInicio,
             fechaCorte: $fechaCorte,
-            omitirUnitarios3m: $omitirUnitarios
+            omitirUnitarios3m: $omitirUnitarios,
+            mesesHistorico: $mesesHistorico
         );
 
         return response()->json($data);
@@ -115,6 +119,7 @@ class SupervisorAvanceController extends Controller
         $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
+        $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
 
         $data = $action->execute(
             clienteId: $clienteId,
@@ -122,7 +127,8 @@ class SupervisorAvanceController extends Controller
             fechaInicio: $fechaInicio,
             fechaCorte: $fechaCorte,
             kpiClave: $kpi,
-            omitirUnitarios3m: $omitirUnitarios
+            omitirUnitarios3m: $omitirUnitarios,
+            mesesHistorico: $mesesHistorico
         );
 
         return response()->json($data);

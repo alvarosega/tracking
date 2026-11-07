@@ -40,22 +40,26 @@ class GetAvanceClienteDetalleFechasAction
         ?string $fechaInicio = null,
         ?string $fechaCorte = null,
         string $kpiClave = 'vol_general',
-        bool $omitirUnitarios3m = false
+        bool $omitirUnitarios3m = false,
+        int $mesesHistorico = 3
     ): array {
         $rutaClean = strtoupper(trim($ruta));
+        $mesesHistorico = max(1, min(8, $mesesHistorico));
 
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
             $fechaCorte = $maxFecha ?: date('Y-m-d');
         }
         $carbonCorte = Carbon::parse($fechaCorte);
-        $mesesCerrados = $this->cumplimientoAction->obtenerMesesCerrados($carbonCorte);
+        $mesesCerrados = $this->cumplimientoAction->obtenerMesesCerrados($carbonCorte, $mesesHistorico);
+        $cantMesesEval = max(1, count($mesesCerrados));
 
         // Rango de evaluación: desde el inicio del 1° mes cerrado hasta la fecha de corte
         $histInicio = $mesesCerrados[0]['inicio'];
         $histFin = $fechaCorte;
         $ymActual = $carbonCorte->format('Y-m');
         $yms3m = array_column($mesesCerrados, 'ym');
+        $porMesTemplate = array_fill_keys(array_merge($yms3m, [$ymActual]), 0.0);
 
         $query = DB::connection('supervisor')->table('fact_ventas')
             ->where('cliente_id', $clienteId)
@@ -180,12 +184,7 @@ class GetAvanceClienteDetalleFechasAction
                     'fechas' => [],
                     'compras_3m' => [],
                     'compras_mes_actual' => [],
-                    'por_mes' => [
-                        $mesesCerrados[0]['ym'] => 0.0,
-                        $mesesCerrados[1]['ym'] => 0.0,
-                        $mesesCerrados[2]['ym'] => 0.0,
-                        $ymActual => 0.0,
-                    ],
+                    'por_mes' => $porMesTemplate,
                 ];
             }
 
@@ -276,10 +275,10 @@ class GetAvanceClienteDetalleFechasAction
                     : ($p['total_cantidad'] > 0 ? round($p['total_bs'] / $p['total_cantidad'], 2) : 0.0);
             }
 
-            // Hábito sugerido mensual: Total Cantidad 3M / 3 redondeado al entero superior
+            // Hábito sugerido mensual: Total Cantidad Histórica / N meses redondeado al entero superior
             $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
             $minCant = $omitirUnitarios3m ? 1 : 0;
-            $cantSugerida = $cant3m > $minCant ? (int) ceil($cant3m / 3.0) : 0;
+            $cantSugerida = $cant3m > $minCant ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
             $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
@@ -307,6 +306,7 @@ class GetAvanceClienteDetalleFechasAction
             'kpi_nombre' => self::KPIS_NOMBRES[$kpiClave] ?? $kpiClave,
             'fecha_corte' => $fechaCorte,
             'fecha_inicio_3m' => $histInicio,
+            'meses_historico' => $mesesHistorico,
             'meses_cerrados' => $mesesCerrados,
             'ym_actual' => $ymActual,
             'total_monto_bs' => round($totalMonto, 2),

@@ -266,11 +266,11 @@
               </span>
             </div>
 
-            <!-- Checkbox para omitir compras de 1 sola unidad en 3M (solo en Cobertura Core) -->
+            <!-- Checkbox para omitir compras de 1 sola unidad en histórico (solo en Cobertura Core) -->
             <label
               v-if="modoActivo === 'cob_core'"
               class="ml-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[8px] bg-purple-50/80 border border-purple-200 text-purple-900 cursor-pointer hover:bg-purple-100 transition-colors select-none font-sans shadow-2xs"
-              title="Omitir del cálculo sugerido aquellos productos donde el cliente solo compró 1 unidad en los 3 meses cerrados"
+              title="Omitir del cálculo sugerido aquellos productos donde el cliente solo compró 1 unidad en la ventana histórica"
             >
               <input
                 type="checkbox"
@@ -278,8 +278,34 @@
                 @change="onToggleOmitirUnitarios"
                 class="w-3.5 h-3.5 text-[#0071E3] rounded border-gray-300 focus:ring-[#0071E3] cursor-pointer"
               />
-              <span class="text-[11px] font-semibold">Omitir compras de 1 unidad en 3M</span>
+              <span class="text-[11px] font-semibold">Omitir compras de 1 unidad</span>
             </label>
+
+            <!-- Selector para elegir los meses a evaluar (hasta 8 meses atrás) -->
+            <div
+              v-if="modoActivo === 'cob_core'"
+              class="ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-blue-50/80 border border-blue-200 text-blue-900 font-sans shadow-2xs select-none"
+              title="Seleccionar la cantidad de meses cerrados a evaluar en el histórico (hasta 8 meses atrás)"
+            >
+              <svg class="w-3.5 h-3.5 text-[#0071E3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="text-[11px] font-bold">Ventana:</span>
+              <select
+                v-model.number="store.mesesHistorico"
+                @change="onCambioMesesHistorico"
+                class="text-[11px] font-bold text-[#0071E3] bg-white rounded-[6px] border border-blue-300/80 px-2 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
+              >
+                <option :value="1">1 mes (LM)</option>
+                <option :value="2">2 meses (L1M, LM)</option>
+                <option :value="3">3 meses (L2M, L1M, LM)</option>
+                <option :value="4">4 meses (L3M a LM)</option>
+                <option :value="5">5 meses (L4M a LM)</option>
+                <option :value="6">6 meses (L5M a LM)</option>
+                <option :value="7">7 meses (L6M a LM)</option>
+                <option :value="8">8 meses (L7M a LM)</option>
+              </select>
+            </div>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
@@ -319,35 +345,21 @@
                     Cartera Oficial
                   </th>
                   <th
-                    @click="toggleSortKpi('mes_1_bs')"
+                    v-for="(mesObj, mIdx) in mesesCerradosGlobal"
+                    :key="mesObj.ym"
+                    @click="toggleSortKpi(`mes_${mesObj.ym}`)"
                     class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                    :class="sortKpiCol === 'mes_1_bs' ? 'bg-blue-50/70' : ''"
+                    :class="sortKpiCol === `mes_${mesObj.ym}` ? 'bg-blue-50/70' : ''"
                   >
-                    <div>L2M</div>
-                    <div class="text-[8px] text-[#86868B] lowercase font-normal">{{ mesesCerradosGlobal[0]?.corto || 'Mes -3' }}</div>
-                  </th>
-                  <th
-                    @click="toggleSortKpi('mes_2_bs')"
-                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                    :class="sortKpiCol === 'mes_2_bs' ? 'bg-blue-50/70' : ''"
-                  >
-                    <div>L1M</div>
-                    <div class="text-[8px] text-[#86868B] lowercase font-normal">{{ mesesCerradosGlobal[1]?.corto || 'Mes -2' }}</div>
-                  </th>
-                  <th
-                    @click="toggleSortKpi('mes_3_bs')"
-                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                    :class="sortKpiCol === 'mes_3_bs' ? 'bg-blue-50/70' : ''"
-                  >
-                    <div>LM</div>
-                    <div class="text-[8px] text-[#86868B] lowercase font-normal">{{ mesesCerradosGlobal[2]?.corto || 'Mes -1' }}</div>
+                    <div>{{ labelMesHistorico(mIdx, mesesCerradosGlobal.length) }}</div>
+                    <div class="text-[8px] text-[#86868B] lowercase font-normal">{{ mesObj.corto }}</div>
                   </th>
                   <th
                     @click="toggleSortKpi('total_3m_bs')"
                     class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
                     :class="sortKpiCol === 'total_3m_bs' ? 'bg-blue-50/70' : ''"
                   >
-                    Total 3M (Bs)
+                    Total {{ mesesCerradosGlobal.length }}M (Bs)
                   </th>
                   <th
                     @click="toggleSortKpi('total_sugerido')"
@@ -473,9 +485,13 @@
                   </td>
                   <template v-if="modoActivo === 'cob_core'">
                     <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ r.cartera ?? 0 }} Cli</td>
-                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_1_bs, 2) }}</td>
-                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_2_bs, 2) }}</td>
-                    <td class="py-2 px-3 text-right font-mono text-[#1D1D1F]">Bs {{ formatNum(r.mes_3_bs, 2) }}</td>
+                    <td
+                      v-for="mesObj in mesesCerradosGlobal"
+                      :key="mesObj.ym"
+                      class="py-2 px-3 text-right font-mono text-[#1D1D1F]"
+                    >
+                      {{ (r.meses_bs?.[mesObj.ym] || 0) > 0 ? `Bs ${formatNum(r.meses_bs[mesObj.ym], 2)}` : '-' }}
+                    </td>
                     <td class="py-2 px-3 text-right font-mono font-bold text-[#1D1D1F]">Bs {{ formatNum(r.total_3m_bs, 2) }}</td>
                     <td class="py-2 px-3 text-right font-mono font-bold text-purple-900 bg-purple-50/20">
                       Bs {{ formatNum(r.total_sugerido, 2) }}
@@ -527,7 +543,7 @@
 
                 <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
                 <tr v-if="rutaExpandida === r.ruta" class="bg-black/[0.02]">
-                  <td :colspan="modoActivo === 'cob_core' ? 11 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                  <td :colspan="modoActivo === 'cob_core' ? (8 + mesesCerradosGlobal.length) : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -796,46 +812,26 @@
 
                               <template v-if="modoActivo === 'cob_core'">
                                 <th
+                                  v-for="mesObj in mesesCerradosRuta"
+                                  :key="mesObj.ym"
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                  :class="sortClientesCol === 'monto_mes_1' ? 'text-[#0071E3]' : ''"
-                                  @click="ordenarClientes('monto_mes_1')"
-                                  :title="`Ordenar por ${mesesCerradosRuta[0]?.nombre || 'Mes -3'}`"
+                                  :class="sortClientesCol === `mes_${mesObj.ym}` ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes(`mes_${mesObj.ym}`)"
+                                  :title="`Ordenar por ${mesObj.nombre}`"
                                 >
                                   <div class="flex items-center justify-end gap-1">
-                                    <span>{{ mesesCerradosRuta[0]?.corto || 'Mes -3' }} (Bs)</span>
-                                    <span v-if="sortClientesCol === 'monto_mes_1'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                  </div>
-                                </th>
-                                <th
-                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                  :class="sortClientesCol === 'monto_mes_2' ? 'text-[#0071E3]' : ''"
-                                  @click="ordenarClientes('monto_mes_2')"
-                                  :title="`Ordenar por ${mesesCerradosRuta[1]?.nombre || 'Mes -2'}`"
-                                >
-                                  <div class="flex items-center justify-end gap-1">
-                                    <span>{{ mesesCerradosRuta[1]?.corto || 'Mes -2' }} (Bs)</span>
-                                    <span v-if="sortClientesCol === 'monto_mes_2'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
-                                  </div>
-                                </th>
-                                <th
-                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
-                                  :class="sortClientesCol === 'monto_mes_3' ? 'text-[#0071E3]' : ''"
-                                  @click="ordenarClientes('monto_mes_3')"
-                                  :title="`Ordenar por ${mesesCerradosRuta[2]?.nombre || 'Mes -1'}`"
-                                >
-                                  <div class="flex items-center justify-end gap-1">
-                                    <span>{{ mesesCerradosRuta[2]?.corto || 'Mes -1' }} (Bs)</span>
-                                    <span v-if="sortClientesCol === 'monto_mes_3'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                    <span>{{ mesObj.corto }} (Bs)</span>
+                                    <span v-if="sortClientesCol === `mes_${mesObj.ym}`" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
                                 <th
                                   class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
                                   :class="sortClientesCol === 'total_monto_3m' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('total_monto_3m')"
-                                  title="Ordenar por Total Histórico 3M"
+                                  title="Ordenar por Total Histórico"
                                 >
                                   <div class="flex items-center justify-end gap-1">
-                                    <span>Total 3M (Bs)</span>
+                                    <span>Total {{ mesesCerradosRuta.length }}M (Bs)</span>
                                     <span v-if="sortClientesCol === 'total_monto_3m'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
@@ -843,10 +839,10 @@
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-blue-50/50"
                                   :class="sortClientesCol === 'peso_3m' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('peso_3m')"
-                                  title="Ordenar por Peso en Acumulado 3M de la Ruta"
+                                  title="Ordenar por Peso en Acumulado Histórico de la Ruta"
                                 >
                                   <div class="flex items-center justify-end gap-1">
-                                    <span>Peso 3M (%)</span>
+                                    <span>Peso {{ mesesCerradosRuta.length }}M (%)</span>
                                     <span v-if="sortClientesCol === 'peso_3m'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
@@ -948,14 +944,12 @@
                                 <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
 
                                 <template v-if="modoActivo === 'cob_core'">
-                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
-                                    {{ cli.monto_mes_1 > 0 ? `Bs ${formatNum(cli.monto_mes_1, 2)}` : '-' }}
-                                  </td>
-                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
-                                    {{ cli.monto_mes_2 > 0 ? `Bs ${formatNum(cli.monto_mes_2, 2)}` : '-' }}
-                                  </td>
-                                  <td class="py-1.5 px-2.5 text-right font-mono text-[#48484A]">
-                                    {{ cli.monto_mes_3 > 0 ? `Bs ${formatNum(cli.monto_mes_3, 2)}` : '-' }}
+                                  <td
+                                    v-for="mesObj in mesesCerradosRuta"
+                                    :key="mesObj.ym"
+                                    class="py-1.5 px-2.5 text-right font-mono text-[#48484A]"
+                                  >
+                                    {{ (cli.meses_bs?.[mesObj.ym] || 0) > 0 ? `Bs ${formatNum(cli.meses_bs[mesObj.ym], 2)}` : '-' }}
                                   </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#1D1D1F]">
                                     Bs {{ formatNum(cli.total_monto_3m, 2) }}
@@ -1079,7 +1073,7 @@
                                               <!-- Columna 2: Total Compra 3M -->
                                               <th class="py-2 px-3 text-right font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')">
                                                 <div class="flex items-center justify-end gap-1">
-                                                  <span class="text-[#1D1D1F] font-bold">Total Compra 3M</span>
+                                                  <span class="text-[#1D1D1F] font-bold">Total Compra {{ mesesCerradosRuta.length || store.mesesHistorico }}M</span>
                                                   <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
@@ -1293,14 +1287,12 @@
                               <td colspan="4" class="py-1.5 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
                                 TOTAL RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
                               </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono">
-                                {{ (totales3mRuta.mes_1 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_1, 2)}` : '-' }}
-                              </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono">
-                                {{ (totales3mRuta.mes_2 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_2, 2)}` : '-' }}
-                              </td>
-                              <td class="py-1.5 px-2.5 text-right font-mono">
-                                {{ (totales3mRuta.mes_3 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_3, 2)}` : '-' }}
+                              <td
+                                v-for="mesObj in mesesCerradosRuta"
+                                :key="mesObj.ym"
+                                class="py-1.5 px-2.5 text-right font-mono"
+                              >
+                                {{ (totales3mRuta.meses_bs?.[mesObj.ym] || 0) > 0 ? `Bs ${formatNum(totales3mRuta.meses_bs[mesObj.ym], 2)}` : '-' }}
                               </td>
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#1D1D1F]">
                                 Bs {{ formatNum(totales3mRuta.total_3m || 0, 2) }}
@@ -1336,10 +1328,16 @@
                 </td>
                 <template v-if="modoActivo === 'cob_core'">
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.cartera ?? 0 }} Cli</td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_1_bs, 2) }}</td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_2_bs, 2) }}</td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">Bs {{ formatNum(totalesKpi?.mes_3_bs, 2) }}</td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[#1D1D1F]">Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}</td>
+                  <td
+                    v-for="mesObj in mesesCerradosGlobal"
+                    :key="mesObj.ym"
+                    class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]"
+                  >
+                    {{ (totalesKpi?.meses_bs?.[mesObj.ym] || 0) > 0 ? `Bs ${formatNum(totalesKpi.meses_bs[mesObj.ym], 2)}` : '-' }}
+                  </td>
+                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[#1D1D1F]">
+                    Bs {{ formatNum(totalesKpi?.total_3m_bs, 2) }}
+                  </td>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-purple-50/70 text-purple-900 font-bold">Bs {{ formatNum(totalesKpi?.total_sugerido, 2) }}</td>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-purple-50/50 text-[#6B21A8] font-bold">Bs {{ formatNum(totalesKpi?.objetivo_mes, 2) }}</td>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-emerald-50/50 text-emerald-700 font-bold">Bs {{ formatNum(totalesKpi?.venta_mtd ?? totalesKpi?.logrado, 2) }}</td>
@@ -1452,25 +1450,31 @@ const sortResumenDir = ref('desc')
 const sortKpiCol = ref('pct')
 const sortKpiDir = ref('desc')
 
-const sortLabelsKpi = {
-  ruta: 'Ruta',
-  meta: 'Meta Mes',
-  logrado: 'Logrado / Compradores',
-  pct: '% Cobertura',
-  brecha: 'Brecha',
-  venta_apertura: 'Venta Apertura',
-  venta_repeticion: 'Venta Repetición',
-  cuota_dia: 'Cuota Diaria',
-  proyeccion_cierre: 'Proyección',
-  cartera: 'Cartera Oficial',
-  mes_1_bs: 'L2M',
-  mes_2_bs: 'L1M',
-  mes_3_bs: 'LM',
-  total_3m_bs: 'Total 3M (Bs)',
-  total_sugerido: 'Compra Sugerida',
-  objetivo_mes: 'Objetivo',
-  venta_mtd: 'Venta MTD'
-}
+const sortLabelsKpi = computed(() => {
+  const labels = {
+    ruta: 'Ruta',
+    meta: 'Meta Mes',
+    logrado: 'Logrado / Compradores',
+    pct: '% Cobertura',
+    brecha: 'Brecha',
+    venta_apertura: 'Venta Apertura',
+    venta_repeticion: 'Venta Repetición',
+    cuota_dia: 'Cuota Diaria',
+    proyeccion_cierre: 'Proyección',
+    cartera: 'Cartera Oficial',
+    mes_1_bs: 'L2M',
+    mes_2_bs: 'L1M',
+    mes_3_bs: 'LM',
+    total_3m_bs: `Total ${mesesCerradosGlobal.value?.length || 3}M`,
+    total_sugerido: 'Compra Sugerida',
+    objetivo_mes: 'Objetivo',
+    venta_mtd: 'Venta MTD'
+  }
+  ;(mesesCerradosGlobal.value || []).forEach((m, idx) => {
+    labels[`mes_${m.ym}`] = `${labelMesHistorico(idx, (mesesCerradosGlobal.value || []).length)} (${m.corto})`
+  })
+  return labels
+})
 
 function toggleSortResumen(col) {
   if (sortResumenCol.value === col) {
@@ -1736,7 +1740,8 @@ async function toggleClienteAccordion(cliente, ruta) {
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       kpi: kpiParaDetalle,
-      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m)
+      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
+      meses_historico: Number(store.mesesHistorico) || 3
     })
     detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {
@@ -1800,6 +1805,12 @@ const clientesRutaFiltrados = computed(() => {
     }
     if (col === 'pct_ruta') {
       return dir * (Number(a.pct_ruta || 0) - Number(b.pct_ruta || 0))
+    }
+    if (col.startsWith('mes_')) {
+      const ym = col.slice(4)
+      const valA = Number(a.meses_bs?.[ym] ?? a[col] ?? 0)
+      const valB = Number(b.meses_bs?.[ym] ?? b[col] ?? 0)
+      if (valA !== valB) return dir * (valA - valB)
     }
     if (col === 'monto_mes_1') {
       return dir * (Number(a.monto_mes_1 || 0) - Number(b.monto_mes_1 || 0))
@@ -1881,6 +1892,13 @@ const rutasFiltradas = computed(() => {
       if (col === 'ruta') {
         return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
       }
+      if (col.startsWith('mes_')) {
+        const ym = col.slice(4)
+        const valA = Number(a.meses_bs?.[ym] ?? a[col] ?? 0)
+        const valB = Number(b.meses_bs?.[ym] ?? b[col] ?? 0)
+        if (valA !== valB) return dir * (valA - valB)
+        return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+      }
       let valA = Number(a[col] ?? 0)
       let valB = Number(b[col] ?? 0)
       if (valA !== valB) {
@@ -1941,6 +1959,23 @@ function ejecutarConsulta() {
   return store.cargarCumplimiento()
 }
 
+function labelMesHistorico(idx, total) {
+  const k = total - 1 - idx
+  if (k === 0) return 'LM'
+  return `L${k}M`
+}
+
+async function onCambioMesesHistorico() {
+  store.guardarEstado()
+  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
+  await ejecutarConsulta()
+  if (rutaExpandida.value) {
+    const r = rutaExpandida.value
+    rutaExpandida.value = null
+    await toggleDetalleRuta(r)
+  }
+}
+
 async function onToggleOmitirUnitarios() {
   store.guardarEstado()
   for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
@@ -1974,7 +2009,8 @@ async function toggleDetalleRuta(ruta) {
       kpi: kpiParaDetalle,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
-      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m)
+      omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
+      meses_historico: Number(store.mesesHistorico) || 3
     })
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []

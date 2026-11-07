@@ -55,9 +55,11 @@ class GetAvanceCumplimientoDataAction
         array $canales = [],
         array $rutas = [],
         string $modoTemporal = 'acumulado',
-        bool $omitirUnitarios3m = false
+        bool $omitirUnitarios3m = false,
+        int $mesesHistorico = 3
     ): array {
         $modoTemporal = in_array(strtolower($modoTemporal), ['acumulado', 'diario'], true) ? strtolower($modoTemporal) : 'acumulado';
+        $mesesHistorico = max(1, min(8, $mesesHistorico));
 
         // 1. Fechas y Días Hábiles
         if (!$fechaCorte) {
@@ -70,7 +72,7 @@ class GetAvanceCumplimientoDataAction
         }
 
         $mesYm = $carbonCorte->format('Y-m');
-        $mesesCerrados = $this->obtenerMesesCerrados($carbonCorte);
+        $mesesCerrados = $this->obtenerMesesCerrados($carbonCorte, $mesesHistorico);
         $infoDias = $this->initAction->calcularDiasHabiles($mesYm, $fechaCorte);
         $dRest = max(1, $infoDias['restantes']);
         $dTrans = max(1, $infoDias['transcurridos']);
@@ -418,12 +420,13 @@ class GetAvanceCumplimientoDataAction
         $objKpi = $kpisMap[$clave];
         $esCobertura = ($objKpi['tipo'] === 'COBERTURA');
 
-        // Histórico de 3 meses cerrados por ruta y cálculo de Sugerido por Ruta
+        // Histórico de N meses cerrados por ruta y cálculo de Sugerido por Ruta
         $histRutasMap = [];
         $sugeridoRutasMap = [];
         if ($clave === 'cob_core') {
             $histInicio = $mesesCerrados[0]['inicio'];
-            $histFin = $mesesCerrados[2]['fin'];
+            $histFin = end($mesesCerrados)['fin'];
+            $cantMesesEval = max(1, count($mesesCerrados));
 
             $histRutasRaw = DB::connection('supervisor')->table('fact_ventas')
                 ->where('fecha_norm', '>=', $histInicio)
@@ -449,7 +452,7 @@ class GetAvanceCumplimientoDataAction
                 $histRutasMap[$rClean][$ym] = ($histRutasMap[$rClean][$ym] ?? 0.0) + (float) $hr->total_monto;
             }
 
-            // Cálculo del Total Sugerido por Ruta (hábitos: 3M / 3 por cliente y producto a precio de última compra)
+            // Cálculo del Total Sugerido por Ruta (hábitos: histórico / N meses por cliente y producto a precio de última compra)
             // Se calcula en base a los clientes que actualmente pertenecen a cada ruta en pan_ruteo
             $sugRaw = DB::connection('supervisor')->table('fact_ventas')
                 ->where('fecha_norm', '>=', $histInicio)
@@ -498,7 +501,7 @@ class GetAvanceCumplimientoDataAction
                 foreach ($items as $it) {
                     $c3m = $it['cantidad'];
                     if ($c3m > $minCant) {
-                        $cantSug = (int) ceil($c3m / 3.0);
+                        $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
                         $sumSug += round($cantSug * $it['precio'], 2);
                     }
                 }
@@ -549,7 +552,8 @@ class GetAvanceCumplimientoDataAction
                 $pctProy = $this->calcPct((float) $proy, (float) $meta);
             }
 
-            // Para Cobertura Core: histórico de 3 meses cerrados, objetivo mensual asignado y sugerido de hábitos
+            // Para Cobertura Core: histórico de meses cerrados, objetivo mensual asignado y sugerido de hábitos
+            $mesesBsRuta = [];
             $m1Bs = 0.0;
             $m2Bs = 0.0;
             $m3Bs = 0.0;
@@ -557,10 +561,14 @@ class GetAvanceCumplimientoDataAction
             $objetivoMesRuta = 0.0;
             $sugeridoRuta = 0.0;
             if ($clave === 'cob_core') {
-                $m1Bs = round($histRutasMap[$ruta][$mesesCerrados[0]['ym']] ?? 0.0, 2);
-                $m2Bs = round($histRutasMap[$ruta][$mesesCerrados[1]['ym']] ?? 0.0, 2);
-                $m3Bs = round($histRutasMap[$ruta][$mesesCerrados[2]['ym']] ?? 0.0, 2);
-                $total3mBs = round($m1Bs + $m2Bs + $m3Bs, 2);
+                foreach ($mesesCerrados as $mObj) {
+                    $ym = $mObj['ym'];
+                    $mesesBsRuta[$ym] = round($histRutasMap[$ruta][$ym] ?? 0.0, 2);
+                }
+                $m1Bs = round($mesesBsRuta[$mesesCerrados[0]['ym'] ?? ''] ?? 0.0, 2);
+                $m2Bs = round($mesesBsRuta[$mesesCerrados[1]['ym'] ?? ''] ?? 0.0, 2);
+                $m3Bs = round($mesesBsRuta[$mesesCerrados[2]['ym'] ?? ''] ?? 0.0, 2);
+                $total3mBs = round(array_sum($mesesBsRuta), 2);
                 $pctAv = ($carteraRuta > 0) ? round(($logrado / $carteraRuta) * 100.0, 1) : 0.0;
                 $objetivoMesRuta = $this->obtenerMetaMesRuta($ruta, $carbonCorte->format('Y-m'));
                 $sugeridoRuta = round($sugeridoRutasMap[$ruta] ?? 0.0, 2);
@@ -653,10 +661,12 @@ class GetAvanceCumplimientoDataAction
                 'pct_apertura' => $pctAp,
                 'pct_repeticion' => $pctRep,
                 'cartera' => $carteraRuta,
+                'meses_bs' => $mesesBsRuta,
                 'mes_1_bs' => $m1Bs,
                 'mes_2_bs' => $m2Bs,
                 'mes_3_bs' => $m3Bs,
                 'total_3m_bs' => $total3mBs,
+                'total_hist_bs' => $total3mBs,
                 'total_sugerido' => $sugeridoRuta,
                 'objetivo_mes' => $objetivoMesRuta,
                 'venta_mtd' => round($acumVol[$ruta]['vol_general'] ?? 0.0, 2),
@@ -678,10 +688,16 @@ class GetAvanceCumplimientoDataAction
         $totPct = $this->calcPct($totLogrado, $totMeta);
         $totalVentaCobGlobal = $totVApertura + $totVRepeticion;
 
+        $totMesesBs = [];
+        foreach ($mesesCerrados as $mObj) {
+            $ym = $mObj['ym'];
+            $totMesesBs[$ym] = round(array_sum(array_map(fn ($f) => (float) ($f['meses_bs'][$ym] ?? 0.0), $filas)), 2);
+        }
+
         $totM1 = array_sum(array_column($filas, 'mes_1_bs'));
         $totM2 = array_sum(array_column($filas, 'mes_2_bs'));
         $totM3 = array_sum(array_column($filas, 'mes_3_bs'));
-        $tot3m = array_sum(array_column($filas, 'total_3m_bs'));
+        $tot3m = !empty($totMesesBs) ? array_sum($totMesesBs) : array_sum(array_column($filas, 'total_3m_bs'));
         $totCartera = array_sum(array_column($filas, 'cartera'));
         $totSugerido = array_sum(array_column($filas, 'total_sugerido'));
         $totObjetivoMes = array_sum(array_column($filas, 'objetivo_mes'));
@@ -703,10 +719,12 @@ class GetAvanceCumplimientoDataAction
             'clientes_repeticion' => $totCRepeticion,
             'pct_apertura' => ($totalVentaCobGlobal > 0) ? round(($totVApertura / $totalVentaCobGlobal) * 100.0, 1) : 0.0,
             'pct_repeticion' => ($totalVentaCobGlobal > 0) ? round(($totVRepeticion / $totalVentaCobGlobal) * 100.0, 1) : 0.0,
+            'meses_bs' => $totMesesBs,
             'mes_1_bs' => round($totM1, 2),
             'mes_2_bs' => round($totM2, 2),
             'mes_3_bs' => round($totM3, 2),
             'total_3m_bs' => round($tot3m, 2),
+            'total_hist_bs' => round($tot3m, 2),
             'total_sugerido' => round($totSugerido, 2),
             'objetivo_mes' => round($totObjetivoMes, 2),
             'venta_mtd' => round($totVentaMtd, 2),
@@ -726,6 +744,7 @@ class GetAvanceCumplimientoDataAction
             'canales_disponibles' => $canalesDisponibles,
             'totales' => $totales,
             'rutas' => $filas,
+            'meses_historico' => $mesesHistorico,
             'meses_cerrados' => $mesesCerrados,
             'metadata_kpis' => $this->obtenerMetadataKpis(),
         ];
@@ -848,13 +867,14 @@ class GetAvanceCumplimientoDataAction
     }
 
     /**
-     * Calcula los últimos 3 meses cerrados previos a la fecha de corte evaluada.
+     * Calcula los últimos N meses cerrados (por defecto 3, configurable de 1 a 8) previos a la fecha de corte evaluada.
      * Evalúa dinámicamente según la fecha de corte seleccionada (consultando fact_ventas o fallback calendario).
      *
      * @return array<int, array{ym: string, nombre: string, corto: string, inicio: string, fin: string}>
      */
-    public function obtenerMesesCerrados(Carbon $carbonRef): array
+    public function obtenerMesesCerrados(Carbon $carbonRef, int $numMeses = 3): array
     {
+        $numMeses = max(1, min(8, $numMeses));
         $mesesEs = [
             1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
             5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
@@ -868,7 +888,7 @@ class GetAvanceCumplimientoDataAction
 
         $inicioMesCorte = $carbonRef->copy()->startOfMonth()->format('Y-m-d');
 
-        // 1. Obtener los últimos 3 meses cerrados que tienen ventas registradas en fact_ventas
+        // 1. Obtener los últimos N meses cerrados que tienen ventas registradas en fact_ventas
         $mesesYm = [];
         try {
             $mesesYm = DB::connection('supervisor')->table('fact_ventas')
@@ -881,31 +901,31 @@ class GetAvanceCumplimientoDataAction
                 })
                 ->selectRaw("DISTINCT DATE_FORMAT(fecha_norm, '%Y-%m') as ym")
                 ->orderBy('ym', 'desc')
-                ->limit(3)
+                ->limit($numMeses)
                 ->pluck('ym')
                 ->toArray();
         } catch (\Throwable $e) {
             $mesesYm = [];
         }
 
-        // 2. Si hay menos de 3 meses en la base de datos (o la BD no está disponible), completar con meses calendario
-        if (count($mesesYm) < 3) {
+        // 2. Si hay menos de N meses en la base de datos (o la BD no está disponible), completar con meses calendario
+        if (count($mesesYm) < $numMeses) {
             $mesRef = $carbonRef->copy()->startOfMonth();
-            for ($i = 1; $i <= 3; $i++) {
+            for ($i = 1; $i <= $numMeses; $i++) {
                 $ym = $mesRef->copy()->subMonthsNoOverflow($i)->format('Y-m');
                 if (!in_array($ym, $mesesYm, true)) {
                     $mesesYm[] = $ym;
                 }
-                if (count($mesesYm) >= 3) {
+                if (count($mesesYm) >= $numMeses) {
                     break;
                 }
             }
         }
 
-        // 3. Ordenar cronológicamente (el más antiguo primero: Mes -3, Mes -2, Mes -1)
+        // 3. Ordenar cronológicamente (el más antiguo primero)
         sort($mesesYm);
-        if (count($mesesYm) > 3) {
-            $mesesYm = array_slice($mesesYm, -3);
+        if (count($mesesYm) > $numMeses) {
+            $mesesYm = array_slice($mesesYm, -$numMeses);
         }
 
         $meses = [];

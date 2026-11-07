@@ -37,6 +37,7 @@ const vistaCumplimiento = ref('resumen') // 'resumen' o 'kpi'
 const kpiActivo = ref('vol_general')
 const modoTemporalCumplimiento = ref('acumulado') // 'acumulado' o 'diario'
 const omitirUnitarios3m = ref(false)
+const mesesHistorico = ref(3)
 
 function actualizarCanalSeleccionadoTexto() {
   const sel = canalesSeleccionados.value || []
@@ -177,7 +178,8 @@ function guardarEstado() {
       vistaCumplimiento: vistaCumplimiento.value,
       kpiActivo: kpiActivo.value,
       modoTemporalCumplimiento: modoTemporalCumplimiento.value,
-      omitirUnitarios3m: Boolean(omitirUnitarios3m.value)
+      omitirUnitarios3m: Boolean(omitirUnitarios3m.value),
+      mesesHistorico: Number(mesesHistorico.value) || 3
     }
     const json = JSON.stringify(estado)
     localStorage.setItem(STORAGE_KEY, json)
@@ -254,6 +256,7 @@ function inicializarDesdeStorage(props = {}) {
     if (guardado.kpiActivo) kpiActivo.value = guardado.kpiActivo
     if (guardado.modoTemporalCumplimiento) modoTemporalCumplimiento.value = guardado.modoTemporalCumplimiento
     if (guardado.omitirUnitarios3m !== undefined) omitirUnitarios3m.value = Boolean(guardado.omitirUnitarios3m)
+    if (guardado.mesesHistorico !== undefined) mesesHistorico.value = Math.max(1, Math.min(8, Number(guardado.mesesHistorico)))
 
     if (Array.isArray(guardado.canalesSeleccionados)) {
       canalesSeleccionados.value = guardado.canalesSeleccionados
@@ -281,7 +284,7 @@ function inicializarDesdeStorage(props = {}) {
 
 // Watchers de auto-persistencia y coherencia reactiva
 watch(
-  [fechaInicio, fechaCorte, mes, busqueda, vistaCumplimiento, kpiActivo, modoTemporalCumplimiento, omitirUnitarios3m],
+  [fechaInicio, fechaCorte, mes, busqueda, vistaCumplimiento, kpiActivo, modoTemporalCumplimiento, omitirUnitarios3m, mesesHistorico],
   () => {
     guardarEstado()
   }
@@ -345,7 +348,8 @@ async function cargarCumplimiento() {
       canales: filtrosAplicados.value.canalesSeleccionados || canalesSeleccionados.value,
       rutas: filtrosAplicados.value.rutasSeleccionadas || rutasSeleccionadas.value,
       modo_temporal: modoTemporalCumplimiento.value,
-      omitir_unitarios_3m: Boolean(omitirUnitarios3m.value)
+      omitir_unitarios_3m: Boolean(omitirUnitarios3m.value),
+      meses_historico: Number(mesesHistorico.value) || 3
     })
     datosCumplimiento.value = res.data
     if (res.data?.dias_calendario) {
@@ -380,6 +384,7 @@ export function useAvanceStore() {
     kpiActivo,
     modoTemporalCumplimiento,
     omitirUnitarios3m,
+    mesesHistorico,
 
     aplicarFiltros,
     guardarEstado,
