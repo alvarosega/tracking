@@ -1674,9 +1674,18 @@ function ordenarProductos(col) {
 function productosHistorialFiltrados(clienteId) {
   const datos = detalleClienteFechasMap[clienteId]?.productos || []
   let lista = datos
+
+  // Si omitir unitarios está activo, excluir productos que se compraron una sola vez en el histórico
+  if (modoActivo.value === 'cob_core' && store.omitirUnitarios3m) {
+    lista = lista.filter(p => {
+      const cHist = Number(p.total_cantidad_3m) || 0
+      return cHist > 1 || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
+    })
+  }
+
   if (busquedaHistorialCliente.value.trim()) {
     const q = busquedaHistorialCliente.value.toLowerCase().trim()
-    lista = datos.filter(p =>
+    lista = lista.filter(p =>
       (p.producto || '').toLowerCase().includes(q) ||
       (p.codigo || '').toLowerCase().includes(q) ||
       (p.categoria || '').toLowerCase().includes(q) ||
@@ -1967,23 +1976,37 @@ function labelMesHistorico(idx, total) {
 
 async function onCambioMesesHistorico() {
   store.guardarEstado()
-  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
+  const cliId = clienteExpandidoId.value
+  const rExp = rutaExpandida.value
+  Object.keys(detalleClienteFechasMap).forEach(k => delete detalleClienteFechasMap[k])
   await ejecutarConsulta()
-  if (rutaExpandida.value) {
-    const r = rutaExpandida.value
+  if (rExp) {
     rutaExpandida.value = null
-    await toggleDetalleRuta(r)
+    await toggleDetalleRuta(rExp)
+    if (cliId) {
+      const cliObj = carteraClientes.value.find(c => c.cliente_id === cliId)
+      if (cliObj) {
+        await toggleClienteAccordion(cliObj, rExp)
+      }
+    }
   }
 }
 
 async function onToggleOmitirUnitarios() {
   store.guardarEstado()
-  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
+  const cliId = clienteExpandidoId.value
+  const rExp = rutaExpandida.value
+  Object.keys(detalleClienteFechasMap).forEach(k => delete detalleClienteFechasMap[k])
   await ejecutarConsulta()
-  if (rutaExpandida.value) {
-    const r = rutaExpandida.value
+  if (rExp) {
     rutaExpandida.value = null
-    await toggleDetalleRuta(r)
+    await toggleDetalleRuta(rExp)
+    if (cliId) {
+      const cliObj = carteraClientes.value.find(c => c.cliente_id === cliId)
+      if (cliObj) {
+        await toggleClienteAccordion(cliObj, rExp)
+      }
+    }
   }
 }
 

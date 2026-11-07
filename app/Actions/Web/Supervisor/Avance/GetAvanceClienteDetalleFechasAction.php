@@ -257,7 +257,16 @@ class GetAvanceClienteDetalleFechasAction
         $totalSkus3m = 0;
         $totalSkusCubiertosMtd = 0;
 
-        foreach ($productosResultado as &$p) {
+        foreach ($productosResultado as $idx => &$p) {
+            $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
+            $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+
+            // Si omitir unitarios está activo, no incluir productos comprados una sola vez en toda la ventana histórica
+            if ($omitirUnitarios3m && ($cant3m === 1 || ($cant3m === 0 && $cantMtd === 0))) {
+                unset($productosResultado[$idx]);
+                continue;
+            }
+
             $p['total_bs'] = round($p['total_bs'], 2);
             $p['total_bs_3m'] = round($p['total_bs_3m'], 2);
             $p['total_bs_mes_actual'] = round($p['total_bs_mes_actual'], 2);
@@ -276,12 +285,10 @@ class GetAvanceClienteDetalleFechasAction
             }
 
             // Hábito sugerido mensual: Total Cantidad Histórica / N meses redondeado al entero superior
-            $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
             $minCant = $omitirUnitarios3m ? 1 : 0;
             $cantSugerida = $cant3m > $minCant ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
-            $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
             $p['es_unitario_3m'] = ($cant3m === 1);
             $p['cant_sugerida'] = $cantSugerida;
             $p['monto_sugerido'] = $montoSugerido;
@@ -298,6 +305,12 @@ class GetAvanceClienteDetalleFechasAction
             }
         }
         unset($p);
+        $productosResultado = array_values($productosResultado);
+
+        if ($omitirUnitarios3m) {
+            $totalMonto3m = array_sum(array_column($productosResultado, 'total_bs_3m'));
+            $totalUnidades3m = array_sum(array_column($productosResultado, 'total_cantidad_3m'));
+        }
 
         return [
             'cliente_id' => $clienteId,
