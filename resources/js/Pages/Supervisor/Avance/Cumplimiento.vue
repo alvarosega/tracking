@@ -500,7 +500,8 @@
                                 {{ carteraClientes.length }} clientes registrados · 
                                 <strong class="text-blue-600 font-bold">{{ clientesConHistorico.length }} con histórico 3M</strong> ·
                                 <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores MTD</strong> ·
-                                Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong>
+                                Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong> ·
+                                Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes, 2) }}</strong>
                               </template>
                               <template v-else>
                                 {{ carteraClientes.length }} clientes registrados · 
@@ -804,6 +805,17 @@
                                   </div>
                                 </th>
                                 <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/40"
+                                  :class="sortClientesCol === 'cuota_objetivo' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('cuota_objetivo')"
+                                  title="Ordenar por Objetivo correspondiente al Cliente según su Peso (Bs)"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Objetivo (Bs)</span>
+                                    <span v-if="sortClientesCol === 'cuota_objetivo'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
                                   :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('monto_bs')"
@@ -905,6 +917,9 @@
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/20">
                                     {{ formatPct(cli.peso_3m) }}
                                   </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/20">
+                                    {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
+                                  </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-medium" :class="cli.monto_bs > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
                                     {{ cli.monto_bs > 0 ? `Bs ${formatNum(cli.monto_bs, 2)}` : '-' }}
                                   </td>
@@ -948,7 +963,7 @@
                               </tr>
                               <!-- Detalle acordeón de facturas y fechas del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 11 : 7" class="p-2.5 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 12 : 7" class="p-2.5 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[10px] p-3 space-y-2.5 bg-white/95 border border-black/[0.06] shadow-2xs">
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
@@ -1166,6 +1181,9 @@
                               </td>
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/30">
                                 100.0%
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/30">
+                                Bs {{ formatNum(totales3mRuta.objetivo_mes || totalObjetivoClientes, 2) }}
                               </td>
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-700">
                                 Bs {{ formatNum(totalVentaCartera, 2) }}
@@ -1412,6 +1430,10 @@ const totalVentaCartera = computed(() => {
   return carteraClientes.value.reduce((acc, c) => acc + Number(c.monto_bs || 0), 0)
 })
 
+const totalObjetivoClientes = computed(() => {
+  return carteraClientes.value.reduce((acc, c) => acc + Number(c.cuota_objetivo || 0), 0)
+})
+
 const nombreMesActualCorto = computed(() => {
   const fc = store.filtrosAplicados?.fechaCorte || store.fechaCorte
   if (!fc) return 'Mes Actual'
@@ -1581,6 +1603,9 @@ const clientesRutaFiltrados = computed(() => {
     }
     if (col === 'peso_3m') {
       return dir * (Number(a.peso_3m || 0) - Number(b.peso_3m || 0))
+    }
+    if (col === 'cuota_objetivo') {
+      return dir * (Number(a.cuota_objetivo || 0) - Number(b.cuota_objetivo || 0))
     }
     return 0
   })

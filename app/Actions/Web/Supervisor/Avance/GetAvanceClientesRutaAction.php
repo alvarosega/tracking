@@ -262,6 +262,8 @@ class GetAvanceClientesRutaAction
 
         // Armar resultado de clientes
         $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
+        $mesYm = $carbonCorte->format('Y-m');
+        $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
         $clientesLista = [];
 
         foreach ($cartera as $cid => $item) {
@@ -296,6 +298,9 @@ class GetAvanceClientesRutaAction
             $m3Val = round($histClienteMap[$cid][$mesesCerrados[2]['ym']] ?? 0.0, 2);
             $totalCli3m = round($m1Val + $m2Val + $m3Val, 2);
             $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
+            $cuotaObjetivo = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+                ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
+                : 0.0;
             $mesesConCompra = ($m1Val > 0 ? 1 : 0) + ($m2Val > 0 ? 1 : 0) + ($m3Val > 0 ? 1 : 0);
 
             $clientesLista[] = [
@@ -318,6 +323,7 @@ class GetAvanceClientesRutaAction
                 'monto_mes_3' => $m3Val,
                 'total_monto_3m' => $totalCli3m,
                 'peso_3m' => $pesoCli3m,
+                'cuota_objetivo' => $cuotaObjetivo,
                 'meses_con_compra' => $mesesConCompra,
                 'tiene_historico' => ($totalCli3m > 0),
             ];
@@ -388,6 +394,7 @@ class GetAvanceClientesRutaAction
                 'mes_2' => round($totalesMesesRuta[$mesesCerrados[1]['ym']] ?? 0.0, 2),
                 'mes_3' => round($totalesMesesRuta[$mesesCerrados[2]['ym']] ?? 0.0, 2),
                 'total_3m' => round($totalRutaAcum3m, 2),
+                'objetivo_mes' => round($objetivoMensualRuta, 2),
             ],
             'clientes' => $clientesLista,
             'por_dia' => $diasOrdenados,
@@ -397,6 +404,7 @@ class GetAvanceClientesRutaAction
                 'con_historico_3m' => count(array_filter($clientesLista, fn ($c) => ($c['total_monto_3m'] ?? 0) > 0)),
                 'venta_total_bs' => round($totalVentaRuta, 2),
                 'venta_historica_3m_bs' => round($totalRutaAcum3m, 2),
+                'objetivo_mensual_ruta' => round($objetivoMensualRuta, 2),
                 'dias_con_venta' => count($diasOrdenados),
             ],
         ];

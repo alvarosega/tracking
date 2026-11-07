@@ -806,7 +806,26 @@ class GetAvanceCumplimientoDataAction
         return $meses;
     }
 
-    private function construirPatronesMeta(int $year, int $month): array
+    /**
+     * Obtiene el objetivo oficial de venta mensual de una ruta en fact_metas para un mes dado (YYYY-MM).
+     */
+    public function obtenerMetaMesRuta(string $ruta, string $mesYm): float
+    {
+        $partes = explode('-', $mesYm);
+        $anio = (int) ($partes[0] ?? date('Y'));
+        $mes = (int) ($partes[1] ?? date('m'));
+        $patrones = $this->construirPatronesMeta($anio, $mes);
+        $rutaClean = strtoupper(trim($ruta));
+
+        $val = DB::connection('supervisor')->table('fact_metas')
+            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+            ->whereIn(DB::raw("LOWER(TRIM(mes))"), $patrones)
+            ->max(DB::raw("CAST(COALESCE(objetivo_de_venta, 0.0) AS DECIMAL(12, 2))"));
+
+        return round((float) ($val ?? 0.0), 2);
+    }
+
+    public function construirPatronesMeta(int $year, int $month): array
     {
         $mesesEspAbr = [
             1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
