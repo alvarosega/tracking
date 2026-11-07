@@ -201,11 +201,21 @@ class GetAvanceCumplimientoDataAction
         }
 
         foreach ($universoRutas as $r) {
-            $acumVol[$r] = ['vol_general' => 0.0, 'vol_seda' => 0.0, 'vol_clinical' => 0.0];
-            $acumCob[$r] = ['cob_general' => [], 'cob_seda' => [], 'cob_clinical' => []];
-            $comprasCob[$r] = ['cob_general' => [], 'cob_seda' => [], 'cob_clinical' => []];
-            $acumVolDia[$r] = ['vol_general' => 0.0, 'vol_seda' => 0.0, 'vol_clinical' => 0.0];
-            $acumCobDia[$r] = ['cob_general' => [], 'cob_seda' => [], 'cob_clinical' => []];
+            $acumVol[$r] = [];
+            $acumCob[$r] = [];
+            $comprasCob[$r] = [];
+            $acumVolDia[$r] = [];
+            $acumCobDia[$r] = [];
+            foreach (self::KPIS_LISTA as $k) {
+                if ($k['tipo'] === 'VOLUMEN') {
+                    $acumVol[$r][$k['id']] = 0.0;
+                    $acumVolDia[$r][$k['id']] = 0.0;
+                } else {
+                    $acumCob[$r][$k['id']] = [];
+                    $comprasCob[$r][$k['id']] = [];
+                    $acumCobDia[$r][$k['id']] = [];
+                }
+            }
         }
 
         foreach ($ventasRaw as $v) {
