@@ -9,10 +9,51 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta" />
 
+      <!-- Segmented Control de KPIs Oficiales (Submenú sobrio sin tarjetones) -->
+      <div class="apple-glass-card rounded-[14px] p-1.5 flex items-center gap-1 w-full overflow-x-auto custom-scroll select-none">
+        <button
+          type="button"
+          @click="cambiarModo('resumen')"
+          class="px-3 py-1.5 rounded-[9px] text-[11px] transition-all whitespace-nowrap cursor-pointer shrink-0 font-bold"
+          :class="modoActivo === 'resumen'
+            ? 'glass-active-pill font-bold shadow-xs text-[#0071E3]'
+            : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/60 font-semibold'"
+        >
+          Resumen Multi-KPI
+        </button>
+
+        <div class="h-4 w-px bg-black/[0.08] mx-0.5 shrink-0"></div>
+
+        <div
+          v-for="kpi in kpisLista"
+          :key="kpi.id"
+          class="inline-flex items-center gap-0.5 shrink-0"
+        >
+          <button
+            type="button"
+            @click="cambiarModo(kpi.id)"
+            class="px-2.5 py-1.5 rounded-[9px] text-[11px] transition-all whitespace-nowrap cursor-pointer font-bold"
+            :class="modoActivo === kpi.id
+              ? 'glass-active-pill font-bold shadow-xs text-[#0071E3]'
+              : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white/60 font-semibold'"
+          >
+            {{ kpi.nombre }}
+          </button>
+          <button
+            type="button"
+            @click.stop="abrirModalInfoKpi(kpi)"
+            class="text-[10px] text-[#86868B] hover:text-[#0071E3] font-bold px-1 py-0.5 rounded hover:bg-white/60 transition-colors cursor-pointer"
+            title="Ver criterio y reglas de este KPI"
+          >
+            ?
+          </button>
+        </div>
+      </div>
+
       <!-- SKELETON LOADER -->
-      <div v-if="store.cargandoCumplimiento" class="h-[calc(100vh-8rem)] apple-glass-card rounded-[16px] p-4 animate-pulse space-y-2 flex flex-col justify-between">
+      <div v-if="store.cargandoCumplimiento" class="h-[calc(100vh-12rem)] apple-glass-card rounded-[16px] p-4 animate-pulse space-y-2 flex flex-col justify-between">
         <div class="h-8 bg-black/[0.04] rounded-[8px]"></div>
-        <div v-for="row in 14" :key="row" class="h-8 bg-black/[0.02] rounded-[8px] flex items-center px-3 gap-3">
+        <div v-for="row in 12" :key="row" class="h-8 bg-black/[0.02] rounded-[8px] flex items-center px-3 gap-3">
           <div class="h-3 bg-black/[0.06] rounded w-6"></div>
           <div class="h-3 bg-black/[0.06] rounded w-32"></div>
           <div class="h-3 bg-black/[0.06] rounded flex-1"></div>
@@ -25,10 +66,185 @@
         {{ store.errorCumplimiento }}
       </div>
 
-      <!-- ── VISTA PRINCIPAL: RUTAS, HISTÓRICO 3M, SUGERIDO Y OBJETIVOS ── -->
+      <!-- ── VISTA 1: RESUMEN MULTI-KPI ── -->
       <section
-        v-else-if="rutasFiltradas.length > 0"
-        class="h-[calc(100vh-8rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
+        v-else-if="modoActivo === 'resumen' && rutasFiltradas.length > 0"
+        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
+      >
+        <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+            <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
+              Resumen Multi-KPI de Cumplimiento
+            </span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Orden: <strong class="text-[#0071E3] font-bold">{{ kpisLista.find(k => k.id === sortResumenCol)?.corto || (sortResumenCol === 'ruta' ? 'Ruta' : sortResumenCol) }}</strong>
+              <span class="text-[#86868B] ml-1">({{ sortResumenDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
+            </span>
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Rutas Activas: <strong class="text-[#1D1D1F] font-bold">{{ rutasFiltradas.length }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-auto custom-scroll relative">
+          <table class="w-full text-left border-separate border-spacing-0 text-[11px]">
+            <thead class="text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
+              <tr>
+                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
+                <th
+                  @click="toggleSortResumen('ruta')"
+                  class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[160px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
+                  title="Ordenar por Ruta"
+                >
+                  <div class="flex items-center gap-1.5">
+                    <span :class="sortResumenCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
+                    <svg v-if="sortResumenCol === 'ruta'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="sortResumenDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+                    </svg>
+                  </div>
+                </th>
+                <th
+                  v-for="kpi in kpisLista"
+                  :key="kpi.id"
+                  @click="toggleSortResumen(kpi.id)"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-center whitespace-nowrap cursor-pointer hover:bg-black/[0.04] transition-colors shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] select-none group/th"
+                  :class="sortResumenCol === kpi.id ? 'bg-blue-50/70' : ''"
+                  :title="'Ordenar por ' + kpi.nombre"
+                >
+                  <div class="flex items-center justify-center gap-1.5">
+                    <span :class="sortResumenCol === kpi.id ? 'text-[#0071E3] font-bold' : ''">{{ kpi.corto }}</span>
+                    <svg v-if="sortResumenCol === kpi.id" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="sortResumenDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+                    </svg>
+                    <button
+                      type="button"
+                      @click.stop="cambiarModo(kpi.id)"
+                      class="p-0.5 rounded hover:bg-black/[0.08] text-[#86868B] hover:text-[#0071E3] transition-colors ml-0.5"
+                      :title="'Ver detalle monográfico de ' + kpi.nombre"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </button>
+                  </div>
+                </th>
+                <th
+                  @click="toggleSortResumen('score_promedio')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-center whitespace-nowrap cursor-pointer hover:bg-black/[0.04] transition-colors shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] select-none"
+                  title="Ordenar por Score Promedio"
+                >
+                  <div class="flex items-center justify-center gap-1">
+                    <span :class="sortResumenCol === 'score_promedio' ? 'text-[#0071E3] font-bold' : ''">Score</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-black/[0.04] bg-white/70">
+              <tr
+                v-for="(r, idx) in rutasFiltradas"
+                :key="r.ruta"
+                class="hover:bg-blue-50/40 transition-colors group"
+              >
+                <td class="py-2 px-3 text-center font-mono font-bold text-[#86868B] text-[10px] sticky left-0 z-20 bg-white group-hover:bg-blue-50/40">
+                  {{ idx + 1 }}
+                </td>
+                <td class="py-2 px-3 font-sans sticky left-10 z-20 bg-white group-hover:bg-blue-50/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                  <div class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1.5" @click="cambiarModo('vol_general')">
+                    <span>{{ r.ruta }}</span>
+                    <span v-if="r.canal" class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/[0.04] text-[#6E6E73]">{{ r.canal }}</span>
+                  </div>
+                  <div class="text-[10px] text-[#6E6E73] truncate max-w-[150px]">{{ r.vendedor || 'No Asignado' }}</div>
+                </td>
+                <td
+                  v-for="kpi in kpisLista"
+                  :key="kpi.id"
+                  class="py-2 px-3 text-center whitespace-nowrap"
+                  :class="sortResumenCol === kpi.id ? 'bg-blue-50/20' : ''"
+                >
+                  <div class="flex flex-col items-center gap-0.5">
+                    <template v-if="kpi.id === 'cob_core'">
+                      <div class="flex items-center justify-center font-mono">
+                        <span class="font-bold text-[12px] text-[#1D1D1F]">
+                          {{ r.kpis?.[kpi.id]?.logrado ?? 0 }} Cli
+                        </span>
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-mono">
+                        Histórico 3M
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="flex items-center justify-center font-mono">
+                        <span
+                          class="font-bold text-[12px]"
+                          :class="colorKpiResumen(kpi.id, r.kpis?.[kpi.id])"
+                          :title="r.kpis?.[kpi.id]?.pct_ritmo !== undefined ? ('Ritmo esperado: ' + formatPct(r.kpis?.[kpi.id]?.pct_ritmo)) : undefined"
+                        >
+                          {{ formatPct(r.kpis?.[kpi.id]?.pct) }}
+                        </span>
+                      </div>
+                      <div class="text-[9px] text-[#86868B] font-mono">
+                        {{ formatLogroResumen(r.kpis?.[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(r.kpis?.[kpi.id]?.meta, kpi.tipo) }}
+                      </div>
+                    </template>
+                  </div>
+                </td>
+                <td class="py-2 px-3 text-center font-mono font-bold text-[12px]" :class="colorPct(r.score_promedio)">
+                  {{ formatPct(r.score_promedio) }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot v-if="totalesResumen" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-30 font-mono tabular-nums shadow-[inset_0_1px_0_rgba(0,0,0,0.08)]">
+              <tr>
+                <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
+                <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                  CONSOLIDADO ({{ rutasFiltradas.length }})
+                </td>
+                <td
+                  v-for="kpi in kpisLista"
+                  :key="kpi.id"
+                  class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA]"
+                >
+                  <div class="flex flex-col items-center gap-0.5">
+                    <template v-if="kpi.id === 'cob_core'">
+                      <span class="font-bold text-[12px] text-[#1D1D1F]">
+                        {{ totalesResumen[kpi.id]?.logrado ?? 0 }} Cli
+                      </span>
+                      <span class="text-[9px] text-[#6E6E73]">
+                        Sin Meta
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span
+                        class="font-bold text-[12px]"
+                        :class="colorKpiResumen(kpi.id, totalesResumen[kpi.id])"
+                        :title="totalesResumen[kpi.id]?.pct_ritmo !== undefined ? ('Ritmo consolidado: ' + formatPct(totalesResumen[kpi.id]?.pct_ritmo)) : undefined"
+                      >
+                        {{ formatPct(totalesResumen[kpi.id]?.pct) }}
+                      </span>
+                      <span class="text-[9px] text-[#6E6E73]">
+                        {{ formatLogroResumen(totalesResumen[kpi.id]?.logrado, kpi.tipo) }} / {{ formatLogroResumen(totalesResumen[kpi.id]?.meta, kpi.tipo) }}
+                      </span>
+                    </template>
+                  </div>
+                </td>
+                <td class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA] text-[12px]" :class="colorPct(promedioGlobalScore)">
+                  {{ formatPct(promedioGlobalScore) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── VISTA 2: COBERTURA CORE (Histórico 3M, Sugerido y Objetivos) ── -->
+      <section
+        v-else-if="modoActivo === 'cob_core' && rutasFiltradas.length > 0"
+        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
           <div class="flex items-center gap-2">
@@ -1010,12 +1226,212 @@
         </div>
       </section>
 
+      <!-- ── VISTA 3: DETALLE MONOGRÁFICO POR KPI (1 al 6) ── -->
+      <section
+        v-else-if="modoActivo !== 'resumen' && rutasFiltradas.length > 0"
+        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
+      >
+        <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+            <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
+              {{ kpiActualObj?.nombre }} · Detalle Monográfico
+            </span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Orden: <strong class="text-[#0071E3] font-bold">{{ sortLabelsKpi[sortKpiCol] || sortKpiCol }}</strong>
+              <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
+            </span>
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Rutas: <strong class="text-[#1D1D1F] font-bold">{{ rutasFiltradas.length }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-auto custom-scroll relative">
+          <table class="w-full text-left border-separate border-spacing-0 text-[11px]">
+            <thead class="text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
+              <tr>
+                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
+                <th
+                  @click="toggleSortKpi('ruta')"
+                  class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
+                  title="Ordenar por Ruta"
+                >
+                  <div class="flex items-center gap-1.5">
+                    <span :class="sortKpiCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
+                    <svg v-if="sortKpiCol === 'ruta'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+                    </svg>
+                  </div>
+                </th>
+                <th
+                  @click="toggleSortKpi('meta')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'meta' ? 'bg-blue-50/70' : ''"
+                >
+                  Meta Mes
+                </th>
+                <th
+                  @click="toggleSortKpi('logrado')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'logrado' ? 'bg-blue-50/70' : ''"
+                >
+                  Logrado
+                </th>
+                <th
+                  @click="toggleSortKpi('pct')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'pct' ? 'bg-blue-50/70' : ''"
+                >
+                  % Avance
+                </th>
+                <th
+                  @click="toggleSortKpi('brecha')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'brecha' ? 'bg-blue-50/70' : ''"
+                >
+                  Brecha
+                </th>
+                <th v-if="esCobertura" class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
+                  Venta Apertura
+                </th>
+                <th v-if="esCobertura" class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
+                  Venta Repetición
+                </th>
+                <th
+                  @click="toggleSortKpi('cuota_dia')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                >
+                  Cuota Diaria
+                </th>
+                <th
+                  @click="toggleSortKpi('proyeccion_cierre')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                >
+                  Proyección
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
+              <template v-for="(r, idx) in rutasFiltradas" :key="r.ruta">
+                <tr class="hover:bg-blue-50/40 transition-colors group">
+                  <td class="py-2 px-3 text-center font-bold text-[#86868B] text-[10px] sticky left-0 z-20 bg-white group-hover:bg-blue-50/40">
+                    {{ idx + 1 }}
+                  </td>
+                  <td class="py-2 px-3 font-sans sticky left-10 z-20 bg-white group-hover:bg-blue-50/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                    <div class="flex items-center gap-1.5">
+                      <div class="min-w-0">
+                        <div class="font-bold text-[#1D1D1F] inline-flex items-center gap-1">
+                          <span>{{ r.ruta }}</span>
+                          <span v-if="r.canal" class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/[0.04] text-[#6E6E73]">{{ r.canal }}</span>
+                        </div>
+                        <div class="text-[10px] text-[#6E6E73] truncate max-w-[140px]">{{ r.vendedor || 'No Asignado' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
+                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
+                  <td
+                    class="py-2 px-3 text-right font-bold text-[12px]"
+                    :class="colorPct(r.pct_proyeccion ?? r.pct)"
+                    :title="r.pct_proyeccion !== undefined ? ('Proyección al cierre: ' + formatPct(r.pct_proyeccion)) : undefined"
+                  >
+                    {{ formatPct(r.pct) }}
+                  </td>
+                  <td class="py-2 px-3 text-right font-medium" :class="r.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
+                    {{ formatValorKpi(r.brecha) }}
+                  </td>
+                  <td v-if="esCobertura" class="py-2 px-3 text-right">
+                    <div class="font-bold text-[#1D1D1F]">Bs {{ formatNum(r.venta_apertura ?? r.venta_cobertura, 1) }}</div>
+                    <div class="text-[9px] text-[#6E6E73] font-sans">{{ formatPct(r.pct_apertura) }}</div>
+                  </td>
+                  <td v-if="esCobertura" class="py-2 px-3 text-right">
+                    <div class="font-bold" :class="(r.venta_repeticion || 0) > 0 ? 'text-[#0071E3]' : 'text-[#86868B]'">
+                      Bs {{ formatNum(r.venta_repeticion, 1) }}
+                    </div>
+                    <div class="text-[9px] text-[#86868B] font-sans">
+                      <span v-if="(r.clientes_repeticion || 0) > 0" class="text-[#0071E3] font-semibold">{{ r.clientes_repeticion }} cli ({{ formatPct(r.pct_repeticion) }})</span>
+                      <span v-else>0 cli (0%)</span>
+                    </div>
+                  </td>
+                  <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
+                  <td class="py-2 px-3 text-right">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
+                    <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+            <tfoot v-if="totalesKpi" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-30 font-mono tabular-nums shadow-[inset_0_1px_0_rgba(0,0,0,0.08)]">
+              <tr>
+                <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
+                <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                  CONSOLIDADO ({{ rutasFiltradas.length }})
+                </td>
+                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
+                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
+                <td
+                  class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
+                  :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
+                >
+                  {{ formatPct(totalesKpi.pct) }}
+                </td>
+                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]" :class="totalesKpi.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
+                  {{ formatValorKpi(totalesKpi.brecha) }}
+                </td>
+                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                  Bs {{ formatNum(totalesKpi.venta_apertura, 1) }}
+                </td>
+                <td v-if="esCobertura" class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">
+                  Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}
+                </td>
+                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
+                <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
       <!-- Estado Vacío -->
-      <div v-else class="h-64 apple-glass-card rounded-[14px] p-10 flex items-center justify-center text-[#86868B] text-[12px]">
-        No se encontraron datos para los filtros especificados.
+      <div v-else class="p-8 text-center text-[#86868B] text-xs font-medium apple-glass-card rounded-[16px]">
+        No se encontraron rutas para los filtros seleccionados.
       </div>
 
-
+      <!-- MODAL INFO KPI (?) -->
+      <div
+        v-if="modalInfoKpiVisible"
+        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md"
+        @click.self="cerrarModalInfoKpi"
+      >
+        <div class="glass-dropdown rounded-[20px] max-w-md w-full p-4 space-y-3 bg-white/95 border border-black/[0.08] shadow-2xl">
+          <div class="flex items-center justify-between pb-2 border-b border-black/[0.06]">
+            <h3 class="text-xs font-bold text-[#1D1D1F]">{{ kpiInfoActivo?.nombre || 'Información de KPI' }}</h3>
+            <button type="button" @click="cerrarModalInfoKpi" class="text-xs text-[#86868B] hover:text-[#1D1D1F] font-bold p-1">✕</button>
+          </div>
+          <div class="space-y-2 text-[11px]">
+            <div>
+              <span class="font-bold text-[#86868B] uppercase text-[9px] block">Tipo de KPI:</span>
+              <span class="font-semibold text-[#1D1D1F]">{{ kpiInfoActivo?.tipo }} (Unidad: {{ kpiInfoActivo?.unidad }})</span>
+            </div>
+            <div>
+              <span class="font-bold text-[#86868B] uppercase text-[9px] block">Objetivo Comercial:</span>
+              <p class="text-[#6E6E73]">{{ kpiInfoActivo?.objetivo_comercial || 'Garantizar el cumplimiento del plan comercial.' }}</p>
+            </div>
+            <div>
+              <span class="font-bold text-[#86868B] uppercase text-[9px] block">Criterio de Inclusión:</span>
+              <p class="text-[#6E6E73]">{{ kpiInfoActivo?.criterio_productos || 'Todas las ventas que califiquen para la categoría.' }}</p>
+            </div>
+            <div>
+              <span class="font-bold text-[#86868B] uppercase text-[9px] block">Origen de Meta:</span>
+              <span class="font-mono text-[#0071E3] font-bold">{{ kpiInfoActivo?.campo_meta || 'fact_metas / pan_ruteo' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </SupervisorLayout>
 </template>
@@ -1044,17 +1460,46 @@ const props = defineProps({
 
 const store = useAvanceStore()
 
-const modoActivo = ref('cob_core')
 
-// Estado de ordenamiento de rutas
+const kpisLista = [
+  { id: 'vol_general', nombre: '1. Volumen General', corto: 'Vol. General', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_general', nombre: '2. Cobertura 100%', corto: 'Cob. General', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'vol_seda', nombre: '3. Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' }
+]
+
+const modoActivo = ref(sessionStorage.getItem('avance_cumplimiento_submodo') || 'cob_core')
+
+// Estado de ordenamiento
+const sortResumenCol = ref('vol_general')
+const sortResumenDir = ref('desc')
+
+function toggleSortResumen(col) {
+  if (sortResumenCol.value === col) {
+    sortResumenDir.value = sortResumenDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortResumenCol.value = col
+    sortResumenDir.value = 'desc'
+  }
+}
+
 const sortKpiCol = ref('total_3m_bs')
 const sortKpiDir = ref('desc')
 
 const sortLabelsKpi = {
   ruta: 'Ruta',
+  meta: 'Meta Mes',
+  logrado: 'Logrado',
+  pct: '% Avance / Cobertura',
+  brecha: 'Brecha',
+  venta_apertura: 'Venta Apertura',
+  venta_repeticion: 'Venta Repetición',
+  cuota_dia: 'Cuota Diaria',
+  proyeccion_cierre: 'Proyección',
   cartera: 'Cartera Oficial',
-  logrado: 'Compradores MTD',
-  pct: '% Cobertura',
   mes_1_bs: 'Mes -3',
   mes_2_bs: 'Mes -2',
   mes_3_bs: 'Mes -1',
@@ -1072,6 +1517,102 @@ function toggleSortKpi(col) {
     sortKpiDir.value = 'desc'
   }
 }
+
+const modalInfoKpiVisible = ref(false)
+const kpiInfoActivo = ref(null)
+
+function abrirModalInfoKpi(kpi) {
+  const metas = store.datosCumplimiento?.metadata_kpis || []
+  const encontrado = metas.find(m => m.clave === kpi.id || m.id === kpi.id)
+  kpiInfoActivo.value = encontrado || kpi
+  modalInfoKpiVisible.value = true
+}
+
+function cerrarModalInfoKpi() {
+  modalInfoKpiVisible.value = false
+  kpiInfoActivo.value = null
+}
+
+const kpiActualObj = computed(() => {
+  return kpisLista.find(k => k.id === modoActivo.value) || kpisLista[0]
+})
+
+const esCobertura = computed(() => {
+  return kpiActualObj.value?.tipo === 'COBERTURA'
+})
+
+async function cambiarModo(modo) {
+  if (modoActivo.value === modo) return
+  modoActivo.value = modo
+  sessionStorage.setItem('avance_cumplimiento_submodo', modo)
+  rutaExpandida.value = null
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
+
+  if (modo === 'resumen') {
+    store.vistaCumplimiento = 'resumen'
+    sortResumenCol.value = 'vol_general'
+    sortResumenDir.value = 'desc'
+  } else {
+    store.vistaCumplimiento = 'kpi'
+    store.kpiActivo = modo
+    if (modo === 'cob_core') {
+      sortKpiCol.value = 'total_3m_bs'
+      sortKpiDir.value = 'desc'
+    } else {
+      sortKpiCol.value = 'pct'
+      sortKpiDir.value = 'desc'
+    }
+  }
+  await store.cargarCumplimiento()
+}
+
+function formatValorKpi(val) {
+  if (val === null || val === undefined) return '0'
+  if (esCobertura.value) {
+    return Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 }) + ' Cli'
+  }
+  return 'Bs ' + Number(val).toLocaleString('es-BO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+function formatLogroResumen(val, tipo) {
+  if (val === null || val === undefined) return '0'
+  if (tipo === 'COBERTURA') {
+    return Number(val).toFixed(0) + 'c'
+  }
+  return 'Bs ' + Number(val).toLocaleString('es-BO', { maximumFractionDigits: 0 })
+}
+
+function colorKpiResumen(kpiId, kpiObj) {
+  if (!kpiObj || Number(kpiObj.meta || 0) <= 0) return 'text-[#86868B]'
+  const esVolumen = ['vol_general', 'vol_seda', 'vol_clinical'].includes(kpiId)
+  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct ?? 0))
+  if (esVolumen) {
+    if (evalPct >= 100) return 'text-emerald-600'
+    if (evalPct >= 85) return 'text-amber-600'
+    return 'text-red-600'
+  } else {
+    if (evalPct >= 85) return 'text-emerald-600'
+    if (evalPct >= 70) return 'text-amber-600'
+    return 'text-red-600'
+  }
+}
+
+const totalesResumen = computed(() => {
+  return store.datosCumplimiento?.totales_columnas || {}
+})
+
+const promedioGlobalScore = computed(() => {
+  const rutas = rutasFiltradas.value
+  if (rutas.length === 0) return 0.0
+  const suma = rutas.reduce((acc, r) => acc + Number(r.score_promedio || 0), 0)
+  return suma / rutas.length
+})
+
+const totalesKpi = computed(() => {
+  return store.datosCumplimiento?.totales || {}
+})
+
 
 const rutaExpandida = ref(null)
 const cargandoClientes = ref(false)
@@ -1290,7 +1831,7 @@ async function toggleClienteAccordion(cliente, ruta, forzar = false) {
       ruta,
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
-      kpi: 'cob_core'
+      kpi: modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
     })
     detalleClienteFechasMap.value = {
       ...detalleClienteFechasMap.value,
@@ -1402,32 +1943,73 @@ const rutasFiltradas = computed(() => {
   }
 
   const copia = [...lista]
-  const col = sortKpiCol.value || 'total_3m_bs'
-  const dir = sortKpiDir.value === 'asc' ? 1 : -1
 
-  copia.sort((a, b) => {
-    if (col === 'ruta') {
-      return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
-    }
-    let valA = Number(a[col] ?? 0)
-    let valB = Number(b[col] ?? 0)
-    if (valA !== valB) {
-      return dir * (valA - valB)
-    }
-    return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
-  })
+  if (modoActivo.value === 'resumen') {
+    const col = sortResumenCol.value || 'vol_general'
+    const dir = sortResumenDir.value === 'asc' ? 1 : -1
+
+    copia.sort((a, b) => {
+      if (col === 'ruta') {
+        return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+      }
+      if (col === 'score_promedio') {
+        return dir * (Number(a.score_promedio || 0) - Number(b.score_promedio || 0))
+      }
+      const pctA = Number(a.kpis?.[col]?.pct ?? 0)
+      const pctB = Number(b.kpis?.[col]?.pct ?? 0)
+      if (pctA !== pctB) {
+        return dir * (pctA - pctB)
+      }
+      const logA = Number(a.kpis?.[col]?.logrado ?? 0)
+      const logB = Number(b.kpis?.[col]?.logrado ?? 0)
+      if (logA !== logB) {
+        return dir * (logA - logB)
+      }
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    })
+  } else if (modoActivo.value === 'cob_core') {
+    const col = sortKpiCol.value || 'total_3m_bs'
+    const dir = sortKpiDir.value === 'asc' ? 1 : -1
+
+    copia.sort((a, b) => {
+      if (col === 'ruta') {
+        return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+      }
+      let valA = Number(a[col] ?? 0)
+      let valB = Number(b[col] ?? 0)
+      if (valA !== valB) {
+        return dir * (valA - valB)
+      }
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    })
+  } else {
+    const col = sortKpiCol.value || 'pct'
+    const dir = sortKpiDir.value === 'asc' ? 1 : -1
+
+    copia.sort((a, b) => {
+      if (col === 'ruta') {
+        return dir * String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+      }
+      let valA = Number(a[col] ?? 0)
+      let valB = Number(b[col] ?? 0)
+      if (valA !== valB) {
+        return dir * (valA - valB)
+      }
+      return String(a.ruta || '').localeCompare(String(b.ruta || ''), undefined, { numeric: true })
+    })
+  }
 
   return copia
 })
 
-const totalesKpi = computed(() => {
-  return store.datosCumplimiento?.totales || {}
-})
-
 function ejecutarConsulta() {
   store.aplicarFiltros()
-  store.vistaCumplimiento = 'kpi'
-  store.kpiActivo = 'cob_core'
+  if (modoActivo.value === 'resumen') {
+    store.vistaCumplimiento = 'resumen'
+  } else {
+    store.vistaCumplimiento = 'kpi'
+    store.kpiActivo = modoActivo.value
+  }
   return store.cargarCumplimiento()
 }
 
@@ -1452,7 +2034,7 @@ async function toggleDetalleRuta(ruta) {
   try {
     const res = await axios.post('/supervisor/avance/cumplimiento/clientes-ruta', {
       ruta,
-      kpi: 'cob_core',
+      kpi: modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general'),
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte
     })
@@ -1495,9 +2077,14 @@ function colorPct(pct) {
 
 onMounted(async () => {
   store.inicializarDesdeStorage(props)
-  modoActivo.value = 'cob_core'
-  store.vistaCumplimiento = 'kpi'
-  store.kpiActivo = 'cob_core'
+  const guardado = sessionStorage.getItem('avance_cumplimiento_submodo') || 'cob_core'
+  modoActivo.value = guardado
+  if (guardado === 'resumen') {
+    store.vistaCumplimiento = 'resumen'
+  } else {
+    store.vistaCumplimiento = 'kpi'
+    store.kpiActivo = guardado
+  }
   await store.cargarCumplimiento()
 })
 </script>

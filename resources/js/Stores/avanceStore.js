@@ -33,8 +33,8 @@ const filtrosAplicados = ref({
 const cargandoCumplimiento = ref(false)
 const datosCumplimiento = ref(null)
 const errorCumplimiento = ref(null)
-const vistaCumplimiento = ref('kpi') // 'kpi'
-const kpiActivo = ref('cob_core')
+const vistaCumplimiento = ref('resumen') // 'resumen' o 'kpi'
+const kpiActivo = ref('vol_general')
 const modoTemporalCumplimiento = ref('acumulado') // 'acumulado' o 'diario'
 
 function actualizarCanalSeleccionadoTexto() {
