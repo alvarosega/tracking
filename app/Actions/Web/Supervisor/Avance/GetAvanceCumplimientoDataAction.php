@@ -64,7 +64,7 @@ class GetAvanceCumplimientoDataAction
             $fechaCorte = $maxFecha ?: date('Y-m-d');
         }
         $carbonCorte = Carbon::parse($fechaCorte);
-        if (!$fechaInicio) {
+        if (!$fechaInicio || Carbon::parse($fechaInicio)->format('Y-m') !== $carbonCorte->format('Y-m')) {
             $fechaInicio = $carbonCorte->copy()->startOfMonth()->format('Y-m-d');
         }
 
@@ -730,6 +730,7 @@ class GetAvanceCumplimientoDataAction
 
     /**
      * Calcula los últimos 3 meses cerrados previos a la fecha de corte evaluada.
+     * Evalúa dinámicamente según la fecha de corte seleccionada (consultando fact_ventas o fallback calendario).
      *
      * @return array<int, array{ym: string, nombre: string, corto: string, inicio: string, fin: string}>
      */
@@ -746,13 +747,55 @@ class GetAvanceCumplimientoDataAction
             9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic',
         ];
 
+        $inicioMesCorte = $carbonRef->copy()->startOfMonth()->format('Y-m-d');
+
+        // 1. Obtener los últimos 3 meses cerrados que tienen ventas registradas en fact_ventas
+        $mesesYm = [];
+        try {
+            $mesesYm = DB::connection('supervisor')->table('fact_ventas')
+                ->whereNotNull('fecha_norm')
+                ->where('fecha_norm', '<', $inicioMesCorte)
+                ->where('fecha_norm', '!=', '1900-01-01')
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                })
+                ->selectRaw("DISTINCT DATE_FORMAT(fecha_norm, '%Y-%m') as ym")
+                ->orderBy('ym', 'desc')
+                ->limit(3)
+                ->pluck('ym')
+                ->toArray();
+        } catch (\Throwable $e) {
+            $mesesYm = [];
+        }
+
+        // 2. Si hay menos de 3 meses en la base de datos (o la BD no está disponible), completar con meses calendario
+        if (count($mesesYm) < 3) {
+            $mesRef = $carbonRef->copy()->startOfMonth();
+            for ($i = 1; $i <= 3; $i++) {
+                $ym = $mesRef->copy()->subMonthsNoOverflow($i)->format('Y-m');
+                if (!in_array($ym, $mesesYm, true)) {
+                    $mesesYm[] = $ym;
+                }
+                if (count($mesesYm) >= 3) {
+                    break;
+                }
+            }
+        }
+
+        // 3. Ordenar cronológicamente (el más antiguo primero: Mes -3, Mes -2, Mes -1)
+        sort($mesesYm);
+        if (count($mesesYm) > 3) {
+            $mesesYm = array_slice($mesesYm, -3);
+        }
+
         $meses = [];
-        for ($i = 3; $i >= 1; $i--) {
-            $dt = $carbonRef->copy()->subMonths($i);
+        foreach ($mesesYm as $ym) {
+            $dt = Carbon::parse($ym . '-01');
             $mNum = (int) $dt->format('m');
             $anio = $dt->format('Y');
             $meses[] = [
-                'ym' => $dt->format('Y-m'),
+                'ym' => $ym,
                 'nombre' => ($mesesEs[$mNum] ?? '') . ' ' . $anio,
                 'corto' => ($mesesAbr[$mNum] ?? '') . ' ' . substr($anio, -2),
                 'inicio' => $dt->copy()->startOfMonth()->format('Y-m-d'),

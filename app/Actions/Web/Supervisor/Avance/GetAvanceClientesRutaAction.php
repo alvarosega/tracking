@@ -39,7 +39,7 @@ class GetAvanceClientesRutaAction
             $fechaCorte = $maxFecha ?: date('Y-m-d');
         }
         $carbonCorte = Carbon::parse($fechaCorte);
-        if (!$fechaInicio) {
+        if (!$fechaInicio || Carbon::parse($fechaInicio)->format('Y-m') !== $carbonCorte->format('Y-m')) {
             $fechaInicio = $carbonCorte->copy()->startOfMonth()->format('Y-m-d');
         }
 

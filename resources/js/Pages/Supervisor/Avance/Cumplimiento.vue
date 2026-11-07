@@ -810,7 +810,7 @@
                                   title="Ordenar por Venta Mes Actual"
                                 >
                                   <div class="flex items-center justify-end gap-1">
-                                    <span>Mes Actual</span>
+                                    <span>{{ nombreMesActualCorto }} (Bs)</span>
                                     <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
@@ -1010,6 +1010,34 @@
                               </tr>
                             </template>
                           </tbody>
+                          <tfoot v-if="modoActivo === 'cob_core'" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
+                            <tr>
+                              <td colspan="4" class="py-1.5 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
+                                TOTAL RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono">
+                                {{ (totales3mRuta.mes_1 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_1, 2)}` : '-' }}
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono">
+                                {{ (totales3mRuta.mes_2 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_2, 2)}` : '-' }}
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono">
+                                {{ (totales3mRuta.mes_3 || 0) > 0 ? `Bs ${formatNum(totales3mRuta.mes_3, 2)}` : '-' }}
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#1D1D1F]">
+                                Bs {{ formatNum(totales3mRuta.total_3m || 0, 2) }}
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/30">
+                                100.0%
+                              </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-700">
+                                Bs {{ formatNum(totalVentaCartera, 2) }}
+                              </td>
+                              <td class="py-1.5 px-2.5 text-center text-[10px] text-emerald-800 font-sans">
+                                {{ clientesConCompra.length }} comp.
+                              </td>
+                            </tr>
+                          </tfoot>
                         </table>
                       </div>
                     </div>
@@ -1241,6 +1269,24 @@ const diasRutaOrdenados = computed(() => {
 
 const totalVentaDiasRuta = computed(() => {
   return diasRuta.value.reduce((acc, d) => acc + Number(d.venta_total || 0), 0)
+})
+
+const totalVentaCartera = computed(() => {
+  return carteraClientes.value.reduce((acc, c) => acc + Number(c.monto_bs || 0), 0)
+})
+
+const nombreMesActualCorto = computed(() => {
+  const fc = store.filtrosAplicados?.fechaCorte || store.fechaCorte
+  if (!fc) return 'Mes Actual'
+  try {
+    const d = new Date(fc + 'T00:00:00')
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    const m = meses[d.getMonth()] || ''
+    const yy = String(d.getFullYear()).slice(-2)
+    return `${m} ${yy}`
+  } catch (e) {
+    return 'Mes Actual'
+  }
 })
 
 const filtroClientesTab = ref('compradores')
@@ -1476,6 +1522,7 @@ function cambiarModo(modo) {
 }
 
 function ejecutarConsulta() {
+  store.aplicarFiltros()
   if (modoActivo.value === 'resumen') {
     store.vistaCumplimiento = 'resumen'
   } else {

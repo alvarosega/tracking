@@ -112,6 +112,14 @@ function sincronizarRutasConCanales() {
 function aplicarFiltros() {
   sincronizarRutasConCanales()
 
+  if (fechaCorte.value && typeof fechaCorte.value === 'string' && fechaCorte.value.length >= 7) {
+    const ym = fechaCorte.value.slice(0, 7)
+    mes.value = ym
+    if (!fechaInicio.value || fechaInicio.value.slice(0, 7) !== ym) {
+      fechaInicio.value = `${ym}-01`
+    }
+  }
+
   filtrosAplicados.value = {
     fechaInicio: fechaInicio.value,
     fechaCorte: fechaCorte.value,
@@ -276,6 +284,16 @@ watch(
   }
 )
 
+watch(fechaCorte, (nuevaFecha) => {
+  if (nuevaFecha && typeof nuevaFecha === 'string' && nuevaFecha.length >= 7) {
+    const ym = nuevaFecha.slice(0, 7)
+    mes.value = ym
+    if (!fechaInicio.value || fechaInicio.value.slice(0, 7) !== ym) {
+      fechaInicio.value = `${ym}-01`
+    }
+  }
+})
+
 watch(
   canalesSeleccionados,
   () => {
@@ -310,11 +328,17 @@ async function cargarCumplimiento() {
   errorCumplimiento.value = null
 
   try {
+    const fCorte = filtrosAplicados.value.fechaCorte || fechaCorte.value
+    let fInicio = filtrosAplicados.value.fechaInicio || fechaInicio.value
+    if (fCorte && (!fInicio || fInicio.slice(0, 7) !== fCorte.slice(0, 7))) {
+      fInicio = `${fCorte.slice(0, 7)}-01`
+    }
+
     const res = await axios.post('/supervisor/avance/cumplimiento/data', {
       vista: vistaCumplimiento.value,
       kpi: kpiActivo.value,
-      fecha_inicio: filtrosAplicados.value.fechaInicio || fechaInicio.value,
-      fecha_corte: filtrosAplicados.value.fechaCorte || fechaCorte.value,
+      fecha_inicio: fInicio,
+      fecha_corte: fCorte,
       canales: filtrosAplicados.value.canalesSeleccionados || canalesSeleccionados.value,
       rutas: filtrosAplicados.value.rutasSeleccionadas || rutasSeleccionadas.value,
       modo_temporal: modoTemporalCumplimiento.value

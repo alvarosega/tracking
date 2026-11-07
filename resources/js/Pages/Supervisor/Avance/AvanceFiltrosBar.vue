@@ -23,7 +23,7 @@
         <input
           v-model="store.fechaCorte"
           type="date"
-          @change="emit('cambio')"
+          @change="onFechaCorteChange"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-bold text-[#1D1D1F] focus:outline-none cursor-pointer font-mono"
         />
@@ -350,6 +350,15 @@ const textoDiasHabiles = computed(() => {
   const rest = d.restantes ?? 0
   return `${trans} trans / ${tot} tot (${rest} rest)`
 })
+
+function onFechaCorteChange() {
+  if (store.fechaCorte && typeof store.fechaCorte === 'string' && store.fechaCorte.length >= 7) {
+    const ym = store.fechaCorte.slice(0, 7)
+    store.mes = ym
+    store.fechaInicio = `${ym}-01`
+  }
+  emit('cambio')
+}
 
 function onConsultarClick() {
   menuCanalAbierto.value = false
