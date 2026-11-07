@@ -970,18 +970,60 @@
                                       <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
                                     </div>
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
-                                      <!-- Resumen Superior del Cliente -->
-                                      <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[8px] bg-[#F8F8FA] border border-black/[0.04] text-[10px] font-mono">
-                                        <div class="flex items-center gap-2">
-                                          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                          <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
-                                          <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
+                                      <!-- Resumen Superior del Cliente: Contraste Histórico vs Cuota Asignada vs Hábito Sugerido vs MTD -->
+                                      <div class="p-2.5 rounded-[10px] bg-[#F8F8FA] border border-black/[0.05] space-y-2 text-[10px] font-mono">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.04] pb-1.5">
+                                          <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                            <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
+                                            <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
+                                          </div>
+                                          <div class="flex items-center gap-3 text-[10px]">
+                                            <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
+                                            <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
+                                            <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
+                                          </div>
                                         </div>
-                                        <div class="flex flex-wrap items-center gap-3 text-[10px]">
-                                          <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
-                                          <div><span class="text-[#86868B] font-sans">{{ nombreMesActualCorto }}: </span><strong :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}</strong></div>
-                                          <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
-                                          <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
+
+                                        <!-- Tarjetas de Contraste: Objetivo Asignado vs Hábito Sugerido vs Real Comprado MTD -->
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-sans">
+                                          <div class="p-2 rounded-[8px] bg-white border border-black/[0.04]">
+                                            <div class="text-[9px] text-[#6E6E73] font-medium">Cuota Objetivo (Meta Mes)</div>
+                                            <div class="text-[12px] font-bold text-[#6B21A8] font-mono">
+                                              {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
+                                            </div>
+                                            <div class="text-[9px] text-[#86868B]">Peso en ruta: {{ formatPct(cli.peso_3m) }}</div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-purple-50/50 border border-purple-100">
+                                            <div class="text-[9px] text-purple-900 font-bold flex items-center justify-between">
+                                              <span>Sugerido Hábitos (3M / 3)</span>
+                                              <span class="text-[8px] px-1 py-0.2 rounded bg-purple-200/70 text-purple-900 font-mono">Teórico</span>
+                                            </div>
+                                            <div class="text-[12px] font-bold text-purple-900 font-mono">
+                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_monto_sugerido_bs, 2) }}
+                                            </div>
+                                            <div class="text-[9px] text-purple-800 font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_unidades_sugeridas || 0 }} u en {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
+                                            </div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-emerald-50/40 border border-emerald-100">
+                                            <div class="text-[9px] text-emerald-900 font-bold">Comprado Mes Actual (MTD)</div>
+                                            <div class="text-[12px] font-bold font-mono" :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                              Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}
+                                            </div>
+                                            <div class="text-[9px] text-emerald-800 font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades_mes_actual || 0 }} u facturadas
+                                            </div>
+                                          </div>
+                                          <div class="p-2 rounded-[8px] bg-blue-50/40 border border-blue-100">
+                                            <div class="text-[9px] text-blue-900 font-bold">Cobertura SKUs MTD</div>
+                                            <div class="text-[12px] font-bold text-[#0071E3] font-mono">
+                                              {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_cubiertos_mtd || 0 }} / {{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.total_skus_3m || 0 }} SKUs
+                                            </div>
+                                            <div class="text-[9px] text-blue-800 font-mono">
+                                              {{ formatPct(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.pct_cobertura_skus) }} de variedad cubierta
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
 
@@ -1080,17 +1122,27 @@
                                         </div>
                                       </div>
 
-                                      <!-- VISTA B: AGRUPACIÓN POR PRODUCTO -->
+                                      <!-- VISTA B: AGRUPACIÓN POR PRODUCTO (CONTRASTE HISTÓRICO VS HÁBITOS SUGERIDOS VS MES ACTUAL) -->
                                       <div
                                         v-else-if="modoHistorialCliente === 'productos'"
-                                        class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[280px]"
+                                        class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[320px]"
                                       >
-                                        <table class="w-full text-left border-collapse text-[10px] font-mono">
-                                          <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06]">
+                                        <table class="w-full text-left border-collapse text-[10px] font-mono whitespace-nowrap">
+                                          <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06] select-none">
                                             <tr>
                                               <th class="py-1.5 px-2 text-center w-8">#</th>
-                                              <th class="py-1.5 px-2 text-left w-20">Código</th>
-                                              <th class="py-1.5 px-2 text-left font-sans">Producto</th>
+                                              <th class="py-1.5 px-2 text-left w-20 cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('codigo')">
+                                                <div class="flex items-center gap-1">
+                                                  <span>Código</span>
+                                                  <span v-if="sortProdCol === 'codigo'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
+                                                <div class="flex items-center gap-1">
+                                                  <span>Producto</span>
+                                                  <span v-if="sortProdCol === 'producto'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
                                               <th class="py-1.5 px-2 text-right">
                                                 {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.corto || 'Mes -3' }} (Bs)
                                               </th>
@@ -1100,17 +1152,66 @@
                                               <th class="py-1.5 px-2 text-right">
                                                 {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.corto || 'Mes -1' }} (Bs)
                                               </th>
-                                              <th class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
-                                                Total 3M (Bs)
+                                              <th class="py-1.5 px-2 text-right font-bold text-[#1D1D1F] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_bs_3m')">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Total 3M (Bs)</span>
+                                                  <span v-if="sortProdCol === 'total_bs_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
                                               </th>
-                                              <th class="py-1.5 px-2 text-right text-emerald-700">
-                                                {{ nombreMesActualCorto }} (Bs)
+                                              <th class="py-1.5 px-2 text-right cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_cantidad_3m')">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Cant 3M</span>
+                                                  <span v-if="sortProdCol === 'total_cantidad_3m'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
                                               </th>
-                                              <th class="py-1.5 px-2 text-right font-bold text-[#0071E3] bg-blue-50/30">
-                                                Total Gral (Bs)
+
+                                              <!-- CONTRASTE: LO QUE SE LE PIDE QUE COMPRE (HÁBITO DE COMPRA) -->
+                                              <th class="py-1.5 px-2 text-right bg-amber-50/60 text-amber-900 font-bold cursor-pointer hover:bg-amber-100/60" @click="ordenarProductos('precio_ultima_compra')" title="Precio unitario de la última compra registrada">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>P. Últ. Compra</span>
+                                                  <span v-if="sortProdCol === 'precio_ultima_compra'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
                                               </th>
-                                              <th class="py-1.5 px-2 text-right">Unidades</th>
-                                              <th class="py-1.5 px-2 text-center">Última Compra</th>
+                                              <th class="py-1.5 px-2 text-center bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('cant_sugerida')" title="Hábito sugerido: Cantidad 3M / 3 redondeado al entero superior">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Sugerido (Cant)</span>
+                                                  <span v-if="sortProdCol === 'cant_sugerida'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right bg-purple-50/70 text-purple-900 font-bold cursor-pointer hover:bg-purple-100/70" @click="ordenarProductos('monto_sugerido')" title="Monto sugerido = Cant. Sugerida x Precio Últ. Compra">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Sugerido (Bs)</span>
+                                                  <span v-if="sortProdCol === 'monto_sugerido'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+
+                                              <!-- CONTRASTE: LO QUE YA COMPRÓ EN EL MES ACTUAL (MTD) -->
+                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_cantidad_mes_actual')" title="Unidades compradas en el mes actual">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Compró MTD (u)</span>
+                                                  <span v-if="sortProdCol === 'total_cantidad_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right bg-emerald-50/40 text-emerald-900 font-bold cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_bs_mes_actual')" title="Monto facturado en el mes actual">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span>Compró MTD (Bs)</span>
+                                                  <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+
+                                              <!-- ESTADO DE COBERTURA -->
+                                              <th class="py-1.5 px-2 text-center cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('estado_cobertura')">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Cobertura</span>
+                                                  <span v-if="sortProdCol === 'estado_cobertura'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-1.5 px-2 text-center text-[#86868B] cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('ultima_fecha')">
+                                                <div class="flex items-center justify-center gap-1">
+                                                  <span>Últ. Compra</span>
+                                                  <span v-if="sortProdCol === 'ultima_fecha'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
                                             </tr>
                                           </thead>
                                           <tbody class="divide-y divide-black/[0.03] bg-white">
@@ -1121,7 +1222,7 @@
                                             >
                                               <td class="py-1 px-2 text-center text-[#86868B]">{{ pidx + 1 }}</td>
                                               <td class="py-1 px-2 font-bold text-[#6E6E73]">{{ prod.codigo }}</td>
-                                              <td class="py-1 px-2 font-sans font-medium text-[#1D1D1F] max-w-[220px] truncate" :title="prod.producto">
+                                              <td class="py-1 px-2 font-sans font-medium text-[#1D1D1F] max-w-[200px] truncate" :title="prod.producto">
                                                 {{ prod.producto }}
                                                 <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
                                               </td>
@@ -1137,20 +1238,101 @@
                                               <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">
                                                 {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
                                               </td>
-                                              <td class="py-1 px-2 text-right font-bold" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                              <td class="py-1 px-2 text-right text-[#6E6E73]">
+                                                {{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '-' }}
+                                              </td>
+
+                                              <!-- CONTRASTE: LO QUE SE LE PIDE -->
+                                              <td class="py-1 px-2 text-right font-mono text-amber-900 bg-amber-50/20 font-medium">
+                                                {{ prod.precio_ultima_compra > 0 ? `Bs ${formatNum(prod.precio_ultima_compra, 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-center font-bold text-purple-900 bg-purple-50/30">
+                                                <span v-if="prod.cant_sugerida > 0" class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[9px]">
+                                                  {{ prod.cant_sugerida }} u
+                                                </span>
+                                                <span v-else class="text-[#86868B]">-</span>
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold text-purple-900 bg-purple-50/30">
+                                                {{ prod.monto_sugerido > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
+                                              </td>
+
+                                              <!-- CONTRASTE: LO QUE YA COMPRÓ MES ACTUAL -->
+                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                                {{ (prod.total_cantidad_mes_actual || 0) > 0 ? `${prod.total_cantidad_mes_actual} u` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-medium bg-emerald-50/20" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
                                                 {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
                                               </td>
-                                              <td class="py-1 px-2 text-right font-bold text-[#0071E3] bg-blue-50/20">
-                                                Bs {{ formatNum(prod.total_bs, 2) }}
-                                              </td>
-                                              <td class="py-1 px-2 text-right font-medium text-[#1D1D1F]">
-                                                {{ prod.total_cantidad }} u
+
+                                              <!-- ESTADO COBERTURA -->
+                                              <td class="py-1 px-2 text-center">
+                                                <span
+                                                  v-if="prod.cumple_sugerido"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-800"
+                                                  title="Compró igual o más de la cantidad mensual sugerida"
+                                                >
+                                                  CUMPLE
+                                                </span>
+                                                <span
+                                                  v-else-if="prod.compro_mes_actual"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-100 text-amber-800"
+                                                  title="Compró en el mes pero no alcanzó la cantidad sugerida"
+                                                >
+                                                  PARCIAL
+                                                </span>
+                                                <span
+                                                  v-else-if="prod.cant_sugerida > 0"
+                                                  class="inline-block px-1.5 py-0.5 rounded text-[8px] font-medium bg-black/[0.04] text-[#86868B]"
+                                                >
+                                                  PENDIENTE
+                                                </span>
+                                                <span v-else class="text-[#86868B] text-[8px]">-</span>
                                               </td>
                                               <td class="py-1 px-2 text-center text-[#86868B] text-[9px] whitespace-nowrap">
                                                 {{ prod.ultima_fecha }}
                                               </td>
                                             </tr>
                                           </tbody>
+                                          <!-- Totalizado Monográfico de Productos -->
+                                          <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono border-t border-black/[0.08]">
+                                            <tr>
+                                              <td colspan="3" class="py-1.5 px-2 text-center text-[9px] text-[#6E6E73] font-sans">
+                                                TOTAL ({{ productosHistorialFiltrados(cli.cliente_id).length }} SKUs)
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym), 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym), 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-[#48484A]">
+                                                {{ totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym) > 0 ? `Bs ${formatNum(totalProdMes(cli.cliente_id, detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym), 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_3m'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-[#6E6E73]">
+                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_3m') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[#86868B] bg-amber-50/20">-</td>
+                                              <td class="py-1.5 px-2 text-center text-purple-900 bg-purple-100/60 font-bold">
+                                                {{ totalProdCol(cli.cliente_id, 'cant_sugerida') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-purple-900 bg-purple-100/60 font-bold">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'monto_sugerido'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
+                                                {{ totalProdCol(cli.cliente_id, 'total_cantidad_mes_actual') }} u
+                                              </td>
+                                              <td class="py-1.5 px-2 text-right text-emerald-800 bg-emerald-100/40 font-bold">
+                                                Bs {{ formatNum(totalProdCol(cli.cliente_id, 'total_bs_mes_actual'), 2) }}
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[9px] text-[#0071E3] font-sans">
+                                                {{ totalSkusCubiertosFiltrados(cli.cliente_id) }}/{{ totalSkusSugeridosFiltrados(cli.cliente_id) }} cub.
+                                              </td>
+                                              <td class="py-1.5 px-2 text-center text-[#86868B] text-[8px]">-</td>
+                                            </tr>
+                                          </tfoot>
                                         </table>
                                         <div v-if="productosHistorialFiltrados(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
                                           No se encontraron productos facturados para el criterio de búsqueda.
@@ -1489,18 +1671,63 @@ function fechasHistorialFiltradas(clienteId) {
   })
 }
 
+const sortProdCol = ref('monto_sugerido')
+const sortProdDir = ref('desc')
+
+function ordenarProductos(col) {
+  if (sortProdCol.value === col) {
+    sortProdDir.value = sortProdDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortProdCol.value = col
+    sortProdDir.value = (col === 'codigo' || col === 'producto' || col === 'categoria' || col === 'ultima_fecha') ? 'asc' : 'desc'
+  }
+}
+
 function productosHistorialFiltrados(clienteId) {
   const datos = detalleClienteFechasMap[clienteId]?.productos || []
-  if (!busquedaHistorialCliente.value.trim()) {
-    return datos
+  let lista = datos
+  if (busquedaHistorialCliente.value.trim()) {
+    const q = busquedaHistorialCliente.value.toLowerCase().trim()
+    lista = datos.filter(p =>
+      (p.producto || '').toLowerCase().includes(q) ||
+      (p.codigo || '').toLowerCase().includes(q) ||
+      (p.categoria || '').toLowerCase().includes(q) ||
+      (p.facturas || '').toLowerCase().includes(q)
+    )
   }
-  const q = busquedaHistorialCliente.value.toLowerCase().trim()
-  return datos.filter(p =>
-    (p.producto || '').toLowerCase().includes(q) ||
-    (p.codigo || '').toLowerCase().includes(q) ||
-    (p.categoria || '').toLowerCase().includes(q) ||
-    (p.facturas || '').toLowerCase().includes(q)
-  )
+  const col = sortProdCol.value
+  const dir = sortProdDir.value === 'asc' ? 1 : -1
+  return [...lista].sort((a, b) => {
+    if (col === 'producto' || col === 'codigo' || col === 'categoria' || col === 'ultima_fecha') {
+      return dir * String(a[col] || '').localeCompare(String(b[col] || ''))
+    }
+    if (col === 'estado_cobertura') {
+      const rank = p => (p.cumple_sugerido ? 3 : (p.compro_mes_actual ? 2 : 1))
+      return dir * (rank(a) - rank(b))
+    }
+    return dir * (Number(a[col] || 0) - Number(b[col] || 0))
+  })
+}
+
+function totalProdCol(clienteId, col) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p[col]) || 0), 0)
+}
+
+function totalProdMes(clienteId, ym) {
+  if (!ym) return 0
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.reduce((sum, p) => sum + (Number(p.por_mes?.[ym]) || 0), 0)
+}
+
+function totalSkusCubiertosFiltrados(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.filter(p => (p.cant_sugerida || 0) > 0 && p.compro_mes_actual).length
+}
+
+function totalSkusSugeridosFiltrados(clienteId) {
+  const lista = productosHistorialFiltrados(clienteId)
+  return lista.filter(p => (p.cant_sugerida || 0) > 0).length
 }
 
 async function toggleClienteAccordion(cliente, ruta) {

@@ -186,6 +186,8 @@ class GetAvanceClienteDetalleFechasAction
                     'total_bs_mes_actual' => 0.0,
                     'total_cantidad_mes_actual' => 0,
                     'ultima_fecha' => $f,
+                    'fecha_precio_ultima_compra' => null,
+                    'precio_ultima_compra' => 0.0,
                     'facturas' => [],
                     'fechas' => [],
                     'por_mes' => [
@@ -195,6 +197,14 @@ class GetAvanceClienteDetalleFechasAction
                         $ymActual => 0.0,
                     ],
                 ];
+            }
+
+            // Registrar el precio unitario de la última compra registrada
+            if ($cant > 0 && $monto > 0) {
+                if ($prodMap[$prodKey]['fecha_precio_ultima_compra'] === null || $f >= $prodMap[$prodKey]['fecha_precio_ultima_compra']) {
+                    $prodMap[$prodKey]['fecha_precio_ultima_compra'] = $f;
+                    $prodMap[$prodKey]['precio_ultima_compra'] = round($monto / $cant, 2);
+                }
             }
 
             $prodMap[$prodKey]['total_bs'] += $monto;
@@ -240,6 +250,12 @@ class GetAvanceClienteDetalleFechasAction
         // Estructurar resultado por producto
         $productosResultado = array_values($prodMap);
         usort($productosResultado, fn ($a, $b) => $b['total_bs'] <=> $a['total_bs']);
+
+        $totalSugeridoBs = 0.0;
+        $totalSugeridoUnidades = 0;
+        $totalSkus3m = 0;
+        $totalSkusCubiertosMtd = 0;
+
         foreach ($productosResultado as &$p) {
             $p['total_bs'] = round($p['total_bs'], 2);
             $p['total_bs_3m'] = round($p['total_bs_3m'], 2);
@@ -249,6 +265,33 @@ class GetAvanceClienteDetalleFechasAction
             $p['facturas'] = implode(', ', array_keys($p['facturas']));
             foreach ($p['por_mes'] as $ym => $val) {
                 $p['por_mes'][$ym] = round($val, 2);
+            }
+
+            // Fallback precio si no se registró compra con monto y cantidad positiva
+            if (($p['precio_ultima_compra'] ?? 0) <= 0) {
+                $p['precio_ultima_compra'] = $p['total_cantidad_3m'] > 0
+                    ? round($p['total_bs_3m'] / $p['total_cantidad_3m'], 2)
+                    : ($p['total_cantidad'] > 0 ? round($p['total_bs'] / $p['total_cantidad'], 2) : 0.0);
+            }
+
+            // Hábito sugerido mensual: Total Cantidad 3M / 3 redondeado al entero superior
+            $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
+            $cantSugerida = $cant3m > 0 ? (int) ceil($cant3m / 3.0) : 0;
+            $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
+
+            $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+            $p['cant_sugerida'] = $cantSugerida;
+            $p['monto_sugerido'] = $montoSugerido;
+            $p['cumple_sugerido'] = ($cantSugerida > 0 && $cantMtd >= $cantSugerida);
+            $p['compro_mes_actual'] = ($cantMtd > 0);
+
+            if ($cantSugerida > 0) {
+                $totalSkus3m++;
+                $totalSugeridoUnidades += $cantSugerida;
+                $totalSugeridoBs += $montoSugerido;
+                if ($p['compro_mes_actual']) {
+                    $totalSkusCubiertosMtd++;
+                }
             }
         }
         unset($p);
@@ -270,6 +313,13 @@ class GetAvanceClienteDetalleFechasAction
             'total_unidades_mes_actual' => $totalUnidadesMesActual,
             'total_productos_unicos' => count($prodMap),
             'total_fechas_unicas' => count($diasMap),
+            'resumen_cobertura' => [
+                'total_skus_3m' => $totalSkus3m,
+                'total_skus_cubiertos_mtd' => $totalSkusCubiertosMtd,
+                'total_unidades_sugeridas' => $totalSugeridoUnidades,
+                'total_monto_sugerido_bs' => round($totalSugeridoBs, 2),
+                'pct_cobertura_skus' => $totalSkus3m > 0 ? round(($totalSkusCubiertosMtd / $totalSkus3m) * 100, 1) : 0.0,
+            ],
             'fechas' => $fechasResultado,
             'productos' => $productosResultado,
         ];
