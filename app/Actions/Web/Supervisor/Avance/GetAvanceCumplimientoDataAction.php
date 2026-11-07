@@ -80,6 +80,39 @@ class GetAvanceCumplimientoDataAction
         // 2. Metas de las Rutas (Cartera pan_ruteo, fact_metas, fact_metas_kpi)
         $metasTodas = $this->obtenerMetasKpis($mesYm);
 
+        // Cartera Oficial Actual desde pan_ruteo
+        // Se mapea cada cliente_id a su ruta actual oficial para que toda evaluación
+        // en fact_ventas se realice por cliente_id y no por vendedor ni por ruta de la factura.
+        $panRuteoRaw = DB::connection('supervisor')->table('pan_ruteo')
+            ->where('cliente_id', '>', 0)
+            ->whereNotNull('ruta')
+            ->where('ruta', '!=', '')
+            ->where(function ($q): void {
+                $q->whereNull('estado')
+                  ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
+            })
+            ->select([
+                'cliente_id',
+                DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado') as vendedor_ruteo"),
+            ])
+            ->get();
+
+        $clienteRutaOficialMap = [];
+        $carteraOficialRutaCount = [];
+        $vendedorRuteoMap = [];
+        foreach ($panRuteoRaw as $pr) {
+            $cid = (int) $pr->cliente_id;
+            $rClean = (string) $pr->ruta_clean;
+            if ($cid > 0 && $rClean !== '') {
+                $clienteRutaOficialMap[$cid] = $rClean;
+                $carteraOficialRutaCount[$rClean] = ($carteraOficialRutaCount[$rClean] ?? 0) + 1;
+                if (!isset($vendedorRuteoMap[$rClean]) && $pr->vendedor_ruteo !== 'No Asignado') {
+                    $vendedorRuteoMap[$rClean] = $pr->vendedor_ruteo;
+                }
+            }
+        }
+
         // 3. Catálogo Oficial de Rutas y Canales (dim_rutas)
         $rutasDimRaw = DB::connection('supervisor')->table('dim_rutas')
             ->select([
@@ -144,12 +177,20 @@ class GetAvanceCumplimientoDataAction
             }
         }
 
-        // Asegurar rutas presentes en metas oficiales (si no tienen canal oficial, van a 'SC')
+        // Asegurar rutas presentes en metas oficiales y en cartera pan_ruteo
         foreach ($metasTodas as $rName => $_) {
             if (!isset($rutasCatalogo[$rName])) {
                 $rutasCatalogo[$rName] = [
                     'canal' => 'SC',
                     'vendedor' => 'No Asignado',
+                ];
+            }
+        }
+        foreach ($carteraOficialRutaCount as $rName => $cCount) {
+            if (!isset($rutasCatalogo[$rName])) {
+                $rutasCatalogo[$rName] = [
+                    'canal' => 'SC',
+                    'vendedor' => $vendedorRuteoMap[$rName] ?? 'No Asignado',
                 ];
             }
         }
@@ -219,12 +260,17 @@ class GetAvanceCumplimientoDataAction
         }
 
         foreach ($ventasRaw as $v) {
-            $targetRuta = $v->ruta_clean;
+            $cid = (int) ($v->cliente_id ?: 0);
+
+            // La ruta oficial se determina por el cliente (según su asignación actual en pan_ruteo).
+            // Si el cliente no existe en pan_ruteo, se usa la ruta de la factura como fallback.
+            $targetRuta = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
+                ? $clienteRutaOficialMap[$cid]
+                : $v->ruta_clean;
+
             if (!isset($universo[$targetRuta])) {
                 continue;
             }
-
-            $cid = (int) ($v->cliente_id ?: 0);
             $monto = (float) $v->monto;
             $prod = (string) $v->producto;
             $j3 = (string) $v->jerarquia3;
@@ -386,22 +432,26 @@ class GetAvanceCumplimientoDataAction
                     $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
                 })
                 ->select([
-                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    'cliente_id',
+                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
                     DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
                     DB::raw("SUM(monto_final) as total_monto"),
                 ])
-                ->groupBy(DB::raw("TRIM(UPPER(ruta))"), DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
+                ->groupBy('cliente_id', DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA')"), DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
                 ->get();
 
             foreach ($histRutasRaw as $hr) {
-                $rClean = (string) $hr->ruta_clean;
+                $cid = (int) $hr->cliente_id;
+                $rClean = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
+                    ? $clienteRutaOficialMap[$cid]
+                    : (string) $hr->ruta_clean;
                 $ym = (string) $hr->mes_ym;
-                $histRutasMap[$rClean][$ym] = (float) $hr->total_monto;
+                $histRutasMap[$rClean][$ym] = ($histRutasMap[$rClean][$ym] ?? 0.0) + (float) $hr->total_monto;
             }
 
             // Cálculo del Total Sugerido por Ruta (hábitos: 3M / 3 por cliente y producto a precio de última compra)
+            // Se calcula en base a los clientes que actualmente pertenecen a cada ruta en pan_ruteo
             $sugRaw = DB::connection('supervisor')->table('fact_ventas')
-                ->whereNotNull('ruta')
                 ->where('fecha_norm', '>=', $histInicio)
                 ->where('fecha_norm', '<=', $histFin)
                 ->where('monto_final', '!=', 0)
@@ -409,8 +459,8 @@ class GetAvanceCumplimientoDataAction
                     $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
                 })
                 ->select([
-                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
                     'cliente_id',
+                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
                     DB::raw("TRIM(codigo) as codigo"),
                     DB::raw("COALESCE(producto, '') as producto"),
                     DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
@@ -422,9 +472,12 @@ class GetAvanceCumplimientoDataAction
 
             $prodMapRuta = [];
             foreach ($sugRaw as $row) {
-                $r = (string) $row->ruta_clean;
-                if (!$r || $r === 'SIN RUTA') continue;
                 $cid = (int) $row->cliente_id;
+                $r = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
+                    ? $clienteRutaOficialMap[$cid]
+                    : (string) $row->ruta_clean;
+
+                if (!$r || $r === 'SIN RUTA') continue;
                 $pkey = $row->codigo ?: $row->producto;
                 $itemKey = "{$cid}_{$pkey}";
 

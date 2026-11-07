@@ -65,21 +65,8 @@ class GetAvanceClienteDetalleFechasAction
                 $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
             });
 
-        if ($rutaClean && $rutaClean !== 'TODAS' && $kpiClave !== 'cob_core') {
-            if ($rutaClean === 'SIN RUTA') {
-                $query->where(function ($q): void {
-                    $q->whereNull('ruta')
-                      ->orWhere(DB::raw("TRIM(ruta)"), '')
-                      ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
-                });
-            } else {
-                $query->where(function ($q) use ($rutaClean): void {
-                    $q->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                      ->orWhereNull('ruta')
-                      ->orWhere(DB::raw("TRIM(ruta)"), '');
-                });
-            }
-        }
+        // La consulta se realiza directamente por cliente_id, sin filtrar por ruta ni vendedor
+        // para preservar todo el historial y ventas del cliente independientemente de reasignaciones.
 
         $filas = $query
             ->select([
