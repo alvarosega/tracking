@@ -37,11 +37,13 @@ class GetAvanceClientesRutaAction
         ?string $fechaCorte = null,
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
-        int $frecuenciaMinima = 1
+        int $frecuenciaMinima = 1,
+        int $cantidadMinima = 1
     ): array {
         $rutaClean = strtoupper(trim($ruta));
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
+        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
@@ -308,14 +310,13 @@ class GetAvanceClientesRutaAction
 
             foreach ($clienteProdsMap as $cId => $pList) {
                 $totalSug = 0.0;
-                $minCant = $omitirUnitarios3m ? 1 : 0;
                 foreach ($pList as $pKey => $pData) {
                     $frec = max(count($pData['fechas']), count($pData['facturas']));
                     if ($frec < $frecuenciaMinima) {
                         continue;
                     }
                     $c3m = $pData['cantidad_3m'];
-                    if ($c3m > $minCant) {
+                    if ($c3m >= $cantidadMinima) {
                         $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
                         $pUlt = $pData['precio_ultima_compra'];
                         $totalSug += round($cantSug * $pUlt, 2);
@@ -492,6 +493,7 @@ class GetAvanceClientesRutaAction
             'fecha_inicio' => $fechaInicio,
             'fecha_corte' => $fechaCorte,
             'frecuencia_minima' => $frecuenciaMinima,
+            'cantidad_minima' => $cantidadMinima,
             'meses_cerrados' => $mesesCerrados,
             'totales_3m_ruta' => [
                 'meses_bs' => $totalesMesesRuta,

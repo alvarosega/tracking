@@ -39,6 +39,7 @@ const modoTemporalCumplimiento = ref('acumulado') // 'acumulado' o 'diario'
 const omitirUnitarios3m = ref(false)
 const mesesHistorico = ref(3)
 const frecuenciaMinima = ref(1)
+const cantidadMinima = ref(1)
 
 function actualizarCanalSeleccionadoTexto() {
   const sel = canalesSeleccionados.value || []
@@ -181,7 +182,8 @@ function guardarEstado() {
       modoTemporalCumplimiento: modoTemporalCumplimiento.value,
       omitirUnitarios3m: Boolean(omitirUnitarios3m.value),
       mesesHistorico: Number(mesesHistorico.value) || 3,
-      frecuenciaMinima: Math.max(1, Number(frecuenciaMinima.value) || 1)
+      frecuenciaMinima: Math.max(1, Number(frecuenciaMinima.value) || 1),
+      cantidadMinima: Math.max(1, Number(cantidadMinima.value) || 1)
     }
     const json = JSON.stringify(estado)
     localStorage.setItem(STORAGE_KEY, json)
@@ -260,6 +262,11 @@ function inicializarDesdeStorage(props = {}) {
     if (guardado.omitirUnitarios3m !== undefined) omitirUnitarios3m.value = Boolean(guardado.omitirUnitarios3m)
     if (guardado.mesesHistorico !== undefined) mesesHistorico.value = Math.max(1, Math.min(8, Number(guardado.mesesHistorico)))
     if (guardado.frecuenciaMinima !== undefined) frecuenciaMinima.value = Math.max(1, Number(guardado.frecuenciaMinima) || 1)
+    if (guardado.cantidadMinima !== undefined) {
+      cantidadMinima.value = Math.max(1, Number(guardado.cantidadMinima) || 1)
+    } else if (guardado.omitirUnitarios3m) {
+      cantidadMinima.value = 2
+    }
 
     if (Array.isArray(guardado.canalesSeleccionados)) {
       canalesSeleccionados.value = guardado.canalesSeleccionados
@@ -287,7 +294,7 @@ function inicializarDesdeStorage(props = {}) {
 
 // Watchers de auto-persistencia y coherencia reactiva
 watch(
-  [fechaInicio, fechaCorte, mes, busqueda, vistaCumplimiento, kpiActivo, modoTemporalCumplimiento, omitirUnitarios3m, mesesHistorico, frecuenciaMinima],
+  [fechaInicio, fechaCorte, mes, busqueda, vistaCumplimiento, kpiActivo, modoTemporalCumplimiento, omitirUnitarios3m, mesesHistorico, frecuenciaMinima, cantidadMinima],
   () => {
     guardarEstado()
   }
@@ -353,7 +360,8 @@ async function cargarCumplimiento() {
       modo_temporal: modoTemporalCumplimiento.value,
       omitir_unitarios_3m: Boolean(omitirUnitarios3m.value),
       meses_historico: Number(mesesHistorico.value) || 3,
-      frecuencia_minima: Math.max(1, Number(frecuenciaMinima.value) || 1)
+      frecuencia_minima: Math.max(1, Number(frecuenciaMinima.value) || 1),
+      cantidad_minima: Math.max(1, Number(cantidadMinima.value) || 1)
     })
     datosCumplimiento.value = res.data
     if (res.data?.dias_calendario) {
@@ -390,6 +398,7 @@ export function useAvanceStore() {
     omitirUnitarios3m,
     mesesHistorico,
     frecuenciaMinima,
+    cantidadMinima,
 
     aplicarFiltros,
     guardarEstado,

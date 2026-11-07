@@ -266,20 +266,32 @@
               </span>
             </div>
 
-            <!-- Checkbox para omitir compras de 1 sola unidad en histórico (solo en Cobertura Core) -->
-            <label
+            <!-- Selector para elegir la cantidad mínima acumulada en el histórico -->
+            <div
               v-if="modoActivo === 'cob_core'"
-              class="ml-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[8px] bg-purple-50/80 border border-purple-200 text-purple-900 cursor-pointer hover:bg-purple-100 transition-colors select-none font-sans shadow-2xs"
-              title="Omitir del cálculo sugerido aquellos productos donde el cliente solo compró 1 unidad en la ventana histórica"
+              class="ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-purple-50/80 border border-purple-200 text-purple-900 font-sans shadow-2xs select-none"
+              title="Cantidad mínima de compra: exigir un mínimo de unidades acumuladas en la ventana histórica para incluir el producto en el sugerido"
             >
-              <input
-                type="checkbox"
-                v-model="store.omitirUnitarios3m"
-                @change="onToggleOmitirUnitarios"
-                class="w-3.5 h-3.5 text-[#0071E3] rounded border-gray-300 focus:ring-[#0071E3] cursor-pointer"
-              />
-              <span class="text-[11px] font-semibold">Omitir compras de 1 unidad</span>
-            </label>
+              <svg class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <span class="text-[11px] font-bold">Cant. Mínima:</span>
+              <select
+                v-model.number="store.cantidadMinima"
+                @change="onCambioCantidadMinima"
+                class="text-[11px] font-bold text-purple-900 bg-white rounded-[6px] border border-purple-300/80 px-2 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option :value="1">≥ 1 unidad</option>
+                <option :value="2">≥ 2 unidades</option>
+                <option :value="3">≥ 3 unidades</option>
+                <option :value="4">≥ 4 unidades</option>
+                <option :value="5">≥ 5 unidades</option>
+                <option :value="6">≥ 6 unidades</option>
+                <option :value="10">≥ 10 unidades</option>
+                <option :value="12">≥ 12 unidades</option>
+                <option :value="24">≥ 24 unidades</option>
+              </select>
+            </div>
 
             <!-- Selector para elegir los meses a evaluar (hasta 8 meses atrás) -->
             <div
@@ -1168,7 +1180,7 @@
                                                   </div>
                                                   <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
                                                     <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
-                                                    <span v-else-if="prod.es_unitario_3m && store.omitirUnitarios3m" class="text-[8px] text-[#86868B] italic">Omitido (1 u en 3M)</span>
+                                                    <span v-else-if="prod.cant_sugerida === 0" class="text-[8px] text-[#86868B] italic">No sugerido</span>
                                                     <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
                                                   </div>
                                                 </td>
@@ -1706,10 +1718,11 @@ function productosHistorialFiltrados(clienteId) {
 
   // Filtros reactivos exclusivos de Cobertura Core
   if (modoActivo.value === 'cob_core') {
-    if (store.omitirUnitarios3m) {
+    const minCant = Number(store.cantidadMinima) || 1
+    if (minCant > 1) {
       lista = lista.filter(p => {
         const cHist = Number(p.total_cantidad_3m) || 0
-        return cHist > 1 || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
+        return cHist >= minCant || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
       })
     }
 
@@ -1790,7 +1803,8 @@ async function toggleClienteAccordion(cliente, ruta) {
       kpi: kpiParaDetalle,
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
       meses_historico: Number(store.mesesHistorico) || 3,
-      frecuencia_minima: Number(store.frecuenciaMinima) || 1
+      frecuencia_minima: Number(store.frecuenciaMinima) || 1,
+      cantidad_minima: Number(store.cantidadMinima) || 1
     })
     detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {
@@ -2032,7 +2046,7 @@ async function onCambioMesesHistorico() {
   }
 }
 
-async function onToggleOmitirUnitarios() {
+async function onCambioCantidadMinima() {
   store.guardarEstado()
   const cliId = clienteExpandidoId.value
   const rExp = rutaExpandida.value
@@ -2048,6 +2062,10 @@ async function onToggleOmitirUnitarios() {
       }
     }
   }
+}
+
+async function onToggleOmitirUnitarios() {
+  return onCambioCantidadMinima()
 }
 
 async function onCambioFrecuenciaMinima() {
@@ -2092,7 +2110,8 @@ async function toggleDetalleRuta(ruta) {
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
       meses_historico: Number(store.mesesHistorico) || 3,
-      frecuencia_minima: Number(store.frecuenciaMinima) || 1
+      frecuencia_minima: Number(store.frecuenciaMinima) || 1,
+      cantidad_minima: Number(store.cantidadMinima) || 1
     })
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []

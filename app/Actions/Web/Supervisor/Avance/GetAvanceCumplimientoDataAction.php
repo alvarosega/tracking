@@ -57,11 +57,13 @@ class GetAvanceCumplimientoDataAction
         string $modoTemporal = 'acumulado',
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
-        int $frecuenciaMinima = 1
+        int $frecuenciaMinima = 1,
+        int $cantidadMinima = 1
     ): array {
         $modoTemporal = in_array(strtolower($modoTemporal), ['acumulado', 'diario'], true) ? strtolower($modoTemporal) : 'acumulado';
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
+        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
         // 1. Fechas y Días Hábiles
         if (!$fechaCorte) {
@@ -510,14 +512,13 @@ class GetAvanceCumplimientoDataAction
 
             foreach ($prodMapRuta as $r => $items) {
                 $sumSug = 0.0;
-                $minCant = $omitirUnitarios3m ? 1 : 0;
                 foreach ($items as $it) {
                     $frec = max(count($it['fechas']), count($it['facturas']));
                     if ($frec < $frecuenciaMinima) {
                         continue;
                     }
                     $c3m = $it['cantidad'];
-                    if ($c3m > $minCant) {
+                    if ($c3m >= $cantidadMinima) {
                         $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
                         $sumSug += round($cantSug * $it['precio'], 2);
                     }
@@ -763,6 +764,7 @@ class GetAvanceCumplimientoDataAction
             'rutas' => $filas,
             'meses_historico' => $mesesHistorico,
             'frecuencia_minima' => $frecuenciaMinima,
+            'cantidad_minima' => $cantidadMinima,
             'meses_cerrados' => $mesesCerrados,
             'metadata_kpis' => $this->obtenerMetadataKpis(),
         ];

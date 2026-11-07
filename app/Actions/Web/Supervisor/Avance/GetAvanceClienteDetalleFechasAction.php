@@ -42,11 +42,13 @@ class GetAvanceClienteDetalleFechasAction
         string $kpiClave = 'vol_general',
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
-        int $frecuenciaMinima = 1
+        int $frecuenciaMinima = 1,
+        int $cantidadMinima = 1
     ): array {
         $rutaClean = strtoupper(trim($ruta));
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
+        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
@@ -271,10 +273,12 @@ class GetAvanceClienteDetalleFechasAction
             $frecuenciaCompra = max(count($p['fechas_3m'] ?? []), count($p['facturas_3m'] ?? []));
             $p['frecuencia_compra'] = $frecuenciaCompra;
 
-            // Si omitir unitarios está activo, no incluir productos comprados una sola vez en toda la ventana histórica
-            if ($omitirUnitarios3m && ($cant3m === 1 || ($cant3m === 0 && $cantMtd === 0))) {
-                unset($productosResultado[$idx]);
-                continue;
+            // Si se exige cantidad mínima histórica (> 1), excluir productos que no alcancen esa cantidad acumulada
+            if ($cantidadMinima > 1 && ($cant3m < $cantidadMinima || ($cant3m === 0 && $cantMtd === 0))) {
+                if ($cantMtd === 0) {
+                    unset($productosResultado[$idx]);
+                    continue;
+                }
             }
 
             // Si se exige una frecuencia mínima, excluir productos que no alcancen dicha frecuencia en el histórico
@@ -303,9 +307,9 @@ class GetAvanceClienteDetalleFechasAction
             }
 
             // Hábito sugerido mensual: Total Cantidad Histórica / N meses redondeado al entero superior
-            $minCant = $omitirUnitarios3m ? 1 : 0;
+            $cumpleCantidad = ($cant3m >= $cantidadMinima);
             $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
-            $cantSugerida = ($cumpleFrecuencia && $cant3m > $minCant) ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
+            $cantSugerida = ($cumpleFrecuencia && $cumpleCantidad) ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
             $p['es_unitario_3m'] = ($cant3m === 1);
@@ -326,7 +330,7 @@ class GetAvanceClienteDetalleFechasAction
         unset($p);
         $productosResultado = array_values($productosResultado);
 
-        if ($omitirUnitarios3m || $frecuenciaMinima > 1) {
+        if ($cantidadMinima > 1 || $frecuenciaMinima > 1) {
             $totalMonto3m = array_sum(array_column($productosResultado, 'total_bs_3m'));
             $totalUnidades3m = array_sum(array_column($productosResultado, 'total_cantidad_3m'));
         }
@@ -338,6 +342,7 @@ class GetAvanceClienteDetalleFechasAction
             'kpi_nombre' => self::KPIS_NOMBRES[$kpiClave] ?? $kpiClave,
             'fecha_corte' => $fechaCorte,
             'frecuencia_minima' => $frecuenciaMinima,
+            'cantidad_minima' => $cantidadMinima,
             'fecha_inicio_3m' => $histInicio,
             'meses_historico' => $mesesHistorico,
             'meses_cerrados' => $mesesCerrados,
