@@ -868,7 +868,7 @@
                               <tr class="hover:bg-blue-50/30 transition-colors">
                                 <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
                                   <button
-                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0"
+                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0"
                                     type="button"
                                     @click="toggleClienteAccordion(cli, r.ruta)"
                                     class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
@@ -949,45 +949,100 @@
                               <!-- Detalle acordeón de facturas y fechas del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
                                 <td :colspan="modoActivo === 'cob_core' ? 11 : 7" class="p-2.5 border-y border-black/[0.05]">
-                                  <div class="apple-glass-card rounded-[10px] p-3 space-y-2 bg-white/95 border border-black/[0.06] shadow-2xs">
+                                  <div class="apple-glass-card rounded-[10px] p-3 space-y-2.5 bg-white/95 border border-black/[0.06] shadow-2xs">
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
-                                      <span>Cargando detalle de facturas de {{ cli.cliente }}...</span>
+                                      <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
                                     </div>
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
                                       <!-- Resumen Superior del Cliente -->
                                       <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[8px] bg-[#F8F8FA] border border-black/[0.04] text-[10px] font-mono">
                                         <div class="flex items-center gap-2">
-                                          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                          <span class="font-sans font-bold text-[#1D1D1F]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
-                                          <span class="text-[#86868B] font-sans">Ruta {{ r.ruta }}</span>
+                                          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                          <span class="font-sans font-bold text-[#1D1D1F] text-[11px]">Historial Facturado: {{ cli.cliente }} (ID: {{ cli.cliente_id }})</span>
+                                          <span class="text-[#86868B] font-sans">· Ruta {{ r.ruta }}</span>
                                         </div>
-                                        <div class="flex items-center gap-3">
-                                          <div><span class="text-[#86868B] font-sans">Total: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
+                                        <div class="flex flex-wrap items-center gap-3 text-[10px]">
+                                          <div><span class="text-[#86868B] font-sans">Histórico 3M: </span><strong class="text-[#0071E3] font-bold">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_3m, 2) }}</strong></div>
+                                          <div><span class="text-[#86868B] font-sans">{{ nombreMesActualCorto }}: </span><strong :class="(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual || 0) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_mes_actual, 2) }}</strong></div>
+                                          <div><span class="text-[#86868B] font-sans">Total Gral: </span><strong class="text-[#1D1D1F]">Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.total_monto_bs, 2) }}</strong></div>
                                           <div><span class="text-[#86868B] font-sans">Unidades: </span><strong class="text-[#1D1D1F]">{{ detalleClienteFechasMap[cli.cliente_id]?.total_unidades || 0 }} u</strong></div>
-                                          <div><span class="text-[#86868B] font-sans">KPI: </span><span class="font-bold text-[#0071E3]">{{ detalleClienteFechasMap[cli.cliente_id]?.kpi_nombre }}</span></div>
                                         </div>
                                       </div>
 
-                                      <!-- Fechas y detalle de productos -->
+                                      <!-- Barra de Controles: Agrupación y Filtro -->
+                                      <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <!-- Selector de Agrupación: Por Fecha de Compra vs Por Producto -->
+                                        <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
+                                          <button
+                                            type="button"
+                                            @click="modoHistorialCliente = 'fechas'"
+                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
+                                            :class="modoHistorialCliente === 'fechas' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                                            title="Ver historial cronológico agrupado por fechas de compra"
+                                          >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span>Por Fecha de Compra ({{ fechasHistorialFiltradas(cli.cliente_id).length }})</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            @click="modoHistorialCliente = 'productos'"
+                                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer font-bold flex items-center gap-1.5"
+                                            :class="modoHistorialCliente === 'productos' ? 'glass-active-pill text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                                            title="Ver historial agrupado por producto / SKU"
+                                          >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                            <span>Por Producto ({{ productosHistorialFiltrados(cli.cliente_id).length }})</span>
+                                          </button>
+                                        </div>
+
+                                        <!-- Buscador rápido dentro del historial del cliente -->
+                                        <div class="relative">
+                                          <input
+                                            v-model="busquedaHistorialCliente"
+                                            type="text"
+                                            placeholder="Filtrar producto, código, fecha..."
+                                            class="apple-control-pill rounded-[8px] pl-6 pr-2.5 py-1 text-[10px] w-52 text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-sans"
+                                          />
+                                          <svg class="w-3 h-3 text-[#86868B] absolute left-2 top-1.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                          </svg>
+                                        </div>
+                                      </div>
+
+                                      <!-- VISTA A: AGRUPACIÓN POR FECHA DE COMPRA -->
                                       <div
-                                        v-if="detalleClienteFechasMap[cli.cliente_id]?.fechas?.length > 0"
-                                        class="space-y-1.5 max-h-[250px] overflow-y-auto custom-scroll pr-1 font-mono"
+                                        v-if="modoHistorialCliente === 'fechas'"
+                                        class="space-y-1.5 max-h-[280px] overflow-y-auto custom-scroll pr-1 font-mono"
                                       >
                                         <div
-                                          v-for="dia in detalleClienteFechasMap[cli.cliente_id].fechas"
+                                          v-for="dia in fechasHistorialFiltradas(cli.cliente_id)"
                                           :key="dia.fecha"
                                           class="p-2 rounded-[8px] border border-black/[0.04] bg-white space-y-1 text-[10px]"
                                         >
                                           <div class="flex items-center justify-between border-b border-black/[0.04] pb-1">
                                             <div class="flex items-center gap-2">
-                                              <span class="font-bold text-[#1D1D1F]">{{ dia.fecha }}</span>
+                                              <span class="font-bold text-[#1D1D1F] text-[11px]">{{ dia.fecha }}</span>
+                                              <span
+                                                class="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold"
+                                                :class="dia.es_mes_actual ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'"
+                                              >
+                                                {{ dia.es_mes_actual ? 'Mes Actual' : 'Histórico 3M' }}
+                                              </span>
                                               <span class="text-[9px] text-[#86868B] font-sans">Factura(s): {{ dia.facturas }}</span>
                                             </div>
-                                            <span class="font-bold text-[#0071E3]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs, 2) }}</span>
+                                            <div class="flex items-center gap-2">
+                                              <span class="text-[#86868B] text-[9px]">{{ dia.total_cantidad }} u</span>
+                                              <span class="font-bold text-[#0071E3] text-[11px]">Bs {{ formatNum(dia.total_bs ?? dia.monto_bs, 2) }}</span>
+                                            </div>
                                           </div>
                                           <div class="text-[9px] text-[#86868B] font-sans flex items-center justify-between">
                                             <span>Preventista: {{ dia.vendedor }}</span>
+                                            <span>{{ (dia.items || []).length }} referencias</span>
                                           </div>
                                           <div v-if="dia.items && dia.items.length > 0" class="mt-1 space-y-0.5">
                                             <div
@@ -995,14 +1050,96 @@
                                               :key="iidx"
                                               class="flex items-center justify-between text-[9px] py-0.5 px-2 rounded bg-black/[0.02]"
                                             >
-                                              <span class="text-[#48484A] truncate max-w-[340px] font-sans">{{ item.producto }} ({{ item.codigo }})</span>
-                                              <span class="font-bold text-[#1D1D1F] font-mono">{{ item.cantidad }} u - Bs {{ formatNum(item.monto_bs, 2) }}</span>
+                                              <div class="flex items-center gap-1.5 truncate max-w-[420px]">
+                                                <span class="font-bold text-[#6E6E73] shrink-0 font-mono">[{{ item.codigo }}]</span>
+                                                <span class="text-[#1D1D1F] truncate font-sans">{{ item.producto }}</span>
+                                              </div>
+                                              <span class="font-bold text-[#1D1D1F] font-mono shrink-0 ml-2">
+                                                {{ item.cantidad }} u · Bs {{ formatNum(item.monto_bs, 2) }}
+                                              </span>
                                             </div>
                                           </div>
                                         </div>
+                                        <div v-if="fechasHistorialFiltradas(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
+                                          No se encontraron fechas de compra para el criterio de búsqueda.
+                                        </div>
                                       </div>
-                                      <div v-else class="text-center py-2 text-[10px] text-[#86868B] font-sans">
-                                        No se registraron ventas en las fechas seleccionadas.
+
+                                      <!-- VISTA B: AGRUPACIÓN POR PRODUCTO -->
+                                      <div
+                                        v-else-if="modoHistorialCliente === 'productos'"
+                                        class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[8px] max-h-[280px]"
+                                      >
+                                        <table class="w-full text-left border-collapse text-[10px] font-mono">
+                                          <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06]">
+                                            <tr>
+                                              <th class="py-1.5 px-2 text-center w-8">#</th>
+                                              <th class="py-1.5 px-2 text-left w-20">Código</th>
+                                              <th class="py-1.5 px-2 text-left font-sans">Producto</th>
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.corto || 'Mes -3' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.corto || 'Mes -2' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right">
+                                                {{ detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.corto || 'Mes -1' }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right font-bold text-[#1D1D1F]">
+                                                Total 3M (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right text-emerald-700">
+                                                {{ nombreMesActualCorto }} (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right font-bold text-[#0071E3] bg-blue-50/30">
+                                                Total Gral (Bs)
+                                              </th>
+                                              <th class="py-1.5 px-2 text-right">Unidades</th>
+                                              <th class="py-1.5 px-2 text-center">Última Compra</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody class="divide-y divide-black/[0.03] bg-white">
+                                            <tr
+                                              v-for="(prod, pidx) in productosHistorialFiltrados(cli.cliente_id)"
+                                              :key="prod.codigo + pidx"
+                                              class="hover:bg-blue-50/20 transition-colors"
+                                            >
+                                              <td class="py-1 px-2 text-center text-[#86868B]">{{ pidx + 1 }}</td>
+                                              <td class="py-1 px-2 font-bold text-[#6E6E73]">{{ prod.codigo }}</td>
+                                              <td class="py-1 px-2 font-sans font-medium text-[#1D1D1F] max-w-[220px] truncate" :title="prod.producto">
+                                                {{ prod.producto }}
+                                                <span v-if="prod.categoria" class="text-[8px] text-[#86868B] block truncate">{{ prod.categoria }}</span>
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[0]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[0].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[1]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[1].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right text-[#48484A]">
+                                                {{ (prod.por_mes?.[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados?.[2]?.ym] || 0) > 0 ? `Bs ${formatNum(prod.por_mes[detalleClienteFechasMap[cli.cliente_id]?.meses_cerrados[2].ym], 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold text-[#1D1D1F]">
+                                                {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-bold text-[#0071E3] bg-blue-50/20">
+                                                Bs {{ formatNum(prod.total_bs, 2) }}
+                                              </td>
+                                              <td class="py-1 px-2 text-right font-medium text-[#1D1D1F]">
+                                                {{ prod.total_cantidad }} u
+                                              </td>
+                                              <td class="py-1 px-2 text-center text-[#86868B] text-[9px] whitespace-nowrap">
+                                                {{ prod.ultima_fecha }}
+                                              </td>
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                        <div v-if="productosHistorialFiltrados(cli.cliente_id).length === 0" class="text-center py-4 text-[10px] text-[#86868B] font-sans">
+                                          No se encontraron productos facturados para el criterio de búsqueda.
+                                        </div>
                                       </div>
                                     </template>
                                   </div>
@@ -1309,6 +1446,40 @@ function ordenarClientes(col) {
 const clienteExpandidoId = ref(null)
 const cargandoAccordionCliente = ref(false)
 const detalleClienteFechasMap = reactive({})
+const modoHistorialCliente = ref('fechas') // 'fechas' | 'productos'
+const busquedaHistorialCliente = ref('')
+
+function fechasHistorialFiltradas(clienteId) {
+  const datos = detalleClienteFechasMap[clienteId]?.fechas || []
+  if (!busquedaHistorialCliente.value.trim()) {
+    return datos
+  }
+  const q = busquedaHistorialCliente.value.toLowerCase().trim()
+  return datos.filter(d => {
+    if (d.fecha.includes(q) || (d.facturas || '').toLowerCase().includes(q) || (d.vendedor || '').toLowerCase().includes(q)) {
+      return true
+    }
+    return (d.items || []).some(item =>
+      (item.producto || '').toLowerCase().includes(q) ||
+      (item.codigo || '').toLowerCase().includes(q) ||
+      (item.categoria || '').toLowerCase().includes(q)
+    )
+  })
+}
+
+function productosHistorialFiltrados(clienteId) {
+  const datos = detalleClienteFechasMap[clienteId]?.productos || []
+  if (!busquedaHistorialCliente.value.trim()) {
+    return datos
+  }
+  const q = busquedaHistorialCliente.value.toLowerCase().trim()
+  return datos.filter(p =>
+    (p.producto || '').toLowerCase().includes(q) ||
+    (p.codigo || '').toLowerCase().includes(q) ||
+    (p.categoria || '').toLowerCase().includes(q) ||
+    (p.facturas || '').toLowerCase().includes(q)
+  )
+}
 
 async function toggleClienteAccordion(cliente, ruta) {
   if (clienteExpandidoId.value === cliente.cliente_id) {
@@ -1317,6 +1488,7 @@ async function toggleClienteAccordion(cliente, ruta) {
   }
 
   clienteExpandidoId.value = cliente.cliente_id
+  busquedaHistorialCliente.value = ''
 
   if (detalleClienteFechasMap[cliente.cliente_id]) {
     return
@@ -1545,6 +1717,7 @@ async function toggleDetalleRuta(ruta) {
   diasRuta.value = []
   diaSeleccionadoInline.value = null
   clienteExpandidoId.value = null
+  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
 
   try {
     const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')

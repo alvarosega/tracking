@@ -16,6 +16,7 @@ class GetAvanceClienteDetalleFechasAction
         'cob_seda' => '4. Cob. Toque de Seda',
         'vol_clinical' => '5. Vol. Clinical',
         'cob_clinical' => '6. Cob. Clinical',
+        'cob_core' => '7. Cobertura Core',
     ];
 
     public function __construct(
@@ -23,7 +24,8 @@ class GetAvanceClienteDetalleFechasAction
     ) {}
 
     /**
-     * Obtiene el desglose cronológico de facturas y SKUs para un cliente específico en una ruta.
+     * Obtiene el desglose cronológico y por producto de facturas para un cliente específico.
+     * Incluye el histórico de los últimos 3 meses cerrados más el mes actual de corte.
      *
      * @param int $clienteId
      * @param string $ruta
@@ -46,19 +48,40 @@ class GetAvanceClienteDetalleFechasAction
             $fechaCorte = $maxFecha ?: date('Y-m-d');
         }
         $carbonCorte = Carbon::parse($fechaCorte);
-        if (!$fechaInicio) {
-            $fechaInicio = $carbonCorte->copy()->startOfMonth()->format('Y-m-d');
-        }
+        $mesesCerrados = $this->cumplimientoAction->obtenerMesesCerrados($carbonCorte);
 
-        $filas = DB::connection('supervisor')->table('fact_ventas')
+        // Rango de evaluación: desde el inicio del 1° mes cerrado hasta la fecha de corte
+        $histInicio = $mesesCerrados[0]['inicio'];
+        $histFin = $fechaCorte;
+        $ymActual = $carbonCorte->format('Y-m');
+        $yms3m = array_column($mesesCerrados, 'ym');
+
+        $query = DB::connection('supervisor')->table('fact_ventas')
             ->where('cliente_id', $clienteId)
-            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-            ->where('fecha_norm', '>=', $fechaInicio)
-            ->where('fecha_norm', '<=', $fechaCorte)
-            ->where('monto_final', '>', 0)
+            ->where('fecha_norm', '>=', $histInicio)
+            ->where('fecha_norm', '<=', $histFin)
+            ->where('monto_final', '!=', 0)
             ->where(function ($q): void {
                 $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
-            })
+            });
+
+        if ($rutaClean && $rutaClean !== 'TODAS' && $kpiClave !== 'cob_core') {
+            if ($rutaClean === 'SIN RUTA') {
+                $query->where(function ($q): void {
+                    $q->whereNull('ruta')
+                      ->orWhere(DB::raw("TRIM(ruta)"), '')
+                      ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
+                });
+            } else {
+                $query->where(function ($q) use ($rutaClean): void {
+                    $q->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                      ->orWhereNull('ruta')
+                      ->orWhere(DB::raw("TRIM(ruta)"), '');
+                });
+            }
+        }
+
+        $filas = $query
             ->select([
                 DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(NULLIF(TRIM(nro_factura), ''), 'S/F') as nro_factura"),
@@ -76,8 +99,13 @@ class GetAvanceClienteDetalleFechasAction
             ->get();
 
         $diasMap = [];
+        $prodMap = [];
         $totalMonto = 0.0;
         $totalUnidades = 0;
+        $totalMonto3m = 0.0;
+        $totalUnidades3m = 0;
+        $totalMontoMesActual = 0.0;
+        $totalUnidadesMesActual = 0;
 
         foreach ($filas as $r) {
             $prod = (string) $r->producto;
@@ -90,15 +118,31 @@ class GetAvanceClienteDetalleFechasAction
             }
 
             $f = (string) $r->fecha;
+            $ym = substr($f, 0, 7);
             $monto = (float) $r->monto_final;
             $cant = (int) $r->cantidad;
+            $esMesActual = ($ym === $ymActual);
+            $es3m = in_array($ym, $yms3m, true);
 
             $totalMonto += $monto;
             $totalUnidades += $cant;
 
+            if ($es3m) {
+                $totalMonto3m += $monto;
+                $totalUnidades3m += $cant;
+            }
+            if ($esMesActual) {
+                $totalMontoMesActual += $monto;
+                $totalUnidadesMesActual += $cant;
+            }
+
+            // 1. Agrupación por Fecha de Compra
             if (!isset($diasMap[$f])) {
                 $diasMap[$f] = [
                     'fecha' => $f,
+                    'mes_ym' => $ym,
+                    'es_mes_actual' => $esMesActual,
+                    'es_historico_3m' => $es3m,
                     'total_bs' => 0.0,
                     'total_cantidad' => 0,
                     'vendedores' => [],
@@ -118,19 +162,72 @@ class GetAvanceClienteDetalleFechasAction
 
             $diasMap[$f]['items'][] = [
                 'nro_factura' => $r->nro_factura,
-                'codigo' => $r->codigo,
-                'producto' => $r->producto,
-                'jerarquia3' => $r->jerarquia3,
+                'codigo' => $cod ?: 'S/C',
+                'producto' => $prod,
+                'categoria' => $cat,
+                'jerarquia3' => $j3,
                 'cantidad' => $cant,
                 'monto_bs' => round($monto, 2),
+                'vendedor' => $r->vendedor ?: 'Sin Asignar',
             ];
+
+            // 2. Agrupación por Producto (SKU)
+            $prodKey = $cod ?: $prod;
+            if (!isset($prodMap[$prodKey])) {
+                $prodMap[$prodKey] = [
+                    'codigo' => $cod ?: 'S/C',
+                    'producto' => $prod,
+                    'categoria' => $cat,
+                    'jerarquia3' => $j3,
+                    'total_bs' => 0.0,
+                    'total_cantidad' => 0,
+                    'total_bs_3m' => 0.0,
+                    'total_cantidad_3m' => 0,
+                    'total_bs_mes_actual' => 0.0,
+                    'total_cantidad_mes_actual' => 0,
+                    'ultima_fecha' => $f,
+                    'facturas' => [],
+                    'fechas' => [],
+                    'por_mes' => [
+                        $mesesCerrados[0]['ym'] => 0.0,
+                        $mesesCerrados[1]['ym'] => 0.0,
+                        $mesesCerrados[2]['ym'] => 0.0,
+                        $ymActual => 0.0,
+                    ],
+                ];
+            }
+
+            $prodMap[$prodKey]['total_bs'] += $monto;
+            $prodMap[$prodKey]['total_cantidad'] += $cant;
+            if ($es3m) {
+                $prodMap[$prodKey]['total_bs_3m'] += $monto;
+                $prodMap[$prodKey]['total_cantidad_3m'] += $cant;
+            }
+            if ($esMesActual) {
+                $prodMap[$prodKey]['total_bs_mes_actual'] += $monto;
+                $prodMap[$prodKey]['total_cantidad_mes_actual'] += $cant;
+            }
+            if (isset($prodMap[$prodKey]['por_mes'][$ym])) {
+                $prodMap[$prodKey]['por_mes'][$ym] += $monto;
+            }
+            if ($f > $prodMap[$prodKey]['ultima_fecha']) {
+                $prodMap[$prodKey]['ultima_fecha'] = $f;
+            }
+            if ($r->nro_factura && $r->nro_factura !== 'S/F') {
+                $prodMap[$prodKey]['facturas'][$r->nro_factura] = true;
+            }
+            $prodMap[$prodKey]['fechas'][$f] = true;
         }
 
+        // Estructurar resultado cronológico
         $fechasResultado = [];
         krsort($diasMap);
         foreach ($diasMap as $f => $d) {
             $fechasResultado[] = [
                 'fecha' => $f,
+                'mes_ym' => $d['mes_ym'],
+                'es_mes_actual' => $d['es_mes_actual'],
+                'es_historico_3m' => $d['es_historico_3m'],
                 'total_bs' => round($d['total_bs'], 2),
                 'monto_bs' => round($d['total_bs'], 2),
                 'total_cantidad' => $d['total_cantidad'],
@@ -140,14 +237,41 @@ class GetAvanceClienteDetalleFechasAction
             ];
         }
 
+        // Estructurar resultado por producto
+        $productosResultado = array_values($prodMap);
+        usort($productosResultado, fn ($a, $b) => $b['total_bs'] <=> $a['total_bs']);
+        foreach ($productosResultado as &$p) {
+            $p['total_bs'] = round($p['total_bs'], 2);
+            $p['total_bs_3m'] = round($p['total_bs_3m'], 2);
+            $p['total_bs_mes_actual'] = round($p['total_bs_mes_actual'], 2);
+            $p['total_facturas'] = count($p['facturas']);
+            $p['total_dias_compra'] = count($p['fechas']);
+            $p['facturas'] = implode(', ', array_keys($p['facturas']));
+            foreach ($p['por_mes'] as $ym => $val) {
+                $p['por_mes'][$ym] = round($val, 2);
+            }
+        }
+        unset($p);
+
         return [
             'cliente_id' => $clienteId,
             'ruta' => $rutaClean,
             'kpi' => $kpiClave,
             'kpi_nombre' => self::KPIS_NOMBRES[$kpiClave] ?? $kpiClave,
+            'fecha_corte' => $fechaCorte,
+            'fecha_inicio_3m' => $histInicio,
+            'meses_cerrados' => $mesesCerrados,
+            'ym_actual' => $ymActual,
             'total_monto_bs' => round($totalMonto, 2),
             'total_unidades' => $totalUnidades,
+            'total_monto_3m' => round($totalMonto3m, 2),
+            'total_unidades_3m' => $totalUnidades3m,
+            'total_monto_mes_actual' => round($totalMontoMesActual, 2),
+            'total_unidades_mes_actual' => $totalUnidadesMesActual,
+            'total_productos_unicos' => count($prodMap),
+            'total_fechas_unicas' => count($diasMap),
             'fechas' => $fechasResultado,
+            'productos' => $productosResultado,
         ];
     }
 }
