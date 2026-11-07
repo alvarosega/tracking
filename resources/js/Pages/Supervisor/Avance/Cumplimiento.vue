@@ -306,6 +306,32 @@
                 <option :value="8">8 meses (L7M a LM)</option>
               </select>
             </div>
+
+            <!-- Selector para elegir la frecuencia mínima de compra en el histórico -->
+            <div
+              v-if="modoActivo === 'cob_core'"
+              class="ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-amber-50/80 border border-amber-200 text-amber-900 font-sans shadow-2xs select-none"
+              title="Frecuencia de compra: exigir un número mínimo de compras/facturas en la ventana histórica para incluir el producto en el sugerido"
+            >
+              <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-[11px] font-bold">Frecuencia:</span>
+              <select
+                v-model.number="store.frecuenciaMinima"
+                @change="onCambioFrecuenciaMinima"
+                class="text-[11px] font-bold text-amber-900 bg-white rounded-[6px] border border-amber-300/80 px-2 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                <option :value="1">≥ 1 compra</option>
+                <option :value="2">≥ 2 compras</option>
+                <option :value="3">≥ 3 compras</option>
+                <option :value="4">≥ 4 compras</option>
+                <option :value="5">≥ 5 compras</option>
+                <option :value="6">≥ 6 compras</option>
+                <option :value="8">≥ 8 compras</option>
+                <option :value="10">≥ 10 compras</option>
+              </select>
+            </div>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
@@ -1127,8 +1153,11 @@
                                                   <div class="font-bold text-[#1D1D1F]">
                                                     {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
                                                   </div>
-                                                  <div class="text-[9px] text-[#86868B]">
-                                                    {{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}
+                                                  <div class="text-[9px] text-[#86868B] flex items-center justify-end gap-1">
+                                                    <span>{{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}</span>
+                                                    <span v-if="(prod.frecuencia_compra || 0) > 0" class="text-amber-700 font-semibold">
+                                                      · {{ prod.frecuencia_compra }} {{ prod.frecuencia_compra === 1 ? 'compra' : 'compras' }}
+                                                    </span>
                                                   </div>
                                                 </td>
 
@@ -1675,12 +1704,22 @@ function productosHistorialFiltrados(clienteId) {
   const datos = detalleClienteFechasMap[clienteId]?.productos || []
   let lista = datos
 
-  // Si omitir unitarios está activo, excluir productos que se compraron una sola vez en el histórico
-  if (modoActivo.value === 'cob_core' && store.omitirUnitarios3m) {
-    lista = lista.filter(p => {
-      const cHist = Number(p.total_cantidad_3m) || 0
-      return cHist > 1 || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
-    })
+  // Filtros reactivos exclusivos de Cobertura Core
+  if (modoActivo.value === 'cob_core') {
+    if (store.omitirUnitarios3m) {
+      lista = lista.filter(p => {
+        const cHist = Number(p.total_cantidad_3m) || 0
+        return cHist > 1 || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
+      })
+    }
+
+    const minFrec = Number(store.frecuenciaMinima) || 1
+    if (minFrec > 1) {
+      lista = lista.filter(p => {
+        const frec = Number(p.frecuencia_compra) || 0
+        return frec >= minFrec || (frec === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
+      })
+    }
   }
 
   if (busquedaHistorialCliente.value.trim()) {
@@ -1750,7 +1789,8 @@ async function toggleClienteAccordion(cliente, ruta) {
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       kpi: kpiParaDetalle,
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
-      meses_historico: Number(store.mesesHistorico) || 3
+      meses_historico: Number(store.mesesHistorico) || 3,
+      frecuencia_minima: Number(store.frecuenciaMinima) || 1
     })
     detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {
@@ -2010,6 +2050,24 @@ async function onToggleOmitirUnitarios() {
   }
 }
 
+async function onCambioFrecuenciaMinima() {
+  store.guardarEstado()
+  const cliId = clienteExpandidoId.value
+  const rExp = rutaExpandida.value
+  Object.keys(detalleClienteFechasMap).forEach(k => delete detalleClienteFechasMap[k])
+  await ejecutarConsulta()
+  if (rExp) {
+    rutaExpandida.value = null
+    await toggleDetalleRuta(rExp)
+    if (cliId) {
+      const cliObj = carteraClientes.value.find(c => c.cliente_id === cliId)
+      if (cliObj) {
+        await toggleClienteAccordion(cliObj, rExp)
+      }
+    }
+  }
+}
+
 async function toggleDetalleRuta(ruta) {
   if (rutaExpandida.value === ruta) {
     rutaExpandida.value = null
@@ -2033,7 +2091,8 @@ async function toggleDetalleRuta(ruta) {
       fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
-      meses_historico: Number(store.mesesHistorico) || 3
+      meses_historico: Number(store.mesesHistorico) || 3,
+      frecuencia_minima: Number(store.frecuenciaMinima) || 1
     })
     carteraClientes.value = res.data.clientes || []
     diasRuta.value = res.data.por_dia || []

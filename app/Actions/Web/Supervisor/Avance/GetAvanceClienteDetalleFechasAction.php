@@ -41,10 +41,12 @@ class GetAvanceClienteDetalleFechasAction
         ?string $fechaCorte = null,
         string $kpiClave = 'vol_general',
         bool $omitirUnitarios3m = false,
-        int $mesesHistorico = 3
+        int $mesesHistorico = 3,
+        int $frecuenciaMinima = 1
     ): array {
         $rutaClean = strtoupper(trim($ruta));
         $mesesHistorico = max(1, min(8, $mesesHistorico));
+        $frecuenciaMinima = max(1, $frecuenciaMinima);
 
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
@@ -182,6 +184,8 @@ class GetAvanceClienteDetalleFechasAction
                     'precio_ultima_compra' => 0.0,
                     'facturas' => [],
                     'fechas' => [],
+                    'fechas_3m' => [],
+                    'facturas_3m' => [],
                     'compras_3m' => [],
                     'compras_mes_actual' => [],
                     'por_mes' => $porMesTemplate,
@@ -212,6 +216,10 @@ class GetAvanceClienteDetalleFechasAction
                 $prodMap[$prodKey]['total_bs_3m'] += $monto;
                 $prodMap[$prodKey]['total_cantidad_3m'] += $cant;
                 $prodMap[$prodKey]['compras_3m'][] = $itemDetalle;
+                $prodMap[$prodKey]['fechas_3m'][$f] = true;
+                if ($r->nro_factura && $r->nro_factura !== 'S/F') {
+                    $prodMap[$prodKey]['facturas_3m'][$r->nro_factura] = true;
+                }
             }
             if ($esMesActual) {
                 $prodMap[$prodKey]['total_bs_mes_actual'] += $monto;
@@ -260,11 +268,21 @@ class GetAvanceClienteDetalleFechasAction
         foreach ($productosResultado as $idx => &$p) {
             $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
             $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+            $frecuenciaCompra = max(count($p['fechas_3m'] ?? []), count($p['facturas_3m'] ?? []));
+            $p['frecuencia_compra'] = $frecuenciaCompra;
 
             // Si omitir unitarios está activo, no incluir productos comprados una sola vez en toda la ventana histórica
             if ($omitirUnitarios3m && ($cant3m === 1 || ($cant3m === 0 && $cantMtd === 0))) {
                 unset($productosResultado[$idx]);
                 continue;
+            }
+
+            // Si se exige una frecuencia mínima, excluir productos que no alcancen dicha frecuencia en el histórico
+            if ($frecuenciaMinima > 1 && $cant3m > 0 && $frecuenciaCompra < $frecuenciaMinima) {
+                if ($cantMtd === 0) {
+                    unset($productosResultado[$idx]);
+                    continue;
+                }
             }
 
             $p['total_bs'] = round($p['total_bs'], 2);
@@ -286,7 +304,8 @@ class GetAvanceClienteDetalleFechasAction
 
             // Hábito sugerido mensual: Total Cantidad Histórica / N meses redondeado al entero superior
             $minCant = $omitirUnitarios3m ? 1 : 0;
-            $cantSugerida = $cant3m > $minCant ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
+            $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
+            $cantSugerida = ($cumpleFrecuencia && $cant3m > $minCant) ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
             $p['es_unitario_3m'] = ($cant3m === 1);
@@ -307,7 +326,7 @@ class GetAvanceClienteDetalleFechasAction
         unset($p);
         $productosResultado = array_values($productosResultado);
 
-        if ($omitirUnitarios3m) {
+        if ($omitirUnitarios3m || $frecuenciaMinima > 1) {
             $totalMonto3m = array_sum(array_column($productosResultado, 'total_bs_3m'));
             $totalUnidades3m = array_sum(array_column($productosResultado, 'total_cantidad_3m'));
         }
@@ -318,6 +337,7 @@ class GetAvanceClienteDetalleFechasAction
             'kpi' => $kpiClave,
             'kpi_nombre' => self::KPIS_NOMBRES[$kpiClave] ?? $kpiClave,
             'fecha_corte' => $fechaCorte,
+            'frecuencia_minima' => $frecuenciaMinima,
             'fecha_inicio_3m' => $histInicio,
             'meses_historico' => $mesesHistorico,
             'meses_cerrados' => $mesesCerrados,

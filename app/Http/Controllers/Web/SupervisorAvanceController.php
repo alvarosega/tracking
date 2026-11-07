@@ -68,6 +68,7 @@ class SupervisorAvanceController extends Controller
         $modoTemporal = (string) $request->input('modo_temporal', 'acumulado');
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
+        $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
 
         $data = $action->execute(
             vista: $vista,
@@ -78,7 +79,8 @@ class SupervisorAvanceController extends Controller
             rutas: $rutas,
             modoTemporal: $modoTemporal,
             omitirUnitarios3m: $omitirUnitarios,
-            mesesHistorico: $mesesHistorico
+            mesesHistorico: $mesesHistorico,
+            frecuenciaMinima: $frecuenciaMinima
         );
 
         return response()->json($data);
@@ -95,6 +97,7 @@ class SupervisorAvanceController extends Controller
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
+        $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
 
         $data = $action->execute(
             ruta: $ruta,
@@ -102,7 +105,8 @@ class SupervisorAvanceController extends Controller
             fechaInicio: $fechaInicio,
             fechaCorte: $fechaCorte,
             omitirUnitarios3m: $omitirUnitarios,
-            mesesHistorico: $mesesHistorico
+            mesesHistorico: $mesesHistorico,
+            frecuenciaMinima: $frecuenciaMinima
         );
 
         return response()->json($data);
@@ -120,6 +124,7 @@ class SupervisorAvanceController extends Controller
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
+        $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
 
         $data = $action->execute(
             clienteId: $clienteId,
@@ -128,7 +133,8 @@ class SupervisorAvanceController extends Controller
             fechaCorte: $fechaCorte,
             kpiClave: $kpi,
             omitirUnitarios3m: $omitirUnitarios,
-            mesesHistorico: $mesesHistorico
+            mesesHistorico: $mesesHistorico,
+            frecuenciaMinima: $frecuenciaMinima
         );
 
         return response()->json($data);
