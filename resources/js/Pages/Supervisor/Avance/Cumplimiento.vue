@@ -562,23 +562,21 @@
                                 <tr class="hover:bg-blue-50/30 transition-colors">
                                   <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
                                     <button
-                                      v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0"
                                       type="button"
-                                      @click="toggleClienteAccordion(cli, r.ruta)"
+                                      @click.stop="toggleClienteAccordion(cli, r.ruta)"
                                       class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
                                       :class="clienteExpandidoId === cli.cliente_id ? 'rotate-90 text-[#0071E3]' : ''"
-                                      title="Desglosar historial de compras"
+                                      title="Desglosar histórico facturado y sugerido"
                                     >
                                       <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                       </svg>
                                     </button>
-                                    <span v-else class="inline-block w-4 mr-1"></span>
                                     <span>{{ cidx + 1 }}</span>
                                   </td>
-                                  <td class="py-1.5 px-2.5 font-bold text-[#6E6E73]">{{ cli.cliente_id }}</td>
-                                  <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F]">
-                                    {{ cli.cliente }}
+                                  <td class="py-1.5 px-2.5 font-bold text-[#6E6E73] cursor-pointer hover:text-[#0071E3]" @click="toggleClienteAccordion(cli, r.ruta)">{{ cli.cliente_id }}</td>
+                                  <td class="py-1.5 px-2.5 font-sans font-medium text-[#1D1D1F] cursor-pointer hover:text-[#0071E3]" @click="toggleClienteAccordion(cli, r.ruta)">
+                                    <div class="hover:underline">{{ cli.cliente }}</div>
                                     <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
                                   </td>
                                   <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
@@ -626,10 +624,27 @@
                                 <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
                                   <td colspan="13" class="p-2.5 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[10px] p-3 space-y-2.5 bg-white/95 border border-black/[0.06] shadow-2xs">
-                                    <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-4 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
+                                    <!-- 1. Cargando detalle del cliente -->
+                                    <div v-if="cargandoClienteId === cli.cliente_id" class="py-6 text-center text-[10px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
                                       <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
                                       <span>Cargando histórico facturado de {{ cli.cliente }}...</span>
                                     </div>
+
+                                    <!-- 2. Error al cargar -->
+                                    <div v-else-if="errorClienteMap[cli.cliente_id]" class="py-4 text-center space-y-2 font-sans">
+                                      <div class="text-[11px] text-rose-600 font-medium">
+                                        {{ errorClienteMap[cli.cliente_id] }}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        @click="toggleClienteAccordion(cli, r.ruta, true)"
+                                        class="px-3 py-1 bg-[#0071E3] text-white rounded-[6px] text-[10px] font-medium hover:bg-blue-600 transition cursor-pointer"
+                                      >
+                                        Reintentar
+                                      </button>
+                                    </div>
+
+                                    <!-- 3. Contenido cargado -->
                                     <template v-else-if="detalleClienteFechasMap[cli.cliente_id]">
                                       <!-- Cabecera de Productos del Cliente: Contador y Buscador -->
                                       <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-black/[0.04]">
@@ -914,6 +929,9 @@
                                         </div>
                                       </div>
                                     </template>
+                                    <div v-else class="py-4 text-center text-[10px] text-[#86868B] font-sans">
+                                      No se encontraron datos para este cliente.
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
@@ -1156,13 +1174,19 @@ function ordenarClientes(col) {
 
 // Acordeón de clientes
 const clienteExpandidoId = ref(null)
-const cargandoAccordionCliente = ref(false)
-const detalleClienteFechasMap = reactive({})
+const cargandoClienteId = ref(null)
+const errorClienteMap = ref({})
+const detalleClienteFechasMap = ref({})
+const productoExpandidoKey = ref(null)
 const modoHistorialCliente = ref('sugerido') // 'sugerido' | 'compras_mes' | 'fechas'
 const busquedaHistorialCliente = ref('')
 
+function toggleProductoExpandido(key) {
+  productoExpandidoKey.value = (productoExpandidoKey.value === key ? null : key)
+}
+
 function fechasHistorialFiltradas(clienteId) {
-  const datos = detalleClienteFechasMap[clienteId]?.fechas || []
+  const datos = detalleClienteFechasMap.value?.[clienteId]?.fechas || []
   if (!busquedaHistorialCliente.value.trim()) {
     return datos
   }
@@ -1192,7 +1216,7 @@ function ordenarProductos(col) {
 }
 
 function productosHistorialFiltrados(clienteId) {
-  const datos = detalleClienteFechasMap[clienteId]?.productos || []
+  const datos = detalleClienteFechasMap.value?.[clienteId]?.productos || []
   let lista = datos
   if (busquedaHistorialCliente.value.trim()) {
     const q = busquedaHistorialCliente.value.toLowerCase().trim()
@@ -1244,8 +1268,8 @@ function totalSkusSugeridosFiltrados(clienteId) {
   return lista.filter(p => (p.cant_sugerida || 0) > 0).length
 }
 
-async function toggleClienteAccordion(cliente, ruta) {
-  if (clienteExpandidoId.value === cliente.cliente_id) {
+async function toggleClienteAccordion(cliente, ruta, forzar = false) {
+  if (!forzar && clienteExpandidoId.value === cliente.cliente_id) {
     clienteExpandidoId.value = null
     return
   }
@@ -1254,11 +1278,12 @@ async function toggleClienteAccordion(cliente, ruta) {
   busquedaHistorialCliente.value = ''
   productoExpandidoKey.value = null
 
-  if (detalleClienteFechasMap[cliente.cliente_id]) {
+  if (!forzar && detalleClienteFechasMap.value?.[cliente.cliente_id]) {
     return
   }
 
-  cargandoAccordionCliente.value = true
+  cargandoClienteId.value = cliente.cliente_id
+  errorClienteMap.value = { ...errorClienteMap.value, [cliente.cliente_id]: null }
   try {
     const res = await axios.post('/supervisor/avance/cumplimiento/cliente-detalle-fechas', {
       cliente_id: cliente.cliente_id,
@@ -1267,11 +1292,18 @@ async function toggleClienteAccordion(cliente, ruta) {
       fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
       kpi: 'cob_core'
     })
-    detalleClienteFechasMap[cliente.cliente_id] = res.data
+    detalleClienteFechasMap.value = {
+      ...detalleClienteFechasMap.value,
+      [cliente.cliente_id]: res.data
+    }
   } catch (err) {
     console.error('Error al cargar detalle fechas cliente:', err)
+    errorClienteMap.value = {
+      ...errorClienteMap.value,
+      [cliente.cliente_id]: err.response?.data?.message || 'Error de conexión al cargar el histórico del cliente.'
+    }
   } finally {
-    cargandoAccordionCliente.value = false
+    cargandoClienteId.value = null
   }
 }
 
@@ -1412,7 +1444,10 @@ async function toggleDetalleRuta(ruta) {
   diasRuta.value = []
   diaSeleccionadoInline.value = null
   clienteExpandidoId.value = null
-  for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
+  detalleClienteFechasMap.value = {}
+  errorClienteMap.value = {}
+  cargandoClienteId.value = null
+  productoExpandidoKey.value = null
 
   try {
     const res = await axios.post('/supervisor/avance/cumplimiento/clientes-ruta', {
