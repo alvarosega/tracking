@@ -433,18 +433,17 @@ class GetAvanceCumplimientoDataAction
                 })
                 ->select([
                     'cliente_id',
-                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
                     DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
                     DB::raw("SUM(monto_final) as total_monto"),
                 ])
-                ->groupBy('cliente_id', DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA')"), DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
+                ->groupBy('cliente_id', DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
                 ->get();
 
             foreach ($histRutasRaw as $hr) {
                 $cid = (int) $hr->cliente_id;
                 $rClean = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
                     ? $clienteRutaOficialMap[$cid]
-                    : (string) $hr->ruta_clean;
+                    : 'SIN RUTA';
                 $ym = (string) $hr->mes_ym;
                 $histRutasMap[$rClean][$ym] = ($histRutasMap[$rClean][$ym] ?? 0.0) + (float) $hr->total_monto;
             }
@@ -460,7 +459,6 @@ class GetAvanceCumplimientoDataAction
                 })
                 ->select([
                     'cliente_id',
-                    DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_clean"),
                     DB::raw("TRIM(codigo) as codigo"),
                     DB::raw("COALESCE(producto, '') as producto"),
                     DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
@@ -475,7 +473,7 @@ class GetAvanceCumplimientoDataAction
                 $cid = (int) $row->cliente_id;
                 $r = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
                     ? $clienteRutaOficialMap[$cid]
-                    : (string) $row->ruta_clean;
+                    : 'SIN RUTA';
 
                 if (!$r || $r === 'SIN RUTA') continue;
                 $pkey = $row->codigo ?: $row->producto;
