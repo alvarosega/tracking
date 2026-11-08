@@ -52,6 +52,12 @@ class GetAvanceClienteDetalleFechasAction
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
+        // Estándar oficial de Cobertura Core: frecuencia mínima 2 meses y cantidad mínima 4 unidades
+        if ($kpiClave === 'cob_core') {
+            $frecuenciaMinima = $frecuenciaMinima > 1 ? $frecuenciaMinima : 2;
+            $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 4);
+        }
+
         @ini_set('memory_limit', '512M');
 
         if (!$diaVisita) {
@@ -876,6 +882,18 @@ class GetAvanceClienteDetalleFechasAction
                     }
                 }
             }
+        }
+
+        if ($kpiClave === 'cob_core') {
+            $productosResultado = array_values(array_filter($productosResultado, function ($p) use ($frecuenciaMinima, $cantidadMinima) {
+                $c3m = (int) ($p['total_cantidad_3m'] ?? 0);
+                $cMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+                $frec = (int) ($p['meses_distintos_3m'] ?? 0);
+                $esHabitual = ($frec >= $frecuenciaMinima && $c3m >= $cantidadMinima);
+                $tieneSugerido = ((int) ($p['cant_sugerida'] ?? 0)) > 0;
+                $esPareto = (bool) ($p['es_core_pareto'] ?? false);
+                return $esHabitual || $tieneSugerido || $cMtd > 0 || $esPareto;
+            }));
         }
 
         if ($cantidadMinima > 1 || $frecuenciaMinima > 1) {

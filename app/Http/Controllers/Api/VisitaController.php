@@ -90,18 +90,20 @@ class VisitaController extends Controller
                 ->value('cliente') ?: "Cliente #{$cid}";
         }
 
-        // 1. Resolver ruta del cliente (priorizando la ruta oficial de cartera en pan_ruteo)
-        $rutaOficial = ($clienteRow && !empty($clienteRow->ruta)) ? strtoupper(trim((string) $clienteRow->ruta)) : null;
+        // 1. Resolver ruta del cliente (respetando la ruta solicitada o la oficial de cartera en pan_ruteo)
         $rutaReq = $request->input('ruta');
+        $rutaOficial = ($clienteRow && !empty($clienteRow->ruta)) ? strtoupper(trim((string) $clienteRow->ruta)) : null;
         if (empty($rutaReq) && $user) {
             $rutaReq = $user->ruta ?: $user->username;
         }
-        $rutaClean = $rutaOficial ?: strtoupper(trim((string) $rutaReq));
+        $rutaClean = !empty($rutaReq) ? strtoupper(trim((string) $rutaReq)) : ($rutaOficial ?: '');
 
         // 2. Parámetros de filtro idénticos al módulo Web
         $kpiClave = (string) ($request->input('kpi') ?: 'cob_core');
-        $cantidadMinima = max(1, (int) ($request->input('cantidad_minima') ?: ($request->input('omitir_unitarios_3m') ? 2 : 1)));
-        $frecuenciaMinima = max(1, (int) ($request->input('frecuencia_minima') ?: 1));
+        $defaultFrec = ($kpiClave === 'cob_core') ? 2 : 1;
+        $defaultCant = ($kpiClave === 'cob_core') ? 4 : ($request->input('omitir_unitarios_3m') ? 2 : 1);
+        $cantidadMinima = max(1, (int) ($request->input('cantidad_minima') ?: $defaultCant));
+        $frecuenciaMinima = max(1, (int) ($request->input('frecuencia_minima') ?: $defaultFrec));
         $mesesHistorico = max(1, min(8, (int) ($request->input('meses_historico') ?: 3)));
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', $request->input('omitir_unitarios', false)), FILTER_VALIDATE_BOOLEAN);
 

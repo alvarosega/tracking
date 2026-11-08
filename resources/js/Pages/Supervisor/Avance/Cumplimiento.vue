@@ -2229,25 +2229,18 @@ function productosHistorialFiltrados(clienteId) {
   const datos = detalleClienteFechasMap[clienteId]?.productos || []
   let lista = datos
 
-  // Filtros reactivos exclusivos de Cobertura Core
+  // Filtros reactivos exclusivos de Cobertura Core (idénticos a la regla de backend y API)
   if (modoActivo.value === 'cob_core') {
     const minCant = Number(store.cantidadMinima) || 1
-    if (minCant > 1) {
-      lista = lista.filter(p => {
-        if (p.es_core_pareto) return true
-        const cHist = Number(p.total_cantidad_3m) || 0
-        return cHist >= minCant || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
-      })
-    }
-
     const minFrec = Number(store.frecuenciaMinima) || 1
-    if (minFrec > 1) {
-      lista = lista.filter(p => {
-        if (p.es_core_pareto) return true
-        const frec = Number(p.meses_distintos_3m ?? p.frecuencia_compra) || 0
-        return frec >= minFrec || (frec === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
-      })
-    }
+    lista = lista.filter(p => {
+      if (p.es_core_pareto) return true
+      if ((Number(p.cant_sugerida) || 0) > 0) return true
+      if ((Number(p.total_cantidad_mes_actual) || 0) > 0) return true
+      const cHist = Number(p.total_cantidad_3m) || 0
+      const frec = Number(p.meses_distintos_3m ?? p.frecuencia_compra) || 0
+      return (cHist >= minCant && frec >= minFrec)
+    })
   }
 
   if (busquedaHistorialCliente.value.trim()) {
