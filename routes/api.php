@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ClienteInventarioController;
 use App\Http\Controllers\Api\FronteraController;
 use App\Http\Controllers\Api\OportunidadesController;
 use App\Http\Controllers\Api\PedidoRechazadoController;
+use App\Http\Controllers\Api\PizarraController;
 use App\Http\Controllers\Api\PlanRuteoController;
 use App\Http\Controllers\Api\SaneamientoController;
 use App\Http\Controllers\Api\TrackingController;
@@ -57,6 +58,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Registro de Visitas en Campo (ambos alias para compatibilidad total con Retrofit)
     Route::post('/visitas', [VisitaController::class, 'store']);
     Route::post('/visitas/store', [VisitaController::class, 'store']);
+
+    // Pizarra Modelo Unilever (Android App - Resumen de los 8 KPIs en tiempo real)
+    Route::match(['get', 'post'], '/pizarra', [PizarraController::class, 'resumen']);
+    Route::match(['get', 'post'], '/pizarra/resumen', [PizarraController::class, 'resumen']);
 
     // Oportunidades comerciales
     Route::get('/oportunidades', [OportunidadesController::class, 'index']);
