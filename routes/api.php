@@ -41,6 +41,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/visitas/plan', [VisitaController::class, 'clientes']);
     Route::get('/visitas', [VisitaController::class, 'clientes']);
 
+    // Submódulo de Visitas: sugerido de compra y productos objetivo por cliente (Android App)
+    Route::match(['get', 'post'], '/visitas/clientes/{clienteId}/sugerido', [VisitaController::class, 'sugeridoCliente']);
+    Route::match(['get', 'post'], '/visitas/cliente/{clienteId}/sugerido', [VisitaController::class, 'sugeridoCliente']);
+    Route::match(['get', 'post'], '/visitas/{clienteId}/sugerido', [VisitaController::class, 'sugeridoCliente']);
+    Route::match(['get', 'post'], '/visitas/clientes/{clienteId}/detalle', [VisitaController::class, 'sugeridoCliente']);
+    Route::match(['get', 'post'], '/visitas/cliente/{clienteId}/detalle', [VisitaController::class, 'sugeridoCliente']);
+
     // Polígono de Frontera de la Ruta Comercial para Android (Mapas y Geocercas)
     Route::get('/fronteras/ruta', [FronteraController::class, 'ruta']);
     Route::get('/fronteras/rutas', [FronteraController::class, 'ruta']);

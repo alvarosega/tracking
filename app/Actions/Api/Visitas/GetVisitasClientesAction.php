@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Api\Visitas;
 
+use App\Actions\Web\Supervisor\Avance\GetAvanceClientesRutaAction;
 use App\Models\RouteVisitDay;
 use App\Models\User;
 use App\Services\SaneamientoAuditService;
@@ -24,7 +25,8 @@ class GetVisitasClientesAction
     ];
 
     public function __construct(
-        protected SaneamientoAuditService $saneamientoAuditService
+        protected SaneamientoAuditService $saneamientoAuditService,
+        protected ?GetAvanceClientesRutaAction $avanceClientesRutaAction = null
     ) {}
 
     /**
@@ -161,7 +163,28 @@ class GetVisitasClientesAction
             ->orderBy('p.cliente_id', 'asc')
             ->get();
 
-        // 7. Deduplicar por cliente_id y estructurar formato unificado compatible con PlanRuteoDto
+        // 7. Resolver cuota objetivo y sugerido de compra para cada cliente usando la Web Action oficial
+        $cuotaMap = [];
+        $sugeridoMap = [];
+        if ($this->avanceClientesRutaAction && !empty($rutaUsuario)) {
+            try {
+                $rutaAvance = $this->avanceClientesRutaAction->execute(
+                    ruta: $rutaUsuario,
+                    kpiClave: 'cob_core'
+                );
+                foreach ($rutaAvance['clientes'] ?? [] as $cliAv) {
+                    $cIdAv = (int) ($cliAv['cliente_id'] ?? 0);
+                    if ($cIdAv > 0) {
+                        $cuotaMap[$cIdAv] = (float) ($cliAv['cuota_objetivo'] ?? 150.0);
+                        $sugeridoMap[$cIdAv] = (float) ($cliAv['total_sugerido'] ?? 0.0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning("GetVisitasClientesAction: no se pudo obtener avance/sugerido de ruta {$rutaUsuario}: " . $e->getMessage());
+            }
+        }
+
+        // 8. Deduplicar por cliente_id y estructurar formato unificado compatible con PlanRuteoDto
         $clientesVistos = [];
         $resultado = [];
 
@@ -198,6 +221,8 @@ class GetVisitasClientesAction
                 'cliente' => $nombre,
                 'ruta' => (string) ($c->ruta ?? $rutaUsuario),
                 'dia' => $diaDisplay,
+                'cuota_objetivo' => round($cuotaMap[$cid] ?? 150.0, 2),
+                'total_sugerido' => round($sugeridoMap[$cid] ?? 0.0, 2),
                 'direccion' => $direccion,
                 'latitud' => $latitud,
                 'longitud' => $longitud,
