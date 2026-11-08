@@ -325,7 +325,7 @@
                         {{ r.tipo_negocio }}
                       </span>
                       <span v-if="r.vendedor" class="truncate max-w-[150px] text-[#6E6E73]">
-                        👤 {{ r.vendedor }}
+                        {{ r.vendedor }}
                       </span>
                     </div>
                   </div>
@@ -351,9 +351,9 @@
                     <span v-if="r.distancia_desplazamiento_m" class="text-[#0071E3] font-bold">
                       Desv: {{ r.distancia_desplazamiento_m }}m
                     </span>
-                    <span v-if="r.nit" class="text-[#248A3D] font-semibold" title="NIT registrado">NIT✓</span>
-                    <span v-if="r.celular || r.telefono" class="text-[#0071E3]" title="Teléfono registrado">📞</span>
-                    <span v-if="r.photo_url" class="text-[#AF52DE]" title="Tiene fotografía">📷</span>
+                    <span v-if="r.nit" class="text-[#248A3D] font-semibold" title="NIT registrado">NIT</span>
+                    <span v-if="r.celular || r.telefono" class="text-[#0071E3] font-semibold" title="Teléfono registrado">TEL</span>
+                    <span v-if="r.photo_url" class="text-[#AF52DE] font-semibold" title="Tiene fotografía">FOTO</span>
                   </div>
 
                   <span class="text-[#0071E3] font-sans font-medium text-[11px] shrink-0">Ver ficha &rarr;</span>
@@ -420,7 +420,7 @@
                     <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
-                    <span>{{ registroSeleccionado.estado_revision === 'APROBADO' ? '✓ Aprobado' : 'Aprobar' }}</span>
+                    <span>{{ registroSeleccionado.estado_revision === 'APROBADO' ? 'Aprobado' : 'Aprobar' }}</span>
                   </button>
 
                   <button
@@ -437,7 +437,7 @@
                     <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span>{{ registroSeleccionado.estado_revision === 'RECHAZADO' ? '✕ Rechazado' : 'Rechazar' }}</span>
+                    <span>{{ registroSeleccionado.estado_revision === 'RECHAZADO' ? 'Rechazado' : 'Rechazar' }}</span>
                   </button>
                 </div>
 
@@ -453,33 +453,6 @@
                   </button>
                 </div>
 
-                <!-- Trazabilidad de Auditoría & Tiempos en BD -->
-                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#E5E5EA] text-[10px] font-mono">
-                  <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Registrado Por (user_id)</span>
-                    <span class="font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.usuario || 'ID #' + registroSeleccionado.user_id }}</span>
-                    <span class="text-[#86868B] text-[9px] block">ID: {{ registroSeleccionado.user_id || 'N/A' }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Vendedor de Ruta</span>
-                    <span class="font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.vendedor || 'Sin asignar' }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Fecha Creación (created_at)</span>
-                    <span class="text-[#1D1D1F]">{{ registroSeleccionado.fecha_registro }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[9px] text-[#86868B] uppercase block">Fecha Revisión (revisado_at)</span>
-                    <span :class="registroSeleccionado.revisado_at ? 'text-[#1D1D1F] font-semibold' : 'text-[#86868B] italic'">
-                      {{ registroSeleccionado.revisado_at || 'Pendiente' }}
-                    </span>
-                  </div>
-                  <div class="col-span-2">
-                    <span class="text-[9px] text-[#86868B] uppercase block">Última Modificación en BD (updated_at)</span>
-                    <span class="text-[#6E6E73]">{{ registroSeleccionado.fecha_actualizacion || registroSeleccionado.fecha_registro }}</span>
-                  </div>
-                </div>
-
                 <!-- Feedback / Mensaje en línea -->
                 <div
                   v-if="mensajeEstado"
@@ -491,12 +464,12 @@
                 </div>
               </div>
 
-              <!-- SECCIÓN ESTRELLA: DATOS DE ALTA LISTOS PARA COPIAR CON 1 CLIC -->
-              <div class="bg-gradient-to-br from-[#F0F7FF] via-white to-[#F5F5F7] border border-[#0071E3]/25 rounded-[12px] p-3 shadow-xs space-y-2.5 font-sans">
+              <!-- DATOS DE ALTA LISTOS PARA COPIAR CON 1 CLIC (SOBRIO) -->
+              <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs space-y-2 font-sans">
                 <!-- Encabezado de la tarjeta con acciones rápidas -->
-                <div class="flex items-center justify-between gap-2 pb-2 border-b border-[#0071E3]/15">
+                <div class="flex items-center justify-between gap-2 pb-2 border-b border-[#E5E5EA]">
                   <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-[#0071E3] shrink-0 animate-pulse"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3] shrink-0"></span>
                     <span class="text-[11px] font-bold text-[#1D1D1F] uppercase tracking-wider truncate">
                       Datos de Alta · Copiado Rápido
                     </span>
@@ -506,32 +479,37 @@
                       type="button"
                       @click="copiarFilaExcel(registroSeleccionado)"
                       class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 active:scale-95 select-none"
-                      :class="campoCopiado === 'excel' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs'"
-                      title="Copiar los 6 campos en formato tabulado (1 fila para pegar directo en Excel / Sheets)"
+                      :class="campoCopiado === 'excel' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border-[#E5E5EA]'"
+                      title="Copiar los 6 campos tabulados para pegar directamente en Excel"
                     >
                       <svg v-if="campoCopiado === 'excel'" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
-                      <span v-else class="text-[10px]">📋</span>
-                      <span>{{ campoCopiado === 'excel' ? '¡Copiado p/ Excel!' : 'Fila Excel' }}</span>
+                      <svg v-else class="w-3 h-3 text-[#6E6E73]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>{{ campoCopiado === 'excel' ? 'Copiado para Excel' : 'Fila Excel' }}</span>
                     </button>
                     <button
                       type="button"
                       @click="copiarFichaCompleta(registroSeleccionado)"
                       class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 active:scale-95 select-none"
-                      :class="campoCopiado === 'todo' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-[#0071E3] text-white hover:bg-[#005BB5] border-[#0071E3] shadow-2xs'"
-                      title="Copiar todos los datos en lista con etiquetas"
+                      :class="campoCopiado === 'todo' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-[#0071E3] text-white hover:bg-[#005BB5] border-[#0071E3]'"
+                      title="Copiar todos los datos con etiquetas"
                     >
                       <svg v-if="campoCopiado === 'todo'" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
-                      <span>{{ campoCopiado === 'todo' ? '¡Ficha Copiada!' : 'Copiar Todo' }}</span>
+                      <svg v-else class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                      </svg>
+                      <span>{{ campoCopiado === 'todo' ? 'Ficha Copiada' : 'Copiar Todo' }}</span>
                     </button>
                   </div>
                 </div>
 
                 <p class="text-[10px] text-[#6E6E73] leading-tight">
-                  Haz clic sobre cualquier campo para copiar su valor limpio al portapapeles y pegarlo fácilmente:
+                  Haz clic sobre cualquier campo para copiar su valor al portapapeles:
                 </p>
 
                 <!-- Cuadrícula interactiva con los 6 campos -->
@@ -539,8 +517,8 @@
                   <!-- 1. Nombre Completo -->
                   <div
                     @click="copiarAlPortapapeles(registroSeleccionado.cliente, 'nombre', 'Nombre Completo')"
-                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                    :class="campoCopiado === 'nombre' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                    :class="campoCopiado === 'nombre' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                     title="Clic para copiar Nombre Completo"
                   >
                     <div class="min-w-0 flex-1 pr-2">
@@ -550,7 +528,7 @@
                       </span>
                     </div>
                     <div class="shrink-0 flex items-center gap-1">
-                      <span v-if="campoCopiado === 'nombre'" class="text-[10px] font-bold text-[#248A3D]">¡Copiado!</span>
+                      <span v-if="campoCopiado === 'nombre'" class="text-[10px] font-bold text-[#248A3D]">Copiado</span>
                       <span
                         class="w-6 h-6 rounded-[6px] flex items-center justify-center transition-colors shadow-2xs"
                         :class="campoCopiado === 'nombre' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
@@ -568,8 +546,8 @@
                   <!-- 2. Razón Social -->
                   <div
                     @click="copiarAlPortapapeles(registroSeleccionado.nombre_factura || registroSeleccionado.razon_social || registroSeleccionado.cliente, 'razon_social', 'Razón Social')"
-                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                    :class="campoCopiado === 'razon_social' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                    :class="campoCopiado === 'razon_social' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                     title="Clic para copiar Razón Social"
                   >
                     <div class="min-w-0 flex-1 pr-2">
@@ -579,7 +557,7 @@
                       </span>
                     </div>
                     <div class="shrink-0 flex items-center gap-1">
-                      <span v-if="campoCopiado === 'razon_social'" class="text-[10px] font-bold text-[#248A3D]">¡Copiado!</span>
+                      <span v-if="campoCopiado === 'razon_social'" class="text-[10px] font-bold text-[#248A3D]">Copiado</span>
                       <span
                         class="w-6 h-6 rounded-[6px] flex items-center justify-center transition-colors shadow-2xs"
                         :class="campoCopiado === 'razon_social' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
@@ -599,8 +577,8 @@
                     <!-- 3. Carnet o NIT -->
                     <div
                       @click="copiarAlPortapapeles(registroSeleccionado.nit, 'nit', 'Carnet o NIT')"
-                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                      :class="campoCopiado === 'nit' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                      :class="campoCopiado === 'nit' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                       title="Clic para copiar Carnet o NIT"
                     >
                       <div class="min-w-0 flex-1 pr-1.5">
@@ -609,24 +587,27 @@
                           {{ registroSeleccionado.nit || 'Sin NIT/CI' }}
                         </span>
                       </div>
-                      <span
-                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
-                        :class="campoCopiado === 'nit' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
-                      >
-                        <svg v-if="campoCopiado === 'nit'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                        </svg>
-                      </span>
+                      <div class="shrink-0 flex items-center gap-1">
+                        <span v-if="campoCopiado === 'nit'" class="text-[9px] font-bold text-[#248A3D]">Copiado</span>
+                        <span
+                          class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                          :class="campoCopiado === 'nit' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                        >
+                          <svg v-if="campoCopiado === 'nit'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
 
                     <!-- 4. Celular o Teléfono -->
                     <div
                       @click="copiarAlPortapapeles(registroSeleccionado.celular || registroSeleccionado.telefono, 'telefono', 'Celular o Teléfono')"
-                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                      :class="campoCopiado === 'telefono' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                      :class="campoCopiado === 'telefono' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                       title="Clic para copiar Celular o Teléfono"
                     >
                       <div class="min-w-0 flex-1 pr-1.5">
@@ -635,17 +616,20 @@
                           {{ registroSeleccionado.celular || registroSeleccionado.telefono || 'Sin teléfono' }}
                         </span>
                       </div>
-                      <span
-                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
-                        :class="campoCopiado === 'telefono' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
-                      >
-                        <svg v-if="campoCopiado === 'telefono'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                        </svg>
-                      </span>
+                      <div class="shrink-0 flex items-center gap-1">
+                        <span v-if="campoCopiado === 'telefono'" class="text-[9px] font-bold text-[#248A3D]">Copiado</span>
+                        <span
+                          class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                          :class="campoCopiado === 'telefono' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                        >
+                          <svg v-if="campoCopiado === 'telefono'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -654,8 +638,8 @@
                     <!-- 5. Latitud -->
                     <div
                       @click="copiarAlPortapapeles(registroSeleccionado.latitud, 'latitud', 'Latitud')"
-                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                      :class="campoCopiado === 'latitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                      :class="campoCopiado === 'latitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                       title="Clic para copiar Latitud exacta"
                     >
                       <div class="min-w-0 flex-1 pr-1.5">
@@ -664,24 +648,27 @@
                           {{ (registroSeleccionado.latitud !== null && registroSeleccionado.latitud !== undefined && registroSeleccionado.latitud !== '') ? registroSeleccionado.latitud : 'Sin GPS' }}
                         </span>
                       </div>
-                      <span
-                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
-                        :class="campoCopiado === 'latitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
-                      >
-                        <svg v-if="campoCopiado === 'latitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                        </svg>
-                      </span>
+                      <div class="shrink-0 flex items-center gap-1">
+                        <span v-if="campoCopiado === 'latitud'" class="text-[9px] font-bold text-[#248A3D]">Copiado</span>
+                        <span
+                          class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                          :class="campoCopiado === 'latitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                        >
+                          <svg v-if="campoCopiado === 'latitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
 
                     <!-- 6. Longitud -->
                     <div
                       @click="copiarAlPortapapeles(registroSeleccionado.longitud, 'longitud', 'Longitud')"
-                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
-                      :class="campoCopiado === 'longitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-2xs active:scale-[0.99]"
+                      :class="campoCopiado === 'longitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-[#FBFBFD]'"
                       title="Clic para copiar Longitud exacta"
                     >
                       <div class="min-w-0 flex-1 pr-1.5">
@@ -690,17 +677,20 @@
                           {{ (registroSeleccionado.longitud !== null && registroSeleccionado.longitud !== undefined && registroSeleccionado.longitud !== '') ? registroSeleccionado.longitud : 'Sin GPS' }}
                         </span>
                       </div>
-                      <span
-                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
-                        :class="campoCopiado === 'longitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
-                      >
-                        <svg v-if="campoCopiado === 'longitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                        </svg>
-                      </span>
+                      <div class="shrink-0 flex items-center gap-1">
+                        <span v-if="campoCopiado === 'longitud'" class="text-[9px] font-bold text-[#248A3D]">Copiado</span>
+                        <span
+                          class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                          :class="campoCopiado === 'longitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                        >
+                          <svg v-if="campoCopiado === 'longitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -792,7 +782,7 @@
                     class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full"
                     :class="datosCercanos.tiene_duplicados ? 'bg-[#FF3B30] text-white shadow-2xs' : 'bg-[#EBF9EF] text-[#248A3D] border border-[#248A3D]/20'"
                   >
-                    {{ datosCercanos.tiene_duplicados ? '⚠️ COINCIDENCIAS DETECTADAS' : `${datosCercanos.total_cercanos} en 200m` }}
+                    {{ datosCercanos.tiene_duplicados ? 'COINCIDENCIAS DETECTADAS' : `${datosCercanos.total_cercanos} en 200m` }}
                   </span>
                 </div>
 
@@ -824,7 +814,9 @@
                     v-else
                     class="bg-[#EBF9EF] border border-[#34C759]/30 rounded-[8px] p-2 text-xs text-[#248A3D] flex items-center gap-1.5"
                   >
-                    <span>✓</span>
+                    <svg class="w-3.5 h-3.5 text-[#248A3D] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
                     <span class="text-[11px] font-medium">
                       Radio despejado: Sin datos repetidos con los {{ datosCercanos.total_cercanos }} puntos vecinos.
                     </span>
@@ -849,7 +841,7 @@
                           class="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer"
                           :class="filtroCercanosTipo === 'alertas' ? 'bg-[#FF3B30] text-white' : 'bg-[#FFF2F2] text-[#D70015] hover:bg-[#FFE5E5]'"
                         >
-                          ⚠️ Alertas ({{ datosCercanos.clientes_cercanos.filter(x => x.tiene_duplicidad).length }})
+                          Alertas ({{ datosCercanos.clientes_cercanos.filter(x => x.tiene_duplicidad).length }})
                         </button>
                         <button
                           v-if="datosCercanos.clientes_cercanos.some(x => x.fotos_count > 0 || x.ultima_foto)"
@@ -858,7 +850,7 @@
                           class="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer"
                           :class="filtroCercanosTipo === 'fotos' ? 'bg-[#5856D6] text-white' : 'bg-[#F4F3FF] text-[#5856D6] hover:bg-[#EBE9FE]'"
                         >
-                          📷 Fotos ({{ datosCercanos.clientes_cercanos.filter(x => x.fotos_count > 0 || x.ultima_foto).length }})
+                          Con Fotos ({{ datosCercanos.clientes_cercanos.filter(x => x.fotos_count > 0 || x.ultima_foto).length }})
                         </button>
                       </div>
 
@@ -918,7 +910,7 @@
                               Ver
                             </div>
                             <div class="absolute bottom-0.5 right-0.5 bg-black/70 text-white font-mono text-[7.5px] font-bold px-1 rounded">
-                              📷 {{ c.fotos_count || 1 }}
+                              {{ c.fotos_count || 1 }} fotos
                             </div>
                           </div>
 
@@ -931,12 +923,12 @@
                               Fact: {{ c.nombre_factura }}
                             </div>
                             <div class="text-[10px] text-[#6E6E73] flex items-center gap-1.5 flex-wrap">
-                              <span v-if="c.vendedor" class="truncate max-w-[120px]">👤 {{ c.vendedor }}</span>
-                              <span v-if="c.dia && c.dia !== 'SIN DIA'">📅 {{ c.dia }}</span>
-                              <span v-if="c.tipo_negocio">🏪 {{ c.tipo_negocio }}</span>
+                              <span v-if="c.vendedor" class="truncate max-w-[120px]">{{ c.vendedor }}</span>
+                              <span v-if="c.dia && c.dia !== 'SIN DIA'">{{ c.dia }}</span>
+                              <span v-if="c.tipo_negocio">{{ c.tipo_negocio }}</span>
                             </div>
                             <div v-if="c.direccion" class="text-[9.5px] text-[#86868B] truncate" :title="c.direccion">
-                              📍 {{ c.direccion }}
+                              {{ c.direccion }}
                             </div>
                           </div>
                         </div>
@@ -948,7 +940,6 @@
                             :key="coinc"
                             class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#FF3B30] text-white flex items-center gap-1 shadow-2xs"
                           >
-                            <span>⚠️</span>
                             <span>{{ coinc === 'proximidad_extrema' ? 'Proximidad <20m' : (coinc === 'telefono_duplicado' ? 'Mismo Teléfono' : (coinc === 'nit_duplicado' ? 'Mismo NIT' : 'Nombre Similar')) }}</span>
                           </span>
                         </div>
@@ -962,7 +953,9 @@
                               class="px-2 py-0.5 rounded text-[#248A3D] bg-[#EBF9EF] hover:bg-[#DDF5E3] font-semibold flex items-center gap-1 transition-colors"
                               title="Llamar al cliente"
                             >
-                              <span>📞</span>
+                              <svg class="w-3 h-3 text-[#248A3D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                              </svg>
                               <span>{{ c.celular || c.telefono }}</span>
                             </a>
                             <span v-if="c.nit" class="text-[9px] font-mono text-[#86868B] px-1 bg-[#F2F2F7] rounded">
@@ -983,10 +976,12 @@
                               v-if="c.fotos_count > 0 || c.ultima_foto"
                               type="button"
                               @click="abrirFotosCliente(c)"
-                              class="px-2 py-0.5 text-[10px] font-bold text-[#5856D6] bg-[#F4F3FF] border border-[#5856D6]/30 rounded hover:bg-[#EBE9FE] cursor-pointer transition-colors flex items-center gap-0.5"
+                              class="px-2 py-0.5 text-[10px] font-bold text-[#5856D6] bg-[#F4F3FF] border border-[#5856D6]/30 rounded hover:bg-[#EBE9FE] cursor-pointer transition-colors flex items-center gap-1"
                               title="Ver fotografías de visitas o fachada"
                             >
-                              <span>📷</span>
+                              <svg class="w-3 h-3 text-[#5856D6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              </svg>
                               <span>{{ c.fotos_count || 1 }}</span>
                             </button>
                             <button
@@ -1632,7 +1627,7 @@
                       class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold"
                       :class="clienteCercanoDetalle.distancia_metros <= 20 ? 'bg-[#FF3B30] text-white' : (clienteCercanoDetalle.distancia_metros <= 50 ? 'bg-[#FFF5E5] text-[#B25E00]' : 'bg-[#F2F2F7] text-[#6E6E73]')"
                     >
-                      📍 a {{ clienteCercanoDetalle.distancia_metros }} metros
+                      a {{ clienteCercanoDetalle.distancia_metros }} metros
                     </span>
                     <span
                       class="px-2 py-0.2 rounded text-[9.5px] font-bold uppercase"
@@ -1652,9 +1647,11 @@
               <button
                 type="button"
                 @click="cerrarDetalleCercano"
-                class="w-7 h-7 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] flex items-center justify-center text-xs font-bold transition-all cursor-pointer shrink-0"
+                class="w-7 h-7 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] flex items-center justify-center transition-all cursor-pointer shrink-0"
               >
-                ✕
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -1726,8 +1723,10 @@
                   v-if="clienteCercanoDetalle.tiene_duplicidad"
                   class="p-3 rounded-[10px] bg-[#FFF2F2] border border-[#FF3B30]/30 text-xs text-[#D70015] flex items-start gap-2.5"
                 >
-                  <div class="w-6 h-6 rounded-full bg-[#FF3B30] text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                    ⚠️
+                  <div class="w-6 h-6 rounded-full bg-[#FF3B30] text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
                   </div>
                   <div class="space-y-1 min-w-0">
                     <div class="font-bold text-[12px]">Riesgo Crítico de Duplicidad Detectado</div>
@@ -1798,7 +1797,7 @@
                               Ver Foto Cliente Cercano &rarr;
                             </div>
                             <div class="absolute bottom-1 right-1 bg-black/75 text-white font-mono text-[8px] font-bold px-1.5 py-0.2 rounded">
-                              📷 {{ clienteCercanoDetalle.fotos_count || 1 }} foto(s)
+                              {{ clienteCercanoDetalle.fotos_count || 1 }} foto(s)
                             </div>
                           </div>
                           <div v-else class="h-16 rounded-[8px] bg-[#F2F2F7] flex items-center justify-center text-[10px] text-[#86868B]">
@@ -1817,7 +1816,7 @@
                           <div class="flex items-center justify-between">
                             <span>{{ clienteCercanoDetalle.cliente }}</span>
                             <span v-if="clienteCercanoDetalle.coincidencias?.includes('nombre_similar')" class="text-[9px] font-bold text-[#FF3B30] bg-[#FFF2F2] px-1.5 py-0.2 rounded border border-[#FF3B30]/30 font-mono">
-                              ⚠️ Similar
+                              Similar
                             </span>
                           </div>
                         </td>
@@ -1844,7 +1843,7 @@
                           <div class="flex items-center justify-between">
                             <span>{{ clienteCercanoDetalle.nit || 'Sin NIT' }}</span>
                             <span v-if="clienteCercanoDetalle.coincidencias?.includes('nit_duplicado')" class="text-[9px] font-bold text-[#FF3B30] bg-white px-1.5 py-0.2 rounded border border-[#FF3B30]/30 font-mono">
-                              ⚠️ MISMO NIT
+                              MISMO NIT
                             </span>
                           </div>
                         </td>
@@ -1867,7 +1866,7 @@
                             </a>
                             <span v-else class="text-[#86868B]">No registrado</span>
                             <span v-if="clienteCercanoDetalle.coincidencias?.includes('telefono_duplicado')" class="text-[9px] font-bold text-[#FF3B30] bg-white px-1.5 py-0.2 rounded border border-[#FF3B30]/30 font-mono">
-                              ⚠️ MISMO TELÉFONO
+                              MISMO TELÉFONO
                             </span>
                           </div>
                         </td>
@@ -1884,8 +1883,8 @@
                             <span :class="clienteCercanoDetalle.distancia_metros <= 20 ? 'text-[#FF3B30]' : 'text-[#0071E3]'">
                               {{ clienteCercanoDetalle.distancia_metros }} metros ({{ formatCoord(clienteCercanoDetalle.latitud) }}, {{ formatCoord(clienteCercanoDetalle.longitud) }})
                             </span>
-                            <span v-if="clienteCercanoDetalle.distancia_metros <= 20" class="text-[9px] font-bold text-[#FF3B30] bg-white px-1.5 py-0.2 rounded border border-[#FF3B30]/30">
-                              🚨 &lt; 20 METROS
+                            <span v-if="clienteCercanoDetalle.distancia_metros <= 20" class="text-[9px] font-bold text-[#FF3B30] bg-white px-1.5 py-0.2 rounded border border-[#FF3B30]/30 font-mono">
+                              &lt; 20 METROS
                             </span>
                           </div>
                         </td>
@@ -2100,8 +2099,12 @@
                   <span class="font-medium">Consultando evidencias fotográficas del cliente...</span>
                 </div>
 
-                <div v-else-if="fotosModalCercano.length === 0" class="py-12 text-center text-xs text-[#86868B] bg-[#FBFBFD] rounded-[10px] border border-dashed border-[#E5E5EA] space-y-1">
-                  <div class="text-2xl">📷</div>
+                <div v-else-if="fotosModalCercano.length === 0" class="py-12 text-center text-xs text-[#86868B] bg-[#FBFBFD] rounded-[10px] border border-dashed border-[#E5E5EA] space-y-2">
+                  <div class="w-10 h-10 rounded-full bg-[#F2F2F7] flex items-center justify-center text-[#86868B] mx-auto">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    </svg>
+                  </div>
                   <div class="font-bold text-[#1D1D1F]">Sin fotografías registradas</div>
                   <p class="text-[11px] text-[#6E6E73]">Este cliente no cuenta con capturas fotográficas en su historial de visitas o alta.</p>
                 </div>
@@ -2125,10 +2128,10 @@
                         <span v-if="f.hora" class="text-[#86868B] text-[9.5px]">{{ f.hora }}</span>
                       </div>
                       <div v-if="f.vendedor" class="text-[#6E6E73] truncate">
-                        👤 {{ f.vendedor }}
+                        {{ f.vendedor }}
                       </div>
                       <div v-if="f.comments" class="text-[#86868B] text-[9.5px] truncate" :title="f.comments">
-                        💬 {{ f.comments }}
+                        {{ f.comments }}
                       </div>
                     </div>
                   </div>
@@ -2210,9 +2213,11 @@
                 <button
                   type="button"
                   @click="cerrarModalFotos"
-                  class="w-7 h-7 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
+                  class="w-7 h-7 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] flex items-center justify-center transition-all cursor-pointer"
                 >
-                  ✕
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -2267,20 +2272,24 @@
                     v-if="modalFotos.fotos.length > 1"
                     type="button"
                     @click.stop="anteriorFotoModal"
-                    class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all cursor-pointer shadow-md text-sm"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
                     title="Foto anterior (←)"
                   >
-                    ❮
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
                   </button>
 
                   <button
                     v-if="modalFotos.fotos.length > 1"
                     type="button"
                     @click.stop="siguienteFotoModal"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all cursor-pointer shadow-md text-sm"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
                     title="Foto siguiente (→)"
                   >
-                    ❯
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
                   </button>
 
                   <!-- Indicador de Zoom -->
@@ -3438,7 +3447,7 @@ function dibujarCercanosEnMapa(r, data) {
           <strong style="color: ${esDupe ? '#D70015' : '#1D1D1F'}">${escapeHtml(c.cliente)}</strong> (${c.distancia_metros}m)<br/>
           <span style="color: #6E6E73;">Ruta: <strong>${escapeHtml(c.ruta)}</strong></span>
           ${c.tipo_negocio ? `<br/><span style="color: #86868B;">${escapeHtml(c.tipo_negocio)}</span>` : ''}
-          ${esDupe ? '<div style="color: #FF3B30; font-weight: 700; margin-top: 2px;">⚠️ Coincidencia de datos</div>' : ''}
+          ${esDupe ? '<div style="color: #FF3B30; font-weight: 700; margin-top: 2px;">Coincidencia de datos</div>' : ''}
         </div>
       `, { direction: 'top' });
 
@@ -3457,7 +3466,7 @@ function dibujarCercanosEnMapa(r, data) {
             <div style="flex: 1; min-width: 0;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
                 <span style="font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: ${c.distancia_metros <= 20 ? '#FF3B30' : (c.distancia_metros <= 50 ? '#FFF5E5' : '#F2F2F7')}; color: ${c.distancia_metros <= 20 ? '#FFF' : (c.distancia_metros <= 50 ? '#B25E00' : '#1D1D1F')};">
-                  📍 a ${c.distancia_metros}m
+                  a ${c.distancia_metros}m
                 </span>
                 <span style="font-size: 9.5px; color: #86868B; font-family: monospace;">#${c.cliente_id || c.saneamiento_id}</span>
               </div>
@@ -3480,7 +3489,7 @@ function dibujarCercanosEnMapa(r, data) {
 
           ${esDupe ? `
             <div style="margin-top: 5px; padding: 3px 6px; background: #FFF2F2; border-radius: 4px; border: 1px solid rgba(255,59,48,0.25); color: #D70015; font-size: 9.5px; font-weight: 600;">
-              ⚠️ Coincide con la solicitud en revisión
+              Coincide con la solicitud en revisión
             </div>
           ` : ''}
 
@@ -3499,7 +3508,7 @@ function dibujarCercanosEnMapa(r, data) {
                 style="padding: 4px 6px; background: #5856D6; color: white; border: none; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;"
                 title="Ver fotos del punto"
               >
-                📷 Fotos
+                Fotos
               </button>
             ` : ''}
           </div>
