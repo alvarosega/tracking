@@ -43,12 +43,24 @@ class GetAvanceClienteDetalleFechasAction
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
         int $frecuenciaMinima = 1,
-        int $cantidadMinima = 1
+        int $cantidadMinima = 1,
+        ?float $cuotaObjetivo = null,
+        ?string $diaVisita = null
     ): array {
         $rutaClean = strtoupper(trim($ruta));
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
+
+        if (!$diaVisita) {
+            $ruteoRow = DB::connection('supervisor')->table('pan_ruteo')
+                ->where('cliente_id', $clienteId)
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->first();
+            if ($ruteoRow) {
+                $diaVisita = ucfirst(strtolower((string) ($ruteoRow->dia_norm ?: $ruteoRow->dia)));
+            }
+        }
 
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
@@ -329,6 +341,7 @@ class GetAvanceClienteDetalleFechasAction
             $p['monto_sugerido'] = $montoSugerido;
             $p['cumple_sugerido'] = ($cantSugerida > 0 && $cantMtd >= $cantSugerida);
             $p['compro_mes_actual'] = ($cantMtd > 0);
+            $p['es_core_pareto'] = false;
 
             if ($cantSugerida > 0) {
                 $totalSkus3m++;
@@ -341,6 +354,206 @@ class GetAvanceClienteDetalleFechasAction
         }
         unset($p);
         $productosResultado = array_values($productosResultado);
+
+        // Complemento Core Pareto: Si para Cobertura Core la compra sugerida base es inferior al objetivo mensual
+        if ($kpiClave === 'cob_core' && $cuotaObjetivo !== null && $cuotaObjetivo > 0 && $totalSugeridoBs < $cuotaObjetivo) {
+            $clientesDiaQuery = DB::connection('supervisor')->table('pan_ruteo')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->where('cliente_id', '>', 0);
+
+            if ($diaVisita && !in_array(strtolower($diaVisita), ['sin día', 'sin dia', 'histórico', 'historico', ''])) {
+                $clientesDiaQuery->where(function ($sub) use ($diaVisita) {
+                    $sub->where(DB::raw("TRIM(UPPER(dia_norm))"), strtoupper(trim($diaVisita)))
+                        ->orWhere(DB::raw("TRIM(UPPER(dia))"), strtoupper(trim($diaVisita)));
+                });
+            }
+
+            $cidsPareto = $clientesDiaQuery->pluck('cliente_id')->map(fn ($id) => (int) $id)->all();
+            if (empty($cidsPareto)) {
+                $cidsPareto = DB::connection('supervisor')->table('pan_ruteo')
+                    ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                    ->where('cliente_id', '>', 0)
+                    ->pluck('cliente_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+            }
+
+            $paretoAgrupado = [];
+            if (!empty($cidsPareto)) {
+                $paretoRows = DB::connection('supervisor')->table('fact_ventas')
+                    ->whereIn('cliente_id', $cidsPareto)
+                    ->where('fecha_norm', '>=', $histInicio)
+                    ->where('fecha_norm', '<=', $histFin)
+                    ->where('monto_final', '!=', 0)
+                    ->where(function ($q): void {
+                        $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                    })
+                    ->select([
+                        DB::raw("TRIM(codigo) as codigo"),
+                        DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
+                        DB::raw("COALESCE(categoria, '') as categoria"),
+                        DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
+                        DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
+                        DB::raw("COALESCE(cantidad, 0) as cantidad"),
+                        DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
+                    ])
+                    ->orderBy('fecha_norm', 'desc')
+                    ->get();
+
+                foreach ($paretoRows as $pRow) {
+                    $pNom = trim((string) $pRow->producto);
+                    $pk = $pNom !== '' ? mb_strtoupper($pNom) : trim((string) $pRow->codigo);
+                    if (!isset($paretoAgrupado[$pk])) {
+                        $paretoAgrupado[$pk] = [
+                            'codigo' => trim((string) $pRow->codigo),
+                            'producto' => $pNom ?: trim((string) $pRow->codigo),
+                            'categoria' => trim((string) $pRow->categoria),
+                            'jerarquia3' => trim((string) $pRow->jerarquia3),
+                            'total_monto' => 0.0,
+                            'total_cantidad' => 0,
+                            'precio_ref' => 0.0,
+                        ];
+                    }
+                    $m = (float) $pRow->monto_final;
+                    $c = (int) $pRow->cantidad;
+                    $paretoAgrupado[$pk]['total_monto'] += $m;
+                    $paretoAgrupado[$pk]['total_cantidad'] += $c;
+                    if ($c > 0 && $m > 0 && $paretoAgrupado[$pk]['precio_ref'] === 0.0) {
+                        $paretoAgrupado[$pk]['precio_ref'] = round($m / $c, 2);
+                    }
+                }
+
+                foreach ($paretoAgrupado as $pk => &$pItem) {
+                    if ($pItem['precio_ref'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
+                        $pItem['precio_ref'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
+                    }
+                }
+                unset($pItem);
+
+                uasort($paretoAgrupado, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+
+                // Indexar productos existentes del cliente por nombre normalizado
+                $prodKeyToIndex = [];
+                foreach ($productosResultado as $idx => $item) {
+                    $pNom = trim((string) $item['producto']);
+                    $pk = $pNom !== '' ? mb_strtoupper($pNom) : trim((string) $item['codigo']);
+                    $prodKeyToIndex[$pk] = $idx;
+                }
+
+                // Fase 1: Incorporar productos Pareto faltantes con 1 unidad
+                foreach ($paretoAgrupado as $pk => $pInfo) {
+                    if (isset($prodKeyToIndex[$pk])) {
+                        $idx = $prodKeyToIndex[$pk];
+                        if ($productosResultado[$idx]['cant_sugerida'] > 0) {
+                            continue;
+                        }
+                        $pUnit = $productosResultado[$idx]['precio_ultima_compra'] > 0
+                            ? $productosResultado[$idx]['precio_ultima_compra']
+                            : ($pInfo['precio_ref'] > 0 ? $pInfo['precio_ref'] : 0.0);
+                        if ($pUnit <= 0) {
+                            continue;
+                        }
+
+                        $productosResultado[$idx]['cant_sugerida'] = 1;
+                        $productosResultado[$idx]['monto_sugerido'] = $pUnit;
+                        $productosResultado[$idx]['cumple_sugerido'] = ($productosResultado[$idx]['total_cantidad_mes_actual'] >= 1);
+                        $productosResultado[$idx]['es_core_pareto'] = true;
+
+                        $totalSugeridoBs += $pUnit;
+                        $totalSugeridoUnidades += 1;
+                        $totalSkus3m += 1;
+                        if ($productosResultado[$idx]['compro_mes_actual']) {
+                            $totalSkusCubiertosMtd += 1;
+                        }
+                    } else {
+                        $pUnit = $pInfo['precio_ref'] > 0 ? $pInfo['precio_ref'] : 0.0;
+                        if ($pUnit <= 0) {
+                            continue;
+                        }
+
+                        $nuevoProd = [
+                            'codigo' => $pInfo['codigo'] ?: 'S/C',
+                            'codigos' => [$pInfo['codigo'] => true],
+                            'producto' => $pInfo['producto'],
+                            'categoria' => $pInfo['categoria'],
+                            'jerarquia3' => $pInfo['jerarquia3'],
+                            'total_bs' => 0.0,
+                            'total_cantidad' => 0,
+                            'total_bs_3m' => 0.0,
+                            'total_cantidad_3m' => 0,
+                            'total_bs_mes_actual' => 0.0,
+                            'total_cantidad_mes_actual' => 0,
+                            'ultima_fecha' => null,
+                            'fecha_precio_ultima_compra' => null,
+                            'precio_ultima_compra' => $pUnit,
+                            'facturas' => '',
+                            'total_facturas' => 0,
+                            'total_dias_compra' => 0,
+                            'fechas_3m' => [],
+                            'facturas_3m' => [],
+                            'compras_3m' => [],
+                            'compras_mes_actual' => [],
+                            'por_mes' => $porMesTemplate,
+                            'frecuencia_compra' => 0,
+                            'es_unitario_3m' => false,
+                            'cant_sugerida' => 1,
+                            'monto_sugerido' => $pUnit,
+                            'cumple_sugerido' => false,
+                            'compro_mes_actual' => false,
+                            'es_core_pareto' => true,
+                        ];
+                        $productosResultado[] = $nuevoProd;
+                        $prodKeyToIndex[$pk] = count($productosResultado) - 1;
+
+                        $totalSugeridoBs += $pUnit;
+                        $totalSugeridoUnidades += 1;
+                        $totalSkus3m += 1;
+                    }
+
+                    if ($totalSugeridoBs >= $cuotaObjetivo) {
+                        break;
+                    }
+                }
+
+                // Fase 2: Si aún no alcanza el objetivo, ciclar sobre los productos Pareto incrementando unidades
+                if ($totalSugeridoBs < $cuotaObjetivo && !empty($paretoAgrupado)) {
+                    $maxIter = 500;
+                    $iter = 0;
+                    while ($totalSugeridoBs < $cuotaObjetivo && $iter < $maxIter) {
+                        $agregado = false;
+                        foreach ($paretoAgrupado as $pk => $pInfo) {
+                            if (!isset($prodKeyToIndex[$pk])) {
+                                continue;
+                            }
+                            $idx = $prodKeyToIndex[$pk];
+                            $pUnit = $productosResultado[$idx]['precio_ultima_compra'] > 0
+                                ? $productosResultado[$idx]['precio_ultima_compra']
+                                : ($pInfo['precio_ref'] > 0 ? $pInfo['precio_ref'] : 0.0);
+                            if ($pUnit <= 0) {
+                                continue;
+                            }
+
+                            $productosResultado[$idx]['cant_sugerida'] += 1;
+                            $productosResultado[$idx]['monto_sugerido'] = round($productosResultado[$idx]['cant_sugerida'] * $pUnit, 2);
+                            $productosResultado[$idx]['cumple_sugerido'] = ($productosResultado[$idx]['total_cantidad_mes_actual'] >= $productosResultado[$idx]['cant_sugerida']);
+                            $productosResultado[$idx]['es_core_pareto'] = true;
+
+                            $totalSugeridoBs += $pUnit;
+                            $totalSugeridoUnidades += 1;
+                            $agregado = true;
+                            $iter++;
+
+                            if ($totalSugeridoBs >= $cuotaObjetivo || $iter >= $maxIter) {
+                                break;
+                            }
+                        }
+                        if (!$agregado) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         if ($cantidadMinima > 1 || $frecuenciaMinima > 1) {
             $totalMonto3m = array_sum(array_column($productosResultado, 'total_bs_3m'));

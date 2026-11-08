@@ -1156,6 +1156,9 @@
                                                     </button>
                                                     <span class="font-bold text-[#6E6E73] font-mono text-[9px]">[{{ prod.codigo }}]</span>
                                                     <span class="font-medium text-[#1D1D1F]">{{ prod.producto }}</span>
+                                                    <span v-if="prod.es_core_pareto" class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-200 font-sans shadow-2xs">
+                                                      Core Pareto
+                                                    </span>
                                                     <span v-if="prod.categoria" class="text-[8px] text-[#86868B] px-1 py-0.2 rounded bg-black/[0.03]">{{ prod.categoria }}</span>
                                                   </div>
                                                 </td>
@@ -1721,6 +1724,7 @@ function productosHistorialFiltrados(clienteId) {
     const minCant = Number(store.cantidadMinima) || 1
     if (minCant > 1) {
       lista = lista.filter(p => {
+        if (p.es_core_pareto) return true
         const cHist = Number(p.total_cantidad_3m) || 0
         return cHist >= minCant || (cHist === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
       })
@@ -1729,6 +1733,7 @@ function productosHistorialFiltrados(clienteId) {
     const minFrec = Number(store.frecuenciaMinima) || 1
     if (minFrec > 1) {
       lista = lista.filter(p => {
+        if (p.es_core_pareto) return true
         const frec = Number(p.frecuencia_compra) || 0
         return frec >= minFrec || (frec === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
       })
@@ -1804,7 +1809,9 @@ async function toggleClienteAccordion(cliente, ruta) {
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
       meses_historico: Number(store.mesesHistorico) || 3,
       frecuencia_minima: Number(store.frecuenciaMinima) || 1,
-      cantidad_minima: Number(store.cantidadMinima) || 1
+      cantidad_minima: Number(store.cantidadMinima) || 1,
+      cuota_objetivo: Number(cliente.cuota_objetivo) || 0,
+      dia_visita: cliente.dia_visita || cliente.dia || ''
     })
     detalleClienteFechasMap[cliente.cliente_id] = res.data
   } catch (err) {

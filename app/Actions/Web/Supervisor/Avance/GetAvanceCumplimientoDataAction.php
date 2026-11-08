@@ -478,6 +478,7 @@ class GetAvanceCumplimientoDataAction
                 ->get();
 
             $prodMapRuta = [];
+            $paretoRutasProds = [];
             foreach ($sugRaw as $row) {
                 $cid = (int) $row->cliente_id;
                 $r = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
@@ -491,6 +492,7 @@ class GetAvanceCumplimientoDataAction
 
                 if (!isset($prodMapRuta[$r][$itemKey])) {
                     $prodMapRuta[$r][$itemKey] = [
+                        'pkey' => $pkey,
                         'cantidad' => 0,
                         'precio' => 0.0,
                         'fechas' => [],
@@ -509,10 +511,27 @@ class GetAvanceCumplimientoDataAction
                 if ($fact !== '' && $fact !== 'S/F') {
                     $prodMapRuta[$r][$itemKey]['facturas'][$fact] = true;
                 }
+
+                // Pareto por ruta
+                if (!isset($paretoRutasProds[$r][$pkey])) {
+                    $paretoRutasProds[$r][$pkey] = [
+                        'total_monto' => 0.0,
+                        'total_cantidad' => 0,
+                        'precio' => 0.0,
+                    ];
+                }
+                $mVal = (float) $row->monto_final;
+                $cVal = (int) $row->cantidad;
+                $paretoRutasProds[$r][$pkey]['total_monto'] += $mVal;
+                $paretoRutasProds[$r][$pkey]['total_cantidad'] += $cVal;
+                if ($cVal > 0 && $mVal > 0 && $paretoRutasProds[$r][$pkey]['precio'] === 0.0) {
+                    $paretoRutasProds[$r][$pkey]['precio'] = round($mVal / $cVal, 2);
+                }
             }
 
             foreach ($prodMapRuta as $r => $items) {
                 $sumSug = 0.0;
+                $prodsSugeridosRuta = [];
                 foreach ($items as $it) {
                     $frec = max(count($it['fechas']), count($it['facturas']));
                     if ($frec < $frecuenciaMinima) {
@@ -521,9 +540,65 @@ class GetAvanceCumplimientoDataAction
                     $c3m = $it['cantidad'];
                     if ($c3m >= $cantidadMinima) {
                         $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
-                        $sumSug += round($cantSug * $it['precio'], 2);
+                        $pUnit = $it['precio'];
+                        if ($cantSug > 0 && $pUnit > 0) {
+                            $sumSug += round($cantSug * $pUnit, 2);
+                            $prodsSugeridosRuta[$it['pkey']] = true;
+                        }
                     }
                 }
+
+                // Complemento Core Pareto a nivel ruta si sumSug < objetivoMesRuta
+                $objetivoR = $this->obtenerMetaMesRuta($r, $mesYm);
+                if ($objetivoR > 0 && $sumSug < $objetivoR && !empty($paretoRutasProds[$r])) {
+                    $paretoList = $paretoRutasProds[$r];
+                    foreach ($paretoList as &$pItem) {
+                        if ($pItem['precio'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
+                            $pItem['precio'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
+                        }
+                    }
+                    unset($pItem);
+                    uasort($paretoList, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+
+                    // Fase 1: Incorporar productos Pareto no sugeridos aún
+                    foreach ($paretoList as $pk => $pInfo) {
+                        if (isset($prodsSugeridosRuta[$pk])) {
+                            continue;
+                        }
+                        $pUnit = $pInfo['precio'] > 0 ? $pInfo['precio'] : 0.0;
+                        if ($pUnit <= 0) continue;
+
+                        $sumSug += $pUnit;
+                        $prodsSugeridosRuta[$pk] = true;
+
+                        if ($sumSug >= $objetivoR) {
+                            break;
+                        }
+                    }
+
+                    // Fase 2: Si aún no alcanza el objetivo, ciclar sobre Pareto incrementando unidades
+                    if ($sumSug < $objetivoR) {
+                        $maxIter = 500;
+                        $iter = 0;
+                        while ($sumSug < $objetivoR && $iter < $maxIter) {
+                            $agregado = false;
+                            foreach ($paretoList as $pk => $pInfo) {
+                                $pUnit = $pInfo['precio'] > 0 ? $pInfo['precio'] : 0.0;
+                                if ($pUnit <= 0) continue;
+
+                                $sumSug += $pUnit;
+                                $agregado = true;
+                                $iter++;
+
+                                if ($sumSug >= $objetivoR || $iter >= $maxIter) {
+                                    break;
+                                }
+                            }
+                            if (!$agregado) break;
+                        }
+                    }
+                }
+
                 $sugeridoRutasMap[$r] = round($sumSug, 2);
             }
         }

@@ -232,6 +232,11 @@ class GetAvanceClientesRutaAction
 
         $historico3mRaw = [];
         $sugeridoClienteMap = [];
+        $histClienteMap = [];
+        $ymsCerrados = array_column($mesesCerrados, 'ym');
+        foreach ($cartera as $cid => $item) {
+            $histClienteMap[$cid] = array_fill_keys($ymsCerrados, 0.0);
+        }
 
         if (!empty($carteraClientIds)) {
             $historicoQuery = DB::connection('supervisor')->table('fact_ventas')
@@ -252,7 +257,37 @@ class GetAvanceClientesRutaAction
                 ->groupBy('cliente_id', DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m')"))
                 ->get();
 
-            // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente
+            foreach ($historico3mRaw as $h) {
+                $cid = (int) $h->cliente_id;
+                $ym = (string) $h->mes_ym;
+                if (isset($histClienteMap[$cid][$ym])) {
+                    $histClienteMap[$cid][$ym] += (float) $h->total_monto;
+                }
+            }
+
+            // Totales de la ruta para los meses cerrados
+            $totalesMesesRuta = array_fill_keys($ymsCerrados, 0.0);
+            $totalRutaAcum3m = 0.0;
+            foreach ($histClienteMap as $cid => $mMap) {
+                foreach ($mMap as $ym => $val) {
+                    $totalesMesesRuta[$ym] += $val;
+                    $totalRutaAcum3m += $val;
+                }
+            }
+
+            $mesYm = $carbonCorte->format('Y-m');
+            $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+
+            // Cuota objetivo por cliente proporcional a su peso en la ruta
+            $cuotaObjetivoMap = [];
+            foreach ($cartera as $cid => $item) {
+                $totCli = array_sum($histClienteMap[$cid] ?? []);
+                $cuotaObjetivoMap[$cid] = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+                    ? round(($totCli / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
+                    : 0.0;
+            }
+
+            // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente y Pareto
             $prodsRutaRaw = DB::connection('supervisor')->table('fact_ventas')
                 ->whereIn('cliente_id', $carteraClientIds)
                 ->where('fecha_norm', '>=', $histInicio)
@@ -265,6 +300,8 @@ class GetAvanceClientesRutaAction
                     'cliente_id',
                     DB::raw("TRIM(codigo) as codigo"),
                     DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
+                    DB::raw("COALESCE(categoria, '') as categoria"),
+                    DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
                     DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                     DB::raw("COALESCE(cantidad, 0) as cantidad"),
                     DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
@@ -274,17 +311,25 @@ class GetAvanceClientesRutaAction
                 ->get();
 
             $clienteProdsMap = [];
+            $paretoPorDia = [];
+            $paretoRuta = [];
+
             foreach ($prodsRutaRaw as $pr) {
                 $cId = (int) $pr->cliente_id;
+                $diaVisita = $cartera[$cId]['dia_visita'] ?? 'Sin Día';
                 $prodNombre = trim((string) $pr->producto);
                 $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $pr->codigo);
                 $cant = (int) $pr->cantidad;
                 $monto = (float) $pr->monto_final;
                 $f = (string) $pr->fecha;
                 $fact = (string) ($pr->nro_factura ?? '');
+                $cod = trim((string) $pr->codigo);
 
+                // 1. Acumulado por cliente
                 if (!isset($clienteProdsMap[$cId][$pKey])) {
                     $clienteProdsMap[$cId][$pKey] = [
+                        'producto' => $prodNombre ?: $cod,
+                        'codigo' => $cod,
                         'cantidad_3m' => 0,
                         'precio_ultima_compra' => 0.0,
                         'fecha_precio' => null,
@@ -307,10 +352,74 @@ class GetAvanceClientesRutaAction
                         $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($monto / $cant, 2);
                     }
                 }
+
+                // 2. Acumulado Pareto por Día de Visita
+                if (!isset($paretoPorDia[$diaVisita][$pKey])) {
+                    $paretoPorDia[$diaVisita][$pKey] = [
+                        'producto' => $prodNombre ?: $cod,
+                        'codigo' => $cod,
+                        'total_monto' => 0.0,
+                        'total_cantidad' => 0,
+                        'precio' => 0.0,
+                        'fecha_precio' => null,
+                    ];
+                }
+                $paretoPorDia[$diaVisita][$pKey]['total_monto'] += $monto;
+                $paretoPorDia[$diaVisita][$pKey]['total_cantidad'] += $cant;
+                if ($cant > 0 && $monto > 0) {
+                    if ($paretoPorDia[$diaVisita][$pKey]['fecha_precio'] === null || $f >= $paretoPorDia[$diaVisita][$pKey]['fecha_precio']) {
+                        $paretoPorDia[$diaVisita][$pKey]['fecha_precio'] = $f;
+                        $paretoPorDia[$diaVisita][$pKey]['precio'] = round($monto / $cant, 2);
+                    }
+                }
+
+                // 3. Acumulado Pareto general de la Ruta (fallback)
+                if (!isset($paretoRuta[$pKey])) {
+                    $paretoRuta[$pKey] = [
+                        'producto' => $prodNombre ?: $cod,
+                        'codigo' => $cod,
+                        'total_monto' => 0.0,
+                        'total_cantidad' => 0,
+                        'precio' => 0.0,
+                        'fecha_precio' => null,
+                    ];
+                }
+                $paretoRuta[$pKey]['total_monto'] += $monto;
+                $paretoRuta[$pKey]['total_cantidad'] += $cant;
+                if ($cant > 0 && $monto > 0) {
+                    if ($paretoRuta[$pKey]['fecha_precio'] === null || $f >= $paretoRuta[$pKey]['fecha_precio']) {
+                        $paretoRuta[$pKey]['fecha_precio'] = $f;
+                        $paretoRuta[$pKey]['precio'] = round($monto / $cant, 2);
+                    }
+                }
             }
 
-            foreach ($clienteProdsMap as $cId => $pList) {
+            // Ordenar Pareto de cada día y de la ruta por total_monto descendente
+            foreach ($paretoPorDia as $diaV => &$itemsDia) {
+                foreach ($itemsDia as &$it) {
+                    if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
+                        $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
+                    }
+                }
+                unset($it);
+                uasort($itemsDia, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+            }
+            unset($itemsDia);
+
+            foreach ($paretoRuta as &$it) {
+                if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
+                    $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
+                }
+            }
+            unset($it);
+            uasort($paretoRuta, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+
+            // Cálculo del sugerido por cliente: hábitos base + complemento Core Pareto si no alcanza el objetivo
+            foreach ($cartera as $cId => $itemCart) {
+                $pList = $clienteProdsMap[$cId] ?? [];
                 $totalSug = 0.0;
+                $prodsSugeridos = [];
+
                 foreach ($pList as $pKey => $pData) {
                     $frec = max(count($pData['fechas']), count($pData['facturas']));
                     if ($frec < $frecuenciaMinima) {
@@ -320,41 +429,80 @@ class GetAvanceClientesRutaAction
                     if ($c3m >= $cantidadMinima) {
                         $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
                         $pUlt = $pData['precio_ultima_compra'];
-                        $totalSug += round($cantSug * $pUlt, 2);
+                        if ($pUlt <= 0 && $c3m > 0) {
+                            $pUlt = $paretoRuta[$pKey]['precio'] ?? 0.0;
+                        }
+                        if ($cantSug > 0 && $pUlt > 0) {
+                            $prodsSugeridos[$pKey] = $cantSug;
+                            $totalSug += round($cantSug * $pUlt, 2);
+                        }
                     }
                 }
+
+                // Complemento Core Pareto (solo para Cobertura Core si totalSug < cuotaObjetivo)
+                if ($kpiClave === 'cob_core') {
+                    $cuotaObj = $cuotaObjetivoMap[$cId] ?? 0.0;
+                    if ($cuotaObj > 0 && $totalSug < $cuotaObj) {
+                        $diaV = $itemCart['dia_visita'] ?? 'Sin Día';
+                        $listaPareto = !empty($paretoPorDia[$diaV]) ? $paretoPorDia[$diaV] : $paretoRuta;
+                        if (empty($listaPareto)) {
+                            $listaPareto = $paretoRuta;
+                        }
+
+                        // Fase 1: Añadir 1 unidad de productos Pareto que el cliente aún no tiene sugeridos
+                        foreach ($listaPareto as $pKey => $pInfo) {
+                            if (($prodsSugeridos[$pKey] ?? 0) > 0) {
+                                continue;
+                            }
+                            $pUlt = $pList[$pKey]['precio_ultima_compra'] ?? ($pInfo['precio'] ?? 0.0);
+                            if ($pUlt <= 0) {
+                                continue;
+                            }
+
+                            $prodsSugeridos[$pKey] = 1;
+                            $totalSug += $pUlt;
+
+                            if ($totalSug >= $cuotaObj) {
+                                break;
+                            }
+                        }
+
+                        // Fase 2: Si aún no alcanza el objetivo, incrementar unidades de los productos Pareto top
+                        if ($totalSug < $cuotaObj && !empty($listaPareto)) {
+                            $maxIter = 500;
+                            $iter = 0;
+                            while ($totalSug < $cuotaObj && $iter < $maxIter) {
+                                $agregado = false;
+                                foreach ($listaPareto as $pKey => $pInfo) {
+                                    $pUlt = $pList[$pKey]['precio_ultima_compra'] ?? ($pInfo['precio'] ?? 0.0);
+                                    if ($pUlt <= 0) {
+                                        continue;
+                                    }
+                                    $prodsSugeridos[$pKey] = ($prodsSugeridos[$pKey] ?? 0) + 1;
+                                    $totalSug += $pUlt;
+                                    $agregado = true;
+                                    $iter++;
+
+                                    if ($totalSug >= $cuotaObj || $iter >= $maxIter) {
+                                        break;
+                                    }
+                                }
+                                if (!$agregado) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 $sugeridoClienteMap[$cId] = round($totalSug, 2);
             }
+        } else {
+            $totalRutaAcum3m = 0.0;
+            $mesYm = $carbonCorte->format('Y-m');
+            $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+            $cuotaObjetivoMap = [];
         }
-
-        $histClienteMap = [];
-        $ymsCerrados = array_column($mesesCerrados, 'ym');
-        foreach ($cartera as $cid => $item) {
-            $histClienteMap[$cid] = array_fill_keys($ymsCerrados, 0.0);
-        }
-
-        foreach ($historico3mRaw as $h) {
-            $cid = (int) $h->cliente_id;
-            $ym = (string) $h->mes_ym;
-            if (isset($histClienteMap[$cid][$ym])) {
-                $histClienteMap[$cid][$ym] += (float) $h->total_monto;
-            }
-        }
-
-        // Totales de la ruta para los meses cerrados
-        $totalesMesesRuta = array_fill_keys($ymsCerrados, 0.0);
-        $totalRutaAcum3m = 0.0;
-        foreach ($histClienteMap as $cid => $mMap) {
-            foreach ($mMap as $ym => $val) {
-                $totalesMesesRuta[$ym] += $val;
-                $totalRutaAcum3m += $val;
-            }
-        }
-
-        // Armar resultado de clientes
-        $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
-        $mesYm = $carbonCorte->format('Y-m');
-        $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
         $clientesLista = [];
 
         foreach ($cartera as $cid => $item) {

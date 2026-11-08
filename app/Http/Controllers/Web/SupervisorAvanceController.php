@@ -130,6 +130,8 @@ class SupervisorAvanceController extends Controller
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
         $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
         $cantidadMinima = max(1, (int) $request->input('cantidad_minima', $omitirUnitarios ? 2 : 1));
+        $cuotaObjetivo = $request->has('cuota_objetivo') ? (float) $request->input('cuota_objetivo') : null;
+        $diaVisita = $request->input('dia_visita') ? (string) $request->input('dia_visita') : null;
 
         $data = $action->execute(
             clienteId: $clienteId,
@@ -140,7 +142,9 @@ class SupervisorAvanceController extends Controller
             omitirUnitarios3m: $omitirUnitarios,
             mesesHistorico: $mesesHistorico,
             frecuenciaMinima: $frecuenciaMinima,
-            cantidadMinima: $cantidadMinima
+            cantidadMinima: $cantidadMinima,
+            cuotaObjetivo: $cuotaObjetivo,
+            diaVisita: $diaVisita
         );
 
         return response()->json($data);
