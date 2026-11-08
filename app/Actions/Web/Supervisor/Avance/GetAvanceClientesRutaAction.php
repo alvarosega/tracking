@@ -242,6 +242,10 @@ class GetAvanceClientesRutaAction
             $histClienteMap[$cid] = array_fill_keys($ymsCerrados, 0.0);
         }
 
+        $mesYm = $carbonCorte->format('Y-m');
+        $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+        $cuotaObjetivoMap = [];
+
         if (!empty($carteraClientIds)) {
             $historicoQuery = DB::connection('supervisor')->table('fact_ventas')
                 ->whereIn('cliente_id', $carteraClientIds)
