@@ -98,6 +98,7 @@ class GetAvanceClienteDetalleFechasAction
                 DB::raw("COALESCE(NULLIF(TRIM(nro_factura), ''), 'S/F') as nro_factura"),
                 DB::raw("TRIM(codigo) as codigo"),
                 DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
+                DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
                 DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
                 DB::raw("UPPER(TRIM(COALESCE(categoria, ''))) as categoria"),
                 DB::raw("COALESCE(cantidad, 0) as cantidad"),
@@ -120,6 +121,7 @@ class GetAvanceClienteDetalleFechasAction
 
         foreach ($filas as $r) {
             $prod = (string) $r->producto;
+            $j1 = (string) ($r->jerarquia1 ?? '');
             $j3 = (string) $r->jerarquia3;
             $cod = (string) $r->codigo;
             $cat = (string) $r->categoria;
@@ -191,6 +193,7 @@ class GetAvanceClienteDetalleFechasAction
                     'codigos' => [],
                     'producto' => $prodNombre ?: ($cod ?: 'Sin descripción'),
                     'categoria' => $cat,
+                    'jerarquia1' => $j1,
                     'jerarquia3' => $j3,
                     'total_bs' => 0.0,
                     'total_cantidad' => 0,
@@ -217,6 +220,9 @@ class GetAvanceClienteDetalleFechasAction
             }
             if ($cat && empty($prodMap[$prodKey]['categoria'])) {
                 $prodMap[$prodKey]['categoria'] = $cat;
+            }
+            if ($j1 && empty($prodMap[$prodKey]['jerarquia1'])) {
+                $prodMap[$prodKey]['jerarquia1'] = $j1;
             }
 
             // Registrar el precio unitario de la última compra registrada
@@ -541,6 +547,7 @@ class GetAvanceClienteDetalleFechasAction
                         DB::raw("TRIM(codigo) as codigo"),
                         DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
                         DB::raw("COALESCE(categoria, '') as categoria"),
+                        DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
                         DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
                         DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
                         DB::raw("COALESCE(cantidad, 0) as cantidad"),
@@ -571,6 +578,7 @@ class GetAvanceClienteDetalleFechasAction
                                 DB::raw("TRIM(codigo) as codigo"),
                                 DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
                                 DB::raw("COALESCE(categoria, '') as categoria"),
+                                DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
                                 DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
                                 DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
                                 DB::raw("COALESCE(cantidad, 0) as cantidad"),
@@ -586,6 +594,7 @@ class GetAvanceClienteDetalleFechasAction
                 foreach ($paretoRows as $pRow) {
                     $pNom = trim((string) $pRow->producto);
                     $cod = trim((string) $pRow->codigo);
+                    $j1 = trim((string) ($pRow->jerarquia1 ?? ''));
                     $j3 = trim((string) $pRow->jerarquia3);
                     $cat = trim((string) $pRow->categoria);
 
@@ -599,6 +608,7 @@ class GetAvanceClienteDetalleFechasAction
                             'codigo' => trim((string) $pRow->codigo),
                             'producto' => $pNom ?: trim((string) $pRow->codigo),
                             'categoria' => trim((string) $pRow->categoria),
+                            'jerarquia1' => $j1,
                             'jerarquia3' => trim((string) $pRow->jerarquia3),
                             'total_monto' => 0.0,
                             'total_cantidad' => 0,
@@ -748,6 +758,7 @@ class GetAvanceClienteDetalleFechasAction
                             'codigos' => [$pInfo['codigo'] => true],
                             'producto' => $pInfo['producto'],
                             'categoria' => $pInfo['categoria'],
+                            'jerarquia1' => $pInfo['jerarquia1'] ?? '',
                             'jerarquia3' => $pInfo['jerarquia3'],
                             'total_bs' => 0.0,
                             'total_cantidad' => 0,

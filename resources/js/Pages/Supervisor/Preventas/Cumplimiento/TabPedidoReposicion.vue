@@ -171,22 +171,39 @@
 
                   <!-- Detalle auditado en tablas -->
                   <div v-else-if="detallePorRuta[r.ruta]" class="space-y-1.5">
-                    <!-- Botones de expansión rápida -->
-                    <div v-if="(detallePorRuta[r.ruta].tiendas || []).length > 0" class="flex justify-end items-center gap-1.5 pb-0.5">
-                      <button
-                        type="button"
-                        @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, true)"
-                        class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#0071E3] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
-                      >
-                        Expandir Todo
-                      </button>
-                      <button
-                        type="button"
-                        @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, false)"
-                        class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#86868B] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
-                      >
-                        Colapsar
-                      </button>
+                    <!-- Barra de Parámetros de Cobertura Core Semanal y Botones -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#F8F8FA] rounded-[8px] border border-black/[0.06] text-[10.5px]">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[#6E6E73]">
+                          Meta Mes: <strong class="text-[#1D1D1F] font-bold">Bs {{ formatBs(detallePorRuta[r.ruta].configuracion?.objetivo_mes_ruta || 0) }}</strong>
+                        </span>
+                        <span class="text-[#86868B]">·</span>
+                        <span class="text-[#6E6E73]">
+                          Semanas Hábiles Restantes: <strong class="text-[#0071E3] font-bold">{{ detallePorRuta[r.ruta].configuracion?.semanas_habiles_restantes || 1 }} sem</strong>
+                          <span class="text-[9.5px] text-[#86868B]">({{ detallePorRuta[r.ruta].configuracion?.dias_restantes || 0 }} días rest.)</span>
+                        </span>
+                        <span class="text-[#86868B]">·</span>
+                        <span class="text-[#6E6E73]">
+                          Cuota Semanal Ruta: <strong class="text-[#1E6B37] font-bold">Bs {{ formatBs(detallePorRuta[r.ruta].configuracion?.cuota_semanal_ruta || 0) }}</strong>
+                        </span>
+                      </div>
+
+                      <div v-if="(detallePorRuta[r.ruta].tiendas || []).length > 0" class="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, true)"
+                          class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#0071E3] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
+                        >
+                          Expandir Todo
+                        </button>
+                        <button
+                          type="button"
+                          @click="expandirTodasTiendas(r.ruta, detallePorRuta[r.ruta].tiendas, false)"
+                          class="px-2 py-0.5 rounded-[5px] bg-white hover:bg-slate-100 text-[#86868B] font-sans font-semibold text-[10px] border border-black/[0.08] cursor-pointer"
+                        >
+                          Colapsar
+                        </button>
+                      </div>
                     </div>
 
                     <!-- Sin tiendas -->
@@ -235,6 +252,9 @@
                               </span>
                             </template>
                             <template v-else>
+                              <span v-if="t.cuota_semanal" class="text-[#6E6E73]" :title="`Cuota Mensual Cobertura Core: Bs ${formatBs(t.cuota_mensual)} ÷ ${detallePorRuta[r.ruta]?.configuracion?.semanas_habiles_restantes || 1} sem restantes`">
+                                Sugerido Semanal: <strong class="text-[#1D1D1F] font-bold">Bs {{ formatBs(t.monto_sugerido_semanal || t.cuota_semanal) }}</strong>
+                              </span>
                               <span class="text-[#6E6E73]">
                                 Pts Esperados: <strong class="text-[#1D1D1F] font-bold">{{ t.puntos_esperados || 0 }} pts</strong>
                               </span>
@@ -268,8 +288,8 @@
                                     <th class="py-1.5 px-2 text-center" title="Peso histórico f_i = semanas distintas con compra de este SKU">
                                       Peso f_i (Sem)
                                     </th>
-                                    <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada de reposición (Cant. Comprada / Semanas transcurridas en la ventana, mín 1)`">
-                                      Cantidad Repo
+                                    <th class="py-1.5 px-2 text-center" :title="`Cantidad calculada con Cobertura Core (Cuota mensual / ${detallePorRuta[r.ruta]?.configuracion?.semanas_habiles_restantes || 1} semanas hábiles restantes, nivelada por SKU)`">
+                                      Sugerido Semanal
                                     </th>
                                     <th class="py-1.5 px-2 text-center w-14">Estatus</th>
                                   </tr>
@@ -322,14 +342,19 @@
                                         </span>
                                       </td>
 
-                                      <!-- Cantidad Repo -->
+                                      <!-- Sugerido Semanal (Unidades y Bs Cobertura Core) -->
                                       <td class="py-2 px-2 text-center font-bold text-[#1E6B37] bg-black/[0.01]">
-                                        <span
-                                          class="px-1.5 py-0.5 rounded bg-[#EBF9EF] border border-[#D1F2D9]"
-                                          :title="`Sugerido: ${item.unidades_acumuladas || 0} uds / ${semanasFiltro} sem (mín 1)`"
-                                        >
-                                          {{ item.cantidad_repo || 1 }} uds
-                                        </span>
+                                        <div class="inline-flex flex-col items-center">
+                                          <span
+                                            class="px-1.5 py-0.5 rounded bg-[#EBF9EF] border border-[#D1F2D9] font-mono text-[11px]"
+                                            :title="`Sugerido Semanal: ${item.cantidad_repo || 1} uds (Bs ${formatBs(item.monto_sugerido || 0)}) | Mix: ${item.mix_propio_pct || 0}%`"
+                                          >
+                                            {{ item.cantidad_repo || 1 }} uds
+                                          </span>
+                                          <span v-if="item.monto_sugerido" class="text-[9px] text-[#6E6E73] font-mono font-medium">
+                                            Bs {{ formatBs(item.monto_sugerido) }}
+                                          </span>
+                                        </div>
                                       </td>
 
                                       <!-- Estatus (Check o X) -->
@@ -405,7 +430,10 @@
                                       {{ t.puntos_esperados || totalCanastaFi(t.canasta_base) }} pts
                                     </td>
                                     <td class="py-1.5 px-2 text-center font-bold text-[#1E6B37]">
-                                      {{ totalCanastaRepo(t.canasta_base) }} uds
+                                      <div>{{ totalCanastaRepo(t.canasta_base) }} uds</div>
+                                      <div v-if="totalCanastaMontoRepo(t.canasta_base) > 0" class="text-[9px] font-mono font-semibold text-[#1E6B37]">
+                                        Bs {{ formatBs(totalCanastaMontoRepo(t.canasta_base)) }}
+                                      </div>
                                     </td>
                                     <td class="py-1.5 px-2 text-center font-bold font-mono text-[10px]" :class="(t.skus_con_match || 0) > 0 ? 'text-[#1E6B37]' : 'text-[#86868B]'">
                                       {{ t.skus_con_match || totalCanastaMatches(t.canasta_base) }}/{{ t.canasta_base.length }}
@@ -619,6 +647,10 @@ function totalCanastaFi(canasta) {
 
 function totalCanastaRepo(canasta) {
   return (canasta || []).reduce((acc, it) => acc + (Number(it.cantidad_repo) || 0), 0)
+}
+
+function totalCanastaMontoRepo(canasta) {
+  return (canasta || []).reduce((acc, it) => acc + (Number(it.monto_sugerido) || 0), 0)
 }
 
 function totalCanastaMatches(canasta) {

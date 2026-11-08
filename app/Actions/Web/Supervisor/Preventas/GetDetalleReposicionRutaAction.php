@@ -24,7 +24,203 @@ class GetDetalleReposicionRutaAction
     }
 
     /**
-     * Obtiene la auditoría analítica del KPI 6 (Reposición por Tienda y SKU habitual en 13 semanas).
+     * Calcula los días hábiles del mes y días transcurridos hasta la fecha de corte.
+     *
+     * @return array{dias_totales: int, dias_transcurridos: int, dias_restantes: int}
+     */
+    private function calcularDiasHabiles(int $year, int $month, string $fechaCorte): array
+    {
+        $diasTotales = 25;
+
+        try {
+            $rowCal = DB::connection('supervisor')->table('dim_calendario_mensual')
+                ->where('year', $year)
+                ->where('month', $month)
+                ->first();
+
+            if ($rowCal && isset($rowCal->dias_habiles)) {
+                $diasTotales = (int) $rowCal->dias_habiles;
+            }
+        } catch (\Throwable) {
+            $diasTotales = 25;
+        }
+
+        $fInicioMes = sprintf('%04d-%02d-01', $year, $month);
+        $diasOperados = 1;
+
+        try {
+            $diasOperados = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '>=', $fInicioMes)
+                ->where('fecha_norm', '<=', $fechaCorte)
+                ->where('monto_final', '>', 0)
+                ->distinct()
+                ->count('fecha_norm');
+        } catch (\Throwable) {
+            $diasOperados = 1;
+        }
+
+        $diasOperados = max(1, $diasOperados);
+        $diasRestantes = max(1, $diasTotales - $diasOperados);
+
+        return [
+            'dias_totales' => $diasTotales,
+            'dias_transcurridos' => $diasOperados,
+            'dias_restantes' => $diasRestantes,
+        ];
+    }
+
+    /**
+     * Obtiene el objetivo comercial mensual de la ruta desde fact_metas.
+     */
+    private function obtenerMetaMesRuta(string $rutaClean, int $year, int $month, string $fInicioMes): float
+    {
+        try {
+            $mesesEspCompleto = [
+                1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+                5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+                9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+            ];
+            $nom = $mesesEspCompleto[$month] ?? '';
+            $abr = mb_substr($nom, 0, 3);
+            $mes2d = sprintf('%02d', $month);
+            $patronesMes = [
+                $nom,
+                "{$nom} {$year}",
+                "{$nom}-{$year}",
+                "{$nom}_{$year}",
+                "{$abr} {$year}",
+                "{$abr}-{$year}",
+                "{$abr}_{$year}",
+                "{$year}-{$mes2d}",
+            ];
+
+            $metaRow = DB::connection('supervisor')->table('fact_metas')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->where(function ($q) use ($patronesMes, $fInicioMes, $year, $mes2d): void {
+                    $q->where('mes', $fInicioMes)
+                      ->orWhere('mes', 'like', "{$year}-{$mes2d}%")
+                      ->orWhereIn(DB::raw("LOWER(TRIM(mes))"), $patronesMes);
+                })
+                ->selectRaw("MAX(CAST(COALESCE(objetivo_de_venta, 0.0) AS DECIMAL(14, 2))) as meta_vol")
+                ->first();
+
+            return $metaRow && $metaRow->meta_vol ? (float) $metaRow->meta_vol : 0.0;
+        } catch (\Throwable) {
+            return 0.0;
+        }
+    }
+
+    /**
+     * ALGORITMO AsignarCuotasMensualesPorCliente (Waterfilling con Piso de 150 Bs)
+     * Exactamente idéntico a Cobertura Core de Avance.
+     *
+     * @param float $objetivoRuta
+     * @param float $pisoMinimo
+     * @param array<int, float> $ventasHistoricasMap
+     * @return array<int, float>
+     */
+    public function asignarCuotasMensualesPorCliente(
+        float $objetivoRuta,
+        float $pisoMinimo,
+        array $ventasHistoricasMap
+    ): array {
+        $totalClientes = count($ventasHistoricasMap);
+        if ($totalClientes === 0) {
+            return [];
+        }
+
+        // Si el objetivo es 0 o negativo, todos quedan en el piso
+        if ($objetivoRuta <= 0.0) {
+            return array_fill_keys(array_keys($ventasHistoricasMap), $pisoMinimo);
+        }
+
+        // 1. Validar viabilidad matemática
+        $pisoTotalRequerido = $totalClientes * $pisoMinimo;
+        if ($objetivoRuta < $pisoTotalRequerido) {
+            return array_fill_keys(array_keys($ventasHistoricasMap), $pisoMinimo);
+        }
+
+        // 2. Inicializar variables
+        $presupuestoRestante = $objetivoRuta;
+        $cuotasAsignadas = [];
+        $fijados = [];
+        $clientesRestantes = array_keys($ventasHistoricasMap);
+
+        foreach ($clientesRestantes as $cid) {
+            $cuotasAsignadas[$cid] = 0.0;
+            $fijados[$cid] = false;
+        }
+
+        // 3. Bucle de balanceo iterativo (Waterfilling)
+        do {
+            $hayClientesBajoPiso = false;
+            $sumaHistoricaRestante = 0.0;
+            foreach ($clientesRestantes as $cid) {
+                $sumaHistoricaRestante += (float) ($ventasHistoricasMap[$cid] ?? 0.0);
+            }
+
+            $nuevosFijadosEnEstaRonda = [];
+            $cantRestantes = count($clientesRestantes);
+
+            foreach ($clientesRestantes as $cid) {
+                $vHist = (float) ($ventasHistoricasMap[$cid] ?? 0.0);
+                if ($sumaHistoricaRestante > 0.0) {
+                    $pesoRelativo = $vHist / $sumaHistoricaRestante;
+                    $cuotaCalculada = $presupuestoRestante * $pesoRelativo;
+                } else {
+                    $cuotaCalculada = $cantRestantes > 0 ? ($presupuestoRestante / $cantRestantes) : $pisoMinimo;
+                }
+
+                if ($cuotaCalculada < $pisoMinimo) {
+                    $cuotasAsignadas[$cid] = $pisoMinimo;
+                    $fijados[$cid] = true;
+                    $presupuestoRestante -= $pisoMinimo;
+                    $hayClientesBajoPiso = true;
+                    $nuevosFijadosEnEstaRonda[$cid] = true;
+                } else {
+                    $cuotasAsignadas[$cid] = $cuotaCalculada;
+                }
+            }
+
+            $clientesRestantes = array_values(array_filter(
+                $clientesRestantes,
+                fn ($cid) => empty($nuevosFijadosEnEstaRonda[$cid]) && !$fijados[$cid]
+            ));
+
+        } while ($hayClientesBajoPiso && count($clientesRestantes) > 0);
+
+        // 4. Redondeo a 2 decimales y ajuste de centavos
+        $sumaFinalCuotas = 0.0;
+        foreach ($cuotasAsignadas as $cid => $cuota) {
+            $cuotaRedondeada = round($cuota, 2);
+            $cuotasAsignadas[$cid] = $cuotaRedondeada;
+            $sumaFinalCuotas += $cuotaRedondeada;
+        }
+
+        $diferenciaCentavos = round($objetivoRuta - $sumaFinalCuotas, 2);
+        if ($diferenciaCentavos != 0.0 && !empty($cuotasAsignadas)) {
+            $clienteMayorCuotaId = null;
+            $maxCuota = -1.0;
+            foreach ($cuotasAsignadas as $cid => $cuota) {
+                if ($cuota > $maxCuota) {
+                    $maxCuota = $cuota;
+                    $clienteMayorCuotaId = $cid;
+                }
+            }
+            if ($clienteMayorCuotaId !== null) {
+                $cuotasAsignadas[$clienteMayorCuotaId] = round(
+                    $cuotasAsignadas[$clienteMayorCuotaId] + $diferenciaCentavos,
+                    2
+                );
+            }
+        }
+
+        return $cuotasAsignadas;
+    }
+
+    /**
+     * Obtiene la auditoría analítica del KPI 6 (Pedido de Reposición Semanal) con la misma
+     * lógica de Cobertura Core de Avance dividida entre las semanas hábiles restantes.
      *
      * @param string $ruta
      * @param string|null $fecha
@@ -40,6 +236,10 @@ class GetDetalleReposicionRutaAction
         $semanas = $semanasHistoria && $semanasHistoria > 0 ? $semanasHistoria : 13;
         $diasHistoria = $semanas * 7;
         $carbonFecha = Carbon::parse($fechaNorm);
+        $year = (int) $carbonFecha->year;
+        $month = (int) $carbonFecha->month;
+        $fInicioMes = sprintf('%04d-%02d-01', $year, $month);
+
         $fechaInicioHist = $carbonFecha->copy()->subDays($diasHistoria)->toDateString();
         $fechaFinHist = $carbonFecha->copy()->subDays(1)->toDateString();
         $rutaClean = strtoupper(trim($ruta));
@@ -57,7 +257,32 @@ class GetDetalleReposicionRutaAction
                 $canal = trim((string) ($dimInfo->canal ?: 'GENERAL'));
             }
 
-            // 1. Preventas del día de la ruta
+            // 1. Calendario y Semanas Hábiles Restantes del Mes
+            // En preventa las visitas son semanales (frecuencia semanal, 6 días de operación por semana)
+            $cal = $this->calcularDiasHabiles($year, $month, $fechaNorm);
+            $diasTotales = $cal['dias_totales'];
+            $diasOperados = $cal['dias_transcurridos'];
+            $diasRestantes = $cal['dias_restantes'];
+            $semanasHabilesRestantes = max(1, (int) ceil($diasRestantes / 6.0));
+
+            // 2. Meta Comercial Mensual de la Ruta
+            $objetivoMesRuta = $this->obtenerMetaMesRuta($rutaClean, $year, $month, $fInicioMes);
+            $cuotaSemanalRuta = $semanasHabilesRestantes > 0 ? round($objetivoMesRuta / $semanasHabilesRestantes, 2) : 0.0;
+
+            // 3. Cartera Oficial de la Ruta desde pan_ruteo
+            $carteraRutaRaw = DB::connection('supervisor')->table('pan_ruteo')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->where('cliente_id', '>', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('estado')
+                      ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
+                })
+                ->pluck('cliente_id')
+                ->toArray();
+
+            $carteraRutaIds = array_values(array_filter(array_unique(array_map('intval', $carteraRutaRaw)), fn ($id) => $id > 0));
+
+            // 4. Preventas del día de la ruta
             $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
                 ->where('fecha_norm', $fechaNorm)
                 ->where('monto_final', '>', 0)
@@ -84,6 +309,12 @@ class GetDetalleReposicionRutaAction
                     'configuracion' => [
                         'semanas_historia' => $semanas,
                         'dias_historia' => $diasHistoria,
+                        'dias_totales' => $diasTotales,
+                        'dias_transcurridos' => $diasOperados,
+                        'dias_restantes' => $diasRestantes,
+                        'semanas_habiles_restantes' => $semanasHabilesRestantes,
+                        'objetivo_mes_ruta' => $objetivoMesRuta,
+                        'cuota_semanal_ruta' => $cuotaSemanalRuta,
                         'piso_pct' => 20.0,
                         'tope_pct' => 20.0,
                         'puntos_max' => 15.0,
@@ -142,7 +373,6 @@ class GetDetalleReposicionRutaAction
                 $clientesCompradores[$cid]['pedido_hoy_map'][$key]['cantidad'] += (int) $f->cantidad;
                 $clientesCompradores[$cid]['pedido_hoy_map'][$key]['monto'] += (float) $f->monto;
 
-                // Registrar llaves para match flexible
                 if ($cod !== '') {
                     $clientesCompradores[$cid]['keys_hoy']["cod_{$cod}"] = $key;
                 }
@@ -154,11 +384,13 @@ class GetDetalleReposicionRutaAction
                 }
             }
 
-            $cids = array_keys($clientesCompradores);
+            $cidsCompradores = array_keys($clientesCompradores);
+            // Universo de clientes para Waterfilling: cartera oficial de la ruta + compradores de hoy
+            $universoClientesRuta = array_values(array_unique(array_merge($carteraRutaIds, $cidsCompradores)));
 
-            // 2. Historial de compras exclusivamente en fact_preventas (últimas 13 semanas previas)
+            // 5. Historial de compras en fact_preventas (ventana seleccionada de semanas previas)
             $histPrev = DB::connection('supervisor')->table('fact_preventas')
-                ->whereIn('cliente_id', $cids)
+                ->whereIn('cliente_id', $universoClientesRuta)
                 ->where('fecha_norm', '>=', $fechaInicioHist)
                 ->where('fecha_norm', '<=', $fechaFinHist)
                 ->where('monto_final', '>', 0)
@@ -177,9 +409,44 @@ class GetDetalleReposicionRutaAction
                 ->groupBy('cliente_id', 'producto_id', DB::raw("COALESCE(TRIM(codigo_producto), '')"), DB::raw("COALESCE(TRIM(producto), 'SKU')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
                 ->get();
 
-            $historialPorCliente = [];
+            // Fallback en fact_ventas para clientes de cartera sin preventas en el histórico
+            $clientesConPreventaHist = $histPrev->pluck('cliente_id')->unique()->map('intval')->toArray();
+            $cidsSinPreventa = array_values(array_diff($universoClientesRuta, $clientesConPreventaHist));
+            $histVentas = collect();
+            if (!empty($cidsSinPreventa)) {
+                $histVentas = DB::connection('supervisor')->table('fact_ventas')
+                    ->whereIn('cliente_id', $cidsSinPreventa)
+                    ->where('fecha_norm', '>=', $fechaInicioHist)
+                    ->where('fecha_norm', '<=', $fechaFinHist)
+                    ->where('monto_final', '!=', 0)
+                    ->where(function ($q): void {
+                        $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                    })
+                    ->select([
+                        'cliente_id',
+                        DB::raw("0 as producto_id"),
+                        DB::raw("COALESCE(TRIM(codigo), '') as codigo_producto"),
+                        DB::raw("COALESCE(TRIM(producto), 'SKU') as producto"),
+                        DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
+                        DB::raw("COUNT(DISTINCT fecha_norm) as frecuencia_compra"),
+                        DB::raw("COUNT(DISTINCT fecha_norm) as dias_con_compra"),
+                        DB::raw("SUM(cantidad) as total_unidades"),
+                        DB::raw("SUM(monto_final) as total_bs"),
+                        DB::raw("SUBSTRING(GROUP_CONCAT(CONCAT(DATE(fecha_norm), ':', cantidad, ':', ROUND(monto_final, 2)) ORDER BY fecha_norm DESC SEPARATOR '|'), 1, 2048) as detalle_compras_raw"),
+                    ])
+                    ->groupBy('cliente_id', DB::raw("COALESCE(TRIM(codigo), '')"), DB::raw("COALESCE(TRIM(producto), 'SKU')"), DB::raw("COALESCE(TRIM(categoria), 'GENERAL')"))
+                    ->get();
+            }
 
-            foreach ($histPrev as $hv) {
+            $historialPorCliente = [];
+            $ventasHistoricasMap = [];
+
+            // Inicializar ventas históricas del universo para Waterfilling
+            foreach ($universoClientesRuta as $cidU) {
+                $ventasHistoricasMap[$cidU] = 0.0;
+            }
+
+            $procesarFilaHistorial = function ($hv) use (&$historialPorCliente, &$ventasHistoricasMap): void {
                 $cid = (int) $hv->cliente_id;
                 $pid = (int) $hv->producto_id;
                 $cod = trim((string) $hv->codigo_producto);
@@ -217,7 +484,9 @@ class GetDetalleReposicionRutaAction
                 $historialPorCliente[$cid][$key]['total_unidades'] += (int) $hv->total_unidades;
                 $historialPorCliente[$cid][$key]['total_bs'] += (float) $hv->total_bs;
 
-                // Parsear desglose de compras históricas para trazabilidad
+                $ventasHistoricasMap[$cid] = ($ventasHistoricasMap[$cid] ?? 0.0) + (float) $hv->total_bs;
+
+                // Parsear compras individuales
                 $rawTxs = (string) ($hv->detalle_compras_raw ?? '');
                 if ($rawTxs !== '') {
                     foreach (explode('|', $rawTxs) as $b) {
@@ -231,9 +500,24 @@ class GetDetalleReposicionRutaAction
                         }
                     }
                 }
+            };
+
+            foreach ($histPrev as $hp) {
+                $procesarFilaHistorial($hp);
+            }
+            foreach ($histVentas as $hv) {
+                $procesarFilaHistorial($hv);
             }
 
-            // 3. Evaluar reposición tienda por tienda (Match Ponderado por semanas con compra f_i)
+            // 6. Waterfilling de Cobertura Core: Cuotas Mensuales por Cliente (Piso 150 Bs)
+            $cuotasMensualesMap = $this->asignarCuotasMensualesPorCliente(
+                $objetivoMesRuta,
+                150.0,
+                $ventasHistoricasMap
+            );
+
+            // 7. Evaluar Reposición Semanal Tienda por Tienda con Lógica Cobertura Core
+            // La cuota mensual se divide entre las semanas hábiles restantes del mes (las visitas son semanales)
             $tiendas = [];
             $totalSkusEsperados = 0;
             $totalSkusMatch = 0;
@@ -248,77 +532,151 @@ class GetDetalleReposicionRutaAction
                 $pedidoHoy = $cData['pedido_hoy_map'];
                 $keysHoy = $cData['keys_hoy'];
 
+                $cuotaMensualCli = (float) ($cuotasMensualesMap[$cid] ?? 150.0);
+                // REGLA CLAVE: Dividir entre semanas hábiles restantes del mes
+                $cuotaSemanalCli = $semanasHabilesRestantes > 0
+                    ? round($cuotaMensualCli / $semanasHabilesRestantes, 2)
+                    : $cuotaMensualCli;
+                $cuotaSemanalCli = max(10.0, $cuotaSemanalCli);
+
+                // Filtrar SKUs habituales del cliente (comprados con frecuencia >= 1 y unidades >= 1)
+                $habitualesCli = [];
+                foreach ($canastaRaw as $hKey => $hab) {
+                    $uHist = (int) $hab['total_unidades'];
+                    $bHist = (float) $hab['total_bs'];
+                    $fHist = (int) $hab['frecuencia_compra'];
+
+                    if ($fHist >= 1 && $uHist >= 1) {
+                        $pCalc = $uHist > 0 && $bHist > 0 ? round($bHist / $uHist, 2) : 0.0;
+                        if ($pCalc <= 0.0) {
+                            $pCalc = 1.0;
+                        }
+
+                        $habitualesCli[$hKey] = array_merge($hab, [
+                            'precio' => $pCalc,
+                            'total_bs' => $bHist,
+                        ]);
+                    }
+                }
+
                 $keysUsadasHoy = [];
                 $canastaBase = [];
                 $matchesCliente = 0;
                 $puntosEsperadosTienda = 0;
                 $puntosMatchTienda = 0;
+                $montoMatchTienda = 0.0;
+                $subtotalSugeridoSemanal = 0.0;
 
-                foreach ($canastaRaw as $hKey => $hab) {
-                    $cod = $hab['codigo_producto'];
-                    $pid = $hab['producto_id'];
-                    $prodNorm = $this->normalizar($hab['producto']);
+                if (!empty($habitualesCli)) {
+                    // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
+                    $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs'));
+                    // Ordenar habituales por rotación en Bs descendente para tener SKU #1 primero
+                    uasort($habitualesCli, fn ($a, $b) => ($b['total_bs'] <=> $a['total_bs']));
 
-                    // Match contra compras de hoy
-                    $keyMatch = null;
-                    if ($cod !== '' && isset($keysHoy["cod_{$cod}"])) {
-                        $keyMatch = $keysHoy["cod_{$cod}"];
-                    } elseif ($pid > 0 && isset($keysHoy["id_{$pid}"])) {
-                        $keyMatch = $keysHoy["id_{$pid}"];
-                    } elseif ($prodNorm !== '' && isset($keysHoy["nom_{$prodNorm}"])) {
-                        $keyMatch = $keysHoy["nom_{$prodNorm}"];
+                    // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base (M_j = 1)
+                    $subtotalBase = 0.0;
+                    foreach ($habitualesCli as $pk => &$hInfo) {
+                        $mix_j = $ventaTotalHabitual > 0
+                            ? ($hInfo['total_bs'] / $ventaTotalHabitual)
+                            : (1.0 / count($habitualesCli));
+                        $presupuestoTeorico_j = $cuotaSemanalCli * $mix_j;
+                        $pj = $hInfo['precio'] > 0 ? $hInfo['precio'] : 1.0;
+
+                        $cantBase = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                        $montoBase = round($cantBase * $pj, 2);
+
+                        $hInfo['cant_sugerida'] = $cantBase;
+                        $hInfo['monto_sugerido'] = $montoBase;
+                        $hInfo['mix_propio'] = $mix_j;
+                        $hInfo['presupuesto_teorico'] = round($presupuestoTeorico_j, 2);
+                        $subtotalBase = round($subtotalBase + $montoBase, 2);
+                    }
+                    unset($hInfo);
+
+                    // PASO 4: Brecha residual y nivelación comercial (Sumar unidades al SKU #1)
+                    $brecha = round($cuotaSemanalCli - $subtotalBase, 2);
+                    if ($brecha > 0 && !empty($habitualesCli)) {
+                        $topKey = array_key_first($habitualesCli);
+                        $p1 = $habitualesCli[$topKey]['precio'] > 0 ? $habitualesCli[$topKey]['precio'] : 1.0;
+                        $unidadesExtra = (int) ceil($brecha / $p1);
+                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
+                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
+                        $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
+                    }
+                    $subtotalSugeridoSemanal = $subtotalBase;
+
+                    // PASO 5: Match contra el pedido de hoy
+                    foreach ($habitualesCli as $hKey => $hab) {
+                        $cod = $hab['codigo_producto'];
+                        $pid = $hab['producto_id'];
+                        $prodNorm = $this->normalizar($hab['producto']);
+
+                        $keyMatch = null;
+                        if ($cod !== '' && isset($keysHoy["cod_{$cod}"])) {
+                            $keyMatch = $keysHoy["cod_{$cod}"];
+                        } elseif ($pid > 0 && isset($keysHoy["id_{$pid}"])) {
+                            $keyMatch = $keysHoy["id_{$pid}"];
+                        } elseif ($prodNorm !== '' && isset($keysHoy["nom_{$prodNorm}"])) {
+                            $keyMatch = $keysHoy["nom_{$prodNorm}"];
+                        }
+
+                        $esMatch = ($keyMatch !== null && isset($pedidoHoy[$keyMatch]));
+                        $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
+                        $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
+
+                        $freqCompra = max(1, (int) ($hab['frecuencia_compra'] ?? 1));
+                        $pesoFi = $freqCompra;
+                        $puntosEsperadosTienda += $pesoFi;
+
+                        $cantRepoSemanal = (int) ($hab['cant_sugerida'] ?? 1);
+                        $montoRepoSemanal = (float) ($hab['monto_sugerido'] ?? round($cantRepoSemanal * ($hab['precio'] ?? 1.0), 2));
+
+                        if ($esMatch) {
+                            $matchesCliente++;
+                            $keysUsadasHoy[$keyMatch] = true;
+                            $puntosMatchTienda += $pesoFi;
+                            $montoMatchTienda += min($montoHoy, $montoRepoSemanal);
+                        }
+
+                        $canastaBase[] = [
+                            'producto_id' => $hab['producto_id'],
+                            'codigo_producto' => $hab['codigo_producto'],
+                            'producto' => $hab['producto'],
+                            'descripcion' => $hab['producto'],
+                            'categoria' => $hab['categoria'],
+                            'tipo_origen' => 'HABITO_CLIENTE',
+                            'peso_fi' => $pesoFi,
+                            'frecuencia_compra' => $freqCompra,
+                            'unidades_acumuladas' => $hab['total_unidades'],
+                            'dias_con_compra' => $freqCompra,
+                            'semanas_transcurridas' => $semanas,
+                            'semanas_habiles_restantes' => $semanasHabilesRestantes,
+                            'precio_unitario' => round((float) $hab['precio'], 2),
+                            'mix_propio_pct' => round(($hab['mix_propio'] ?? 0.0) * 100, 1),
+                            'presupuesto_teorico' => round((float) ($hab['presupuesto_teorico'] ?? 0.0), 2),
+                            'cantidad_repo' => $cantRepoSemanal,
+                            'cant_sugerida' => $cantRepoSemanal,
+                            'monto_sugerido' => $montoRepoSemanal,
+                            'monto_acumulado_bs' => round($hab['total_bs'], 2),
+                            'unidades_hoy' => $unidadesHoy,
+                            'monto_hoy' => $montoHoy,
+                            'recomprado_hoy' => $esMatch,
+                            'estatus' => $esMatch ? 'MATCH_SKU' : 'OMITIDO',
+                            'historial_compras' => $hab['historial_compras'] ?? [],
+                        ];
                     }
 
-                    $esMatch = ($keyMatch !== null && isset($pedidoHoy[$keyMatch]));
-                    $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
-                    $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
-
-                    // Peso f_i = frecuencia de compra (fechas distintas con preventa) en el historial de 91 días
-                    $freqCompra = max(1, (int) ($hab['frecuencia_compra'] ?? count($hab['historial_compras'] ?? [])));
-                    $pesoFi = $freqCompra;
-                    $puntosEsperadosTienda += $pesoFi;
-
-                    if ($esMatch) {
-                        $matchesCliente++;
-                        $keysUsadasHoy[$keyMatch] = true;
-                        $puntosMatchTienda += $pesoFi;
-                    }
-
-                    // Cantidad de reposición esperada: cantidad comprada sobre las semanas de la ventana (mín 1)
-                    $cantRepo = max(1, (int) round($hab['total_unidades'] / max(1, $semanas)));
-
-                    $canastaBase[] = [
-                        'producto_id' => $hab['producto_id'],
-                        'codigo_producto' => $hab['codigo_producto'],
-                        'producto' => $hab['producto'],
-                        'descripcion' => $hab['producto'],
-                        'categoria' => $hab['categoria'],
-                        'tipo_origen' => 'HABITO_CLIENTE',
-                        'peso_fi' => $pesoFi,
-                        'frecuencia_compra' => $freqCompra,
-                        'unidades_acumuladas' => $hab['total_unidades'],
-                        'dias_con_compra' => $freqCompra,
-                        'semanas_transcurridas' => $semanas,
-                        'cantidad_repo' => $cantRepo,
-                        'monto_acumulado_bs' => round($hab['total_bs'], 2),
-                        'unidades_hoy' => $unidadesHoy,
-                        'monto_hoy' => $montoHoy,
-                        'recomprado_hoy' => $esMatch,
-                        'estatus' => $esMatch ? 'MATCH_SKU' : 'OMITIDO',
-                        'historial_compras' => $hab['historial_compras'] ?? [],
-                    ];
+                    // Ordenar canasta habitual: primero recomprados, luego peso f_i descendente
+                    usort($canastaBase, function ($a, $b) {
+                        if ($a['recomprado_hoy'] !== $b['recomprado_hoy']) {
+                            return $b['recomprado_hoy'] <=> $a['recomprado_hoy'];
+                        }
+                        if ($a['peso_fi'] !== $b['peso_fi']) {
+                            return $b['peso_fi'] <=> $a['peso_fi'];
+                        }
+                        return $b['monto_sugerido'] <=> $a['monto_sugerido'];
+                    });
                 }
-
-                // Ordenar canasta habitual: primero recomprados, luego peso f_i descendente
-                usort($canastaBase, function ($a, $b) {
-                    if ($a['recomprado_hoy'] !== $b['recomprado_hoy']) {
-                        return $b['recomprado_hoy'] <=> $a['recomprado_hoy'];
-                    }
-                    if ($a['peso_fi'] !== $b['peso_fi']) {
-                        return $b['peso_fi'] <=> $a['peso_fi'];
-                    }
-                    return $b['unidades_acumuladas'] <=> $a['unidades_acumuladas'];
-                });
 
                 // Detectar pedidos de hoy fuera de canasta (Ampliación / Nuevos)
                 $pedidosHoyVista = [];
@@ -366,7 +724,6 @@ class GetDetalleReposicionRutaAction
                     $totalPuntosMatchRuta += $puntosMatchTienda;
                     $tiendasEvaluablesCount++;
                 } else {
-                    // Neutro (Excluido): aporta 0 al numerador y 0 al denominador de la ruta
                     $pctReposicionTienda = null;
                     $cumpleTienda = null;
                     $tiendasNuevasCount++;
@@ -376,6 +733,11 @@ class GetDetalleReposicionRutaAction
                     'cliente_id' => $cid,
                     'codigo_cliente' => $cData['codigo_cliente'],
                     'cliente' => $cData['cliente'],
+                    'cuota_mensual' => $cuotaMensualCli,
+                    'cuota_semanal' => $cuotaSemanalCli,
+                    'semanas_habiles_restantes' => $semanasHabilesRestantes,
+                    'monto_sugerido_semanal' => round($subtotalSugeridoSemanal, 2),
+                    'monto_match_hoy' => round($montoMatchTienda, 2),
                     'total_bs_hoy' => round($cData['total_bs_hoy'], 2),
                     'total_skus_hoy' => count($pedidoHoy),
                     'es_neutro' => $esClienteNuevo,
@@ -388,13 +750,13 @@ class GetDetalleReposicionRutaAction
                     'porcentaje_reposicion' => $pctReposicionTienda,
                     'cumple' => $cumpleTienda,
                     'skus_habituales' => $canastaBase, // Para Vue template
-                    'canasta_base' => $canastaBase,    // Compatibilidad Python
-                    'pedidos_hoy' => $pedidosHoyVista, // Compatibilidad Python
+                    'canasta_base' => $canastaBase,    // Compatibilidad
+                    'pedidos_hoy' => $pedidosHoyVista, // Compatibilidad
                     'skus_fuera_canasta' => $skusFueraCanasta,
                 ];
             }
 
-            // Ordenar: clientes evaluables primero por total Bs desc, clientes excluidos (neutros) al final
+            // Ordenar: clientes evaluables primero por total Bs desc, clientes neutros al final
             usort($tiendas, function ($a, $b) {
                 if ($a['es_neutro'] !== $b['es_neutro']) {
                     return $a['es_neutro'] ? 1 : -1;
@@ -404,17 +766,16 @@ class GetDetalleReposicionRutaAction
 
             $cntTiendas = count($tiendas);
 
-            // Paso 2: Porcentaje de Reposición del Día de la Ruta (Ponderado Global de Puntos)
+            // Porcentaje de Reposición del Día de la Ruta (Ponderado Global de Puntos)
             if ($totalPuntosEsperadosRuta > 0) {
                 $pctReposicionRuta = round(($totalPuntosMatchRuta / $totalPuntosEsperadosRuta) * 100.0, 1);
             } elseif ($cntTiendas > 0) {
-                // Caso de borde único: 100% de las tiendas compradoras son clientes nuevos sin historial
                 $pctReposicionRuta = 100.0;
             } else {
                 $pctReposicionRuta = 0.0;
             }
 
-            // Paso 3: Asignación de Puntos (15 Puntos a partir de 20% de reposición)
+            // Asignación de Puntos (15 Puntos a partir de 20% de reposición)
             if ($cntTiendas === 0 || $pctReposicionRuta < 20.0) {
                 $puntosObtenidos = 0.0;
                 $cumpleUmbral = false;
@@ -433,6 +794,12 @@ class GetDetalleReposicionRutaAction
                 'configuracion' => [
                     'semanas_historia' => $semanas,
                     'dias_historia' => $diasHistoria,
+                    'dias_totales' => $diasTotales,
+                    'dias_transcurridos' => $diasOperados,
+                    'dias_restantes' => $diasRestantes,
+                    'semanas_habiles_restantes' => $semanasHabilesRestantes,
+                    'objetivo_mes_ruta' => $objetivoMesRuta,
+                    'cuota_semanal_ruta' => $cuotaSemanalRuta,
                     'piso_pct' => 20.0,
                     'tope_pct' => 20.0,
                     'puntos_max' => 15.0,

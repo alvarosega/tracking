@@ -76,16 +76,27 @@ class VisitaController extends Controller
 
         $user = $request->user();
 
+        $clienteRow = DB::connection('supervisor')
+            ->table('pan_ruteo')
+            ->where('cliente_id', $cid)
+            ->select(['cliente', 'ruta', 'dia'])
+            ->first();
+
+        $clienteNombre = $clienteRow && !empty($clienteRow->cliente) ? trim((string) $clienteRow->cliente) : null;
+        if (empty($clienteNombre)) {
+            $clienteNombre = DB::connection('supervisor')
+                ->table('fact_ventas')
+                ->where('cliente_id', $cid)
+                ->value('cliente') ?: "Cliente #{$cid}";
+        }
+
         // 1. Resolver ruta
         $ruta = $request->input('ruta');
         if (empty($ruta) && $user) {
             $ruta = $user->ruta ?: $user->username;
         }
-        if (empty($ruta)) {
-            $ruta = DB::connection('supervisor')
-                ->table('pan_ruteo')
-                ->where('cliente_id', $cid)
-                ->value('ruta');
+        if (empty($ruta) && $clienteRow) {
+            $ruta = $clienteRow->ruta;
         }
         $rutaClean = strtoupper(trim((string) $ruta));
 
@@ -98,11 +109,8 @@ class VisitaController extends Controller
 
         // 3. Resolver día de visita
         $diaVisita = $request->input('dia');
-        if (empty($diaVisita)) {
-            $diaVisita = DB::connection('supervisor')
-                ->table('pan_ruteo')
-                ->where('cliente_id', $cid)
-                ->value('dia');
+        if (empty($diaVisita) && $clienteRow) {
+            $diaVisita = $clienteRow->dia;
         }
 
         // 4. Resolver cuota objetivo del cliente
@@ -164,54 +172,35 @@ class VisitaController extends Controller
         // 6. Filtrar únicamente los productos que se sugiere comprar (cant_sugerida > 0)
         $sugeridos = [];
         $totalSugeridoBs = 0.0;
-        $totalSugeridoUnidades = 0;
 
         foreach ($detalle['productos'] ?? [] as $prod) {
             $cantSugerida = (int) ($prod['cant_sugerida'] ?? 0);
             if ($cantSugerida > 0) {
                 $precioUnit = round((float) ($prod['precio_unitario'] ?? $prod['precio_ultima_compra'] ?? 0.0), 2);
                 $montoSugerido = round((float) ($prod['monto_sugerido'] ?? $prod['monto_sugerido_bs'] ?? ($cantSugerida * $precioUnit)), 2);
-                if ($precioUnit <= 0.0 && $montoSugerido > 0.0) {
-                    $precioUnit = round($montoSugerido / $cantSugerida, 2);
-                }
-                if ($montoSugerido <= 0.0 && $precioUnit > 0.0) {
-                    $montoSugerido = round($cantSugerida * $precioUnit, 2);
-                }
 
                 $sugeridos[] = [
                     'codigo' => (string) ($prod['codigo'] ?? ''),
                     'producto' => (string) ($prod['producto'] ?? ''),
-                    'categoria' => (string) ($prod['categoria'] ?? ''),
+                    'jerarquia_1' => (string) ($prod['jerarquia1'] ?? ''),
                     'cant_sugerida' => $cantSugerida,
-                    'precio_unitario' => $precioUnit,
-                    'monto_sugerido' => $montoSugerido,
-                    'monto_sugerido_bs' => $montoSugerido,
-                    'es_core_pareto' => (bool) ($prod['es_core_pareto'] ?? false),
                     'compro_mes_actual' => (bool) ($prod['compro_mes_actual'] ?? false),
-                    'cumple_sugerido' => (bool) ($prod['cumple_sugerido'] ?? false),
-                    'total_cantidad_3m' => (int) ($prod['total_cantidad_3m'] ?? 0),
-                    'total_bs_3m' => round((float) ($prod['total_bs_3m'] ?? 0.0), 2),
-                    'frecuencia_compra_3m' => (int) ($prod['frecuencia_compra'] ?? $prod['frecuencia_compra_3m'] ?? 0),
+                    'cantidad_comprada_mes_actual' => (int) ($prod['total_cantidad_mes_actual'] ?? 0),
                 ];
 
                 $totalSugeridoBs += $montoSugerido;
-                $totalSugeridoUnidades += $cantSugerida;
             }
         }
 
         return response()->json([
             'status' => 'success',
+            'cliente' => $clienteNombre,
             'cliente_id' => $cid,
             'ruta' => $rutaClean,
-            'dia_visita' => $diaVisita,
-            'cuota_objetivo' => round((float) $cuotaObjetivo, 2),
+            'dia_visita' => $diaVisita ?: 'Sin Día',
             'total_sugerido' => round($totalSugeridoBs, 2),
-            'total_unidades_sugeridas' => $totalSugeridoUnidades,
             'total_skus_sugeridos' => count($sugeridos),
             'sugeridos' => $sugeridos,
-            'resumen_cobertura' => $detalle['resumen_cobertura'] ?? [],
-            'todos_los_productos' => $detalle['productos'] ?? [],
-            'fechas_historial' => $detalle['fechas'] ?? [],
         ], 200);
     }
 }
