@@ -282,18 +282,28 @@ class GetAvanceClientesRutaAction
             $mesYm = $carbonCorte->format('Y-m');
             $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
 
-            // Cuota objetivo por cliente proporcional a su peso en la ruta.
-            // Para Cobertura Core, nivelación con piso mínimo de 150 Bs (para nuevos o con objetivo < 150 Bs)
-            $cuotaObjetivoMap = [];
-            foreach ($cartera as $cid => $item) {
-                $totCli = array_sum($histClienteMap[$cid] ?? []);
-                $cuota = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
-                    ? round(($totCli / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
-                    : 0.0;
-                if ($kpiClave === 'cob_core') {
-                    $cuota = max(150.0, $cuota);
+            // Cuota objetivo por cliente:
+            // Para Cobertura Core, algoritmo de balanceo iterativo (Waterfilling) con piso de 150 Bs
+            // garantizando que la suma final de cuotas sea exactamente igual a ObjetivoRuta
+            if ($kpiClave === 'cob_core') {
+                $ventasHistMap = [];
+                foreach ($cartera as $cid => $item) {
+                    $ventasHistMap[$cid] = (float) array_sum($histClienteMap[$cid] ?? []);
                 }
-                $cuotaObjetivoMap[$cid] = $cuota;
+                $cuotaObjetivoMap = $this->asignarCuotasMensualesPorCliente(
+                    objetivoRuta: (float) $objetivoMensualRuta,
+                    pisoMinimo: 150.0,
+                    ventasHistoricasMap: $ventasHistMap
+                );
+            } else {
+                $cuotaObjetivoMap = [];
+                foreach ($cartera as $cid => $item) {
+                    $totCli = array_sum($histClienteMap[$cid] ?? []);
+                    $cuota = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+                        ? round(($totCli / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
+                        : 0.0;
+                    $cuotaObjetivoMap[$cid] = $cuota;
+                }
             }
 
             // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente y Pareto
@@ -703,10 +713,7 @@ class GetAvanceClientesRutaAction
             $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
             $cuotaObjetivo = $cuotaObjetivoMap[$cid] ?? (($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                 ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
-                : 0.0);
-            if ($kpiClave === 'cob_core') {
-                $cuotaObjetivo = max(150.0, $cuotaObjetivo);
-            }
+                : ($kpiClave === 'cob_core' ? 150.0 : 0.0));
             $totalSugeridoCli = round($sugeridoClienteMap[$cid] ?? 0.0, 2);
 
             $clientesLista[] = [
@@ -824,6 +831,117 @@ class GetAvanceClientesRutaAction
                 'dias_con_venta' => count($diasOrdenados),
             ],
         ];
+    }
+
+    /**
+     * Algoritmo AsignarCuotasMensualesPorCliente (Waterfilling / Balanceo Iterativo).
+     * Garantiza que ningún cliente quede por debajo del piso de 150 Bs y que la suma de cuotas
+     * asignadas coincida exactamente con el ObjetivoRuta, distribuyendo el remanente proporcionalmente.
+     *
+     * @param float $objetivoRuta Presupuesto total de la ruta (Bs)
+     * @param float $pisoMinimo Umbral mínimo obligatorio por cliente (150.00 Bs)
+     * @param array<int, float> $ventasHistoricasMap Arreglo de [cliente_id => venta_historica_3m]
+     * @return array<int, float> Arreglo de [cliente_id => cuota_asignada]
+     */
+    public function asignarCuotasMensualesPorCliente(
+        float $objetivoRuta,
+        float $pisoMinimo,
+        array $ventasHistoricasMap
+    ): array {
+        $totalClientes = count($ventasHistoricasMap);
+        if ($totalClientes === 0 || $objetivoRuta <= 0.0) {
+            return array_fill_keys(array_keys($ventasHistoricasMap), $pisoMinimo);
+        }
+
+        // 1. Validar viabilidad matemática
+        $pisoTotalRequerido = $totalClientes * $pisoMinimo;
+        if ($objetivoRuta < $pisoTotalRequerido) {
+            // El objetivo no cubre el piso total; asignar piso mínimo a todos
+            return array_fill_keys(array_keys($ventasHistoricasMap), $pisoMinimo);
+        }
+
+        // 2. Inicializar variables
+        $presupuestoRestante = $objetivoRuta;
+        $cuotasAsignadas = [];
+        $fijados = [];
+        $clientesRestantes = array_keys($ventasHistoricasMap);
+
+        foreach ($clientesRestantes as $cid) {
+            $cuotasAsignadas[$cid] = 0.0;
+            $fijados[$cid] = false;
+        }
+
+        // 3. Bucle de balanceo iterativo (Waterfilling)
+        // Garantiza que nadie quede bajo 150 y la suma sea exactamente igual a ObjetivoRuta
+        do {
+            $hayClientesBajoPiso = false;
+
+            // Sumar venta histórica de clientes no fijados
+            $sumaHistoricaRestante = 0.0;
+            foreach ($clientesRestantes as $cid) {
+                $sumaHistoricaRestante += (float) ($ventasHistoricasMap[$cid] ?? 0.0);
+            }
+
+            $nuevosFijadosEnEstaRonda = [];
+            $cantRestantes = count($clientesRestantes);
+
+            // Evaluar cuota proporcional sobre el presupuesto disponible
+            foreach ($clientesRestantes as $cid) {
+                $vHist = (float) ($ventasHistoricasMap[$cid] ?? 0.0);
+                if ($sumaHistoricaRestante > 0.0) {
+                    $pesoRelativo = $vHist / $sumaHistoricaRestante;
+                    $cuotaCalculada = $presupuestoRestante * $pesoRelativo;
+                } else {
+                    // Si todos los restantes tienen 0 histórico, se reparte equitativamente
+                    $cuotaCalculada = $cantRestantes > 0 ? ($presupuestoRestante / $cantRestantes) : $pisoMinimo;
+                }
+
+                // Si no alcanza el piso (o es cliente nuevo/cero ventas), se fija en 150
+                if ($cuotaCalculada < $pisoMinimo) {
+                    $cuotasAsignadas[$cid] = $pisoMinimo;
+                    $fijados[$cid] = true;
+                    $presupuestoRestante -= $pisoMinimo;
+                    $hayClientesBajoPiso = true;
+                    $nuevosFijadosEnEstaRonda[$cid] = true;
+                } else {
+                    $cuotasAsignadas[$cid] = $cuotaCalculada;
+                }
+            }
+
+            // Filtrar la lista dejando solo los que no han sido fijados al piso
+            $clientesRestantes = array_values(array_filter(
+                $clientesRestantes,
+                fn ($cid) => empty($nuevosFijadosEnEstaRonda[$cid]) && !$fijados[$cid]
+            ));
+
+        } while ($hayClientesBajoPiso && count($clientesRestantes) > 0);
+
+        // 4. Redondeo a 2 decimales y ajuste de centavos
+        $sumaFinalCuotas = 0.0;
+        foreach ($cuotasAsignadas as $cid => $cuota) {
+            $cuotaRedondeada = round($cuota, 2);
+            $cuotasAsignadas[$cid] = $cuotaRedondeada;
+            $sumaFinalCuotas += $cuotaRedondeada;
+        }
+
+        $diferenciaCentavos = round($objetivoRuta - $sumaFinalCuotas, 2);
+        if ($diferenciaCentavos != 0.0 && !empty($cuotasAsignadas)) {
+            // Asignar o restar la diferencia de centavos al cliente con mayor cuota
+            $clienteMayorCuotaId = null;
+            $maxCuota = -1.0;
+            foreach ($cuotasAsignadas as $cid => $cuota) {
+                if ($cuota > $maxCuota) {
+                    $maxCuota = $cuota;
+                    $clienteMayorCuotaId = $cid;
+                }
+            }
+
+            if ($clienteMayorCuotaId !== null) {
+                $cuotasAsignadas[$clienteMayorCuotaId] = round($cuotasAsignadas[$clienteMayorCuotaId] + $diferenciaCentavos, 2);
+            }
+        }
+
+        return $cuotasAsignadas;
     }
 }
 
