@@ -885,6 +885,17 @@
                                   </div>
                                 </th>
                                 <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/70"
+                                  :class="sortClientesCol === 'total_sugerido' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('total_sugerido')"
+                                  title="Ordenar por Total Sugerido de Compra (Bs)"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Sugerido (Bs)</span>
+                                    <span v-if="sortClientesCol === 'total_sugerido'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/40"
                                   :class="sortClientesCol === 'cuota_objetivo' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('cuota_objetivo')"
@@ -995,6 +1006,9 @@
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/20">
                                     {{ formatPct(cli.peso_3m) }}
                                   </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold text-purple-900 bg-purple-50/30">
+                                    {{ (cli.total_sugerido || 0) > 0 ? `Bs ${formatNum(cli.total_sugerido, 2)}` : '-' }}
+                                  </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/20">
                                     {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
                                   </td>
@@ -1041,7 +1055,7 @@
                               </tr>
                               <!-- Detalle acordeón de productos, sugeridos y compras del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 12 : 7" class="p-3 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 13 : 7" class="p-3 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[12px] p-3 space-y-3 bg-white/95 border border-black/[0.06] shadow-sm">
                                     <!-- Indicador de carga -->
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
@@ -1344,6 +1358,9 @@
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#0071E3] bg-blue-50/30">
                                 100.0%
                               </td>
+                              <td class="py-1.5 px-2.5 text-right font-mono font-bold text-purple-900 bg-purple-50/40">
+                                Bs {{ formatNum(totales3mRuta.total_sugerido || totalSugeridoCartera, 2) }}
+                              </td>
                               <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/30">
                                 Bs {{ formatNum(totales3mRuta.objetivo_mes || totalObjetivoClientes, 2) }}
                               </td>
@@ -1611,6 +1628,10 @@ const totalVentaCartera = computed(() => {
 
 const totalObjetivoClientes = computed(() => {
   return carteraClientes.value.reduce((acc, c) => acc + Number(c.cuota_objetivo || 0), 0)
+})
+
+const totalSugeridoCartera = computed(() => {
+  return carteraClientes.value.reduce((acc, c) => acc + Number(c.total_sugerido || 0), 0)
 })
 
 const nombreMesActualCorto = computed(() => {
@@ -1896,6 +1917,9 @@ const clientesRutaFiltrados = computed(() => {
     }
     if (col === 'peso_3m') {
       return dir * (Number(a.peso_3m || 0) - Number(b.peso_3m || 0))
+    }
+    if (col === 'total_sugerido') {
+      return dir * (Number(a.total_sugerido || 0) - Number(b.total_sugerido || 0))
     }
     if (col === 'cuota_objetivo') {
       return dir * (Number(a.cuota_objetivo || 0) - Number(b.cuota_objetivo || 0))
