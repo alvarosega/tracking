@@ -398,6 +398,8 @@ class GetAvanceClienteDetalleFechasAction
                         DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
                         DB::raw("COALESCE(cantidad, 0) as cantidad"),
                         DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
+                        DB::raw("COALESCE(nro_factura, '') as nro_factura"),
+                        'cliente_id',
                     ])
                     ->orderBy('fecha_norm', 'desc')
                     ->get();
@@ -414,12 +416,27 @@ class GetAvanceClienteDetalleFechasAction
                             'total_monto' => 0.0,
                             'total_cantidad' => 0,
                             'precio_ref' => 0.0,
+                            'fechas' => [],
+                            'facturas' => [],
+                            'clientes' => [],
                         ];
                     }
                     $m = (float) $pRow->monto_final;
                     $c = (int) $pRow->cantidad;
                     $paretoAgrupado[$pk]['total_monto'] += $m;
                     $paretoAgrupado[$pk]['total_cantidad'] += $c;
+                    $f = (string) $pRow->fecha;
+                    if ($f) {
+                        $paretoAgrupado[$pk]['fechas'][$f] = true;
+                    }
+                    $fact = (string) ($pRow->nro_factura ?? '');
+                    if ($fact !== '' && $fact !== 'S/F') {
+                        $paretoAgrupado[$pk]['facturas'][$fact] = true;
+                    }
+                    $cId = (int) ($pRow->cliente_id ?? 0);
+                    if ($cId > 0) {
+                        $paretoAgrupado[$pk]['clientes'][$cId] = true;
+                    }
                     if ($c > 0 && $m > 0 && $paretoAgrupado[$pk]['precio_ref'] === 0.0) {
                         $paretoAgrupado[$pk]['precio_ref'] = round($m / $c, 2);
                     }
@@ -429,10 +446,20 @@ class GetAvanceClienteDetalleFechasAction
                     if ($pItem['precio_ref'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
                         $pItem['precio_ref'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
                     }
+                    $pItem['frecuencia'] = max(count($pItem['fechas'] ?? []), count($pItem['facturas'] ?? []));
+                    $pItem['clientes_count'] = count($pItem['clientes'] ?? []);
                 }
                 unset($pItem);
 
-                uasort($paretoAgrupado, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+                uasort($paretoAgrupado, function ($a, $b) {
+                    if ($a['total_cantidad'] !== $b['total_cantidad']) {
+                        return $b['total_cantidad'] <=> $a['total_cantidad'];
+                    }
+                    if ($a['frecuencia'] !== $b['frecuencia']) {
+                        return $b['frecuencia'] <=> $a['frecuencia'];
+                    }
+                    return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
+                });
 
                 // Indexar productos existentes del cliente por nombre normalizado
                 $prodKeyToIndex = [];

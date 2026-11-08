@@ -527,12 +527,24 @@ class GetAvanceCumplimientoDataAction
                         'total_monto' => 0.0,
                         'total_cantidad' => 0,
                         'precio' => 0.0,
+                        'fechas' => [],
+                        'facturas' => [],
+                        'clientes' => [],
                     ];
                 }
                 $mVal = (float) $row->monto_final;
                 $cVal = (int) $row->cantidad;
                 $paretoRutasProds[$r][$pkey]['total_monto'] += $mVal;
                 $paretoRutasProds[$r][$pkey]['total_cantidad'] += $cVal;
+                if ($f) {
+                    $paretoRutasProds[$r][$pkey]['fechas'][$f] = true;
+                }
+                if ($fact !== '' && $fact !== 'S/F') {
+                    $paretoRutasProds[$r][$pkey]['facturas'][$fact] = true;
+                }
+                if ($cid > 0) {
+                    $paretoRutasProds[$r][$pkey]['clientes'][$cid] = true;
+                }
                 if ($cVal > 0 && $mVal > 0 && $paretoRutasProds[$r][$pkey]['precio'] === 0.0) {
                     $paretoRutasProds[$r][$pkey]['precio'] = round($mVal / $cVal, 2);
                 }
@@ -565,9 +577,19 @@ class GetAvanceCumplimientoDataAction
                         if ($pItem['precio'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
                             $pItem['precio'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
                         }
+                        $pItem['frecuencia'] = max(count($pItem['fechas'] ?? []), count($pItem['facturas'] ?? []));
+                        $pItem['clientes_count'] = count($pItem['clientes'] ?? []);
                     }
                     unset($pItem);
-                    uasort($paretoList, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+                    uasort($paretoList, function ($a, $b) {
+                        if ($a['total_cantidad'] !== $b['total_cantidad']) {
+                            return $b['total_cantidad'] <=> $a['total_cantidad'];
+                        }
+                        if ($a['frecuencia'] !== $b['frecuencia']) {
+                            return $b['frecuencia'] <=> $a['frecuencia'];
+                        }
+                        return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
+                    });
 
                     // Fase 1: Incorporar productos Pareto no sugeridos aún
                     foreach ($paretoList as $pk => $pInfo) {

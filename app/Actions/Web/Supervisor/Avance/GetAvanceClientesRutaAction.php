@@ -366,10 +366,22 @@ class GetAvanceClientesRutaAction
                         'total_cantidad' => 0,
                         'precio' => 0.0,
                         'fecha_precio' => null,
+                        'fechas' => [],
+                        'facturas' => [],
+                        'clientes' => [],
                     ];
                 }
                 $paretoPorDia[$diaVisita][$pKey]['total_monto'] += $monto;
                 $paretoPorDia[$diaVisita][$pKey]['total_cantidad'] += $cant;
+                if ($f) {
+                    $paretoPorDia[$diaVisita][$pKey]['fechas'][$f] = true;
+                }
+                if ($fact !== '' && $fact !== 'S/F') {
+                    $paretoPorDia[$diaVisita][$pKey]['facturas'][$fact] = true;
+                }
+                if ($cId > 0) {
+                    $paretoPorDia[$diaVisita][$pKey]['clientes'][$cId] = true;
+                }
                 if ($cant > 0 && $monto > 0) {
                     if ($paretoPorDia[$diaVisita][$pKey]['fecha_precio'] === null || $f >= $paretoPorDia[$diaVisita][$pKey]['fecha_precio']) {
                         $paretoPorDia[$diaVisita][$pKey]['fecha_precio'] = $f;
@@ -386,10 +398,22 @@ class GetAvanceClientesRutaAction
                         'total_cantidad' => 0,
                         'precio' => 0.0,
                         'fecha_precio' => null,
+                        'fechas' => [],
+                        'facturas' => [],
+                        'clientes' => [],
                     ];
                 }
                 $paretoRuta[$pKey]['total_monto'] += $monto;
                 $paretoRuta[$pKey]['total_cantidad'] += $cant;
+                if ($f) {
+                    $paretoRuta[$pKey]['fechas'][$f] = true;
+                }
+                if ($fact !== '' && $fact !== 'S/F') {
+                    $paretoRuta[$pKey]['facturas'][$fact] = true;
+                }
+                if ($cId > 0) {
+                    $paretoRuta[$pKey]['clientes'][$cId] = true;
+                }
                 if ($cant > 0 && $monto > 0) {
                     if ($paretoRuta[$pKey]['fecha_precio'] === null || $f >= $paretoRuta[$pKey]['fecha_precio']) {
                         $paretoRuta[$pKey]['fecha_precio'] = $f;
@@ -398,15 +422,25 @@ class GetAvanceClientesRutaAction
                 }
             }
 
-            // Ordenar Pareto de cada día y de la ruta por total_monto descendente
+            // Ordenar Pareto de cada día y de la ruta por cantidad comprada y frecuencia de compra descendente (no por monto)
             foreach ($paretoPorDia as $diaV => &$itemsDia) {
                 foreach ($itemsDia as &$it) {
                     if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
                         $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
                     }
+                    $it['frecuencia'] = max(count($it['fechas'] ?? []), count($it['facturas'] ?? []));
+                    $it['clientes_count'] = count($it['clientes'] ?? []);
                 }
                 unset($it);
-                uasort($itemsDia, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+                uasort($itemsDia, function ($a, $b) {
+                    if ($a['total_cantidad'] !== $b['total_cantidad']) {
+                        return $b['total_cantidad'] <=> $a['total_cantidad'];
+                    }
+                    if ($a['frecuencia'] !== $b['frecuencia']) {
+                        return $b['frecuencia'] <=> $a['frecuencia'];
+                    }
+                    return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
+                });
             }
             unset($itemsDia);
 
@@ -414,9 +448,19 @@ class GetAvanceClientesRutaAction
                 if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
                     $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
                 }
+                $it['frecuencia'] = max(count($it['fechas'] ?? []), count($it['facturas'] ?? []));
+                $it['clientes_count'] = count($it['clientes'] ?? []);
             }
             unset($it);
-            uasort($paretoRuta, fn ($a, $b) => $b['total_monto'] <=> $a['total_monto']);
+            uasort($paretoRuta, function ($a, $b) {
+                if ($a['total_cantidad'] !== $b['total_cantidad']) {
+                    return $b['total_cantidad'] <=> $a['total_cantidad'];
+                }
+                if ($a['frecuencia'] !== $b['frecuencia']) {
+                    return $b['frecuencia'] <=> $a['frecuencia'];
+                }
+                return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
+            });
 
             // Cálculo del sugerido por cliente: hábitos base + complemento Core Pareto si no alcanza el objetivo
             foreach ($cartera as $cId => $itemCart) {
