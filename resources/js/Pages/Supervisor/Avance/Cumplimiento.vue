@@ -960,7 +960,7 @@
                               <tr class="hover:bg-blue-50/30 transition-colors">
                                 <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
                                   <button
-                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0"
+                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0 || (cli.total_sugerido || 0) > 0"
                                     type="button"
                                     @click="toggleClienteAccordion(cli, r.ruta)"
                                     class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"

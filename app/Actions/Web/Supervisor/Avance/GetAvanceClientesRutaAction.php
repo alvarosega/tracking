@@ -282,13 +282,18 @@ class GetAvanceClientesRutaAction
             $mesYm = $carbonCorte->format('Y-m');
             $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
 
-            // Cuota objetivo por cliente proporcional a su peso en la ruta
+            // Cuota objetivo por cliente proporcional a su peso en la ruta.
+            // Para clientes sin histórico de compras en Cobertura Core, objetivo mínimo de 200 Bs
             $cuotaObjetivoMap = [];
             foreach ($cartera as $cid => $item) {
                 $totCli = array_sum($histClienteMap[$cid] ?? []);
-                $cuotaObjetivoMap[$cid] = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+                $cuota = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                     ? round(($totCli / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
                     : 0.0;
+                if ($totCli <= 0 && $kpiClave === 'cob_core') {
+                    $cuota = 200.0;
+                }
+                $cuotaObjetivoMap[$cid] = $cuota;
             }
 
             // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente y Pareto
@@ -596,9 +601,9 @@ class GetAvanceClientesRutaAction
             $m3Val = round($mesesBsCli[$mesesCerrados[2]['ym'] ?? ''] ?? 0.0, 2);
             $totalCli3m = round(array_sum($mesesBsCli), 2);
             $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
-            $cuotaObjetivo = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+            $cuotaObjetivo = $cuotaObjetivoMap[$cid] ?? (($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                 ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
-                : 0.0;
+                : ($kpiClave === 'cob_core' && $totalCli3m <= 0 ? 200.0 : 0.0));
             $totalSugeridoCli = round($sugeridoClienteMap[$cid] ?? 0.0, 2);
 
             $clientesLista[] = [
