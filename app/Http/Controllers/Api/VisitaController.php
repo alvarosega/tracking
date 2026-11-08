@@ -90,20 +90,26 @@ class VisitaController extends Controller
                 ->value('cliente') ?: "Cliente #{$cid}";
         }
 
-        // 1. Resolver ruta
-        $ruta = $request->input('ruta');
-        if (empty($ruta) && $user) {
-            $ruta = $user->ruta ?: $user->username;
+        // 1. Resolver ruta del cliente (priorizando la ruta oficial de cartera en pan_ruteo)
+        $rutaOficial = ($clienteRow && !empty($clienteRow->ruta)) ? strtoupper(trim((string) $clienteRow->ruta)) : null;
+        $rutaReq = $request->input('ruta');
+        if (empty($rutaReq) && $user) {
+            $rutaReq = $user->ruta ?: $user->username;
         }
-        if (empty($ruta) && $clienteRow) {
-            $ruta = $clienteRow->ruta;
-        }
-        $rutaClean = strtoupper(trim((string) $ruta));
+        $rutaClean = $rutaOficial ?: strtoupper(trim((string) $rutaReq));
 
-        // 2. Parámetros de filtro (con valores por defecto consistentes con el módulo Web)
+        // 2. Parámetros de filtro idénticos al módulo Web (Avance -> Cobertura Core: frec=2, cant=4, meses=3)
         $kpiClave = (string) ($request->input('kpi') ?: 'cob_core');
-        $cantidadMinima = (int) ($request->input('cantidad_minima') ?: 1);
-        $frecuenciaMinima = (int) ($request->input('frecuencia_minima') ?: 1);
+        $esCobCore = ($kpiClave === 'cob_core' || $kpiClave === 'cobertura_core');
+
+        $cantidadMinima = $request->has('cantidad_minima')
+            ? (int) $request->input('cantidad_minima')
+            : ($esCobCore ? 4 : 1);
+
+        $frecuenciaMinima = $request->has('frecuencia_minima')
+            ? (int) $request->input('frecuencia_minima')
+            : ($esCobCore ? 2 : 1);
+
         $mesesHistorico = (int) ($request->input('meses_historico') ?: 3);
         $omitirUnitarios = filter_var($request->input('omitir_unitarios', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -113,7 +119,7 @@ class VisitaController extends Controller
             $diaVisita = $clienteRow->dia;
         }
 
-        // 4. Resolver cuota objetivo del cliente
+        // 4. Resolver cuota objetivo del cliente según la nivelación de cartera de la ruta en Web
         $cuotaObjetivo = null;
         if ($request->has('cuota_objetivo')) {
             $cuotaObjetivo = (float) $request->input('cuota_objetivo');
@@ -137,7 +143,7 @@ class VisitaController extends Controller
                     }
                 }
             } catch (\Throwable $e) {
-                Log::warning("sugeridoCliente: error obteniendo cuota de ruta: " . $e->getMessage());
+                Log::warning("sugeridoCliente: error obteniendo cuota de ruta {$rutaClean}: " . $e->getMessage());
             }
 
             if ($cuotaObjetivo === null || $cuotaObjetivo <= 0.0) {
