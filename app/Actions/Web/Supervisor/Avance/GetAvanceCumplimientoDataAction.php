@@ -429,6 +429,7 @@ class GetAvanceCumplimientoDataAction
         // Histórico de N meses cerrados por ruta y cálculo de Sugerido por Ruta
         $histRutasMap = [];
         $sugeridoRutasMap = [];
+        $ventaMtdRutasMap = [];
         if ($clave === 'cob_core') {
             $histInicio = $mesesCerrados[0]['inicio'];
             $histFin = end($mesesCerrados)['fin'];
@@ -465,6 +466,16 @@ class GetAvanceCumplimientoDataAction
                 $rClean = (string) $pr->ruta_clean;
                 if ($cid > 0 && $rClean !== '') {
                     $carteraClientesPorRuta[$rClean][$cid] = true;
+                }
+            }
+
+            // Si alguna ruta del catálogo no tiene clientes activos en pan_ruteo pero tuvo ventas en fact_ventas,
+            // incluir dichos clientes para que coincida exactamente con el fallback de GetAvanceClientesRutaAction
+            foreach ($ventasRaw as $v) {
+                $rc = (string) $v->ruta_clean;
+                $cid = (int) $v->cliente_id;
+                if ($cid > 0 && $rc !== '' && empty($carteraClientesPorRuta[$rc])) {
+                    $carteraClientesPorRuta[$rc][$cid] = true;
                 }
             }
 
@@ -513,6 +524,7 @@ class GetAvanceCumplimientoDataAction
 
                 if (!isset($clienteProdsMap[$cId][$pKey])) {
                     $clienteProdsMap[$cId][$pKey] = [
+                        'codigo' => trim((string) $row->codigo),
                         'cantidad_3m' => 0,
                         'precio_ultima_compra' => 0.0,
                         'meses' => [],
@@ -532,11 +544,42 @@ class GetAvanceCumplimientoDataAction
                 }
             }
 
-            // Cálculo del Total Sugerido por Ruta sumando los pedidos nivelados de cada cliente (Single Source of Truth)
+            // Catálogo general de precios por producto (fallback pareto)
+            $paretoPreciosRuta = [];
+            foreach ($sugRaw as $row) {
+                if ($row->cantidad > 0 && $row->monto_final > 0) {
+                    $pKey = trim((string) $row->producto) !== '' ? mb_strtoupper(trim((string) $row->producto)) : trim((string) $row->codigo);
+                    if (!isset($paretoPreciosRuta[$pKey])) {
+                        $paretoPreciosRuta[$pKey] = round($row->monto_final / $row->cantidad, 2);
+                    }
+                }
+            }
+
+            // Mapeo de ventas MTD (período actual) por cliente y SKU para cálculo de match con pedido sugerido
+            $mtdClientSalesMap = [];
+            $mtdClientCodSalesMap = [];
+            foreach ($ventasRaw as $v) {
+                $cId = (int) $v->cliente_id;
+                if ($cId <= 0) {
+                    continue;
+                }
+                $prodNombre = trim((string) $v->producto);
+                $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $v->codigo);
+                $cod = trim((string) $v->codigo);
+                $mVal = (float) $v->monto;
+
+                $mtdClientSalesMap[$cId][$pKey] = ($mtdClientSalesMap[$cId][$pKey] ?? 0.0) + $mVal;
+                if ($cod !== '') {
+                    $mtdClientCodSalesMap[$cId][$cod] = ($mtdClientCodSalesMap[$cId][$cod] ?? 0.0) + $mVal;
+                }
+            }
+
+            // Cálculo del Total Sugerido y Venta MTD por Ruta sumando los pedidos nivelados de cada cliente (Single Source of Truth)
             foreach ($universoRutas as $r) {
                 $clientesRuta = array_keys($carteraClientesPorRuta[$r] ?? []);
                 if (empty($clientesRuta)) {
                     $sugeridoRutasMap[$r] = 0.0;
+                    $ventaMtdRutasMap[$r] = 0.0;
                     continue;
                 }
 
@@ -551,6 +594,7 @@ class GetAvanceCumplimientoDataAction
                 $cuotasMap = $this->asignarCuotasMensualesPorCliente($objetivoRuta, 150.0, $ventasHistRuta);
 
                 $totalSugeridoRuta = 0.0;
+                $totalVentaMtdRuta = 0.0;
                 foreach ($clientesRuta as $cid) {
                     $pList = $clienteProdsMap[$cid] ?? [];
                     $cuotaCli = (float) ($cuotasMap[$cid] ?? 150.0);
@@ -561,9 +605,14 @@ class GetAvanceCumplimientoDataAction
                         $c3m = (int) ($pData['cantidad_3m'] ?? 0);
                         $mesesDistintos = count($pData['meses'] ?? []);
                         $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
+                        if ($pUlt <= 0.0 && $c3m > 0) {
+                            $pUlt = (float) ($paretoPreciosRuta[$pKey] ?? 0.0);
+                        }
 
                         if ($mesesDistintos >= $frecuenciaMinima && $c3m >= $cantidadMinima && $pUlt > 0.0) {
                             $habitualesCli[$pKey] = [
+                                'pKey' => $pKey,
+                                'codigo' => $pData['codigo'] ?? '',
                                 'precio' => $pUlt,
                                 'total_bs_3m' => round($c3m * $pUlt, 2),
                             ];
@@ -571,7 +620,7 @@ class GetAvanceCumplimientoDataAction
                     }
 
                     if (empty($habitualesCli)) {
-                        // Pendiente de desarrollo: cuota pendiente, sugerido 0
+                        // Pendiente de desarrollo: cuota pendiente, sugerido 0, venta MTD match 0
                         continue;
                     }
 
@@ -590,6 +639,7 @@ class GetAvanceCumplimientoDataAction
                         $montoBase = round($cantBase * $pj, 2);
 
                         $hInfo['cant_sugerida'] = $cantBase;
+                        $hInfo['monto_sugerido'] = $montoBase;
                         $subtotalBase = round($subtotalBase + $montoBase, 2);
                     }
                     unset($hInfo);
@@ -605,13 +655,35 @@ class GetAvanceCumplimientoDataAction
                             $p1 = 1.0;
                         }
                         $unidadesExtra = (int) ceil($brecha / $p1);
+                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
+                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
                         $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
                     }
 
                     $totalSugeridoRuta = round($totalSugeridoRuta + $subtotalBase, 2);
+
+                    // CÁLCULO VENTA MTD: Solo ventas que hagan match con el sugerido, topadas por SKU
+                    $montoMatchCli = 0.0;
+                    foreach ($habitualesCli as $pk => $hInfo) {
+                        $montoSugSku = (float) ($hInfo['monto_sugerido'] ?? 0.0);
+                        if ($montoSugSku <= 0.0) {
+                            continue;
+                        }
+
+                        $montoCompradoSku = $mtdClientSalesMap[$cid][$pk] ?? 0.0;
+                        $cod = $hInfo['codigo'] ?? '';
+                        if ($montoCompradoSku <= 0.0 && $cod !== '') {
+                            $montoCompradoSku = $mtdClientCodSalesMap[$cid][$cod] ?? 0.0;
+                        }
+
+                        $montoMatchCli += min($montoCompradoSku, $montoSugSku);
+                    }
+
+                    $totalVentaMtdRuta = round($totalVentaMtdRuta + $montoMatchCli, 2);
                 }
 
                 $sugeridoRutasMap[$r] = $totalSugeridoRuta;
+                $ventaMtdRutasMap[$r] = $totalVentaMtdRuta;
             }
         }
 
@@ -775,7 +847,7 @@ class GetAvanceCumplimientoDataAction
                 'total_hist_bs' => $total3mBs,
                 'total_sugerido' => $sugeridoRuta,
                 'objetivo_mes' => $objetivoMesRuta,
-                'venta_mtd' => round($acumVol[$ruta]['vol_general'] ?? 0.0, 2),
+                'venta_mtd' => $clave === 'cob_core' ? ($ventaMtdRutasMap[$ruta] ?? 0.0) : round($acumVol[$ruta]['vol_general'] ?? 0.0, 2),
                 'sin_meta' => false,
             ];
         }

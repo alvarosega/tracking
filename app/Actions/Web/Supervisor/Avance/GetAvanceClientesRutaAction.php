@@ -129,7 +129,7 @@ class GetAvanceClientesRutaAction
                 DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(NULLIF(TRIM(nro_factura), ''), 'S/F') as nro_factura"),
                 DB::raw("TRIM(codigo) as codigo"),
-                DB::raw("LOWER(TRIM(COALESCE(producto, ''))) as producto"),
+                DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
                 DB::raw("LOWER(TRIM(COALESCE(jerarquia3, ''))) as jerarquia3"),
                 DB::raw("UPPER(TRIM(COALESCE(categoria, ''))) as categoria"),
                 DB::raw("COALESCE(cantidad, 0) as cantidad"),
@@ -146,6 +146,8 @@ class GetAvanceClientesRutaAction
 
         $comprasPorCliente = [];
         $diasAcum = [];
+        $mtdClienteProdsMap = [];
+        $mtdClienteCodMap = [];
 
         foreach ($ventasRuta as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
@@ -184,6 +186,25 @@ class GetAvanceClientesRutaAction
                 $cartera[$cid]['fechas_compra'][$fVal] = true;
                 if ($v->vendedor_factura && $v->vendedor_factura !== 'Sin Asignar') {
                     $cartera[$cid]['vendedores_factura'][$v->vendedor_factura] = true;
+                }
+
+                // Agrupación MTD por Cliente y SKU para cálculo de match sugerido
+                $vProdNombre = trim((string) $v->producto);
+                $vKey = $vProdNombre !== '' ? mb_strtoupper($vProdNombre) : trim((string) $v->codigo);
+                $vCod = trim((string) $v->codigo);
+
+                if (!isset($mtdClienteProdsMap[$cid][$vKey])) {
+                    $mtdClienteProdsMap[$cid][$vKey] = ['monto' => 0.0, 'cantidad' => 0];
+                }
+                $mtdClienteProdsMap[$cid][$vKey]['monto'] += $mVal;
+                $mtdClienteProdsMap[$cid][$vKey]['cantidad'] += $cVal;
+
+                if ($vCod !== '') {
+                    if (!isset($mtdClienteCodMap[$cid][$vCod])) {
+                        $mtdClienteCodMap[$cid][$vCod] = ['monto' => 0.0, 'cantidad' => 0];
+                    }
+                    $mtdClienteCodMap[$cid][$vCod]['monto'] += $mVal;
+                    $mtdClienteCodMap[$cid][$vCod]['cantidad'] += $cVal;
                 }
 
                 // Agrupación por Día
@@ -503,6 +524,7 @@ class GetAvanceClientesRutaAction
                 $estadoDesarrolloClienteMap = [];
                 $brechaClienteMap = [];
                 $excesoClienteMap = [];
+                $sugeridosPorClienteMap = [];
 
             foreach ($cartera as $cId => $itemCart) {
                 $pList = $clienteProdsMap[$cId] ?? [];
@@ -533,6 +555,7 @@ class GetAvanceClientesRutaAction
                     $estadoDesarrolloClienteMap[$cId] = 'pendiente_desarrollo';
                     $brechaClienteMap[$cId] = $cuotaObj;
                     $excesoClienteMap[$cId] = 0.0;
+                    $sugeridosPorClienteMap[$cId] = [];
                 } else {
                     // Con historial consolidado
                     $estadoDesarrolloClienteMap[$cId] = 'consolidado';
@@ -578,6 +601,7 @@ class GetAvanceClientesRutaAction
                     $sugeridoClienteMap[$cId] = round($subtotalBase, 2);
                     $excesoClienteMap[$cId] = round(max(0.0, $subtotalBase - $cuotaObj), 2);
                     $brechaClienteMap[$cId] = round(max(0.0, $cuotaObj - $subtotalBase), 2);
+                    $sugeridosPorClienteMap[$cId] = $habitualesCli;
                 }
             }
         } else {
@@ -655,15 +679,54 @@ class GetAvanceClientesRutaAction
         $clientesLista = [];
 
         foreach ($cartera as $cid => $item) {
-            $esCobertura = str_starts_with($kpiClave, 'cob_');
-            $tieneLogro = $esCobertura ? ($item['monto'] > 0 || $item['cantidad'] > 0) : ($item['monto'] > 0);
-            $valLogro = $esCobertura ? ($tieneLogro ? 1 : 0) : round($item['monto'], 2);
+            if ($kpiClave === 'cob_core') {
+                $habs = $sugeridosPorClienteMap[$cid] ?? [];
+                if (empty($habs)) {
+                    // Pendiente de desarrollo (0 sugerido) -> Venta MTD = 0.00
+                    $valLogro = 0;
+                    $montoBsCli = 0.0;
+                    $cantMtdCli = 0;
+                    $tieneLogro = false;
+                } else {
+                    $montoMatchSum = 0.0;
+                    $cantMatchSum = 0;
+                    foreach ($habs as $pk => $hInfo) {
+                        $montoSug = (float) ($hInfo['monto_sugerido'] ?? 0.0);
+                        $cantSug = (int) ($hInfo['cant_sugerida'] ?? 0);
+                        if ($montoSug <= 0.0) {
+                            continue;
+                        }
+
+                        $compradoMonto = $mtdClienteProdsMap[$cid][$pk]['monto'] ?? 0.0;
+                        $compradoCant = $mtdClienteProdsMap[$cid][$pk]['cantidad'] ?? 0;
+                        $cod = $hInfo['pData']['codigo'] ?? '';
+                        if ($compradoMonto <= 0.0 && $cod !== '') {
+                            $compradoMonto = $mtdClienteCodMap[$cid][$cod]['monto'] ?? 0.0;
+                            $compradoCant = $mtdClienteCodMap[$cid][$cod]['cantidad'] ?? 0;
+                        }
+
+                        $montoMatchSum += min($compradoMonto, $montoSug);
+                        $cantMatchSum += min($compradoCant, $cantSug);
+                    }
+
+                    $montoBsCli = round($montoMatchSum, 2);
+                    $cantMtdCli = $cantMatchSum;
+                    $tieneLogro = ($montoBsCli > 0);
+                    $valLogro = $tieneLogro ? 1 : 0;
+                }
+            } else {
+                $esCobertura = str_starts_with($kpiClave, 'cob_');
+                $tieneLogro = $esCobertura ? ($item['monto'] > 0 || $item['cantidad'] > 0) : ($item['monto'] > 0);
+                $valLogro = $esCobertura ? ($tieneLogro ? 1 : 0) : round($item['monto'], 2);
+                $montoBsCli = round($item['monto'], 2);
+                $cantMtdCli = $item['cantidad'];
+            }
 
             $vends = !empty($item['vendedores_factura'])
                 ? implode(', ', array_keys($item['vendedores_factura']))
                 : ($item['vendedor_ruteo'] ?: 'No Asignado');
 
-            $pctRuta = ($totalVentaRuta > 0) ? round(($item['monto'] / $totalVentaRuta) * 100, 1) : 0.0;
+            $pctRuta = ($totalVentaRuta > 0) ? round(($montoBsCli / $totalVentaRuta) * 100, 1) : 0.0;
 
             $comprasC = $comprasPorCliente[$cid] ?? [];
             $mAp = 0.0;
@@ -711,8 +774,8 @@ class GetAvanceClientesRutaAction
                 'total_fotos' => $fotosClientesMap[$cid]['total_fotos'] ?? 0,
                 'fecha_ultima_foto' => $fotosClientesMap[$cid]['visited_at'] ?? null,
                 'logrado' => $valLogro,
-                'monto_bs' => round($item['monto'], 2),
-                'cantidad' => $item['cantidad'],
+                'monto_bs' => $montoBsCli,
+                'cantidad' => $cantMtdCli,
                 'monto_apertura' => round($mAp, 2),
                 'monto_repeticion' => round($mRep, 2),
                 'es_recompra' => ($mRep > 0),
@@ -735,6 +798,12 @@ class GetAvanceClientesRutaAction
                 'tiene_historico' => ($totalCli3m > 0),
             ];
         }
+
+        $totalVentaRuta = array_sum(array_column($clientesLista, 'monto_bs'));
+        foreach ($clientesLista as &$cItem) {
+            $cItem['pct_ruta'] = ($totalVentaRuta > 0) ? round(($cItem['monto_bs'] / $totalVentaRuta) * 100, 1) : 0.0;
+        }
+        unset($cItem);
 
         // Ordenar clientes: para Cobertura Core por peso/total histórico 3M descendente; para otros por logro
         if ($kpiClave === 'cob_core') {

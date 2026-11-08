@@ -221,7 +221,7 @@ class GetAvanceClienteDetalleFechasAction
 
             // Registrar el precio unitario de la última compra registrada
             if ($cant > 0 && $monto > 0) {
-                if ($prodMap[$prodKey]['fecha_precio_ultima_compra'] === null || $f >= $prodMap[$prodKey]['fecha_precio_ultima_compra']) {
+                if (($prodMap[$prodKey]['precio_ultima_compra'] ?? 0.0) === 0.0) {
                     $prodMap[$prodKey]['fecha_precio_ultima_compra'] = $f;
                     $prodMap[$prodKey]['precio_ultima_compra'] = round($monto / $cant, 2);
                 }
@@ -344,9 +344,11 @@ class GetAvanceClienteDetalleFechasAction
                 // Filtro de Robustez Cobertura Core:
                 // Frecuencia temporal: >= $frecuenciaMinima meses distintos de la ventana evaluada
                 // Volumen acumulado: >= $cantidadMinima unidades físicas en la ventana evaluada
-                $esHabitual = ($mesesDistintos3m >= $frecuenciaMinima && $cant3m >= $cantidadMinima);
+                $pUlt = (float) ($p['precio_ultima_compra'] ?? 0.0);
+                $esHabitual = ($mesesDistintos3m >= $frecuenciaMinima && $cant3m >= $cantidadMinima && $pUlt > 0.0);
                 if ($esHabitual) {
                     $indicesHabituales[] = $idx;
+                    $p['total_bs_3m'] = round($cant3m * $pUlt, 2);
                 }
                 $cantSugerida = 0;
             } else {
@@ -449,15 +451,24 @@ class GetAvanceClienteDetalleFechasAction
                 $pctExceso = $cuotaCliente > 0 ? round(($excesoBs / $cuotaCliente) * 100, 1) : 0.0;
                 $brechaFinal = round(max(0.0, $cuotaCliente - $totalSugeridoBs), 2);
 
-                // Actualizar estado de cumplimiento en mes actual para cada producto
+                // Actualizar estado de cumplimiento en mes actual para cada producto con match y tope
                 foreach ($productosResultado as &$p) {
                     $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
-                    $p['cumple_sugerido'] = ($p['cant_sugerida'] > 0 && $cantMtd >= $p['cant_sugerida']);
-                    if ($p['cant_sugerida'] > 0) {
+                    $montoMtd = (float) ($p['total_bs_mes_actual'] ?? 0.0);
+                    $cantSug = (int) ($p['cant_sugerida'] ?? 0);
+                    $montoSug = (float) ($p['monto_sugerido'] ?? 0.0);
+
+                    $p['cumple_sugerido'] = ($cantSug > 0 && $cantMtd >= $cantSug);
+                    if ($cantSug > 0) {
                         $totalSkus3m++;
                         if ($p['compro_mes_actual']) {
                             $totalSkusCubiertosMtd++;
                         }
+                        $p['monto_match_mtd'] = round(min($montoMtd, $montoSug), 2);
+                        $p['cant_match_mtd'] = min($cantMtd, $cantSug);
+                    } else {
+                        $p['monto_match_mtd'] = 0.0;
+                        $p['cant_match_mtd'] = 0;
                     }
                 }
                 unset($p);
@@ -469,7 +480,9 @@ class GetAvanceClienteDetalleFechasAction
             $pctExceso = 0.0;
             $brechaFinal = 0.0;
 
-            foreach ($productosResultado as $p) {
+            foreach ($productosResultado as &$p) {
+                $p['monto_match_mtd'] = (float) ($p['total_bs_mes_actual'] ?? 0.0);
+                $p['cant_match_mtd'] = (int) ($p['total_cantidad_mes_actual'] ?? 0);
                 if ($p['cant_sugerida'] > 0) {
                     $totalSkus3m++;
                     $totalSugeridoUnidades += $p['cant_sugerida'];
@@ -479,6 +492,7 @@ class GetAvanceClienteDetalleFechasAction
                     }
                 }
             }
+            unset($p);
         }
 
         if (false) {
@@ -864,6 +878,9 @@ class GetAvanceClienteDetalleFechasAction
         $excesoFinalBs = ($kpiClave === 'cob_core') ? round($excesoBs, 2) : round(max(0.0, $habitoTotalBs - $cuotaObjBs), 2);
         $pctExcesoFinal = ($kpiClave === 'cob_core') ? $pctExceso : ($cuotaObjBs > 0 ? round(($excesoFinalBs / $cuotaObjBs) * 100, 1) : 0.0);
 
+        $totalMontoMesActualMatch = array_sum(array_column($productosResultado, 'monto_match_mtd'));
+        $totalUnidadesMesActualMatch = array_sum(array_column($productosResultado, 'cant_match_mtd'));
+
         return [
             'cliente_id' => $clienteId,
             'ruta' => $rutaClean,
@@ -880,8 +897,12 @@ class GetAvanceClienteDetalleFechasAction
             'total_unidades' => $totalUnidades,
             'total_monto_3m' => round($totalMonto3m, 2),
             'total_unidades_3m' => $totalUnidades3m,
-            'total_monto_mes_actual' => round($totalMontoMesActual, 2),
-            'total_unidades_mes_actual' => $totalUnidadesMesActual,
+            'total_monto_mes_actual' => ($kpiClave === 'cob_core') ? round($totalMontoMesActualMatch, 2) : round($totalMontoMesActual, 2),
+            'total_unidades_mes_actual' => ($kpiClave === 'cob_core') ? $totalUnidadesMesActualMatch : $totalUnidadesMesActual,
+            'total_monto_mes_actual_bruto' => round($totalMontoMesActual, 2),
+            'total_unidades_mes_actual_bruto' => $totalUnidadesMesActual,
+            'total_monto_mes_actual_match' => round($totalMontoMesActualMatch, 2),
+            'total_unidades_mes_actual_match' => $totalUnidadesMesActualMatch,
             'total_productos_unicos' => count($prodMap),
             'total_fechas_unicas' => count($diasMap),
             'resumen_cobertura' => [
@@ -896,6 +917,8 @@ class GetAvanceClienteDetalleFechasAction
                 'pct_exceso' => $pctExcesoFinal,
                 'estado_desarrollo' => $estadoDesarrollo,
                 'pct_cobertura_skus' => $totalSkus3m > 0 ? round(($totalSkusCubiertosMtd / $totalSkus3m) * 100, 1) : 0.0,
+                'total_monto_mes_actual' => ($kpiClave === 'cob_core') ? round($totalMontoMesActualMatch, 2) : round($totalMontoMesActual, 2),
+                'total_monto_mes_actual_match' => round($totalMontoMesActualMatch, 2),
             ],
             'fechas' => $fechasResultado,
             'productos' => $productosResultado,

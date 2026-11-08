@@ -1255,7 +1255,7 @@
                                                   </div>
                                                 </td>
 
-                                                <!-- 4. Compra MTD -->
+                                                <!-- 4. Compra MTD (Match Sugerido para Cobertura Core) -->
                                                 <td class="py-2 px-3 text-right bg-emerald-50/20">
                                                   <div class="flex items-center justify-end gap-2">
                                                     <span 
@@ -1265,12 +1265,37 @@
                                                       {{ (prod.total_cantidad_mes_actual || 0) > 0 ? 'Compró' : 'Sin compra' }}
                                                     </span>
                                                     <div class="text-right">
-                                                      <div class="font-bold" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
-                                                        {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
-                                                      </div>
-                                                      <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[9px] text-emerald-600">
-                                                        {{ prod.total_cantidad_mes_actual }} u
-                                                      </div>
+                                                      <template v-if="modoActivo === 'cob_core'">
+                                                        <template v-if="(prod.monto_sugerido || 0) > 0">
+                                                          <div class="font-bold" :class="(prod.monto_match_mtd !== undefined ? prod.monto_match_mtd : Math.min(prod.total_bs_mes_actual || 0, prod.monto_sugerido || 0)) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                            {{ (prod.monto_match_mtd !== undefined ? prod.monto_match_mtd : Math.min(prod.total_bs_mes_actual || 0, prod.monto_sugerido || 0)) > 0 
+                                                              ? `Bs ${formatNum(prod.monto_match_mtd !== undefined ? prod.monto_match_mtd : Math.min(prod.total_bs_mes_actual || 0, prod.monto_sugerido || 0), 2)}` 
+                                                              : '-' }}
+                                                          </div>
+                                                          <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[9px] text-emerald-600">
+                                                            {{ prod.cant_match_mtd !== undefined ? prod.cant_match_mtd : Math.min(prod.total_cantidad_mes_actual || 0, prod.cant_sugerida || 0) }} u
+                                                            <span v-if="(prod.total_cantidad_mes_actual || 0) > (prod.cant_sugerida || 0)" class="text-[8px] text-[#86868B] ml-0.5" title="Topado al pedido sugerido">
+                                                              (Tope / Real: {{ prod.total_cantidad_mes_actual }} u)
+                                                            </span>
+                                                          </div>
+                                                        </template>
+                                                        <template v-else>
+                                                          <div class="text-[9px] text-[#86868B] italic">
+                                                            {{ (prod.total_bs_mes_actual || 0) > 0 ? 'Bs 0.00' : '-' }}
+                                                          </div>
+                                                          <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[8px] text-[#86868B]">
+                                                            (No computa / Real: {{ prod.total_cantidad_mes_actual }} u)
+                                                          </div>
+                                                        </template>
+                                                      </template>
+                                                      <template v-else>
+                                                        <div class="font-bold" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                          {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
+                                                        </div>
+                                                        <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[9px] text-emerald-600">
+                                                          {{ prod.total_cantidad_mes_actual }} u
+                                                        </div>
+                                                      </template>
                                                     </div>
                                                   </div>
                                                 </td>
@@ -1743,11 +1768,17 @@ function totalClienteSugeridoBs(clienteId) {
 
 function totalClienteMtdCant(clienteId) {
   const lista = productosHistorialFiltrados(clienteId)
+  if (modoActivo.value === 'cob_core') {
+    return lista.reduce((sum, p) => sum + (Number(p.cant_match_mtd !== undefined ? p.cant_match_mtd : Math.min(p.total_cantidad_mes_actual || 0, p.cant_sugerida || 0)) || 0), 0)
+  }
   return lista.reduce((sum, p) => sum + (Number(p.total_cantidad_mes_actual) || 0), 0)
 }
 
 function totalClienteMtdBs(clienteId) {
   const lista = productosHistorialFiltrados(clienteId)
+  if (modoActivo.value === 'cob_core') {
+    return lista.reduce((sum, p) => sum + (Number(p.monto_match_mtd !== undefined ? p.monto_match_mtd : Math.min(p.total_bs_mes_actual || 0, p.monto_sugerido || 0)) || 0), 0)
+  }
   return lista.reduce((sum, p) => sum + (Number(p.total_bs_mes_actual) || 0), 0)
 }
 const detalleClienteFechasMap = reactive({})
