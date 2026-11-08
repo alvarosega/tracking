@@ -45,6 +45,8 @@ class GetAvanceClientesRutaAction
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
+        @ini_set('memory_limit', '512M');
+
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
             $fechaCorte = $maxFecha ?: date('Y-m-d');
@@ -234,6 +236,8 @@ class GetAvanceClientesRutaAction
         $sugeridoClienteMap = [];
         $histClienteMap = [];
         $ymsCerrados = array_column($mesesCerrados, 'ym');
+        $totalesMesesRuta = array_fill_keys($ymsCerrados, 0.0);
+        $totalRutaAcum3m = 0.0;
         foreach ($cartera as $cid => $item) {
             $histClienteMap[$cid] = array_fill_keys($ymsCerrados, 0.0);
         }
@@ -503,6 +507,7 @@ class GetAvanceClientesRutaAction
             $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
             $cuotaObjetivoMap = [];
         }
+        $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
         $clientesLista = [];
 
         foreach ($cartera as $cid => $item) {

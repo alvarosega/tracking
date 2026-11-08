@@ -52,6 +52,8 @@ class GetAvanceClienteDetalleFechasAction
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
+        @ini_set('memory_limit', '512M');
+
         if (!$diaVisita) {
             $ruteoRow = DB::connection('supervisor')->table('pan_ruteo')
                 ->where('cliente_id', $clienteId)

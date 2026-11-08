@@ -65,6 +65,8 @@ class GetAvanceCumplimientoDataAction
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
 
+        @ini_set('memory_limit', '512M');
+
         // 1. Fechas y Días Hábiles
         if (!$fechaCorte) {
             $maxFecha = DB::connection('supervisor')->table('fact_ventas')->where('monto_final', '>', 0)->max('fecha_norm');
@@ -458,13 +460,20 @@ class GetAvanceCumplimientoDataAction
 
             // Cálculo del Total Sugerido por Ruta (hábitos: histórico / N meses por cliente y producto a precio de última compra)
             // Se calcula en base a los clientes que actualmente pertenecen a cada ruta en pan_ruteo
-            $sugRaw = DB::connection('supervisor')->table('fact_ventas')
+            $sugQuery = DB::connection('supervisor')->table('fact_ventas')
                 ->where('fecha_norm', '>=', $histInicio)
                 ->where('fecha_norm', '<=', $histFin)
                 ->where('monto_final', '!=', 0)
                 ->where(function ($q): void {
                     $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
-                })
+                });
+
+            $oficialCids = array_values(array_filter(array_keys($clienteRutaOficialMap), fn ($id) => is_numeric($id) && (int) $id > 0));
+            if (!empty($oficialCids)) {
+                $sugQuery->whereIn('cliente_id', $oficialCids);
+            }
+
+            $sugRaw = $sugQuery
                 ->select([
                     'cliente_id',
                     DB::raw("TRIM(codigo) as codigo"),
