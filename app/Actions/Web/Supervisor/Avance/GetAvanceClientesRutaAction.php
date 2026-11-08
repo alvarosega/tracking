@@ -613,6 +613,44 @@ class GetAvanceClientesRutaAction
             }
         }
         }
+        // Evidencia fotográfica del punto de venta (visitas)
+        $fotosClientesMap = [];
+        if (!empty($carteraClientIds)) {
+            $fotosRaw = DB::table('visitas')
+                ->whereIn('client_id', $carteraClientIds)
+                ->whereNotNull('photo_path')
+                ->where('photo_path', '!=', '')
+                ->select(['client_id', 'photo_path', 'visited_at', 'status', 'comments'])
+                ->orderByDesc('visited_at')
+                ->get();
+
+            foreach ($fotosRaw as $fRow) {
+                $cId = (int) $fRow->client_id;
+                if (!isset($fotosClientesMap[$cId])) {
+                    $rawPath = ltrim(str_replace('\\', '/', (string) $fRow->photo_path), '/');
+                    $url = '';
+                    if ($rawPath !== '') {
+                        if (str_starts_with($rawPath, 'http://') || str_starts_with($rawPath, 'https://')) {
+                            $url = $rawPath;
+                        } elseif (str_starts_with($rawPath, 'storage/')) {
+                            $url = '/' . $rawPath;
+                        } else {
+                            $url = '/storage/' . $rawPath;
+                        }
+                    }
+
+                    $fotosClientesMap[$cId] = [
+                        'photo_url' => $url,
+                        'visited_at' => (string) $fRow->visited_at,
+                        'status' => (string) $fRow->status,
+                        'comments' => (string) ($fRow->comments ?? ''),
+                        'total_fotos' => 0,
+                    ];
+                }
+                $fotosClientesMap[$cId]['total_fotos']++;
+            }
+        }
+
         $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
         $clientesLista = [];
 
@@ -669,6 +707,9 @@ class GetAvanceClientesRutaAction
                 'vendedor' => $vends,
                 'dia' => $item['dia'],
                 'dia_visita' => $item['dia_visita'],
+                'foto_pdv' => $fotosClientesMap[$cid]['photo_url'] ?? null,
+                'total_fotos' => $fotosClientesMap[$cid]['total_fotos'] ?? 0,
+                'fecha_ultima_foto' => $fotosClientesMap[$cid]['visited_at'] ?? null,
                 'logrado' => $valLogro,
                 'monto_bs' => round($item['monto'], 2),
                 'cantidad' => $item['cantidad'],

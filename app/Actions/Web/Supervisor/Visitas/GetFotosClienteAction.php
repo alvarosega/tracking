@@ -18,7 +18,7 @@ class GetFotosClienteAction
      */
     public function execute(int $clienteId): Collection
     {
-        return DB::table('visitas as v')
+        return DB::connection('mysql')->table('visitas as v')
             ->leftJoin('users as u', 'v.user_id', '=', 'u.id')
             ->where('v.client_id', $clienteId)
             ->whereNotNull('v.photo_path')

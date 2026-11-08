@@ -801,6 +801,12 @@
                                 </div>
                               </th>
                               <th
+                                class="py-1.5 px-2 text-center w-14 font-mono select-none"
+                                title="Fotografía del Punto de Venta (visitas)"
+                              >
+                                <span>Foto</span>
+                              </th>
+                              <th
                                 class="py-1.5 px-2.5 w-20 cursor-pointer hover:bg-black/[0.04] transition-colors"
                                 :class="sortClientesCol === 'dia_visita' ? 'text-[#0071E3]' : ''"
                                 @click="ordenarClientes('dia_visita')"
@@ -965,6 +971,41 @@
                                   {{ cli.cliente }}
                                   <div class="text-[9px] text-[#86868B]">{{ cli.vendedor }}</div>
                                 </td>
+                                <!-- Evidencia Fotográfica del PDV -->
+                                <td class="py-1 px-2 text-center whitespace-nowrap">
+                                  <button
+                                    v-if="cli.foto_pdv"
+                                    type="button"
+                                    @click.stop="abrirModalFotos(cli)"
+                                    class="relative group rounded-md overflow-hidden border border-black/10 shadow-2xs hover:border-[#0071E3] hover:scale-110 transition-all cursor-pointer bg-slate-100 inline-flex items-center justify-center p-0.5"
+                                    :title="`Ver fotografía del PDV (${cli.total_fotos || 1} evidencias registradas - Clic para ver)`"
+                                  >
+                                    <img
+                                      :src="cli.foto_pdv"
+                                      :alt="'PDV ' + cli.cliente"
+                                      class="w-7 h-7 object-cover rounded"
+                                      loading="lazy"
+                                    />
+                                    <span
+                                      v-if="(cli.total_fotos || 0) > 1"
+                                      class="absolute -top-1 -right-1 bg-sky-600 text-white text-[7px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white"
+                                    >
+                                      {{ cli.total_fotos }}
+                                    </span>
+                                  </button>
+                                  <button
+                                    v-else
+                                    type="button"
+                                    @click.stop="abrirModalFotos(cli)"
+                                    class="w-7 h-7 rounded-md bg-black/[0.03] border border-black/[0.06] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] hover:bg-blue-50/50 transition-colors cursor-pointer"
+                                    title="Sin fotografía registrada (clic para consultar historial de visitas)"
+                                  >
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                  </button>
+                                </td>
                                 <td class="py-1.5 px-2.5 font-sans text-[#6E6E73]">{{ cli.dia_visita || cli.dia }}</td>
 
                                 <template v-if="modoActivo === 'cob_core'">
@@ -1043,7 +1084,7 @@
                               </tr>
                               <!-- Detalle acordeón de productos, sugeridos y compras del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 14 : 7" class="p-3 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 15 : 8" class="p-3 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[12px] p-3 space-y-3 bg-white/95 border border-black/[0.06] shadow-sm">
                                     <!-- Indicador de carga -->
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
@@ -1354,7 +1395,7 @@
                           </tbody>
                           <tfoot v-if="modoActivo === 'cob_core'" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
                             <tr>
-                              <td colspan="4" class="py-1.5 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
+                              <td colspan="5" class="py-1.5 px-2.5 text-center text-[10px] text-[#6E6E73] font-sans">
                                 TOTAL RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
                               </td>
                               <td
@@ -1473,6 +1514,13 @@
           </div>
         </div>
       </div>
+
+      <!-- MODAL EVIDENCIA FOTOGRÁFICA DEL PDV (VISITAS) -->
+      <ClienteFotosModal
+        :show="modalFotosVisible"
+        :cliente="clienteParaFotos"
+        @close="cerrarModalFotos"
+      />
     </div>
   </SupervisorLayout>
 </template>
@@ -1483,6 +1531,7 @@ import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
 import AvanceFiltrosBar from './AvanceFiltrosBar.vue'
+import ClienteFotosModal from '@/Pages/Supervisor/Preventas/ClienteFotosModal.vue'
 import { useAvanceStore } from '@/Stores/avanceStore'
 import { navigationConfig } from '@/Config/navigation'
 
@@ -1931,6 +1980,19 @@ const clientesRutaFiltrados = computed(() => {
 
 const modalInfoKpiVisible = ref(false)
 const kpiInfoActivo = ref(null)
+
+const modalFotosVisible = ref(false)
+const clienteParaFotos = ref(null)
+
+function abrirModalFotos(cli) {
+  clienteParaFotos.value = cli
+  modalFotosVisible.value = true
+}
+
+function cerrarModalFotos() {
+  modalFotosVisible.value = false
+  clienteParaFotos.value = null
+}
 
 const kpiActualObj = computed(() => {
   return kpisLista.find(k => k.id === modoActivo.value) || kpisLista[0]

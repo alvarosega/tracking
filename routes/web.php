@@ -72,6 +72,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
             Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
             Route::post('/cumplimiento/cliente-detalle-fechas', [SupervisorAvanceController::class, 'clienteDetalleFechas'])->name('cumplimiento.cliente-detalle-fechas');
+            Route::post('/cumplimiento/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('cumplimiento.fotos');
         });
 
         // Preventas Históricas
@@ -578,3 +579,16 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         });
     });
 });
+
+// Acceso directo a evidencia fotográfica de visitas (storage/app/visitas o storage/app/public/visitas)
+Route::get('/storage/visitas/{filename}', function (string $filename) {
+    $path = storage_path('app/visitas/' . $filename);
+    if (!file_exists($path)) {
+        $path = storage_path('app/public/visitas/' . $filename);
+    }
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    return response()->file($path);
+})->where('filename', '.*');
+

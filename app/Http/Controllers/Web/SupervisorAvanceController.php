@@ -151,6 +151,20 @@ class SupervisorAvanceController extends Controller
     }
 
     /**
+     * Devuelve el historial fotográfico de visitas del cliente desde la base de datos de visitas.
+     */
+    public function fotosCliente(int $clienteId, \App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction $action): JsonResponse
+    {
+        $fotos = $action->execute($clienteId);
+
+        return response()->json([
+            'success' => true,
+            'cliente_id' => $clienteId,
+            'fotos' => $fotos,
+        ]);
+    }
+
+    /**
      * Devuelve el cálculo de días hábiles transcurridos y restantes para el período seleccionado.
      */
     public function diasHabiles(Request $request, GetAvanceInitDataAction $action): JsonResponse
