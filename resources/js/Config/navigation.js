@@ -289,7 +289,7 @@ export const navigationConfig = {
       shortName: 'Jornadas & Horarios',
       route: 'supervisor.jornadas.index',
       permissionModules: ['jornadas', 'horarios', 'modulos'],
-      componentPrefix: ['Supervisor/Jornadas', 'Supervisor/Horarios', 'Supervisor/DiasRuteo', 'Supervisor/StockVentana', 'Supervisor/Modulos'],
+      componentPrefix: ['Supervisor/Jornadas', 'Supervisor/Horarios', 'Supervisor/DiasRuteo', 'Supervisor/PizarraFecha', 'Supervisor/StockVentana', 'Supervisor/Modulos'],
       icon: 'ClockIcon',
       badge: 'CONTROL',
       badgeColor: 'amber',
@@ -341,6 +341,15 @@ export const navigationConfig = {
           route: 'supervisor.dias-ruteo.index',
           component: 'Supervisor/DiasRuteo/Index',
           icon: 'CalendarDaysIcon',
+          group: 'Matriz de Horarios'
+        },
+        {
+          id: 'pizarra-fecha',
+          module: 'horarios',
+          name: 'Fecha Pizarra Móvil',
+          route: 'supervisor.pizarra-fecha.index',
+          component: 'Supervisor/PizarraFecha/Index',
+          icon: 'ChartBarIcon',
           group: 'Matriz de Horarios'
         },
 
@@ -546,6 +555,7 @@ export const jornadasHorariosModulosTabs = [
   { id: 'jornadas', module: 'jornadas', name: 'Control de Jornadas', route: 'supervisor.jornadas.index', icon: 'ClockIcon', componentPrefix: 'Supervisor/Jornadas' },
   { id: 'horarios', module: 'horarios', name: 'Matriz de Horarios', route: 'supervisor.horarios.index', icon: 'CalendarIcon', componentPrefix: 'Supervisor/Horarios' },
   { id: 'dias-ruteo', module: 'horarios', name: 'Días de Visita', route: 'supervisor.dias-ruteo.index', icon: 'CalendarDaysIcon', componentPrefix: 'Supervisor/DiasRuteo' },
+  { id: 'pizarra-fecha', module: 'horarios', name: 'Fecha Pizarra', route: 'supervisor.pizarra-fecha.index', icon: 'ChartBarIcon', componentPrefix: 'Supervisor/PizarraFecha' },
   { id: 'stock-ventana', module: 'modulos', name: 'Toma de Stock', route: 'supervisor.stock-ventana.index', icon: 'ArchiveBoxIcon', componentPrefix: 'Supervisor/StockVentana' },
   { id: 'rechazos-ventana', module: 'modulos', name: 'Pedidos Rechazados', route: 'supervisor.rechazos-ventana.index', icon: 'ExclamationTriangleIcon', componentPrefix: 'Supervisor/RechazosVentana' },
   { id: 'modulos', module: 'modulos', name: 'Módulos & Ajustes', route: 'supervisor.modulos.index', icon: 'AdjustmentsHorizontalIcon', componentPrefix: 'Supervisor/Modulos' },

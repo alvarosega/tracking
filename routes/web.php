@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\SupervisorIndexController;
 use App\Http\Controllers\Web\SupervisorIngestaController;
 use App\Http\Controllers\Web\SupervisorJornadasController;
 use App\Http\Controllers\Web\SupervisorModulosController;
+use App\Http\Controllers\Web\SupervisorPizarraFechaController;
 use App\Http\Controllers\Web\SupervisorPreventasController;
 use App\Http\Controllers\Web\SupervisorRechazosVentanaController;
 use App\Http\Controllers\Web\SupervisorSaneamientoController;
@@ -340,6 +341,14 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/data', [SupervisorDiasRuteoController::class, 'data'])->name('data');
         Route::post('/update', [SupervisorDiasRuteoController::class, 'update'])->name('update');
         Route::post('/reset', [SupervisorDiasRuteoController::class, 'reset'])->name('reset');
+    });
+
+    // Módulo Fecha Pizarra Móvil (Selección de fecha de preventa para la Pizarra Unilever)
+    Route::prefix('pizarra-fecha')->name('pizarra-fecha.')->middleware('module.access:horarios')->group(function () {
+        Route::get('/', [SupervisorPizarraFechaController::class, 'index'])->name('index');
+        Route::post('/data', [SupervisorPizarraFechaController::class, 'data'])->name('data');
+        Route::post('/update', [SupervisorPizarraFechaController::class, 'update'])->name('update');
+        Route::post('/reset', [SupervisorPizarraFechaController::class, 'reset'])->name('reset');
     });
 
     // Módulo Ventana Histórica para Toma de Stock de Cliente (Android)

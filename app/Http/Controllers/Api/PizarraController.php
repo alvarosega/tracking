@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Web\Supervisor\Preventas\GetCumplimientoDataAction;
 use App\Http\Controllers\Controller;
+use App\Models\AppModule;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,21 +34,30 @@ class PizarraController extends Controller
         if (!empty($fechaParam)) {
             $fecha = (string) $fechaParam;
         } else {
-            $fechaHoy = $nowBolivia->toDateString();
-            $tienePreventasHoy = DB::connection('supervisor')
-                ->table('fact_preventas')
-                ->where('fecha_norm', $fechaHoy)
-                ->where('monto_final', '>', 0)
-                ->exists();
+            // Consultar si el supervisor configuró una fecha fija para la Pizarra
+            $modulo = AppModule::where('code', 'pizarra')->first();
+            $modo = $modulo?->getConfigValue('modo', 'hoy') ?? 'hoy';
+            $fechaConfig = $modulo?->getConfigValue('fecha_especifica');
 
-            if ($tienePreventasHoy) {
-                $fecha = $fechaHoy;
+            if ($modo === 'fecha_fija' && !empty($fechaConfig)) {
+                $fecha = (string) $fechaConfig;
             } else {
-                $maxFecha = DB::connection('supervisor')
+                $fechaHoy = $nowBolivia->toDateString();
+                $tienePreventasHoy = DB::connection('supervisor')
                     ->table('fact_preventas')
+                    ->where('fecha_norm', $fechaHoy)
                     ->where('monto_final', '>', 0)
-                    ->max('fecha_norm');
-                $fecha = $maxFecha ?: $fechaHoy;
+                    ->exists();
+
+                if ($tienePreventasHoy) {
+                    $fecha = $fechaHoy;
+                } else {
+                    $maxFecha = DB::connection('supervisor')
+                        ->table('fact_preventas')
+                        ->where('monto_final', '>', 0)
+                        ->max('fecha_norm');
+                    $fecha = $maxFecha ?: $fechaHoy;
+                }
             }
         }
 
