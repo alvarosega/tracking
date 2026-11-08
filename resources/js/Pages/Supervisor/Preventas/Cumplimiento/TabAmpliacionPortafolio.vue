@@ -7,8 +7,8 @@
           <h3 class="text-[16px] sm:text-[18px] font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
             Pizarra Modelo Unilever · Ampliación de Portafolio
           </h3>
-          <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">
-            20 pts Base · Criterio &ge; 30%
+          <span class="px-2 py-0.5 rounded-[5px] text-[10px] font-bold text-[#86868B] bg-black/[0.04] border border-black/[0.08]">
+            Pendiente de desarrollo
           </span>
         </div>
       </div>
@@ -34,6 +34,11 @@
           <strong class="text-[#1D1D1F] font-mono ml-0.5">{{ store.loadingRanking ? '…' : rutasOrdenadas.length }}</strong>
         </span>
       </div>
+    </div>
+
+    <!-- Banner Informativo: Pendiente de Desarrollo -->
+    <div class="px-3.5 py-2 bg-[#F8F8FA] border-b border-black/[0.06] text-[11px] text-[#6E6E73]">
+      <span>El KPI 7 (Ampliación de Portafolio) se encuentra <strong>pendiente de desarrollo</strong>. Actualmente se evalúan 7 KPIs activos en la Pizarra Unilever.</span>
     </div>
 
     <!-- Tabla Principal de Rutas -->
@@ -125,14 +130,14 @@
               </div>
             </th>
 
-            <!-- Puntos (20) -->
+            <!-- Puntos -->
             <th
               @click="toggleSort('puntos')"
               class="px-3 py-2 text-right cursor-pointer hover:bg-black/[0.03] transition-colors"
-              title="Puntos asignados al KPI (20 pts)"
+              title="Puntos asignados al KPI (Pendiente de desarrollo)"
             >
               <div class="flex items-center justify-end gap-0.5">
-                <span>Puntos (20)</span>
+                <span>Puntos</span>
                 <span v-if="sortCol === 'puntos'" class="text-[9px]">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
               </div>
             </th>
@@ -221,7 +226,14 @@
                 <!-- Estatus -->
                 <td class="px-3 py-2 text-center border-r border-black/[0.04]">
                   <span
-                    v-if="getPctAmpliacion(r) !== null"
+                    v-if="r.kpis?.ampliacion_portafolio?.pendiente_desarrollo || !r.kpis?.ampliacion_portafolio?.evaluado"
+                    class="text-[#86868B] font-mono text-[10px]"
+                    title="Pendiente de desarrollo"
+                  >
+                    PEND.
+                  </span>
+                  <span
+                    v-else-if="getPctAmpliacion(r) !== null"
                     class="inline-flex items-center justify-center w-6 h-6 rounded-[6px] text-[12px] font-bold leading-none select-none"
                     :class="getCumpleKpi(r)
                       ? 'bg-[#EBF9EF] text-[#1E6B37] border border-[#D1F2D9]'
@@ -233,10 +245,10 @@
                   <span v-else class="text-[#86868B] text-[11px] font-mono">—</span>
                 </td>
 
-                <!-- Puntos (20) -->
+                <!-- Puntos -->
                 <td class="px-3 py-1.5 text-right font-mono font-bold text-[12px]">
                   <span
-                    v-if="getPuntosObtenidos(r) > 0"
+                    v-if="!r.kpis?.ampliacion_portafolio?.pendiente_desarrollo && getPuntosObtenidos(r) > 0"
                     class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]"
                   >
                     20

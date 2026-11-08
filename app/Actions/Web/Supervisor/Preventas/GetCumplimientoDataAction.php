@@ -20,7 +20,7 @@ class GetCumplimientoDataAction
     private const UMBRAL_AMPLIACION_PCT = 30.0;
     private const UMBRAL_COVERS_PCT = 50.0;
     private const EVALUAR_KPI6_REPOSICION = true; // KPI 6: Pedido de Reposición (Canasta Habitual 60% · 15 pts) activado
-    private const EVALUAR_KPI7_AMPLIACION = true; // KPI 7: Ampliación de Portafolio (>= 30% · 20 pts) activado
+    private const EVALUAR_KPI7_AMPLIACION = false; // KPI 7: Ampliación de Portafolio queda pendiente de desarrollo (solo se evalúan 7 KPIs)
     private const EVALUAR_KPI8_COVERS = true; // KPI 8: Covers (Descuento >= 50% · 5 pts) activado
 
     public function __construct(
@@ -1082,12 +1082,14 @@ class GetCumplimientoDataAction
                     'piso_pct' => self::PISO_REPOSICION_PCT,
                 ],
 
-                // Resumen KPI 7: Ampliación de Portafolio (20 Puntos)
+                // Resumen KPI 7: Ampliación de Portafolio (Pendiente de desarrollo - solo se evalúan 7 KPIs)
                 'kpi7_ampliacion' => [
                     'puntos' => $kpi7Puntos,
                     'puntos_max' => 20,
                     'cumple' => $kpi7Cumple,
                     'evaluado' => self::EVALUAR_KPI7_AMPLIACION,
+                    'pendiente_desarrollo' => true,
+                    'estado' => 'PENDIENTE_DESARROLLO',
                     'total_compradores' => $totalCompradores,
                     'cumplen' => $cumplenAmpliacion,
                     'total_skus' => $totalSkusPreventaRuta,

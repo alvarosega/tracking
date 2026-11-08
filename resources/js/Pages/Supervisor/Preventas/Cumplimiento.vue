@@ -87,14 +87,14 @@ const props = defineProps({
 const store = usePreventaStore()
 
 const kpiTabs = [
-  { id: 'general', label: 'Pizarra Unilever (100 pts)' },
+  { id: 'general', label: 'Pizarra Unilever (7 KPIs)' },
   { id: 'horario_ingreso', label: '1. Horario (10)' },
   { id: 'clientes_visitados', label: '2. Visitas (5)' },
   { id: 'cumplimiento_objetivo', label: '3. Objetivo Diario (10)' },
   { id: 'efectividad_ruta', label: '4. Efectividad (30)' },
   { id: 'compra_minima', label: '5. Mín 70 (5)' },
   { id: 'pedido_reposicion', label: '6. Reposición (15)' },
-  { id: 'ampliacion_portafolio', label: '7. Ampliación (20)' },
+  { id: 'ampliacion_portafolio', label: '7. Ampliación (Pend.)' },
   { id: 'covers', label: '8. Covers (5)' }
 ]
 

@@ -118,13 +118,13 @@
               @click="toggleSort('k7')"
               class="px-2 py-2 text-center border-r border-black/[0.04] cursor-pointer hover:bg-black/[0.03] transition-colors select-none"
               :class="sortCol === 'k7' ? 'bg-blue-50 text-[#0071E3]' : ''"
-              title="Ordenar por 7. Ampliación de Portafolio (20 pts)"
+              title="7. Ampliación de Portafolio (Pendiente de desarrollo)"
             >
               <div class="flex items-center justify-center gap-0.5">
                 <span>7. AMPL.</span>
                 <span v-if="sortCol === 'k7'" class="font-bold">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
               </div>
-              <div class="text-[9px] font-mono text-[#86868B] font-normal">(20 PTS)</div>
+              <div class="text-[9px] font-mono text-[#86868B] font-normal">(PEND.)</div>
             </th>
 
             <th
@@ -248,9 +248,8 @@
                 <span v-if="r.kpis?.pedido_reposicion?.evaluado && r.kpis?.pedido_reposicion?.cumple" class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">15</span>
                 <span v-else class="text-[#86868B] font-mono text-[11px]">—</span>
               </td>
-              <td class="px-2 py-2 text-center border-r border-black/[0.04] cursor-pointer" @click="emit('seleccionar-tab', 'ampliacion_portafolio')">
-                <span v-if="r.kpis?.ampliacion_portafolio?.evaluado && r.kpis?.ampliacion_portafolio?.cumple" class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">20</span>
-                <span v-else class="text-[#86868B] font-mono text-[11px]">—</span>
+              <td class="px-2 py-2 text-center border-r border-black/[0.04] cursor-pointer" @click="emit('seleccionar-tab', 'ampliacion_portafolio')" title="KPI 7: Ampliación de Portafolio (Pendiente de desarrollo)">
+                <span class="text-[#86868B] font-mono text-[10px]">PEND.</span>
               </td>
               <td class="px-2 py-2 text-center border-r border-black/[0.04] cursor-pointer" @click="emit('seleccionar-tab', 'covers')">
                 <span v-if="r.kpis?.covers?.evaluado && r.kpis?.covers?.cumple" class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]">5</span>
@@ -311,7 +310,7 @@ function calcularSumatoria(r) {
   const p4 = k.efectividad_ruta?.cumple ? 30 : 0
   const p5 = k.compra_minima?.cumple ? 5 : 0
   const p6 = (k.pedido_reposicion?.evaluado && k.pedido_reposicion?.cumple) ? 15 : 0
-  const p7 = (k.ampliacion_portafolio?.evaluado && k.ampliacion_portafolio?.cumple) ? 20 : 0
+  const p7 = 0 // KPI 7 Ampliación de Portafolio: pendiente de desarrollo (0 pts)
   const p8 = (k.covers?.evaluado && k.covers?.cumple) ? 5 : 0
   return p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8
 }
@@ -349,8 +348,8 @@ const rutasOrdenadas = computed(() => {
       valA = (a.kpis?.pedido_reposicion?.evaluado && a.kpis?.pedido_reposicion?.cumple) ? 15 : 0
       valB = (b.kpis?.pedido_reposicion?.evaluado && b.kpis?.pedido_reposicion?.cumple) ? 15 : 0
     } else if (col === 'k7') {
-      valA = (a.kpis?.ampliacion_portafolio?.evaluado && a.kpis?.ampliacion_portafolio?.cumple) ? 20 : 0
-      valB = (b.kpis?.ampliacion_portafolio?.evaluado && b.kpis?.ampliacion_portafolio?.cumple) ? 20 : 0
+      valA = 0
+      valB = 0
     } else if (col === 'k8') {
       valA = (a.kpis?.covers?.evaluado && a.kpis?.covers?.cumple) ? 5 : 0
       valB = (b.kpis?.covers?.evaluado && b.kpis?.covers?.cumple) ? 5 : 0

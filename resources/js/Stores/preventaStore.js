@@ -295,15 +295,16 @@ function enriquecerRuta(r) {
       }
     },
     ampliacion_portafolio: {
-      cumple: Boolean(k7.cumple),
-      puntos: Number(k7.puntos || 0),
-      evaluado: Boolean(k7.evaluado),
+      cumple: false,
+      puntos: 0,
+      evaluado: false,
+      pendiente_desarrollo: true,
       metricas: {
         total_compradores: Number(k7.total_compradores || 0),
-        cumplen: Number(k7.cumplen || 0),
-        total_skus: Number(k7.total_skus || 0),
-        skus_ampliacion: Number(k7.skus_ampliacion || 0),
-        tasa_pct: Number(k7.tasa_pct || 0),
+        cumplen: 0,
+        total_skus: 0,
+        skus_ampliacion: 0,
+        tasa_pct: null,
         umbral_pct: Number(k7.umbral_pct || 30.0)
       }
     },
