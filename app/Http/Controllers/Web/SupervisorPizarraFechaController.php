@@ -162,7 +162,7 @@ class SupervisorPizarraFechaController extends Controller
             ->whereNotNull('fecha_norm')
             ->select([
                 'fecha_norm as fecha',
-                DB::raw('COUNT(DISTINCT nro_pedido) as total_pedidos'),
+                DB::raw('COUNT(DISTINCT nro_preventa) as total_pedidos'),
                 DB::raw('COUNT(DISTINCT cliente_id) as total_clientes'),
                 DB::raw('COUNT(DISTINCT ruta) as total_rutas'),
                 DB::raw('ROUND(SUM(monto_final), 2) as venta_total'),
