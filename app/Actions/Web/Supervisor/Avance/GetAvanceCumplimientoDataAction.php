@@ -29,10 +29,12 @@ class GetAvanceCumplimientoDataAction
         ['id' => 'vol_clinical', 'nombre' => '5. Vol. Clinical', 'corto' => 'Vol. Clinical', 'tipo' => 'VOLUMEN', 'unidad' => 'Bs'],
         ['id' => 'cob_clinical', 'nombre' => '6. Cob. Clinical', 'corto' => 'Cob. Clinical', 'tipo' => 'COBERTURA', 'unidad' => 'Cli'],
         ['id' => 'cob_core', 'nombre' => '7. Cobertura Core', 'corto' => 'Cob. Core', 'tipo' => 'COBERTURA', 'unidad' => 'Cli'],
+        ['id' => 'pizarra_unilever', 'nombre' => '8. Pizarra Unilever', 'corto' => 'Pizarra Unilever', 'tipo' => 'SCORE', 'unidad' => 'Pts'],
     ];
 
     public function __construct(
-        private readonly GetAvanceInitDataAction $initAction
+        private readonly GetAvanceInitDataAction $initAction,
+        private readonly GetAvancePizarraUnileverAction $pizarraAction
     ) {}
 
     /**
@@ -85,6 +87,19 @@ class GetAvanceCumplimientoDataAction
         $dTot = max(1, $infoDias['totales']);
         $dTransEval = max(1, $dTrans - 1);
         $dRestCuota = max(1, $dRest - 1);
+
+        // Si se solicita el KPI 8 (Pizarra Unilever), delegar inmediatamente a GetAvancePizarraUnileverAction
+        if ($vista === 'kpi' && $kpiClave === 'pizarra_unilever') {
+            $resultado = $this->pizarraAction->execute(
+                fechaInicio: $fechaInicio,
+                fechaCorte: $fechaCorte,
+                canales: $canales,
+                rutas: $rutas
+            );
+            $resultado['dias_calendario'] = $infoDias;
+            $resultado['metadata_kpis'] = $this->obtenerMetadataKpis();
+            return $resultado;
+        }
 
         // 2. Metas de las Rutas (Cartera pan_ruteo, fact_metas, fact_metas_kpi)
         $metasTodas = $this->obtenerMetasKpis($mesYm);
@@ -244,7 +259,8 @@ class GetAvanceCumplimientoDataAction
         $acumVolDia = [];
         $acumCobDia = [];
 
-        $kpisOrden = array_column(self::KPIS_LISTA, 'id');
+        $kpisComerciales = array_values(array_filter(self::KPIS_LISTA, fn ($k) => $k['tipo'] !== 'SCORE'));
+        $kpisOrden = array_column($kpisComerciales, 'id');
         $kpisMap = [];
         foreach (self::KPIS_LISTA as $k) {
             $kpisMap[$k['id']] = $k;
@@ -256,7 +272,7 @@ class GetAvanceCumplimientoDataAction
             $comprasCob[$r] = [];
             $acumVolDia[$r] = [];
             $acumCobDia[$r] = [];
-            foreach (self::KPIS_LISTA as $k) {
+            foreach ($kpisComerciales as $k) {
                 if ($k['tipo'] === 'VOLUMEN') {
                     $acumVol[$r][$k['id']] = 0.0;
                     $acumVolDia[$r][$k['id']] = 0.0;
@@ -1244,6 +1260,16 @@ class GetAvanceCumplimientoDataAction
                 'campo_meta' => 'Histórico 3 Meses Cerrados',
                 'objetivo_comercial' => 'Análisis de recurrencia y cobertura histórica en base al comportamiento de los últimos 3 meses cerrados.',
                 'criterio_productos' => 'Historial de compras en fact_ventas de los clientes de la ruta en los 3 meses cerrados previos y su peso relativo.',
+            ],
+            [
+                'id' => 'pizarra_unilever',
+                'clave' => 'pizarra_unilever',
+                'nombre' => '8. Pizarra Unilever',
+                'tipo' => 'SCORE',
+                'unidad' => 'Pts',
+                'campo_meta' => 'Pizarra Modelo Unilever (8 Pilares)',
+                'objetivo_comercial' => 'Desempeño acumulado diario MTD sobre días hábiles transcurridos según el modelo de excelencia comercial Unilever.',
+                'criterio_productos' => 'Acumulado y promedio MTD por pilar: Horario (10), Visitas (5), Objetivo (10), Efectividad (30), Compra Mínima (5), Reposición (15), Ampliación (20) y Covers (5).',
             ],
         ];
     }

@@ -252,9 +252,9 @@
         </div>
       </section>
 
-      <!-- ── VISTA 2: DETALLE MONOGRÁFICO POR KPI (1 al 6) ── -->
+      <!-- ── VISTA 2: DETALLE MONOGRÁFICO POR KPI (1 al 7) ── -->
       <section
-        v-else-if="modoActivo !== 'resumen' && rutasFiltradas.length > 0"
+        v-else-if="modoActivo !== 'resumen' && modoActivo !== 'pizarra_unilever' && rutasFiltradas.length > 0"
         class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
@@ -1499,6 +1499,403 @@
         </div>
       </section>
 
+      <!-- ── VISTA 3: PIZARRA UNILEVER (ACUMULADO MTD) ── -->
+      <section
+        v-else-if="modoActivo === 'pizarra_unilever' && rutasFiltradas.length > 0"
+        class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
+      >
+        <!-- Cabecera de la sección -->
+        <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+              <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
+                8. Pizarra Unilever · Acumulado MTD
+              </span>
+            </div>
+            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-blue-50/80 border border-blue-200 text-blue-900 font-sans shadow-2xs text-[11px] font-bold">
+              <span>Días evaluados:</span>
+              <strong class="text-[#0071E3] font-mono">{{ store.datosCumplimiento?.total_dias_mes ?? store.datosCumplimiento?.fechas_evaluadas?.length ?? 0 }} días</strong>
+            </div>
+            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-slate-50 border border-slate-200 text-slate-700 font-sans shadow-2xs text-[11px]">
+              <span>Score Promedio Global:</span>
+              <strong class="font-mono font-bold" :class="colorScore(totalesKpi?.score_promedio)">{{ totalesKpi?.score_promedio ?? 0 }} Pts</strong>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Orden: <strong class="text-[#0071E3] font-bold">{{ sortLabelsKpi[sortKpiCol] || sortKpiCol }}</strong>
+              <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
+            </span>
+            <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
+              Rutas: <strong class="text-[#1D1D1F] font-bold">{{ rutasFiltradas.length }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla con Scroll -->
+        <div class="flex-1 min-h-0 overflow-auto custom-scroll relative">
+          <table class="w-full text-left border-separate border-spacing-0 text-[11px]">
+            <thead class="text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
+              <tr>
+                <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
+                <th
+                  @click="toggleSortKpi('ruta')"
+                  class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
+                  title="Ordenar por Ruta"
+                >
+                  <div class="flex items-center gap-1.5">
+                    <span :class="sortKpiCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
+                    <svg v-if="sortKpiCol === 'ruta'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+                    </svg>
+                  </div>
+                </th>
+                <th
+                  @click="toggleSortKpi('score_promedio')"
+                  class="sticky top-0 z-30 bg-blue-50/70 text-[#0071E3] py-2.5 px-3 border-b border-blue-200 text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-blue-100/70 transition-colors select-none"
+                  :class="sortKpiCol === 'score_promedio' ? 'bg-blue-100 font-bold' : ''"
+                  title="Score Promedio Acumulado MTD sobre 100 puntos"
+                >
+                  Score Prom.
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi1_horario')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi1_horario' ? 'bg-blue-50/70' : ''"
+                  title="1. Horario (10 Pts)"
+                >
+                  1. Horario (10p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi2_visitas')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi2_visitas' ? 'bg-blue-50/70' : ''"
+                  title="2. Visitas (5 Pts)"
+                >
+                  2. Visitas (5p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi3_objetivo')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi3_objetivo' ? 'bg-blue-50/70' : ''"
+                  title="3. Facturación / Objetivo (10 Pts)"
+                >
+                  3. Facturación (10p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi4_efectividad')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi4_efectividad' ? 'bg-blue-50/70' : ''"
+                  title="4. Efectividad (30 Pts)"
+                >
+                  4. Efectividad (30p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi5_compra_minima')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi5_compra_minima' ? 'bg-blue-50/70' : ''"
+                  title="5. Compra Mínima (5 Pts)"
+                >
+                  5. Compra Mín (5p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi6_reposicion')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi6_reposicion' ? 'bg-blue-50/70' : ''"
+                  title="6. Reposición (15 Pts)"
+                >
+                  6. Reposición (15p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi7_ampliacion')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi7_ampliacion' ? 'bg-blue-50/70' : ''"
+                  title="7. Ampliación (20 Pts)"
+                >
+                  7. Ampliación (20p)
+                </th>
+                <th
+                  @click="toggleSortKpi('prom_kpi8_covers')"
+                  class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-2.5 border-b border-black/[0.08] text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
+                  :class="sortKpiCol === 'prom_kpi8_covers' ? 'bg-blue-50/70' : ''"
+                  title="8. Covers (5 Pts)"
+                >
+                  8. Covers (5p)
+                </th>
+                <th
+                  @click="toggleSortKpi('dias_aprobados')"
+                  class="sticky top-0 z-30 bg-emerald-50/60 text-emerald-900 py-2.5 px-2.5 border-b border-emerald-100 text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
+                  :class="sortKpiCol === 'dias_aprobados' ? 'bg-emerald-100 font-bold' : ''"
+                  title="Días con Score >= 80 pts"
+                >
+                  Días Aprob.
+                </th>
+                <th
+                  @click="toggleSortKpi('pct_aprobacion')"
+                  class="sticky top-0 z-30 bg-emerald-50/60 text-emerald-900 py-2.5 px-2.5 border-b border-emerald-100 text-center font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
+                  :class="sortKpiCol === 'pct_aprobacion' ? 'bg-emerald-100 font-bold' : ''"
+                  title="% de Días Aprobados en el Mes"
+                >
+                  % Aprob.
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
+              <template v-for="(r, idx) in rutasFiltradas" :key="r.ruta">
+                <tr class="hover:bg-blue-50/40 transition-colors group">
+                  <td class="py-2 px-3 text-center font-bold text-[#86868B] text-[10px] sticky left-0 z-20 bg-white group-hover:bg-blue-50/40">
+                    {{ r.rank || (idx + 1) }}
+                  </td>
+                  <td class="py-2 px-3 font-sans sticky left-10 z-20 bg-white group-hover:bg-blue-50/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                    <div class="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        @click="toggleDetalleRuta(r.ruta)"
+                        class="w-5 h-5 rounded hover:bg-black/[0.05] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] transition-transform cursor-pointer shrink-0"
+                        :class="rutaExpandida === r.ruta ? 'rotate-90 text-[#0071E3] font-bold' : ''"
+                        title="Ver histórico cronológico día a día del mes"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      <div class="min-w-0">
+                        <div
+                          class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
+                          @click="toggleDetalleRuta(r.ruta)"
+                        >
+                          <span>{{ r.ruta }}</span>
+                          <span class="text-[9px] px-1 py-0.2 rounded bg-slate-100 text-slate-600 font-normal">{{ r.canal || 'SC' }}</span>
+                        </div>
+                        <div class="text-[10px] text-[#6E6E73] truncate max-w-[140px]">{{ r.vendedor || 'No Asignado' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <!-- Score Promedio con badge -->
+                  <td class="py-2 px-3 text-center bg-blue-50/20">
+                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold text-[12px]" :class="badgeScore(r.score_promedio)">
+                      <span>{{ formatNum(r.score_promedio, 1) }}</span>
+                      <span class="text-[9px] opacity-70">/ 100</span>
+                    </div>
+                  </td>
+                  <!-- 1. Horario (10p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi1_horario, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">/ 10p</div>
+                  </td>
+                  <!-- 2. Visitas (5p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi2_visitas, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_cobertura_visitas_pct) }}</div>
+                  </td>
+                  <!-- 3. Facturación (10p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi3_objetivo, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_alcance_objetivo_pct) }}</div>
+                  </td>
+                  <!-- 4. Efectividad (30p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi4_efectividad, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_efectividad_pct) }}</div>
+                  </td>
+                  <!-- 5. Compra Mínima (5p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi5_compra_minima, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">/ 5p</div>
+                  </td>
+                  <!-- 6. Reposición (15p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi6_reposicion, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_reposicion_tasa_pct) }}</div>
+                  </td>
+                  <!-- 7. Ampliación (20p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi7_ampliacion, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_ampliacion_tasa_pct) }}</div>
+                  </td>
+                  <!-- 8. Covers (5p) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi8_covers, 1) }}</div>
+                    <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_covers_tasa_pct) }}</div>
+                  </td>
+                  <!-- Días Aprobados -->
+                  <td class="py-2 px-2.5 text-center font-bold text-emerald-700 bg-emerald-50/20">
+                    {{ r.dias_aprobados ?? 0 }} / {{ r.dias_evaluados ?? store.datosCumplimiento?.total_dias_mes ?? 0 }}
+                  </td>
+                  <!-- % Aprobación -->
+                  <td class="py-2 px-2.5 text-center font-bold text-[12px] bg-emerald-50/20" :class="colorPct(r.pct_aprobacion)">
+                    {{ formatPct(r.pct_aprobacion) }}
+                  </td>
+                </tr>
+
+                <!-- FILA EXPANDIBLE: Tabla Cronológica Día a Día del Mes en Curso -->
+                <tr v-if="rutaExpandida === r.ruta" class="bg-black/[0.02]">
+                  <td colspan="13" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                    <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
+                      <!-- Cabecera del Acordeón -->
+                      <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
+                          <div>
+                            <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5">
+                              <span>Histórico Cronológico MTD · Ruta {{ r.ruta }}</span>
+                              <span class="text-[10px] text-[#86868B] font-normal">({{ r.vendedor || 'Preventista no asignado' }})</span>
+                            </div>
+                            <div class="text-[10px] text-[#6E6E73]">
+                              Evaluación día a día según la <strong>Pizarra Modelo Unilever</strong> · 
+                              Total días registrados: <strong class="text-[#0071E3] font-bold">{{ r.dias?.length || 0 }} días</strong> · 
+                              Score Promedio: <strong :class="colorScore(r.score_promedio)">{{ formatNum(r.score_promedio, 1) }} Pts</strong> · 
+                              Aprobados: <strong class="text-emerald-700">{{ r.dias_aprobados }} de {{ r.dias?.length || 0 }} ({{ formatPct(r.pct_aprobacion) }})</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tabla Cronológica Día a Día -->
+                      <div class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[10px]">
+                        <table class="w-full text-left border-collapse text-[10px] font-mono whitespace-nowrap">
+                          <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06] select-none">
+                            <tr>
+                              <th class="py-2 px-3 text-center w-10 font-sans">#</th>
+                              <th class="py-2 px-3 text-left font-sans">Fecha</th>
+                              <th class="py-2 px-2 text-center font-sans">Día</th>
+                              <th class="py-2 px-3 text-center bg-blue-50/60 text-[#0071E3] font-sans">Score Total</th>
+                              <th class="py-2 px-2.5 text-center font-sans">1. Horario (10p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">2. Visitas (5p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">3. Facturación (10p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">4. Efectividad (30p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">5. Compra Mín (5p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">6. Reposición (15p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">7. Ampliación (20p)</th>
+                              <th class="py-2 px-2.5 text-center font-sans">8. Covers (5p)</th>
+                              <th class="py-2 px-3 text-center font-sans">Resultado</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-black/[0.03] bg-white">
+                            <tr v-for="(dia, didx) in r.dias" :key="dia.fecha" class="hover:bg-blue-50/30 transition-colors">
+                              <td class="py-2 px-3 text-center text-[#86868B]">{{ didx + 1 }}</td>
+                              <td class="py-2 px-3 font-bold text-[#1D1D1F]">{{ dia.fecha }}</td>
+                              <td class="py-2 px-2 text-center">
+                                <span class="px-1.5 py-0.5 rounded bg-black/[0.04] text-[9px] font-semibold text-[#48484A]">{{ dia.dia_semana }}</span>
+                              </td>
+                              <!-- Score Total -->
+                              <td class="py-2 px-3 text-center bg-blue-50/20">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold text-[11px]" :class="badgeScore(dia.score_total)">
+                                  {{ dia.score_total }} / 100 Pts
+                                </span>
+                              </td>
+                              <!-- 1. Horario -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi1_horario?.pts >= 10 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi1_horario?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ dia.kpi1_horario?.hora || '--:--' }}
+                                </div>
+                              </td>
+                              <!-- 2. Visitas -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi2_visitas?.pts >= 5 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi2_visitas?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ dia.kpi2_visitas?.visitados ?? 0 }}/{{ dia.kpi2_visitas?.cartera ?? 0 }} ({{ formatPct(dia.kpi2_visitas?.cobertura_pct) }})
+                                </div>
+                              </td>
+                              <!-- 3. Facturación -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi3_objetivo?.pts >= 10 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi3_objetivo?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  Bs {{ formatNum(dia.kpi3_objetivo?.venta_hoy, 0) }} ({{ formatPct(dia.kpi3_objetivo?.alcance_pct) }})
+                                </div>
+                              </td>
+                              <!-- 4. Efectividad -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi4_efectividad?.pts >= 30 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi4_efectividad?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ dia.kpi4_efectividad?.compradores ?? 0 }} cli ({{ formatPct(dia.kpi4_efectividad?.efectividad_pct) }})
+                                </div>
+                              </td>
+                              <!-- 5. Compra Mínima -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi5_compra_minima?.pts >= 5 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi5_compra_minima?.pts ?? 0 }}p</div>
+                                <div class="text-[8px]" :class="dia.kpi5_compra_minima?.cumple ? 'text-emerald-600 font-semibold' : 'text-[#86868B]'">
+                                  {{ dia.kpi5_compra_minima?.cumple ? 'Cumple' : 'No cumple' }}
+                                </div>
+                              </td>
+                              <!-- 6. Reposición -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi6_reposicion?.pts >= 15 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi6_reposicion?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ formatPct(dia.kpi6_reposicion?.tasa_pct) }}
+                                </div>
+                              </td>
+                              <!-- 7. Ampliación -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi7_ampliacion?.pts >= 20 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi7_ampliacion?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ formatPct(dia.kpi7_ampliacion?.tasa_pct) }}
+                                </div>
+                              </td>
+                              <!-- 8. Covers -->
+                              <td class="py-2 px-2.5 text-center">
+                                <div class="font-bold" :class="dia.kpi8_covers?.pts >= 5 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi8_covers?.pts ?? 0 }}p</div>
+                                <div class="text-[8px] text-[#86868B]">
+                                  {{ formatPct(dia.kpi8_covers?.tasa_pct) }}
+                                </div>
+                              </td>
+                              <!-- Resultado -->
+                              <td class="py-2 px-3 text-center">
+                                <span
+                                  v-if="dia.aprobado"
+                                  class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                >
+                                  Aprobado
+                                </span>
+                                <span
+                                  v-else
+                                  class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                                >
+                                  Reprobado
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+            <!-- TFOOT CONSOLIDADO -->
+            <tfoot class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-30 font-mono tabular-nums shadow-[inset_0_1px_0_rgba(0,0,0,0.08)]">
+              <tr>
+                <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
+                <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                  CONSOLIDADO ({{ rutasFiltradas.length }} Rutas)
+                </td>
+                <td class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA] text-[12px] text-[#0071E3]">
+                  {{ formatNum(totalesKpi?.score_promedio, 1) }} Pts
+                </td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi1_horario, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi2_visitas, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi3_objetivo, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi4_efectividad, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi5_compra_minima, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi6_reposicion, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi7_ampliacion, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatNum(totalesKpi?.prom_kpi8_covers, 1) }}</td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA] text-emerald-700">
+                  {{ totalesKpi?.dias_aprobados ?? 0 }}
+                </td>
+                <td class="py-2.5 px-2.5 text-center sticky bottom-0 z-30 bg-[#F8F8FA] text-emerald-700 text-[12px]">
+                  {{ formatPct(totalesKpi?.pct_aprobacion) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
       <!-- Estado Vacío -->
       <div v-else class="h-64 apple-glass-card rounded-[14px] p-10 flex items-center justify-center text-[#86868B] text-[12px]">
         No se encontraron datos para los filtros especificados.
@@ -1602,7 +1999,19 @@ const sortLabelsKpi = computed(() => {
     total_3m_bs: `Total ${mesesCerradosGlobal.value?.length || 3}M`,
     total_sugerido: 'Compra Sugerida',
     objetivo_mes: 'Objetivo',
-    venta_mtd: 'Venta MTD'
+    venta_mtd: 'Venta MTD',
+    score_promedio: 'Score Promedio',
+    dias_evaluados: 'Días Evaluados',
+    dias_aprobados: 'Días Aprobados',
+    pct_aprobacion: '% Aprobación',
+    prom_kpi1_horario: '1. Horario',
+    prom_kpi2_visitas: '2. Visitas',
+    prom_kpi3_objetivo: '3. Facturación',
+    prom_kpi4_efectividad: '4. Efectividad',
+    prom_kpi5_compra_minima: '5. Compra Mín.',
+    prom_kpi6_reposicion: '6. Reposición',
+    prom_kpi7_ampliacion: '7. Ampliación',
+    prom_kpi8_covers: '8. Covers'
   }
   ;(mesesCerradosGlobal.value || []).forEach((m, idx) => {
     labels[`mes_${m.ym}`] = `${labelMesHistorico(idx, (mesesCerradosGlobal.value || []).length)} (${m.corto})`
@@ -1635,7 +2044,8 @@ const kpisLista = [
   { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
   { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
   { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' }
+  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'pizarra_unilever', nombre: '8. Pizarra Unilever', corto: 'Pizarra Unilever', tipo: 'SCORE', unidad: 'Pts' }
 ]
 
 const rutaExpandida = ref(null)
@@ -2121,7 +2531,13 @@ function cambiarModo(modo) {
   clienteExpandidoId.value = null
 
   if (modo !== 'resumen') {
-    sortKpiCol.value = modo === 'cob_core' ? 'total_sugerido' : 'pct'
+    if (modo === 'pizarra_unilever') {
+      sortKpiCol.value = 'score_promedio'
+    } else if (modo === 'cob_core') {
+      sortKpiCol.value = 'total_sugerido'
+    } else {
+      sortKpiCol.value = 'pct'
+    }
     sortKpiDir.value = 'desc'
   }
 
@@ -2217,11 +2633,17 @@ async function toggleDetalleRuta(ruta) {
     return
   }
   rutaExpandida.value = ruta
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
+
+  if (modoActivo.value === 'pizarra_unilever') {
+    // Para la pizarra Unilever, el desglose cronológico día a día ya reside en la propiedad dias de la fila
+    return
+  }
+
   cargandoClientes.value = true
   carteraClientes.value = []
   diasRuta.value = []
-  diaSeleccionadoInline.value = null
-  clienteExpandidoId.value = null
   for (const k in detalleClienteFechasMap) delete detalleClienteFechasMap[k]
 
   try {
@@ -2329,6 +2751,20 @@ function badgeRitmo(pctRitmo) {
   if (n >= 100) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
   if (n >= 90) return 'bg-amber-50 text-amber-700 border border-amber-200'
   return 'bg-rose-50 text-rose-700 border border-rose-200'
+}
+
+function badgeScore(score) {
+  const s = Number(score || 0)
+  if (s >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  if (s >= 60) return 'bg-amber-50 text-amber-700 border border-amber-200'
+  return 'bg-rose-50 text-rose-700 border border-rose-200'
+}
+
+function colorScore(score) {
+  const s = Number(score || 0)
+  if (s >= 80) return 'text-emerald-600'
+  if (s >= 60) return 'text-amber-600'
+  return 'text-rose-600'
 }
 
 onMounted(async () => {
