@@ -358,9 +358,11 @@ class GetAvanceClienteDetalleFechasAction
         $productosResultado = array_values($productosResultado);
 
         // Complemento Core Pareto: Si para Cobertura Core la compra sugerida base es inferior al objetivo mensual
-        // Para clientes sin histórico de compras, se aplica objetivo mínimo de 200 Bs
-        if ($kpiClave === 'cob_core' && $totalMonto3m <= 0) {
-            $cuotaObjetivo = ($cuotaObjetivo !== null && $cuotaObjetivo > 200.0) ? $cuotaObjetivo : 200.0;
+        // Nivelación con piso mínimo de 150 Bs para clientes en Cobertura Core
+        if ($kpiClave === 'cob_core') {
+            $cuotaObjetivo = ($cuotaObjetivo !== null && $cuotaObjetivo > 0)
+                ? max(150.0, (float) $cuotaObjetivo)
+                : 150.0;
         }
 
         if ($kpiClave === 'cob_core' && $cuotaObjetivo !== null && $cuotaObjetivo > 0 && $totalSugeridoBs < $cuotaObjetivo) {

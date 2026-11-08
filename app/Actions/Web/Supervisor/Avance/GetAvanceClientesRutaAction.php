@@ -283,15 +283,15 @@ class GetAvanceClientesRutaAction
             $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
 
             // Cuota objetivo por cliente proporcional a su peso en la ruta.
-            // Para clientes sin histórico de compras en Cobertura Core, objetivo mínimo de 200 Bs
+            // Para Cobertura Core, nivelación con piso mínimo de 150 Bs (para nuevos o con objetivo < 150 Bs)
             $cuotaObjetivoMap = [];
             foreach ($cartera as $cid => $item) {
                 $totCli = array_sum($histClienteMap[$cid] ?? []);
                 $cuota = ($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                     ? round(($totCli / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
                     : 0.0;
-                if ($totCli <= 0 && $kpiClave === 'cob_core') {
-                    $cuota = 200.0;
+                if ($kpiClave === 'cob_core') {
+                    $cuota = max(150.0, $cuota);
                 }
                 $cuotaObjetivoMap[$cid] = $cuota;
             }
@@ -603,7 +603,10 @@ class GetAvanceClientesRutaAction
             $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
             $cuotaObjetivo = $cuotaObjetivoMap[$cid] ?? (($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                 ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
-                : ($kpiClave === 'cob_core' && $totalCli3m <= 0 ? 200.0 : 0.0));
+                : 0.0);
+            if ($kpiClave === 'cob_core') {
+                $cuotaObjetivo = max(150.0, $cuotaObjetivo);
+            }
             $totalSugeridoCli = round($sugeridoClienteMap[$cid] ?? 0.0, 2);
 
             $clientesLista[] = [
