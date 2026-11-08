@@ -1018,13 +1018,23 @@
                                     {{ formatPct(cli.peso_3m) }}
                                   </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-purple-900 bg-purple-50/30">
-                                    {{ (cli.total_sugerido || 0) > 0 ? `Bs ${formatNum(cli.total_sugerido, 2)}` : '-' }}
+                                    <span v-if="(cli.total_sugerido || 0) > 0">
+                                      Bs {{ formatNum(cli.total_sugerido, 2) }}
+                                    </span>
+                                    <span v-else class="text-[9px] text-[#86868B] font-sans font-medium italic">
+                                      Pendiente
+                                    </span>
                                   </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/20">
                                     {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
                                   </td>
-                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold bg-amber-50/20" :class="(cli.cuota_objetivo - (cli.total_sugerido || 0)) > 0 ? 'text-amber-800' : 'text-emerald-700'">
-                                    {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo - (cli.total_sugerido || 0), 2)}` : '-' }}
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold bg-amber-50/20" :class="(cli.brecha || 0) > 0 ? 'text-amber-800' : 'text-emerald-700'">
+                                    <span v-if="(cli.total_sugerido || 0) > 0 && (cli.exceso || 0) > 0" class="text-emerald-700" title="Nivelado: cubre la cuota con exceso">
+                                      +Bs {{ formatNum(cli.exceso, 2) }}
+                                    </span>
+                                    <span v-else>
+                                      {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.brecha !== undefined ? cli.brecha : (cli.cuota_objetivo - (cli.total_sugerido || 0)), 2)}` : '-' }}
+                                    </span>
                                   </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-medium" :class="cli.monto_bs > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
                                     {{ cli.monto_bs > 0 ? `Bs ${formatNum(cli.monto_bs, 2)}` : '-' }}
@@ -1094,17 +1104,29 @@
                                             <strong class="text-[#6B21A8] font-bold">{{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}</strong>
                                             <span class="text-[9px] text-[#86868B] font-sans ml-1">({{ formatPct(cli.peso_3m) }})</span>
                                           </div>
-                                          <div>
-                                            <span class="text-[#86868B] font-sans">Hábito Sugerido: </span>
-                                            <strong class="text-purple-900 font-bold">Bs {{ formatNum(totalClienteSugeridoBs(cli.cliente_id), 2) }}</strong>
-                                            <span class="text-[9px] text-purple-700 font-sans ml-1">({{ totalClienteSugeridoCant(cli.cliente_id) }} u)</span>
+                                          <div v-if="detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.estado_desarrollo === 'pendiente_desarrollo' || totalClienteSugeridoBs(cli.cliente_id) === 0" class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-sans font-bold">
+                                            Pendiente de desarrollo (Sin hábitos consolidados)
                                           </div>
-                                          <div v-if="cli.cuota_objetivo > 0">
-                                            <span class="text-[#86868B] font-sans">Brecha (&Delta;): </span>
-                                            <strong :class="(cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id)) > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'">
-                                              Bs {{ formatNum(cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id), 2) }}
-                                            </strong>
-                                          </div>
+                                          <template v-else>
+                                            <div>
+                                              <span class="text-[#86868B] font-sans">Sugerido Nivelado: </span>
+                                              <strong class="text-purple-900 font-bold">Bs {{ formatNum(totalClienteSugeridoBs(cli.cliente_id), 2) }}</strong>
+                                              <span class="text-[9px] text-purple-700 font-sans ml-1">({{ totalClienteSugeridoCant(cli.cliente_id) }} u)</span>
+                                            </div>
+                                            <div v-if="(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.exceso_bs || 0) > 0">
+                                              <span class="text-[#86868B] font-sans">Exceso (+): </span>
+                                              <strong class="text-emerald-700 font-bold">
+                                                +Bs {{ formatNum(detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.exceso_bs, 2) }}
+                                              </strong>
+                                              <span class="text-[8px] text-emerald-600 font-sans ml-0.5">({{ detalleClienteFechasMap[cli.cliente_id]?.resumen_cobertura?.pct_exceso }}%)</span>
+                                            </div>
+                                            <div v-else-if="cli.cuota_objetivo > 0">
+                                              <span class="text-[#86868B] font-sans">Brecha (&Delta;): </span>
+                                              <strong :class="(cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id)) > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'">
+                                                Bs {{ formatNum(Math.max(0, cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id)), 2) }}
+                                              </strong>
+                                            </div>
+                                          </template>
                                           <div>
                                             <span class="text-[#86868B] font-sans">Comprado MTD: </span>
                                             <strong :class="totalClienteMtdBs(cli.cliente_id) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
@@ -1190,6 +1212,9 @@
                                                     </button>
                                                     <span class="font-bold text-[#6E6E73] font-mono text-[9px]">[{{ prod.codigo }}]</span>
                                                     <span class="font-medium text-[#1D1D1F]">{{ prod.producto }}</span>
+                                                    <span v-if="prod.mix_propio > 0" class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-[#0071E3] border border-blue-200 font-sans shadow-2xs" title="Participación en la canasta habitual del cliente">
+                                                      Mix: {{ prod.mix_propio }}%
+                                                    </span>
                                                     <span v-if="prod.es_core_pareto" class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-200 font-sans shadow-2xs">
                                                       Core Pareto
                                                     </span>

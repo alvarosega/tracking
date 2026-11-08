@@ -293,6 +293,8 @@ class GetAvanceClienteDetalleFechasAction
         $totalSkus3m = 0;
         $totalSkusCubiertosMtd = 0;
 
+        // Identificar SKUs habituales y calcular sugerido base
+        $indicesHabituales = [];
         foreach ($productosResultado as $idx => &$p) {
             $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
             $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
@@ -301,7 +303,7 @@ class GetAvanceClienteDetalleFechasAction
             $p['frecuencia_compra'] = $frecuenciaCompra;
             $p['meses_distintos_3m'] = $mesesDistintos3m;
 
-            // Si se exige cantidad mínima histórica (> 1), excluir productos que no alcancen esa cantidad acumulada
+            // Si se exige cantidad mínima histórica (> 1), excluir productos que no alcancen esa cantidad acumulada (KPIs no-core)
             if ($kpiClave !== 'cob_core' && $cantidadMinima > 1 && ($cant3m < $cantidadMinima || ($cant3m === 0 && $cantMtd === 0))) {
                 if ($cantMtd === 0) {
                     unset($productosResultado[$idx]);
@@ -309,7 +311,7 @@ class GetAvanceClienteDetalleFechasAction
                 }
             }
 
-            // Si se exige una frecuencia mínima, excluir productos que no alcancen dicha frecuencia en el histórico
+            // Si se exige una frecuencia mínima, excluir productos que no alcancen dicha frecuencia en el histórico (KPIs no-core)
             if ($kpiClave !== 'cob_core' && $frecuenciaMinima > 1 && $cant3m > 0 && $frecuenciaCompra < $frecuenciaMinima) {
                 if ($cantMtd === 0) {
                     unset($productosResultado[$idx]);
@@ -337,15 +339,16 @@ class GetAvanceClienteDetalleFechasAction
                     : ($p['total_cantidad'] > 0 ? round($p['total_bs'] / $p['total_cantidad'], 2) : 0.0);
             }
 
-            // Cálculo de hábito y canasta sugerida
             $qTeorica = $cant3m / (float) max(1, $cantMesesEval);
             if ($kpiClave === 'cob_core') {
-                // Filtro de Robustez Cobertura Core dinamizado por los filtros superiores:
+                // Filtro de Robustez Cobertura Core:
                 // Frecuencia temporal: >= $frecuenciaMinima meses distintos de la ventana evaluada
                 // Volumen acumulado: >= $cantidadMinima unidades físicas en la ventana evaluada
                 $esHabitual = ($mesesDistintos3m >= $frecuenciaMinima && $cant3m >= $cantidadMinima);
-                $mj = 1; // Empaque comercial mínimo por defecto
-                $cantSugerida = $esHabitual ? max($mj, (int) round($qTeorica / $mj) * $mj) : 0;
+                if ($esHabitual) {
+                    $indicesHabituales[] = $idx;
+                }
+                $cantSugerida = 0;
             } else {
                 $cumpleCantidad = ($cant3m >= $cantidadMinima);
                 $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
@@ -360,32 +363,125 @@ class GetAvanceClienteDetalleFechasAction
             $p['es_unitario_3m'] = ($cant3m === 1);
             $p['cant_sugerida'] = $cantSugerida;
             $p['monto_sugerido'] = $montoSugerido;
+            $p['mix_propio'] = 0.0;
             $p['cumple_sugerido'] = ($cantSugerida > 0 && $cantMtd >= $cantSugerida);
             $p['compro_mes_actual'] = ($cantMtd > 0);
             $p['es_core_pareto'] = false;
-
-            if ($cantSugerida > 0) {
-                $totalSkus3m++;
-                $totalSugeridoUnidades += $cantSugerida;
-                $totalSugeridoBs += $montoSugerido;
-                if ($p['compro_mes_actual']) {
-                    $totalSkusCubiertosMtd++;
-                }
-            }
         }
         unset($p);
         $productosResultado = array_values($productosResultado);
 
-        // Nivelación con piso mínimo de 150 Bs para clientes en Cobertura Core
+        // MOTOR DE OPTIMIZACIÓN: COMPRA SUGERIDA NIVELADA PARA COBERTURA CORE
         if ($kpiClave === 'cob_core') {
-            $cuotaObjetivo = ($cuotaObjetivo !== null && $cuotaObjetivo > 0)
+            $cuotaCliente = ($cuotaObjetivo !== null && $cuotaObjetivo > 0)
                 ? max(150.0, (float) $cuotaObjetivo)
                 : 150.0;
+
+            if (empty($indicesHabituales)) {
+                // Sin historial consolidado: Pendiente de desarrollo
+                $estadoDesarrollo = 'pendiente_desarrollo';
+                $totalSugeridoBs = 0.0;
+                $totalSugeridoUnidades = 0;
+                $excesoBs = 0.0;
+                $pctExceso = 0.0;
+                $brechaFinal = $cuotaCliente;
+            } else {
+                $estadoDesarrollo = 'consolidado';
+
+                // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
+                $ventaTotalHabitual = 0.0;
+                foreach ($indicesHabituales as $idx) {
+                    $ventaTotalHabitual += (float) $productosResultado[$idx]['total_bs_3m'];
+                }
+
+                // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base
+                $subtotalActual = 0.0;
+                $totalUnidadesBase = 0;
+
+                foreach ($indicesHabituales as $idx) {
+                    $vj = (float) $productosResultado[$idx]['total_bs_3m'];
+                    $mix_j = $ventaTotalHabitual > 0 ? ($vj / $ventaTotalHabitual) : (1.0 / count($indicesHabituales));
+                    $presupuestoTeorico_j = $cuotaCliente * $mix_j;
+                    $pj = (float) $productosResultado[$idx]['precio_ultima_compra'];
+                    if ($pj <= 0.0) {
+                        $pj = 1.0;
+                    }
+
+                    // Empaque comercial M_j = 1 unidad
+                    $cantidadBase_j = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                    $montoBase_j = round($cantidadBase_j * $pj, 2);
+
+                    $productosResultado[$idx]['mix_propio'] = round($mix_j * 100, 1);
+                    $productosResultado[$idx]['cant_sugerida'] = $cantidadBase_j;
+                    $productosResultado[$idx]['monto_sugerido'] = $montoBase_j;
+
+                    $subtotalActual = round($subtotalActual + $montoBase_j, 2);
+                    $totalUnidadesBase += $cantidadBase_j;
+                }
+
+                // PASO 4: Evaluación de la brecha residual
+                $brecha = round($cuotaCliente - $subtotalActual, 2);
+
+                // PASO 5: Nivelación por Criterio Comercial (Sumar unidades al SKU #1)
+                if ($brecha > 0) {
+                    // Ordenar índices habituales por volumen en Bs (rotación) descendente para identificar SKU #1
+                    usort($indicesHabituales, function ($a, $b) use ($productosResultado) {
+                        return ($productosResultado[$b]['total_bs_3m'] ?? 0.0) <=> ($productosResultado[$a]['total_bs_3m'] ?? 0.0);
+                    });
+
+                    $topIdx = $indicesHabituales[0];
+                    $p1 = (float) $productosResultado[$topIdx]['precio_ultima_compra'];
+                    if ($p1 <= 0.0) {
+                        $p1 = 1.0;
+                    }
+
+                    $unidadesExtra = (int) ceil($brecha / $p1);
+                    $productosResultado[$topIdx]['cant_sugerida'] += $unidadesExtra;
+                    $productosResultado[$topIdx]['monto_sugerido'] = round($productosResultado[$topIdx]['cant_sugerida'] * $p1, 2);
+
+                    $subtotalActual = round($subtotalActual + ($unidadesExtra * $p1), 2);
+                    $totalUnidadesBase += $unidadesExtra;
+                }
+
+                $totalSugeridoBs = $subtotalActual;
+                $totalSugeridoUnidades = $totalUnidadesBase;
+                $excesoBs = round(max(0.0, $totalSugeridoBs - $cuotaCliente), 2);
+                $pctExceso = $cuotaCliente > 0 ? round(($excesoBs / $cuotaCliente) * 100, 1) : 0.0;
+                $brechaFinal = round(max(0.0, $cuotaCliente - $totalSugeridoBs), 2);
+
+                // Actualizar estado de cumplimiento en mes actual para cada producto
+                foreach ($productosResultado as &$p) {
+                    $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+                    $p['cumple_sugerido'] = ($p['cant_sugerida'] > 0 && $cantMtd >= $p['cant_sugerida']);
+                    if ($p['cant_sugerida'] > 0) {
+                        $totalSkus3m++;
+                        if ($p['compro_mes_actual']) {
+                            $totalSkusCubiertosMtd++;
+                        }
+                    }
+                }
+                unset($p);
+            }
+        } else {
+            $cuotaCliente = $cuotaObjetivo ?? 0.0;
+            $estadoDesarrollo = 'consolidado';
+            $excesoBs = 0.0;
+            $pctExceso = 0.0;
+            $brechaFinal = 0.0;
+
+            foreach ($productosResultado as $p) {
+                if ($p['cant_sugerida'] > 0) {
+                    $totalSkus3m++;
+                    $totalSugeridoUnidades += $p['cant_sugerida'];
+                    $totalSugeridoBs += $p['monto_sugerido'];
+                    if ($p['compro_mes_actual']) {
+                        $totalSkusCubiertosMtd++;
+                    }
+                }
+            }
         }
 
-        // Complemento Core Pareto: DESACTIVADO TEMPORALMENTE a solicitud del usuario
-        // para evaluar únicamente la canasta sugerida de hábitos reales y la brecha resultante
-        if (false && $kpiClave === 'cob_core' && $cuotaObjetivo !== null && $cuotaObjetivo > 0 && $totalSugeridoBs < $cuotaObjetivo) {
+        if (false) {
             $filasCarteraRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
@@ -763,8 +859,10 @@ class GetAvanceClienteDetalleFechasAction
         }
 
         $habitoTotalBs = round($totalSugeridoBs, 2);
-        $cuotaObjBs = ($cuotaObjetivo !== null && $cuotaObjetivo > 0) ? round($cuotaObjetivo, 2) : 0.0;
-        $brechaBs = ($cuotaObjBs > 0) ? round($cuotaObjBs - $habitoTotalBs, 2) : 0.0;
+        $cuotaObjBs = ($kpiClave === 'cob_core') ? round($cuotaCliente, 2) : (($cuotaObjetivo !== null && $cuotaObjetivo > 0) ? round($cuotaObjetivo, 2) : 0.0);
+        $brechaFinalBs = ($kpiClave === 'cob_core') ? round($brechaFinal, 2) : (($cuotaObjBs > 0) ? round(max(0.0, $cuotaObjBs - $habitoTotalBs), 2) : 0.0);
+        $excesoFinalBs = ($kpiClave === 'cob_core') ? round($excesoBs, 2) : round(max(0.0, $habitoTotalBs - $cuotaObjBs), 2);
+        $pctExcesoFinal = ($kpiClave === 'cob_core') ? $pctExceso : ($cuotaObjBs > 0 ? round(($excesoFinalBs / $cuotaObjBs) * 100, 1) : 0.0);
 
         return [
             'cliente_id' => $clienteId,
@@ -793,7 +891,10 @@ class GetAvanceClienteDetalleFechasAction
                 'total_monto_sugerido_bs' => $habitoTotalBs,
                 'habito_total_bs' => $habitoTotalBs,
                 'cuota_objetivo_bs' => $cuotaObjBs,
-                'brecha_bs' => $brechaBs,
+                'brecha_bs' => $brechaFinalBs,
+                'exceso_bs' => $excesoFinalBs,
+                'pct_exceso' => $pctExcesoFinal,
+                'estado_desarrollo' => $estadoDesarrollo,
                 'pct_cobertura_skus' => $totalSkus3m > 0 ? round(($totalSkusCubiertosMtd / $totalSkus3m) * 100, 1) : 0.0,
             ],
             'fechas' => $fechasResultado,

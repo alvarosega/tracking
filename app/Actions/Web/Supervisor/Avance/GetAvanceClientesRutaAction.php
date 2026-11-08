@@ -494,195 +494,120 @@ class GetAvanceClientesRutaAction
                 return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
             });
 
-            // Cálculo del sugerido por cliente: hábitos base + complemento Core Pareto si no alcanza el objetivo
+            // MOTOR DE COMPRA SUGERIDA NIVELADA PARA COBERTURA CORE
+            if ($kpiClave === 'cob_core') {
+                $estadoDesarrolloClienteMap = [];
+                $brechaClienteMap = [];
+                $excesoClienteMap = [];
+
             foreach ($cartera as $cId => $itemCart) {
                 $pList = $clienteProdsMap[$cId] ?? [];
-                $totalSug = 0.0;
-                $prodsSugeridos = [];
+                $cuotaObj = $cuotaObjetivoMap[$cId] ?? 150.0;
 
+                // 1. Identificar SKUs habituales del cliente según filtros superiores
+                $habitualesCli = [];
                 foreach ($pList as $pKey => $pData) {
                     $c3m = (int) ($pData['cantidad_3m'] ?? 0);
                     $mesesDistintos = count($pData['meses'] ?? []);
                     $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
-                    if ($pUlt <= 0 && $c3m > 0) {
+                    if ($pUlt <= 0.0 && $c3m > 0) {
                         $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
                     }
-
-                    if ($kpiClave === 'cob_core') {
-                        // Filtro de Robustez Cobertura Core dinamizado por los filtros superiores:
-                        // Frecuencia temporal: >= $frecuenciaMinima meses distintos de la ventana evaluada
-                        // Volumen acumulado: >= $cantidadMinima unidades físicas en la ventana evaluada
-                        $esHabitual = ($mesesDistintos >= $frecuenciaMinima && $c3m >= $cantidadMinima);
-                        if ($esHabitual && $pUlt > 0) {
-                            $cantSug = max(1, (int) round($c3m / (float) max(1, $cantMesesEval)));
-                            $prodsSugeridos[$pKey] = $cantSug;
-                            $totalSug += round($cantSug * $pUlt, 2);
-                        }
-                    } else {
-                        $frec = max(count($pData['fechas'] ?? []), count($pData['facturas'] ?? []));
-                        if ($frec < $frecuenciaMinima) {
-                            continue;
-                        }
-                        if ($c3m >= $cantidadMinima) {
-                            $cantSug = (int) ceil($c3m / (float) max(1, $cantMesesEval));
-                            if ($cantSug > 0 && $pUlt > 0) {
-                                $prodsSugeridos[$pKey] = $cantSug;
-                                $totalSug += round($cantSug * $pUlt, 2);
-                            }
-                        }
+                    if ($mesesDistintos >= $frecuenciaMinima && $c3m >= $cantidadMinima && $pUlt > 0.0) {
+                        $habitualesCli[$pKey] = [
+                            'pKey' => $pKey,
+                            'pData' => $pData,
+                            'precio' => $pUlt,
+                            'total_bs_3m' => round($c3m * $pUlt, 2),
+                        ];
                     }
                 }
 
-                // Complemento Core Pareto: DESACTIVADO TEMPORALMENTE a solicitud del usuario
-                // para evaluar únicamente la canasta sugerida de hábitos reales y la brecha resultante
-                if (false && $kpiClave === 'cob_core') {
-                    $cuotaObj = $cuotaObjetivoMap[$cId] ?? 0.0;
-                    if ($cuotaObj > 0 && $totalSug < $cuotaObj) {
-                        $diaV = $itemCart['dia_visita'] ?? 'Sin Día';
-                        $listaPareto = !empty($paretoPorDia[$diaV]) ? $paretoPorDia[$diaV] : $paretoRuta;
-                        if (empty($listaPareto)) {
-                            $listaPareto = $paretoRuta;
-                        }
+                if (empty($habitualesCli)) {
+                    // Sin historial consolidado: Pendiente de desarrollo
+                    $sugeridoClienteMap[$cId] = 0.0;
+                    $estadoDesarrolloClienteMap[$cId] = 'pendiente_desarrollo';
+                    $brechaClienteMap[$cId] = $cuotaObj;
+                    $excesoClienteMap[$cId] = 0.0;
+                } else {
+                    // Con historial consolidado
+                    $estadoDesarrolloClienteMap[$cId] = 'consolidado';
 
-                        // Fase 1: Añadir 1 unidad de productos Pareto faltantes con selección de mínimo exceso al cruzar objetivo
-                        while ($totalSug < $cuotaObj) {
-                            $gap = round($cuotaObj - $totalSug, 2);
+                    // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
+                    $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs_3m'));
 
-                            $disponibles = [];
-                            $rank = 0;
-                            foreach ($listaPareto as $pk => $pInfo) {
-                                if (($prodsSugeridos[$pk] ?? 0) === 0) {
-                                    $pu = ($pList[$pk]['precio_ultima_compra'] ?? 0.0) > 0
-                                        ? (float) $pList[$pk]['precio_ultima_compra']
-                                        : (($pInfo['precio'] ?? 0.0) > 0 ? (float) $pInfo['precio'] : 0.0);
-                                    if ($pu > 0) {
-                                        $disponibles[] = [
-                                            'pk' => $pk,
-                                            'item' => $pInfo,
-                                            'precio' => $pu,
-                                            'rank' => $rank,
-                                        ];
-                                    }
-                                }
-                                $rank++;
-                            }
+                    // Ordenar habituales por rotación en Bs descendente para tener SKU #1 primero
+                    uasort($habitualesCli, fn ($a, $b) => ($b['total_bs_3m'] ?? 0.0) <=> ($a['total_bs_3m'] ?? 0.0));
 
-                            if (empty($disponibles)) {
-                                break;
-                            }
+                    // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base (M_j = 1)
+                    $subtotalBase = 0.0;
+                    foreach ($habitualesCli as $pk => &$hInfo) {
+                        $mix_j = $ventaTotalHabitual > 0 ? ($hInfo['total_bs_3m'] / $ventaTotalHabitual) : (1.0 / count($habitualesCli));
+                        $presupuestoTeorico_j = $cuotaObj * $mix_j;
+                        $pj = $hInfo['precio'];
 
-                            $topDisponible = $disponibles[0];
-                            if ($topDisponible['precio'] <= $gap) {
-                                // El producto de mayor ranking Pareto cabe dentro del gap
-                                $elegido = $topDisponible;
-                            } else {
-                                // El producto top superaría el objetivo. Para evitar excesos desmedidos y que el exceso
-                                // sea provocado únicamente por un solo producto, buscamos entre los disponibles con precio >= gap
-                                // aquel con el mínimo exceso posible.
-                                $candidatos = [];
-                                foreach ($disponibles as $d) {
-                                    if ($d['precio'] >= $gap) {
-                                        $candidatos[] = [
-                                            'pk' => $d['pk'],
-                                            'item' => $d['item'],
-                                            'precio' => $d['precio'],
-                                            'exceso' => round($d['precio'] - $gap, 2),
-                                            'rank' => $d['rank'],
-                                        ];
-                                    }
-                                }
+                        $cantBase = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                        $montoBase = round($cantBase * $pj, 2);
 
-                                if (!empty($candidatos)) {
-                                    usort($candidatos, function ($a, $b) {
-                                        if ($a['exceso'] !== $b['exceso']) {
-                                            return $a['exceso'] <=> $b['exceso'];
-                                        }
-                                        return $a['rank'] <=> $b['rank'];
-                                    });
-                                    $elegido = $candidatos[0];
-                                } else {
-                                    $elegido = $topDisponible;
-                                }
-                            }
-
-                            $pKeyElegido = $elegido['pk'];
-                            $prodsSugeridos[$pKeyElegido] = 1;
-                            $totalSug = round($totalSug + $elegido['precio'], 2);
-                        }
-
-                        // Fase 2: Si aún no alcanza el objetivo (catálogo Pareto agotado en Fase 1), incrementar unidades con mínimo exceso
-                        if ($totalSug < $cuotaObj && !empty($listaPareto)) {
-                            $maxIter = 500;
-                            $iter = 0;
-                            while ($totalSug < $cuotaObj && $iter < $maxIter) {
-                                $gap = round($cuotaObj - $totalSug, 2);
-
-                                $candidatosFase2 = [];
-                                $rank = 0;
-                                foreach ($listaPareto as $pk => $pInfo) {
-                                    $pu = ($pList[$pk]['precio_ultima_compra'] ?? 0.0) > 0
-                                        ? (float) $pList[$pk]['precio_ultima_compra']
-                                        : (($pInfo['precio'] ?? 0.0) > 0 ? (float) $pInfo['precio'] : 0.0);
-                                    if ($pu > 0) {
-                                        $candidatosFase2[] = [
-                                            'pk' => $pk,
-                                            'item' => $pInfo,
-                                            'precio' => $pu,
-                                            'rank' => $rank,
-                                        ];
-                                    }
-                                    $rank++;
-                                }
-
-                                if (empty($candidatosFase2)) {
-                                    break;
-                                }
-
-                                $topCand = $candidatosFase2[0];
-                                if ($topCand['precio'] <= $gap) {
-                                    $elegido = $topCand;
-                                } else {
-                                    $mayores = [];
-                                    foreach ($candidatosFase2 as $c) {
-                                        if ($c['precio'] >= $gap) {
-                                            $mayores[] = [
-                                                'pk' => $c['pk'],
-                                                'item' => $c['item'],
-                                                'precio' => $c['precio'],
-                                                'exceso' => round($c['precio'] - $gap, 2),
-                                                'rank' => $c['rank'],
-                                            ];
-                                        }
-                                    }
-                                    if (!empty($mayores)) {
-                                        usort($mayores, function ($a, $b) {
-                                            if ($a['exceso'] !== $b['exceso']) {
-                                                return $a['exceso'] <=> $b['exceso'];
-                                            }
-                                            return $a['rank'] <=> $b['rank'];
-                                        });
-                                        $elegido = $mayores[0];
-                                    } else {
-                                        $elegido = $topCand;
-                                    }
-                                }
-
-                                $pKeyElegido = $elegido['pk'];
-                                $prodsSugeridos[$pKeyElegido] = ($prodsSugeridos[$pKeyElegido] ?? 0) + 1;
-                                $totalSug = round($totalSug + $elegido['precio'], 2);
-                                $iter++;
-                            }
-                        }
+                        $hInfo['cant_sugerida'] = $cantBase;
+                        $hInfo['monto_sugerido'] = $montoBase;
+                        $subtotalBase = round($subtotalBase + $montoBase, 2);
                     }
-                }
+                    unset($hInfo);
 
-                $sugeridoClienteMap[$cId] = round($totalSug, 2);
+                    // PASO 4: Evaluación de brecha residual
+                    $brecha = round($cuotaObj - $subtotalBase, 2);
+
+                    // PASO 5: Nivelación por Criterio Comercial (Sumar unidades al SKU #1)
+                    if ($brecha > 0) {
+                        $topKey = array_key_first($habitualesCli);
+                        $p1 = $habitualesCli[$topKey]['precio'];
+                        if ($p1 <= 0.0) {
+                            $p1 = 1.0;
+                        }
+                        $unidadesExtra = (int) ceil($brecha / $p1);
+                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
+                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
+                        $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
+                    }
+
+                    $sugeridoClienteMap[$cId] = round($subtotalBase, 2);
+                    $excesoClienteMap[$cId] = round(max(0.0, $subtotalBase - $cuotaObj), 2);
+                    $brechaClienteMap[$cId] = round(max(0.0, $cuotaObj - $subtotalBase), 2);
+                }
             }
         } else {
             $totalRutaAcum3m = 0.0;
             $mesYm = $carbonCorte->format('Y-m');
             $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
             $cuotaObjetivoMap = [];
+            $estadoDesarrolloClienteMap = [];
+            $brechaClienteMap = [];
+            $excesoClienteMap = [];
+
+            foreach ($cartera as $cId => $itemCart) {
+                $pList = $clienteProdsMap[$cId] ?? [];
+                $totalSug = 0.0;
+                foreach ($pList as $pKey => $pData) {
+                    $frec = max(count($pData['fechas'] ?? []), count($pData['facturas'] ?? []));
+                    if ($frec < $frecuenciaMinima) {
+                        continue;
+                    }
+                    $c3m = (int) ($pData['cantidad_3m'] ?? 0);
+                    if ($c3m >= $cantidadMinima) {
+                        $cantSug = (int) ceil($c3m / (float) max(1, $cantMesesEval));
+                        $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
+                        if ($cantSug > 0 && $pUlt > 0.0) {
+                            $totalSug += round($cantSug * $pUlt, 2);
+                        }
+                    }
+                }
+                $sugeridoClienteMap[$cId] = round($totalSug, 2);
+                $estadoDesarrolloClienteMap[$cId] = 'consolidado';
+                $brechaClienteMap[$cId] = 0.0;
+                $excesoClienteMap[$cId] = 0.0;
+            }
+        }
         }
         $totalVentaRuta = array_sum(array_column($cartera, 'monto'));
         $clientesLista = [];
@@ -757,8 +682,10 @@ class GetAvanceClientesRutaAction
                 'peso_3m' => $pesoCli3m,
                 'total_sugerido' => $totalSugeridoCli,
                 'habito_total' => $totalSugeridoCli,
-                'brecha' => round($cuotaObjetivo - $totalSugeridoCli, 2),
                 'cuota_objetivo' => $cuotaObjetivo,
+                'brecha' => $brechaClienteMap[$cid] ?? round(max(0.0, $cuotaObjetivo - $totalSugeridoCli), 2),
+                'exceso' => $excesoClienteMap[$cid] ?? round(max(0.0, $totalSugeridoCli - $cuotaObjetivo), 2),
+                'estado_desarrollo' => $estadoDesarrolloClienteMap[$cid] ?? ($totalSugeridoCli > 0 ? 'consolidado' : 'pendiente_desarrollo'),
                 'meses_con_compra' => $mesesConCompra,
                 'tiene_historico' => ($totalCli3m > 0),
             ];
