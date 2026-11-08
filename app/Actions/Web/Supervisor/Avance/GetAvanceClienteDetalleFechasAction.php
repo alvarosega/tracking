@@ -340,10 +340,10 @@ class GetAvanceClienteDetalleFechasAction
             // Cálculo de hábito y canasta sugerida
             $qTeorica = $cant3m / (float) max(1, $cantMesesEval);
             if ($kpiClave === 'cob_core') {
-                // Filtro de Robustez Cobertura Core:
-                // Frecuencia temporal: >= 2 meses distintos de la ventana evaluada
-                // Volumen acumulado: >= 4 unidades físicas en los 3 meses
-                $esHabitual = ($mesesDistintos3m >= 2 && $cant3m >= 4);
+                // Filtro de Robustez Cobertura Core dinamizado por los filtros superiores:
+                // Frecuencia temporal: >= $frecuenciaMinima meses distintos de la ventana evaluada
+                // Volumen acumulado: >= $cantidadMinima unidades físicas en la ventana evaluada
+                $esHabitual = ($mesesDistintos3m >= $frecuenciaMinima && $cant3m >= $cantidadMinima);
                 $mj = 1; // Empaque comercial mínimo por defecto
                 $cantSugerida = $esHabitual ? max($mj, (int) round($qTeorica / $mj) * $mj) : 0;
             } else {

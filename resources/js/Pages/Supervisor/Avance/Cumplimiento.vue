@@ -319,11 +319,11 @@
               </select>
             </div>
 
-            <!-- Selector para elegir la frecuencia mínima de compra en el histórico -->
+            <!-- Selector para elegir la frecuencia temporal mínima de compra en el histórico -->
             <div
               v-if="modoActivo === 'cob_core'"
               class="ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] bg-amber-50/80 border border-amber-200 text-amber-900 font-sans shadow-2xs select-none"
-              title="Frecuencia de compra: exigir un número mínimo de compras/facturas en la ventana histórica para incluir el producto en el sugerido"
+              title="Frecuencia temporal: exigir un número mínimo de meses distintos con compras en la ventana histórica para calificar como hábito"
             >
               <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -334,14 +334,14 @@
                 @change="onCambioFrecuenciaMinima"
                 class="text-[11px] font-bold text-amber-900 bg-white rounded-[6px] border border-amber-300/80 px-2 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
-                <option :value="1">≥ 1 compra</option>
-                <option :value="2">≥ 2 compras</option>
-                <option :value="3">≥ 3 compras</option>
-                <option :value="4">≥ 4 compras</option>
-                <option :value="5">≥ 5 compras</option>
-                <option :value="6">≥ 6 compras</option>
-                <option :value="8">≥ 8 compras</option>
-                <option :value="10">≥ 10 compras</option>
+                <option :value="1">≥ 1 mes</option>
+                <option :value="2">≥ 2 meses</option>
+                <option :value="3">≥ 3 meses</option>
+                <option :value="4">≥ 4 meses</option>
+                <option :value="5">≥ 5 meses</option>
+                <option :value="6">≥ 6 meses</option>
+                <option :value="7">≥ 7 meses</option>
+                <option :value="8">≥ 8 meses</option>
               </select>
             </div>
           </div>
@@ -1778,7 +1778,7 @@ function productosHistorialFiltrados(clienteId) {
     if (minFrec > 1) {
       lista = lista.filter(p => {
         if (p.es_core_pareto) return true
-        const frec = Number(p.frecuencia_compra) || 0
+        const frec = Number(p.meses_distintos_3m ?? p.frecuencia_compra) || 0
         return frec >= minFrec || (frec === 0 && (Number(p.total_cantidad_mes_actual) || 0) > 0)
       })
     }

@@ -509,10 +509,10 @@ class GetAvanceClientesRutaAction
                     }
 
                     if ($kpiClave === 'cob_core') {
-                        // Filtro de Robustez Cobertura Core:
-                        // Frecuencia temporal: >= 2 meses distintos de la ventana evaluada
-                        // Volumen acumulado: >= 4 unidades físicas en los 3 meses
-                        $esHabitual = ($mesesDistintos >= 2 && $c3m >= 4);
+                        // Filtro de Robustez Cobertura Core dinamizado por los filtros superiores:
+                        // Frecuencia temporal: >= $frecuenciaMinima meses distintos de la ventana evaluada
+                        // Volumen acumulado: >= $cantidadMinima unidades físicas en la ventana evaluada
+                        $esHabitual = ($mesesDistintos >= $frecuenciaMinima && $c3m >= $cantidadMinima);
                         if ($esHabitual && $pUlt > 0) {
                             $cantSug = max(1, (int) round($c3m / (float) max(1, $cantMesesEval)));
                             $prodsSugeridos[$pKey] = $cantSug;

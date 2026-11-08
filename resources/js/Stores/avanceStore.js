@@ -38,8 +38,8 @@ const kpiActivo = ref('vol_general')
 const modoTemporalCumplimiento = ref('acumulado') // 'acumulado' o 'diario'
 const omitirUnitarios3m = ref(false)
 const mesesHistorico = ref(3)
-const frecuenciaMinima = ref(1)
-const cantidadMinima = ref(1)
+const frecuenciaMinima = ref(2)
+const cantidadMinima = ref(4)
 
 function actualizarCanalSeleccionadoTexto() {
   const sel = canalesSeleccionados.value || []
