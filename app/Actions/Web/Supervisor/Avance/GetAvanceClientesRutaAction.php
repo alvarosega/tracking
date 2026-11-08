@@ -300,7 +300,7 @@ class GetAvanceClientesRutaAction
             $prodsRutaRaw = DB::connection('supervisor')->table('fact_ventas')
                 ->whereIn('cliente_id', $carteraClientIds)
                 ->where('fecha_norm', '>=', $histInicio)
-                ->where('fecha_norm', '<=', $histFin)
+                ->where('fecha_norm', '<=', $fechaCorte)
                 ->where('monto_final', '!=', 0)
                 ->where(function ($q): void {
                     $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
@@ -333,6 +333,14 @@ class GetAvanceClientesRutaAction
                 $f = (string) $pr->fecha;
                 $fact = (string) ($pr->nro_factura ?? '');
                 $cod = trim((string) $pr->codigo);
+                $j3 = (string) ($pr->jerarquia3 ?? '');
+                $cat = (string) ($pr->categoria ?? '');
+
+                if (!$this->cumplimientoAction->aplicaTransaccion($kpiClave, $prodNombre, $j3, $cod, $cat)) {
+                    continue;
+                }
+
+                $es3m = ($f <= $histFin);
 
                 // 1. Acumulado por cliente
                 if (!isset($clienteProdsMap[$cId][$pKey])) {
@@ -347,19 +355,25 @@ class GetAvanceClientesRutaAction
                     ];
                 }
 
-                $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
-                if ($f) {
-                    $clienteProdsMap[$cId][$pKey]['fechas'][$f] = true;
-                }
-                if ($fact !== '' && $fact !== 'S/F') {
-                    $clienteProdsMap[$cId][$pKey]['facturas'][$fact] = true;
+                if ($es3m) {
+                    $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
+                    if ($f) {
+                        $clienteProdsMap[$cId][$pKey]['fechas'][$f] = true;
+                    }
+                    if ($fact !== '' && $fact !== 'S/F') {
+                        $clienteProdsMap[$cId][$pKey]['facturas'][$fact] = true;
+                    }
                 }
 
                 if ($cant > 0 && $monto > 0) {
-                    if ($clienteProdsMap[$cId][$pKey]['fecha_precio'] === null || $f >= $clienteProdsMap[$cId][$pKey]['fecha_precio']) {
+                    if (($clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] ?? 0.0) === 0.0) {
                         $clienteProdsMap[$cId][$pKey]['fecha_precio'] = $f;
                         $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($monto / $cant, 2);
                     }
+                }
+
+                if (!$es3m) {
+                    continue;
                 }
 
                 // 2. Acumulado Pareto por Día de Visita
@@ -388,7 +402,7 @@ class GetAvanceClientesRutaAction
                     $paretoPorDia[$diaVisita][$pKey]['clientes'][$cId] = true;
                 }
                 if ($cant > 0 && $monto > 0) {
-                    if ($paretoPorDia[$diaVisita][$pKey]['fecha_precio'] === null || $f >= $paretoPorDia[$diaVisita][$pKey]['fecha_precio']) {
+                    if (($paretoPorDia[$diaVisita][$pKey]['precio'] ?? 0.0) === 0.0) {
                         $paretoPorDia[$diaVisita][$pKey]['fecha_precio'] = $f;
                         $paretoPorDia[$diaVisita][$pKey]['precio'] = round($monto / $cant, 2);
                     }
@@ -420,7 +434,7 @@ class GetAvanceClientesRutaAction
                     $paretoRuta[$pKey]['clientes'][$cId] = true;
                 }
                 if ($cant > 0 && $monto > 0) {
-                    if ($paretoRuta[$pKey]['fecha_precio'] === null || $f >= $paretoRuta[$pKey]['fecha_precio']) {
+                    if (($paretoRuta[$pKey]['precio'] ?? 0.0) === 0.0) {
                         $paretoRuta[$pKey]['fecha_precio'] = $f;
                         $paretoRuta[$pKey]['precio'] = round($monto / $cant, 2);
                     }
@@ -502,47 +516,133 @@ class GetAvanceClientesRutaAction
                             $listaPareto = $paretoRuta;
                         }
 
-                        // Fase 1: Añadir 1 unidad de productos Pareto que el cliente aún no tiene sugeridos
-                        foreach ($listaPareto as $pKey => $pInfo) {
-                            if (($prodsSugeridos[$pKey] ?? 0) > 0) {
-                                continue;
-                            }
-                            $pUlt = $pList[$pKey]['precio_ultima_compra'] ?? ($pInfo['precio'] ?? 0.0);
-                            if ($pUlt <= 0) {
-                                continue;
+                        // Fase 1: Añadir 1 unidad de productos Pareto faltantes con selección de mínimo exceso al cruzar objetivo
+                        while ($totalSug < $cuotaObj) {
+                            $gap = round($cuotaObj - $totalSug, 2);
+
+                            $disponibles = [];
+                            $rank = 0;
+                            foreach ($listaPareto as $pk => $pInfo) {
+                                if (($prodsSugeridos[$pk] ?? 0) === 0) {
+                                    $pu = ($pList[$pk]['precio_ultima_compra'] ?? 0.0) > 0
+                                        ? (float) $pList[$pk]['precio_ultima_compra']
+                                        : (($pInfo['precio'] ?? 0.0) > 0 ? (float) $pInfo['precio'] : 0.0);
+                                    if ($pu > 0) {
+                                        $disponibles[] = [
+                                            'pk' => $pk,
+                                            'item' => $pInfo,
+                                            'precio' => $pu,
+                                            'rank' => $rank,
+                                        ];
+                                    }
+                                }
+                                $rank++;
                             }
 
-                            $prodsSugeridos[$pKey] = 1;
-                            $totalSug += $pUlt;
-
-                            if ($totalSug >= $cuotaObj) {
+                            if (empty($disponibles)) {
                                 break;
                             }
+
+                            $topDisponible = $disponibles[0];
+                            if ($topDisponible['precio'] <= $gap) {
+                                // El producto de mayor ranking Pareto cabe dentro del gap
+                                $elegido = $topDisponible;
+                            } else {
+                                // El producto top superaría el objetivo. Para evitar excesos desmedidos y que el exceso
+                                // sea provocado únicamente por un solo producto, buscamos entre los disponibles con precio >= gap
+                                // aquel con el mínimo exceso posible.
+                                $candidatos = [];
+                                foreach ($disponibles as $d) {
+                                    if ($d['precio'] >= $gap) {
+                                        $candidatos[] = [
+                                            'pk' => $d['pk'],
+                                            'item' => $d['item'],
+                                            'precio' => $d['precio'],
+                                            'exceso' => round($d['precio'] - $gap, 2),
+                                            'rank' => $d['rank'],
+                                        ];
+                                    }
+                                }
+
+                                if (!empty($candidatos)) {
+                                    usort($candidatos, function ($a, $b) {
+                                        if ($a['exceso'] !== $b['exceso']) {
+                                            return $a['exceso'] <=> $b['exceso'];
+                                        }
+                                        return $a['rank'] <=> $b['rank'];
+                                    });
+                                    $elegido = $candidatos[0];
+                                } else {
+                                    $elegido = $topDisponible;
+                                }
+                            }
+
+                            $pKeyElegido = $elegido['pk'];
+                            $prodsSugeridos[$pKeyElegido] = 1;
+                            $totalSug = round($totalSug + $elegido['precio'], 2);
                         }
 
-                        // Fase 2: Si aún no alcanza el objetivo, incrementar unidades de los productos Pareto top
+                        // Fase 2: Si aún no alcanza el objetivo (catálogo Pareto agotado en Fase 1), incrementar unidades con mínimo exceso
                         if ($totalSug < $cuotaObj && !empty($listaPareto)) {
                             $maxIter = 500;
                             $iter = 0;
                             while ($totalSug < $cuotaObj && $iter < $maxIter) {
-                                $agregado = false;
-                                foreach ($listaPareto as $pKey => $pInfo) {
-                                    $pUlt = $pList[$pKey]['precio_ultima_compra'] ?? ($pInfo['precio'] ?? 0.0);
-                                    if ($pUlt <= 0) {
-                                        continue;
-                                    }
-                                    $prodsSugeridos[$pKey] = ($prodsSugeridos[$pKey] ?? 0) + 1;
-                                    $totalSug += $pUlt;
-                                    $agregado = true;
-                                    $iter++;
+                                $gap = round($cuotaObj - $totalSug, 2);
 
-                                    if ($totalSug >= $cuotaObj || $iter >= $maxIter) {
-                                        break;
+                                $candidatosFase2 = [];
+                                $rank = 0;
+                                foreach ($listaPareto as $pk => $pInfo) {
+                                    $pu = ($pList[$pk]['precio_ultima_compra'] ?? 0.0) > 0
+                                        ? (float) $pList[$pk]['precio_ultima_compra']
+                                        : (($pInfo['precio'] ?? 0.0) > 0 ? (float) $pInfo['precio'] : 0.0);
+                                    if ($pu > 0) {
+                                        $candidatosFase2[] = [
+                                            'pk' => $pk,
+                                            'item' => $pInfo,
+                                            'precio' => $pu,
+                                            'rank' => $rank,
+                                        ];
                                     }
+                                    $rank++;
                                 }
-                                if (!$agregado) {
+
+                                if (empty($candidatosFase2)) {
                                     break;
                                 }
+
+                                $topCand = $candidatosFase2[0];
+                                if ($topCand['precio'] <= $gap) {
+                                    $elegido = $topCand;
+                                } else {
+                                    $mayores = [];
+                                    foreach ($candidatosFase2 as $c) {
+                                        if ($c['precio'] >= $gap) {
+                                            $mayores[] = [
+                                                'pk' => $c['pk'],
+                                                'item' => $c['item'],
+                                                'precio' => $c['precio'],
+                                                'exceso' => round($c['precio'] - $gap, 2),
+                                                'rank' => $c['rank'],
+                                            ];
+                                        }
+                                    }
+                                    if (!empty($mayores)) {
+                                        usort($mayores, function ($a, $b) {
+                                            if ($a['exceso'] !== $b['exceso']) {
+                                                return $a['exceso'] <=> $b['exceso'];
+                                            }
+                                            return $a['rank'] <=> $b['rank'];
+                                        });
+                                        $elegido = $mayores[0];
+                                    } else {
+                                        $elegido = $topCand;
+                                    }
+                                }
+
+                                $pKeyElegido = $elegido['pk'];
+                                $prodsSugeridos[$pKeyElegido] = ($prodsSugeridos[$pKeyElegido] ?? 0) + 1;
+                                $totalSug = round($totalSug + $elegido['precio'], 2);
+                                $iter++;
                             }
                         }
                     }
