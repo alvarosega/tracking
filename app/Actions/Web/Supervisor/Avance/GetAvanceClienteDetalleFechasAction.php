@@ -205,6 +205,7 @@ class GetAvanceClienteDetalleFechasAction
                     'fechas' => [],
                     'fechas_3m' => [],
                     'facturas_3m' => [],
+                    'meses_3m' => [],
                     'compras_3m' => [],
                     'compras_mes_actual' => [],
                     'por_mes' => $porMesTemplate,
@@ -243,6 +244,7 @@ class GetAvanceClienteDetalleFechasAction
                 $prodMap[$prodKey]['total_cantidad_3m'] += $cant;
                 $prodMap[$prodKey]['compras_3m'][] = $itemDetalle;
                 $prodMap[$prodKey]['fechas_3m'][$f] = true;
+                $prodMap[$prodKey]['meses_3m'][$ym] = true;
                 if ($r->nro_factura && $r->nro_factura !== 'S/F') {
                     $prodMap[$prodKey]['facturas_3m'][$r->nro_factura] = true;
                 }
@@ -295,10 +297,12 @@ class GetAvanceClienteDetalleFechasAction
             $cant3m = (int) ($p['total_cantidad_3m'] ?? 0);
             $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
             $frecuenciaCompra = max(count($p['fechas_3m'] ?? []), count($p['facturas_3m'] ?? []));
+            $mesesDistintos3m = count($p['meses_3m'] ?? []);
             $p['frecuencia_compra'] = $frecuenciaCompra;
+            $p['meses_distintos_3m'] = $mesesDistintos3m;
 
             // Si se exige cantidad mínima histórica (> 1), excluir productos que no alcancen esa cantidad acumulada
-            if ($cantidadMinima > 1 && ($cant3m < $cantidadMinima || ($cant3m === 0 && $cantMtd === 0))) {
+            if ($kpiClave !== 'cob_core' && $cantidadMinima > 1 && ($cant3m < $cantidadMinima || ($cant3m === 0 && $cantMtd === 0))) {
                 if ($cantMtd === 0) {
                     unset($productosResultado[$idx]);
                     continue;
@@ -306,7 +310,7 @@ class GetAvanceClienteDetalleFechasAction
             }
 
             // Si se exige una frecuencia mínima, excluir productos que no alcancen dicha frecuencia en el histórico
-            if ($frecuenciaMinima > 1 && $cant3m > 0 && $frecuenciaCompra < $frecuenciaMinima) {
+            if ($kpiClave !== 'cob_core' && $frecuenciaMinima > 1 && $cant3m > 0 && $frecuenciaCompra < $frecuenciaMinima) {
                 if ($cantMtd === 0) {
                     unset($productosResultado[$idx]);
                     continue;
@@ -333,12 +337,26 @@ class GetAvanceClienteDetalleFechasAction
                     : ($p['total_cantidad'] > 0 ? round($p['total_bs'] / $p['total_cantidad'], 2) : 0.0);
             }
 
-            // Hábito sugerido mensual: Total Cantidad Histórica / N meses redondeado al entero superior
-            $cumpleCantidad = ($cant3m >= $cantidadMinima);
-            $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
-            $cantSugerida = ($cumpleFrecuencia && $cumpleCantidad) ? (int) ceil($cant3m / (float) $cantMesesEval) : 0;
+            // Cálculo de hábito y canasta sugerida
+            $qTeorica = $cant3m / (float) max(1, $cantMesesEval);
+            if ($kpiClave === 'cob_core') {
+                // Filtro de Robustez Cobertura Core:
+                // Frecuencia temporal: >= 2 meses distintos de la ventana evaluada
+                // Volumen acumulado: >= 4 unidades físicas en los 3 meses
+                $esHabitual = ($mesesDistintos3m >= 2 && $cant3m >= 4);
+                $mj = 1; // Empaque comercial mínimo por defecto
+                $cantSugerida = $esHabitual ? max($mj, (int) round($qTeorica / $mj) * $mj) : 0;
+            } else {
+                $cumpleCantidad = ($cant3m >= $cantidadMinima);
+                $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
+                $cantSugerida = ($cumpleFrecuencia && $cumpleCantidad) ? (int) ceil($qTeorica) : 0;
+                $esHabitual = ($cantSugerida > 0);
+            }
+
             $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
 
+            $p['es_habitual'] = $esHabitual;
+            $p['q_teorica'] = round($qTeorica, 2);
             $p['es_unitario_3m'] = ($cant3m === 1);
             $p['cant_sugerida'] = $cantSugerida;
             $p['monto_sugerido'] = $montoSugerido;
@@ -358,7 +376,6 @@ class GetAvanceClienteDetalleFechasAction
         unset($p);
         $productosResultado = array_values($productosResultado);
 
-        // Complemento Core Pareto: Si para Cobertura Core la compra sugerida base es inferior al objetivo mensual
         // Nivelación con piso mínimo de 150 Bs para clientes en Cobertura Core
         if ($kpiClave === 'cob_core') {
             $cuotaObjetivo = ($cuotaObjetivo !== null && $cuotaObjetivo > 0)
@@ -366,7 +383,9 @@ class GetAvanceClienteDetalleFechasAction
                 : 150.0;
         }
 
-        if ($kpiClave === 'cob_core' && $cuotaObjetivo !== null && $cuotaObjetivo > 0 && $totalSugeridoBs < $cuotaObjetivo) {
+        // Complemento Core Pareto: DESACTIVADO TEMPORALMENTE a solicitud del usuario
+        // para evaluar únicamente la canasta sugerida de hábitos reales y la brecha resultante
+        if (false && $kpiClave === 'cob_core' && $cuotaObjetivo !== null && $cuotaObjetivo > 0 && $totalSugeridoBs < $cuotaObjetivo) {
             $filasCarteraRuta = DB::connection('supervisor')->table('pan_ruteo')
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->where('cliente_id', '>', 0)
@@ -743,6 +762,10 @@ class GetAvanceClienteDetalleFechasAction
             $totalUnidades3m = array_sum(array_column($productosResultado, 'total_cantidad_3m'));
         }
 
+        $habitoTotalBs = round($totalSugeridoBs, 2);
+        $cuotaObjBs = ($cuotaObjetivo !== null && $cuotaObjetivo > 0) ? round($cuotaObjetivo, 2) : 0.0;
+        $brechaBs = ($cuotaObjBs > 0) ? round($cuotaObjBs - $habitoTotalBs, 2) : 0.0;
+
         return [
             'cliente_id' => $clienteId,
             'ruta' => $rutaClean,
@@ -767,7 +790,10 @@ class GetAvanceClienteDetalleFechasAction
                 'total_skus_3m' => $totalSkus3m,
                 'total_skus_cubiertos_mtd' => $totalSkusCubiertosMtd,
                 'total_unidades_sugeridas' => $totalSugeridoUnidades,
-                'total_monto_sugerido_bs' => round($totalSugeridoBs, 2),
+                'total_monto_sugerido_bs' => $habitoTotalBs,
+                'habito_total_bs' => $habitoTotalBs,
+                'cuota_objetivo_bs' => $cuotaObjBs,
+                'brecha_bs' => $brechaBs,
                 'pct_cobertura_skus' => $totalSkus3m > 0 ? round(($totalSkusCubiertosMtd / $totalSkus3m) * 100, 1) : 0.0,
             ],
             'fechas' => $fechasResultado,

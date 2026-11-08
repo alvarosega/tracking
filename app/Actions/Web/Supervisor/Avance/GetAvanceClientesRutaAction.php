@@ -362,6 +362,7 @@ class GetAvanceClientesRutaAction
                         'fecha_precio' => null,
                         'fechas' => [],
                         'facturas' => [],
+                        'meses' => [],
                     ];
                 }
 
@@ -369,6 +370,8 @@ class GetAvanceClientesRutaAction
                     $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
                     if ($f) {
                         $clienteProdsMap[$cId][$pKey]['fechas'][$f] = true;
+                        $ym = substr($f, 0, 7);
+                        $clienteProdsMap[$cId][$pKey]['meses'][$ym] = true;
                     }
                     if ($fact !== '' && $fact !== 'S/F') {
                         $clienteProdsMap[$cId][$pKey]['facturas'][$fact] = true;
@@ -498,26 +501,41 @@ class GetAvanceClientesRutaAction
                 $prodsSugeridos = [];
 
                 foreach ($pList as $pKey => $pData) {
-                    $frec = max(count($pData['fechas']), count($pData['facturas']));
-                    if ($frec < $frecuenciaMinima) {
-                        continue;
+                    $c3m = (int) ($pData['cantidad_3m'] ?? 0);
+                    $mesesDistintos = count($pData['meses'] ?? []);
+                    $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
+                    if ($pUlt <= 0 && $c3m > 0) {
+                        $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
                     }
-                    $c3m = $pData['cantidad_3m'];
-                    if ($c3m >= $cantidadMinima) {
-                        $cantSug = (int) ceil($c3m / (float) $cantMesesEval);
-                        $pUlt = $pData['precio_ultima_compra'];
-                        if ($pUlt <= 0 && $c3m > 0) {
-                            $pUlt = $paretoRuta[$pKey]['precio'] ?? 0.0;
-                        }
-                        if ($cantSug > 0 && $pUlt > 0) {
+
+                    if ($kpiClave === 'cob_core') {
+                        // Filtro de Robustez Cobertura Core:
+                        // Frecuencia temporal: >= 2 meses distintos de la ventana evaluada
+                        // Volumen acumulado: >= 4 unidades físicas en los 3 meses
+                        $esHabitual = ($mesesDistintos >= 2 && $c3m >= 4);
+                        if ($esHabitual && $pUlt > 0) {
+                            $cantSug = max(1, (int) round($c3m / (float) max(1, $cantMesesEval)));
                             $prodsSugeridos[$pKey] = $cantSug;
                             $totalSug += round($cantSug * $pUlt, 2);
+                        }
+                    } else {
+                        $frec = max(count($pData['fechas'] ?? []), count($pData['facturas'] ?? []));
+                        if ($frec < $frecuenciaMinima) {
+                            continue;
+                        }
+                        if ($c3m >= $cantidadMinima) {
+                            $cantSug = (int) ceil($c3m / (float) max(1, $cantMesesEval));
+                            if ($cantSug > 0 && $pUlt > 0) {
+                                $prodsSugeridos[$pKey] = $cantSug;
+                                $totalSug += round($cantSug * $pUlt, 2);
+                            }
                         }
                     }
                 }
 
-                // Complemento Core Pareto (solo para Cobertura Core si totalSug < cuotaObjetivo)
-                if ($kpiClave === 'cob_core') {
+                // Complemento Core Pareto: DESACTIVADO TEMPORALMENTE a solicitud del usuario
+                // para evaluar únicamente la canasta sugerida de hábitos reales y la brecha resultante
+                if (false && $kpiClave === 'cob_core') {
                     $cuotaObj = $cuotaObjetivoMap[$cId] ?? 0.0;
                     if ($cuotaObj > 0 && $totalSug < $cuotaObj) {
                         $diaV = $itemCart['dia_visita'] ?? 'Sin Día';
@@ -738,6 +756,8 @@ class GetAvanceClientesRutaAction
                 'total_monto_3m' => $totalCli3m,
                 'peso_3m' => $pesoCli3m,
                 'total_sugerido' => $totalSugeridoCli,
+                'habito_total' => $totalSugeridoCli,
+                'brecha' => round($cuotaObjetivo - $totalSugeridoCli, 2),
                 'cuota_objetivo' => $cuotaObjetivo,
                 'meses_con_compra' => $mesesConCompra,
                 'tiene_historico' => ($totalCli3m > 0),

@@ -888,10 +888,10 @@
                                   class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-purple-50/70"
                                   :class="sortClientesCol === 'total_sugerido' ? 'text-[#0071E3]' : ''"
                                   @click="ordenarClientes('total_sugerido')"
-                                  title="Ordenar por Total Sugerido de Compra (Bs)"
+                                  title="Ordenar por Total Hábito Sugerido de Compra (Bs)"
                                 >
                                   <div class="flex items-center justify-end gap-1">
-                                    <span>Sugerido (Bs)</span>
+                                    <span>Hábito (Bs)</span>
                                     <span v-if="sortClientesCol === 'total_sugerido'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
@@ -904,6 +904,17 @@
                                   <div class="flex items-center justify-end gap-1">
                                     <span>Objetivo (Bs)</span>
                                     <span v-if="sortClientesCol === 'cuota_objetivo'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-24 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors bg-amber-50/50"
+                                  :class="sortClientesCol === 'brecha' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('brecha')"
+                                  title="Brecha a Cubrir = Objetivo - Hábito Sugerido (Bs)"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Brecha (Bs)</span>
+                                    <span v-if="sortClientesCol === 'brecha'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
                                   </div>
                                 </th>
                                 <th
@@ -1012,6 +1023,9 @@
                                   <td class="py-1.5 px-2.5 text-right font-mono font-bold text-[#6B21A8] bg-purple-50/20">
                                     {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}
                                   </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono font-bold bg-amber-50/20" :class="(cli.cuota_objetivo - (cli.total_sugerido || 0)) > 0 ? 'text-amber-800' : 'text-emerald-700'">
+                                    {{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo - (cli.total_sugerido || 0), 2)}` : '-' }}
+                                  </td>
                                   <td class="py-1.5 px-2.5 text-right font-mono font-medium" :class="cli.monto_bs > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
                                     {{ cli.monto_bs > 0 ? `Bs ${formatNum(cli.monto_bs, 2)}` : '-' }}
                                   </td>
@@ -1055,7 +1069,7 @@
                               </tr>
                               <!-- Detalle acordeón de productos, sugeridos y compras del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 13 : 7" class="p-3 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 14 : 7" class="p-3 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[12px] p-3 space-y-3 bg-white/95 border border-black/[0.06] shadow-sm">
                                     <!-- Indicador de carga -->
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
@@ -1081,9 +1095,15 @@
                                             <span class="text-[9px] text-[#86868B] font-sans ml-1">({{ formatPct(cli.peso_3m) }})</span>
                                           </div>
                                           <div>
-                                            <span class="text-[#86868B] font-sans">Total Sugerido: </span>
+                                            <span class="text-[#86868B] font-sans">Hábito Sugerido: </span>
                                             <strong class="text-purple-900 font-bold">Bs {{ formatNum(totalClienteSugeridoBs(cli.cliente_id), 2) }}</strong>
                                             <span class="text-[9px] text-purple-700 font-sans ml-1">({{ totalClienteSugeridoCant(cli.cliente_id) }} u)</span>
+                                          </div>
+                                          <div v-if="cli.cuota_objetivo > 0">
+                                            <span class="text-[#86868B] font-sans">Brecha (&Delta;): </span>
+                                            <strong :class="(cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id)) > 0 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'">
+                                              Bs {{ formatNum(cli.cuota_objetivo - totalClienteSugeridoBs(cli.cliente_id), 2) }}
+                                            </strong>
                                           </div>
                                           <div>
                                             <span class="text-[#86868B] font-sans">Comprado MTD: </span>
@@ -1184,7 +1204,10 @@
                                                   </div>
                                                   <div class="text-[9px] text-[#86868B] flex items-center justify-end gap-1">
                                                     <span>{{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}</span>
-                                                    <span v-if="(prod.frecuencia_compra || 0) > 0" class="text-amber-700 font-semibold">
+                                                    <span v-if="(prod.meses_distintos_3m || 0) > 0" class="text-amber-700 font-semibold" title="Meses distintos con compras">
+                                                      · {{ prod.meses_distintos_3m }} {{ prod.meses_distintos_3m === 1 ? 'mes' : 'meses' }}
+                                                    </span>
+                                                    <span v-else-if="(prod.frecuencia_compra || 0) > 0" class="text-amber-700 font-semibold">
                                                       · {{ prod.frecuencia_compra }} {{ prod.frecuencia_compra === 1 ? 'compra' : 'compras' }}
                                                     </span>
                                                   </div>
@@ -1197,7 +1220,7 @@
                                                   </div>
                                                   <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
                                                     <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
-                                                    <span v-else-if="prod.cant_sugerida === 0" class="text-[8px] text-[#86868B] italic">No sugerido</span>
+                                                    <span v-else-if="prod.cant_sugerida === 0" class="text-[8px] text-[#86868B] italic">No califica</span>
                                                     <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
                                                   </div>
                                                 </td>
