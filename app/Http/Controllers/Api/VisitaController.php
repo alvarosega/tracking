@@ -98,20 +98,12 @@ class VisitaController extends Controller
         }
         $rutaClean = $rutaOficial ?: strtoupper(trim((string) $rutaReq));
 
-        // 2. Parámetros de filtro idénticos al módulo Web (Avance -> Cobertura Core: frec=2, cant=4, meses=3)
+        // 2. Parámetros de filtro idénticos al módulo Web
         $kpiClave = (string) ($request->input('kpi') ?: 'cob_core');
-        $esCobCore = ($kpiClave === 'cob_core' || $kpiClave === 'cobertura_core');
-
-        $cantidadMinima = $request->has('cantidad_minima')
-            ? (int) $request->input('cantidad_minima')
-            : ($esCobCore ? 4 : 1);
-
-        $frecuenciaMinima = $request->has('frecuencia_minima')
-            ? (int) $request->input('frecuencia_minima')
-            : ($esCobCore ? 2 : 1);
-
-        $mesesHistorico = (int) ($request->input('meses_historico') ?: 3);
-        $omitirUnitarios = filter_var($request->input('omitir_unitarios', false), FILTER_VALIDATE_BOOLEAN);
+        $cantidadMinima = max(1, (int) ($request->input('cantidad_minima') ?: ($request->input('omitir_unitarios_3m') ? 2 : 1)));
+        $frecuenciaMinima = max(1, (int) ($request->input('frecuencia_minima') ?: 1));
+        $mesesHistorico = max(1, min(8, (int) ($request->input('meses_historico') ?: 3)));
+        $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', $request->input('omitir_unitarios', false)), FILTER_VALIDATE_BOOLEAN);
 
         // 3. Resolver día de visita
         $diaVisita = $request->input('dia');
@@ -121,6 +113,7 @@ class VisitaController extends Controller
 
         // 4. Resolver cuota objetivo del cliente según la nivelación de cartera de la ruta en Web
         $cuotaObjetivo = null;
+        $totalSugeridoRuta = 0.0;
         if ($request->has('cuota_objetivo')) {
             $cuotaObjetivo = (float) $request->input('cuota_objetivo');
         } else {
@@ -137,7 +130,8 @@ class VisitaController extends Controller
 
                     foreach ($rutaData['clientes'] ?? [] as $cli) {
                         if ((int) ($cli['cliente_id'] ?? 0) === $cid) {
-                            $cuotaObjetivo = (float) ($cli['cuota_objetivo'] ?? 0.0);
+                            $cuotaObjetivo = (float) ($cli['cuota_objetivo'] ?? 150.0);
+                            $totalSugeridoRuta = (float) ($cli['total_sugerido'] ?? 0.0);
                             break;
                         }
                     }
@@ -175,28 +169,35 @@ class VisitaController extends Controller
             ], 500);
         }
 
-        // 6. Filtrar únicamente los productos que se sugiere comprar (cant_sugerida > 0)
+        // 6. Mapear los productos generados por la lógica Web oficial
         $sugeridos = [];
         $totalSugeridoBs = 0.0;
+        $skusConSugerido = 0;
 
         foreach ($detalle['productos'] ?? [] as $prod) {
             $cantSugerida = (int) ($prod['cant_sugerida'] ?? 0);
+            $cantMtd = (int) ($prod['total_cantidad_mes_actual'] ?? 0);
+            $precioUnit = round((float) ($prod['precio_unitario'] ?? $prod['precio_ultima_compra'] ?? 0.0), 2);
+            $montoSugerido = round((float) ($prod['monto_sugerido'] ?? $prod['monto_sugerido_bs'] ?? ($cantSugerida * $precioUnit)), 2);
+
             if ($cantSugerida > 0) {
-                $precioUnit = round((float) ($prod['precio_unitario'] ?? $prod['precio_ultima_compra'] ?? 0.0), 2);
-                $montoSugerido = round((float) ($prod['monto_sugerido'] ?? $prod['monto_sugerido_bs'] ?? ($cantSugerida * $precioUnit)), 2);
-
-                $sugeridos[] = [
-                    'codigo' => (string) ($prod['codigo'] ?? ''),
-                    'producto' => (string) ($prod['producto'] ?? ''),
-                    'jerarquia_1' => (string) ($prod['jerarquia1'] ?? ''),
-                    'cant_sugerida' => $cantSugerida,
-                    'compro_mes_actual' => (bool) ($prod['compro_mes_actual'] ?? false),
-                    'cantidad_comprada_mes_actual' => (int) ($prod['total_cantidad_mes_actual'] ?? 0),
-                ];
-
+                $skusConSugerido++;
                 $totalSugeridoBs += $montoSugerido;
             }
+
+            $sugeridos[] = [
+                'codigo' => (string) ($prod['codigo'] ?? ''),
+                'producto' => (string) ($prod['producto'] ?? ''),
+                'jerarquia_1' => (string) ($prod['jerarquia1'] ?? ''),
+                'cant_sugerida' => $cantSugerida,
+                'compro_mes_actual' => (bool) ($prod['compro_mes_actual'] ?? false),
+                'cantidad_comprada_mes_actual' => $cantMtd,
+            ];
         }
+
+        $totalSugeridoFinal = ($totalSugeridoRuta > 0.0)
+            ? $totalSugeridoRuta
+            : (float) ($detalle['resumen_cobertura']['total_monto_sugerido_bs'] ?? $totalSugeridoBs);
 
         return response()->json([
             'status' => 'success',
@@ -204,8 +205,9 @@ class VisitaController extends Controller
             'cliente_id' => $cid,
             'ruta' => $rutaClean,
             'dia_visita' => $diaVisita ?: 'Sin Día',
-            'total_sugerido' => round($totalSugeridoBs, 2),
-            'total_skus_sugeridos' => count($sugeridos),
+            'total_sugerido' => round($totalSugeridoFinal, 2),
+            'total_skus_sugeridos' => $skusConSugerido > 0 ? $skusConSugerido : count($sugeridos),
+            'total_skus' => count($sugeridos),
             'sugeridos' => $sugeridos,
         ], 200);
     }
