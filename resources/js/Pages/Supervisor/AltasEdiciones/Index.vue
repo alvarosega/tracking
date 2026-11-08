@@ -491,6 +491,221 @@
                 </div>
               </div>
 
+              <!-- SECCIÓN ESTRELLA: DATOS DE ALTA LISTOS PARA COPIAR CON 1 CLIC -->
+              <div class="bg-gradient-to-br from-[#F0F7FF] via-white to-[#F5F5F7] border border-[#0071E3]/25 rounded-[12px] p-3 shadow-xs space-y-2.5 font-sans">
+                <!-- Encabezado de la tarjeta con acciones rápidas -->
+                <div class="flex items-center justify-between gap-2 pb-2 border-b border-[#0071E3]/15">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="w-2 h-2 rounded-full bg-[#0071E3] shrink-0 animate-pulse"></span>
+                    <span class="text-[11px] font-bold text-[#1D1D1F] uppercase tracking-wider truncate">
+                      Datos de Alta · Copiado Rápido
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      @click="copiarFilaExcel(registroSeleccionado)"
+                      class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 active:scale-95 select-none"
+                      :class="campoCopiado === 'excel' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs'"
+                      title="Copiar los 6 campos en formato tabulado (1 fila para pegar directo en Excel / Sheets)"
+                    >
+                      <svg v-if="campoCopiado === 'excel'" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                      <span v-else class="text-[10px]">📋</span>
+                      <span>{{ campoCopiado === 'excel' ? '¡Copiado p/ Excel!' : 'Fila Excel' }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      @click="copiarFichaCompleta(registroSeleccionado)"
+                      class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 active:scale-95 select-none"
+                      :class="campoCopiado === 'todo' ? 'bg-[#248A3D] text-white border-[#248A3D]' : 'bg-[#0071E3] text-white hover:bg-[#005BB5] border-[#0071E3] shadow-2xs'"
+                      title="Copiar todos los datos en lista con etiquetas"
+                    >
+                      <svg v-if="campoCopiado === 'todo'" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                      <span>{{ campoCopiado === 'todo' ? '¡Ficha Copiada!' : 'Copiar Todo' }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p class="text-[10px] text-[#6E6E73] leading-tight">
+                  Haz clic sobre cualquier campo para copiar su valor limpio al portapapeles y pegarlo fácilmente:
+                </p>
+
+                <!-- Cuadrícula interactiva con los 6 campos -->
+                <div class="space-y-1.5">
+                  <!-- 1. Nombre Completo -->
+                  <div
+                    @click="copiarAlPortapapeles(registroSeleccionado.cliente, 'nombre', 'Nombre Completo')"
+                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                    :class="campoCopiado === 'nombre' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                    title="Clic para copiar Nombre Completo"
+                  >
+                    <div class="min-w-0 flex-1 pr-2">
+                      <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">1. Nombre Completo</span>
+                      <span class="text-[12px] font-bold text-[#1D1D1F] truncate block">
+                        {{ registroSeleccionado.cliente || 'Sin nombre' }}
+                      </span>
+                    </div>
+                    <div class="shrink-0 flex items-center gap-1">
+                      <span v-if="campoCopiado === 'nombre'" class="text-[10px] font-bold text-[#248A3D]">¡Copiado!</span>
+                      <span
+                        class="w-6 h-6 rounded-[6px] flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'nombre' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'nombre'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 2. Razón Social -->
+                  <div
+                    @click="copiarAlPortapapeles(registroSeleccionado.nombre_factura || registroSeleccionado.razon_social || registroSeleccionado.cliente, 'razon_social', 'Razón Social')"
+                    class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                    :class="campoCopiado === 'razon_social' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                    title="Clic para copiar Razón Social"
+                  >
+                    <div class="min-w-0 flex-1 pr-2">
+                      <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">2. Razón Social</span>
+                      <span class="text-[11px] font-bold text-[#1D1D1F] truncate block">
+                        {{ registroSeleccionado.nombre_factura || registroSeleccionado.razon_social || registroSeleccionado.cliente || 'Sin razón social' }}
+                      </span>
+                    </div>
+                    <div class="shrink-0 flex items-center gap-1">
+                      <span v-if="campoCopiado === 'razon_social'" class="text-[10px] font-bold text-[#248A3D]">¡Copiado!</span>
+                      <span
+                        class="w-6 h-6 rounded-[6px] flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'razon_social' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'razon_social'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Fila doble: Carnet/NIT y Celular/Teléfono -->
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <!-- 3. Carnet o NIT -->
+                    <div
+                      @click="copiarAlPortapapeles(registroSeleccionado.nit, 'nit', 'Carnet o NIT')"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                      :class="campoCopiado === 'nit' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      title="Clic para copiar Carnet o NIT"
+                    >
+                      <div class="min-w-0 flex-1 pr-1.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">3. Carnet / NIT</span>
+                        <span class="text-[11px] font-mono font-bold truncate block" :class="registroSeleccionado.nit ? 'text-[#1D1D1F]' : 'text-[#86868B] italic'">
+                          {{ registroSeleccionado.nit || 'Sin NIT/CI' }}
+                        </span>
+                      </div>
+                      <span
+                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'nit' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'nit'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+
+                    <!-- 4. Celular o Teléfono -->
+                    <div
+                      @click="copiarAlPortapapeles(registroSeleccionado.celular || registroSeleccionado.telefono, 'telefono', 'Celular o Teléfono')"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                      :class="campoCopiado === 'telefono' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      title="Clic para copiar Celular o Teléfono"
+                    >
+                      <div class="min-w-0 flex-1 pr-1.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">4. Celular / Teléfono</span>
+                        <span class="text-[11px] font-mono font-bold truncate block" :class="(registroSeleccionado.celular || registroSeleccionado.telefono) ? 'text-[#0071E3]' : 'text-[#86868B] italic'">
+                          {{ registroSeleccionado.celular || registroSeleccionado.telefono || 'Sin teléfono' }}
+                        </span>
+                      </div>
+                      <span
+                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'telefono' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'telefono'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Fila doble: Latitud y Longitud -->
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <!-- 5. Latitud -->
+                    <div
+                      @click="copiarAlPortapapeles(registroSeleccionado.latitud, 'latitud', 'Latitud')"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                      :class="campoCopiado === 'latitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      title="Clic para copiar Latitud exacta"
+                    >
+                      <div class="min-w-0 flex-1 pr-1.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">5. Latitud</span>
+                        <span class="text-[11px] font-mono font-bold truncate block text-[#1D1D1F]">
+                          {{ (registroSeleccionado.latitud !== null && registroSeleccionado.latitud !== undefined && registroSeleccionado.latitud !== '') ? registroSeleccionado.latitud : 'Sin GPS' }}
+                        </span>
+                      </div>
+                      <span
+                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'latitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'latitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+
+                    <!-- 6. Longitud -->
+                    <div
+                      @click="copiarAlPortapapeles(registroSeleccionado.longitud, 'longitud', 'Longitud')"
+                      class="group flex items-center justify-between p-2 rounded-[8px] bg-white border transition-all cursor-pointer select-none hover:shadow-xs active:scale-[0.99]"
+                      :class="campoCopiado === 'longitud' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA] hover:border-[#0071E3] hover:bg-blue-50/30'"
+                      title="Clic para copiar Longitud exacta"
+                    >
+                      <div class="min-w-0 flex-1 pr-1.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider block text-[#86868B]">6. Longitud</span>
+                        <span class="text-[11px] font-mono font-bold truncate block text-[#1D1D1F]">
+                          {{ (registroSeleccionado.longitud !== null && registroSeleccionado.longitud !== undefined && registroSeleccionado.longitud !== '') ? registroSeleccionado.longitud : 'Sin GPS' }}
+                        </span>
+                      </div>
+                      <span
+                        class="w-5 h-5 rounded-[5px] shrink-0 flex items-center justify-center transition-colors shadow-2xs"
+                        :class="campoCopiado === 'longitud' ? 'bg-[#248A3D] text-white' : 'bg-[#F2F2F7] text-[#6E6E73] group-hover:bg-[#0071E3] group-hover:text-white'"
+                      >
+                        <svg v-if="campoCopiado === 'longitud'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- 1. Datos Maestros de Identificación -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
@@ -2252,6 +2467,75 @@ function mostrarToast(msg) {
   setTimeout(() => {
     toastMensaje.value = '';
   }, 4500);
+}
+
+// Copiado rápido al portapapeles
+const campoCopiado = ref(null);
+let timeoutCopiado = null;
+
+async function copiarAlPortapapeles(texto, idCampo, label = '') {
+  if (texto === null || texto === undefined) return;
+  const valor = String(texto).trim();
+  if (!valor || valor === 'No registrado' || valor === 'Sin registrar' || valor === 'Sin GPS' || valor === 'Sin NIT/CI' || valor === 'Sin teléfono') return;
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(valor);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = valor;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+
+    campoCopiado.value = idCampo || valor;
+    if (timeoutCopiado) clearTimeout(timeoutCopiado);
+    timeoutCopiado = setTimeout(() => {
+      campoCopiado.value = null;
+    }, 2000);
+
+    mostrarToast(`Copiado al portapapeles: ${label || idCampo || valor}`);
+  } catch (err) {
+    console.error('Error al copiar al portapapeles:', err);
+  }
+}
+
+async function copiarFichaCompleta(registro) {
+  if (!registro) return;
+  const nombre = registro.cliente || '';
+  const nit = registro.nit || '';
+  const telefono = registro.celular || registro.telefono || '';
+  const razonSocial = registro.nombre_factura || registro.razon_social || registro.cliente || '';
+  const lat = (registro.latitud !== null && registro.latitud !== undefined && registro.latitud !== '') ? registro.latitud : '';
+  const lng = (registro.longitud !== null && registro.longitud !== undefined && registro.longitud !== '') ? registro.longitud : '';
+
+  const texto = [
+    `Nombre: ${nombre}`,
+    `Carnet / NIT: ${nit}`,
+    `Celular / Teléfono: ${telefono}`,
+    `Razón Social: ${razonSocial}`,
+    `Latitud: ${lat}`,
+    `Longitud: ${lng}`,
+  ].join('\n');
+
+  await copiarAlPortapapeles(texto, 'todo', 'Ficha Completa');
+}
+
+async function copiarFilaExcel(registro) {
+  if (!registro) return;
+  const nombre = registro.cliente || '';
+  const nit = registro.nit || '';
+  const telefono = registro.celular || registro.telefono || '';
+  const razonSocial = registro.nombre_factura || registro.razon_social || registro.cliente || '';
+  const lat = (registro.latitud !== null && registro.latitud !== undefined && registro.latitud !== '') ? registro.latitud : '';
+  const lng = (registro.longitud !== null && registro.longitud !== undefined && registro.longitud !== '') ? registro.longitud : '';
+
+  const tsv = `${nombre}\t${nit}\t${telefono}\t${razonSocial}\t${lat}\t${lng}`;
+  await copiarAlPortapapeles(tsv, 'excel', 'Fila para Excel (Tabulada)');
 }
 
 const cargandoCercanos = ref(false);
