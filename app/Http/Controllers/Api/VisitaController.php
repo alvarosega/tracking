@@ -98,9 +98,9 @@ class VisitaController extends Controller
         }
         $rutaClean = !empty($rutaReq) ? strtoupper(trim((string) $rutaReq)) : ($rutaOficial ?: '');
 
-        // 2. Parámetros de filtro idénticos al módulo Web
+        // 2. Parámetros de filtro por defecto: ventana 3 meses, frecuencia 1, cantidad mínima 4 para Cobertura Core
         $kpiClave = (string) ($request->input('kpi') ?: 'cob_core');
-        $defaultFrec = ($kpiClave === 'cob_core') ? 2 : 1;
+        $defaultFrec = 1;
         $defaultCant = ($kpiClave === 'cob_core') ? 4 : ($request->input('omitir_unitarios_3m') ? 2 : 1);
         $cantidadMinima = max(1, (int) ($request->input('cantidad_minima') ?: $defaultCant));
         $frecuenciaMinima = max(1, (int) ($request->input('frecuencia_minima') ?: $defaultFrec));

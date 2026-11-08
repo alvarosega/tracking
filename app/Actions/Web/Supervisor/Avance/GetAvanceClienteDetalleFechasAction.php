@@ -50,13 +50,7 @@ class GetAvanceClienteDetalleFechasAction
         $rutaClean = strtoupper(trim($ruta));
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
-        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
-
-        // Estándar oficial de Cobertura Core: frecuencia mínima 2 meses y cantidad mínima 4 unidades
-        if ($kpiClave === 'cob_core') {
-            $frecuenciaMinima = $frecuenciaMinima > 1 ? $frecuenciaMinima : 2;
-            $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 4);
-        }
+        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : ($kpiClave === 'cob_core' ? 4 : 1));
 
         @ini_set('memory_limit', '512M');
 
