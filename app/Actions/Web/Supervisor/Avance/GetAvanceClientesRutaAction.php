@@ -382,6 +382,8 @@ class GetAvanceClientesRutaAction
                     $clienteProdsMap[$cId][$pKey] = [
                         'producto' => $prodNombre ?: $cod,
                         'codigo' => $cod,
+                        'categoria' => $cat,
+                        'jerarquia3' => $j3,
                         'cantidad_3m' => 0,
                         'precio_ultima_compra' => 0.0,
                         'fecha_precio' => null,
@@ -543,9 +545,14 @@ class GetAvanceClientesRutaAction
                         $habitualesCli[$pKey] = [
                             'pKey' => $pKey,
                             'pData' => $pData,
+                            'producto' => $pData['producto'] ?? $pKey,
+                            'codigo_producto' => $pData['codigo'] ?? '',
+                            'categoria' => $pData['categoria'] ?? 'GENERAL',
                             'precio' => $pUlt,
                             'total_bs_3m' => round($c3m * $pUlt, 2),
                             'cantidad_3m' => $c3m,
+                            'frecuencia_compra' => max(1, count($pData['fechas'] ?? [])),
+                            'tipo_origen' => 'HABITO_CLIENTE',
                         ];
                     }
                 }
@@ -617,11 +624,16 @@ class GetAvanceClientesRutaAction
                         $habitualesCli[$pk] = [
                             'pKey' => $pk,
                             'pData' => $cHist['pData'],
+                            'producto' => $cHist['pData']['producto'] ?? $pk,
+                            'codigo_producto' => $cHist['pData']['codigo'] ?? '',
+                            'categoria' => $cHist['pData']['categoria'] ?? 'GENERAL',
                             'precio' => $pUlt,
                             'total_bs_3m' => $cHist['total_bs_3m'],
                             'cantidad_3m' => $cHist['cantidad_3m'],
+                            'frecuencia_compra' => max(1, count($cHist['pData']['fechas'] ?? [])),
                             'cant_sugerida' => $cantNueva,
                             'monto_sugerido' => $montoNuevo,
+                            'tipo_origen' => 'HISTORIAL_CLIENTE',
                         ];
                         $subtotalBase = round($subtotalBase + $montoNuevo, 2);
                     }
@@ -649,12 +661,17 @@ class GetAvanceClientesRutaAction
                                 'producto' => $pItem['producto'],
                                 'codigo' => $pItem['codigo'],
                             ],
+                            'producto' => $pItem['producto'],
+                            'codigo_producto' => $pItem['codigo'],
+                            'categoria' => $pItem['categoria'] ?? 'GENERAL',
                             'precio' => $pUlt,
                             'total_bs_3m' => 0.0,
                             'cantidad_3m' => 0,
+                            'frecuencia_compra' => 1,
                             'cant_sugerida' => $cantNueva,
                             'monto_sugerido' => $montoNuevo,
                             'es_core_pareto' => true,
+                            'tipo_origen' => 'PARETO_RUTA',
                         ];
                         $subtotalBase = round($subtotalBase + $montoNuevo, 2);
                     }
@@ -857,6 +874,7 @@ class GetAvanceClientesRutaAction
                 'estado_desarrollo' => $estadoDesarrolloClienteMap[$cid] ?? ($totalSugeridoCli > 0 ? 'consolidado' : 'pendiente_desarrollo'),
                 'meses_con_compra' => $mesesConCompra,
                 'tiene_historico' => ($totalCli3m > 0),
+                'sugeridos' => array_values($sugeridosPorClienteMap[$cid] ?? []),
             ];
         }
 
@@ -942,6 +960,7 @@ class GetAvanceClientesRutaAction
             ],
             'clientes' => $clientesLista,
             'por_dia' => $diasOrdenados,
+            'sugeridos_por_cliente' => $sugeridosPorClienteMap ?? [],
             'resumen' => [
                 'total_cartera' => count($cartera),
                 'compradores_unicos' => count(array_filter($clientesLista, fn ($c) => $c['tiene_logro'])),
