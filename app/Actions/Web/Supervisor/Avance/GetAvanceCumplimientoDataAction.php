@@ -67,7 +67,7 @@ class GetAvanceCumplimientoDataAction
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : ($kpiClave === 'cob_core' ? 4 : 1));
 
-        @ini_set('memory_limit', '512M');
+        @ini_set('memory_limit', '1024M');
 
         // 1. Fechas y Días Hábiles
         if (!$fechaCorte) {
@@ -512,7 +512,16 @@ class GetAvanceCumplimientoDataAction
                     $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
                 });
 
-            $oficialCids = array_values(array_filter(array_keys($clienteRutaOficialMap), fn ($id) => is_numeric($id) && (int) $id > 0));
+            $oficialCids = [];
+            foreach ($universoRutas as $rU) {
+                if (!empty($carteraClientesPorRuta[$rU])) {
+                    foreach (array_keys($carteraClientesPorRuta[$rU]) as $cU) {
+                        $oficialCids[(int) $cU] = true;
+                    }
+                }
+            }
+            $oficialCids = array_keys($oficialCids);
+
             if (!empty($oficialCids)) {
                 $sugQuery->whereIn('cliente_id', $oficialCids);
             }
@@ -521,105 +530,95 @@ class GetAvanceCumplimientoDataAction
                 ->select([
                     'cliente_id',
                     DB::raw("TRIM(codigo) as codigo"),
-                    DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
-                    DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
-                    DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
-                    DB::raw("COALESCE(cantidad, 0) as cantidad"),
-                    DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
-                    DB::raw("COALESCE(nro_factura, '') as nro_factura"),
+                    DB::raw("MAX(COALESCE(producto, 'Sin descripción')) as producto"),
+                    DB::raw("SUM(CASE WHEN fecha_norm <= '{$histFin}' THEN cantidad ELSE 0 END) as cantidad_3m"),
+                    DB::raw("SUM(CASE WHEN fecha_norm <= '{$histFin}' THEN monto_final ELSE 0.0 END) as monto_3m"),
+                    DB::raw("COUNT(DISTINCT CASE WHEN fecha_norm <= '{$histFin}' THEN DATE_FORMAT(fecha_norm, '%Y-%m') ELSE NULL END) as meses_count"),
+                    DB::raw("MAX(CASE WHEN cantidad > 0 AND monto_final > 0 THEN ROUND(monto_final / cantidad, 2) ELSE 0.0 END) as precio_max"),
                 ])
-                ->orderBy('fecha_norm', 'desc')
+                ->groupBy('cliente_id', DB::raw("TRIM(codigo)"))
                 ->get();
 
             $clienteProdsMap = [];
-            $paretoRutasMap = [];
-
             foreach ($sugRaw as $row) {
                 $cId = (int) $row->cliente_id;
                 $prodNombre = trim((string) $row->producto);
                 $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $row->codigo);
-                $f = (string) $row->fecha;
-                $fact = (string) ($row->nro_factura ?? '');
                 $cod = trim((string) $row->codigo);
-                $cant = (int) $row->cantidad;
-                $monto = (float) $row->monto_final;
-                $es3m = ($f <= $histFin);
-
-                if (!isset($clienteProdsMap[$cId][$pKey])) {
-                    $clienteProdsMap[$cId][$pKey] = [
-                        'producto' => $prodNombre ?: $cod,
-                        'codigo' => $cod,
-                        'cantidad_3m' => 0,
-                        'precio_ultima_compra' => 0.0,
-                        'fechas' => [],
-                        'facturas' => [],
-                        'meses' => [],
-                    ];
+                $cant3m = (int) $row->cantidad_3m;
+                $monto3m = (float) $row->monto_3m;
+                $mesesCount = (int) $row->meses_count;
+                $pUlt = (float) $row->precio_max;
+                if ($pUlt <= 0.0 && $cant3m > 0 && $monto3m > 0) {
+                    $pUlt = round($monto3m / $cant3m, 2);
                 }
 
-                if ($es3m) {
-                    $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
-                    if ($f) {
-                        $clienteProdsMap[$cId][$pKey]['fechas'][$f] = true;
-                        $ym = substr($f, 0, 7);
-                        $clienteProdsMap[$cId][$pKey]['meses'][$ym] = true;
-                    }
-                    if ($fact !== '' && $fact !== 'S/F') {
-                        $clienteProdsMap[$cId][$pKey]['facturas'][$fact] = true;
-                    }
-                }
+                $clienteProdsMap[$cId][$pKey] = [
+                    'producto' => $prodNombre ?: $cod,
+                    'codigo' => $cod,
+                    'cantidad_3m' => $cant3m,
+                    'meses_count' => $mesesCount,
+                    'precio_ultima_compra' => $pUlt,
+                ];
+            }
+            unset($sugRaw);
 
-                if ($cant > 0 && $monto > 0) {
-                    if (($clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] ?? 0.0) === 0.0) {
-                        $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($monto / $cant, 2);
-                    }
-                }
+            // Pareto por ruta agrupado directamente en base de datos (alta eficiencia de memoria)
+            $paretoRutasMap = [];
+            $paretoQuery = DB::connection('supervisor')->table('fact_ventas')
+                ->where('fecha_norm', '>=', $histInicio)
+                ->where('fecha_norm', '<=', $histFin)
+                ->where('monto_final', '!=', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                });
 
-                if (!$es3m) {
-                    continue;
-                }
-
-                $rClean = $clienteRutaOficialMap[$cId] ?? null;
-                if ($rClean) {
-                    if (!isset($paretoRutasMap[$rClean][$pKey])) {
-                        $paretoRutasMap[$rClean][$pKey] = [
-                            'producto' => $prodNombre ?: $cod,
-                            'codigo' => $cod,
-                            'total_monto' => 0.0,
-                            'total_cantidad' => 0,
-                            'precio' => 0.0,
-                            'fechas' => [],
-                            'facturas' => [],
-                            'clientes' => [],
-                        ];
-                    }
-                    $paretoRutasMap[$rClean][$pKey]['total_monto'] += $monto;
-                    $paretoRutasMap[$rClean][$pKey]['total_cantidad'] += $cant;
-                    if ($f) {
-                        $paretoRutasMap[$rClean][$pKey]['fechas'][$f] = true;
-                    }
-                    if ($fact !== '' && $fact !== 'S/F') {
-                        $paretoRutasMap[$rClean][$pKey]['facturas'][$fact] = true;
-                    }
-                    if ($cId > 0) {
-                        $paretoRutasMap[$rClean][$pKey]['clientes'][$cId] = true;
-                    }
-                    if ($cant > 0 && $monto > 0 && ($paretoRutasMap[$rClean][$pKey]['precio'] ?? 0.0) === 0.0) {
-                        $paretoRutasMap[$rClean][$pKey]['precio'] = round($monto / $cant, 2);
-                    }
-                }
+            if (!empty($universoRutas)) {
+                $paretoQuery->whereIn('ruta', $universoRutas);
             }
 
-            // Ordenar Pareto de cada ruta por volumen de venta física (cantidad) y frecuencia descendente
-            foreach ($paretoRutasMap as $rK => &$itemsRuta) {
-                foreach ($itemsRuta as &$it) {
-                    if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
-                        $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
-                    }
-                    $it['frecuencia'] = max(count($it['fechas'] ?? []), count($it['facturas'] ?? []));
-                    $it['clientes_count'] = count($it['clientes'] ?? []);
+            $paretoRaw = $paretoQuery
+                ->select([
+                    'ruta',
+                    DB::raw("TRIM(codigo) as codigo"),
+                    DB::raw("MAX(COALESCE(producto, 'Sin descripción')) as producto"),
+                    DB::raw("SUM(cantidad) as total_cantidad"),
+                    DB::raw("SUM(monto_final) as total_monto"),
+                    DB::raw("COUNT(DISTINCT fecha_norm) as dias_frecuencia"),
+                    DB::raw("COUNT(DISTINCT cliente_id) as clientes_count"),
+                    DB::raw("MAX(CASE WHEN cantidad > 0 AND monto_final > 0 THEN ROUND(monto_final / cantidad, 2) ELSE 0.0 END) as precio_max"),
+                ])
+                ->groupBy('ruta', DB::raw("TRIM(codigo)"))
+                ->get();
+
+            foreach ($paretoRaw as $pRow) {
+                $rClean = trim((string) $pRow->ruta);
+                if ($rClean === '') {
+                    continue;
                 }
-                unset($it);
+                $prodNombre = trim((string) $pRow->producto);
+                $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $pRow->codigo);
+                $cod = trim((string) $pRow->codigo);
+                $cant = (int) $pRow->total_cantidad;
+                $monto = (float) $pRow->total_monto;
+                $pUnit = (float) $pRow->precio_max;
+                if ($pUnit <= 0.0 && $cant > 0 && $monto > 0) {
+                    $pUnit = round($monto / $cant, 2);
+                }
+
+                $paretoRutasMap[$rClean][$pKey] = [
+                    'producto' => $prodNombre ?: $cod,
+                    'codigo' => $cod,
+                    'total_monto' => $monto,
+                    'total_cantidad' => $cant,
+                    'precio' => $pUnit,
+                    'frecuencia' => (int) $pRow->dias_frecuencia,
+                    'clientes_count' => (int) $pRow->clientes_count,
+                ];
+            }
+            unset($paretoRaw);
+
+            foreach ($paretoRutasMap as $rK => &$itemsRuta) {
                 uasort($itemsRuta, function ($a, $b) {
                     if ($a['total_cantidad'] !== $b['total_cantidad']) {
                         return $b['total_cantidad'] <=> $a['total_cantidad'];
@@ -682,7 +681,7 @@ class GetAvanceCumplimientoDataAction
                     $habitualesCli = [];
                     foreach ($pList as $pKey => $pData) {
                         $c3m = (int) ($pData['cantidad_3m'] ?? 0);
-                        $mesesDistintos = count($pData['meses'] ?? []);
+                        $mesesDistintos = (int) ($pData['meses_count'] ?? count($pData['meses'] ?? []));
                         $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
                         if ($pUlt <= 0.0 && $c3m > 0) {
                             $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
