@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 class GetAvanceClientesRutaAction
 {
-    public function __construct(
-        private readonly GetAvanceCumplimientoDataAction $cumplimientoAction
-    ) {}
+    use AvanceMetricHelpersTrait;
+
+    public function __construct() {}
 
     /**
      * Obtiene el desglose auditado de una ruta: por clientes individuales y ventas por día acumuladas.
@@ -56,7 +56,7 @@ class GetAvanceClientesRutaAction
             $fechaInicio = $carbonCorte->copy()->startOfMonth()->format('Y-m-d');
         }
 
-        $mesesCerrados = $this->cumplimientoAction->obtenerMesesCerrados($carbonCorte, $mesesHistorico);
+        $mesesCerrados = $this->obtenerMesesCerrados($carbonCorte, $mesesHistorico);
         $cantMesesEval = max(1, count($mesesCerrados));
 
         // 1. Cartera Oficial desde pan_ruteo
@@ -160,7 +160,7 @@ class GetAvanceClientesRutaAction
             $cod = (string) $v->codigo;
             $cat = (string) $v->categoria;
 
-            if ($this->cumplimientoAction->aplicaTransaccion($kpiClave, $prod, $j3, $cod, $cat)) {
+            if ($this->aplicaTransaccion($kpiClave, $prod, $j3, $cod, $cat)) {
                 if (!isset($cartera[$cid])) {
                     $cartera[$cid] = [
                         'cliente_id' => $cid,
@@ -264,7 +264,7 @@ class GetAvanceClientesRutaAction
         }
 
         $mesYm = $carbonCorte->format('Y-m');
-        $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+        $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
         $cuotaObjetivoMap = [];
 
         if (!empty($carteraClientIds)) {
@@ -305,7 +305,7 @@ class GetAvanceClientesRutaAction
             }
 
             $mesYm = $carbonCorte->format('Y-m');
-            $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+            $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
 
             // Cuota objetivo por cliente:
             // Para Cobertura Core, algoritmo de balanceo iterativo (Waterfilling) con piso de 150 Bs
@@ -371,7 +371,7 @@ class GetAvanceClientesRutaAction
                 $j3 = (string) ($pr->jerarquia3 ?? '');
                 $cat = (string) ($pr->categoria ?? '');
 
-                if (!$this->cumplimientoAction->aplicaTransaccion($kpiClave, $prodNombre, $j3, $cod, $cat)) {
+                if (!$this->aplicaTransaccion($kpiClave, $prodNombre, $j3, $cod, $cat)) {
                     continue;
                 }
 
@@ -685,7 +685,7 @@ class GetAvanceClientesRutaAction
         } else {
             $totalRutaAcum3m = 0.0;
             $mesYm = $carbonCorte->format('Y-m');
-            $objetivoMensualRuta = $this->cumplimientoAction->obtenerMetaMesRuta($rutaClean, $mesYm);
+            $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
             $cuotaObjetivoMap = [];
             $estadoDesarrolloClienteMap = [];
             $brechaClienteMap = [];
