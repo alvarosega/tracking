@@ -65,7 +65,7 @@ class GetAvanceCumplimientoDataAction
         $modoTemporal = in_array(strtolower($modoTemporal), ['acumulado', 'diario'], true) ? strtolower($modoTemporal) : 'acumulado';
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
-        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : 1);
+        $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : ($kpiClave === 'cob_core' ? 4 : 1));
 
         @ini_set('memory_limit', '512M');
 
@@ -490,7 +490,7 @@ class GetAvanceCumplimientoDataAction
             foreach ($ventasRaw as $v) {
                 $rc = (string) $v->ruta_clean;
                 $cid = (int) $v->cliente_id;
-                if ($cid > 0 && $rc !== '' && empty($carteraClientesPorRuta[$rc])) {
+                if ($cid > 0 && $rc !== '') {
                     $carteraClientesPorRuta[$rc][$cid] = true;
                 }
             }
@@ -521,55 +521,116 @@ class GetAvanceCumplimientoDataAction
                 ->select([
                     'cliente_id',
                     DB::raw("TRIM(codigo) as codigo"),
-                    DB::raw("COALESCE(producto, '') as producto"),
+                    DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
                     DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                     DB::raw("DATE_FORMAT(fecha_norm, '%Y-%m') as mes_ym"),
                     DB::raw("COALESCE(cantidad, 0) as cantidad"),
                     DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
+                    DB::raw("COALESCE(nro_factura, '') as nro_factura"),
                 ])
                 ->orderBy('fecha_norm', 'desc')
                 ->get();
 
             $clienteProdsMap = [];
+            $paretoRutasMap = [];
+
             foreach ($sugRaw as $row) {
                 $cId = (int) $row->cliente_id;
                 $prodNombre = trim((string) $row->producto);
                 $pKey = $prodNombre !== '' ? mb_strtoupper($prodNombre) : trim((string) $row->codigo);
                 $f = (string) $row->fecha;
+                $fact = (string) ($row->nro_factura ?? '');
+                $cod = trim((string) $row->codigo);
+                $cant = (int) $row->cantidad;
+                $monto = (float) $row->monto_final;
                 $es3m = ($f <= $histFin);
 
                 if (!isset($clienteProdsMap[$cId][$pKey])) {
                     $clienteProdsMap[$cId][$pKey] = [
-                        'codigo' => trim((string) $row->codigo),
+                        'producto' => $prodNombre ?: $cod,
+                        'codigo' => $cod,
                         'cantidad_3m' => 0,
                         'precio_ultima_compra' => 0.0,
+                        'fechas' => [],
+                        'facturas' => [],
                         'meses' => [],
                     ];
                 }
 
                 if ($es3m) {
-                    $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += (int) $row->cantidad;
-                    $mYm = (string) $row->mes_ym;
-                    if ($mYm) {
-                        $clienteProdsMap[$cId][$pKey]['meses'][$mYm] = true;
+                    $clienteProdsMap[$cId][$pKey]['cantidad_3m'] += $cant;
+                    if ($f) {
+                        $clienteProdsMap[$cId][$pKey]['fechas'][$f] = true;
+                        $ym = substr($f, 0, 7);
+                        $clienteProdsMap[$cId][$pKey]['meses'][$ym] = true;
+                    }
+                    if ($fact !== '' && $fact !== 'S/F') {
+                        $clienteProdsMap[$cId][$pKey]['facturas'][$fact] = true;
                     }
                 }
 
-                if ($clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] === 0.0 && $row->cantidad > 0 && $row->monto_final > 0) {
-                    $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($row->monto_final / $row->cantidad, 2);
+                if ($cant > 0 && $monto > 0) {
+                    if (($clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] ?? 0.0) === 0.0) {
+                        $clienteProdsMap[$cId][$pKey]['precio_ultima_compra'] = round($monto / $cant, 2);
+                    }
                 }
-            }
 
-            // Catálogo general de precios por producto (fallback pareto)
-            $paretoPreciosRuta = [];
-            foreach ($sugRaw as $row) {
-                if ($row->cantidad > 0 && $row->monto_final > 0) {
-                    $pKey = trim((string) $row->producto) !== '' ? mb_strtoupper(trim((string) $row->producto)) : trim((string) $row->codigo);
-                    if (!isset($paretoPreciosRuta[$pKey])) {
-                        $paretoPreciosRuta[$pKey] = round($row->monto_final / $row->cantidad, 2);
+                if (!$es3m) {
+                    continue;
+                }
+
+                $rClean = $clienteRutaOficialMap[$cId] ?? null;
+                if ($rClean) {
+                    if (!isset($paretoRutasMap[$rClean][$pKey])) {
+                        $paretoRutasMap[$rClean][$pKey] = [
+                            'producto' => $prodNombre ?: $cod,
+                            'codigo' => $cod,
+                            'total_monto' => 0.0,
+                            'total_cantidad' => 0,
+                            'precio' => 0.0,
+                            'fechas' => [],
+                            'facturas' => [],
+                            'clientes' => [],
+                        ];
+                    }
+                    $paretoRutasMap[$rClean][$pKey]['total_monto'] += $monto;
+                    $paretoRutasMap[$rClean][$pKey]['total_cantidad'] += $cant;
+                    if ($f) {
+                        $paretoRutasMap[$rClean][$pKey]['fechas'][$f] = true;
+                    }
+                    if ($fact !== '' && $fact !== 'S/F') {
+                        $paretoRutasMap[$rClean][$pKey]['facturas'][$fact] = true;
+                    }
+                    if ($cId > 0) {
+                        $paretoRutasMap[$rClean][$pKey]['clientes'][$cId] = true;
+                    }
+                    if ($cant > 0 && $monto > 0 && ($paretoRutasMap[$rClean][$pKey]['precio'] ?? 0.0) === 0.0) {
+                        $paretoRutasMap[$rClean][$pKey]['precio'] = round($monto / $cant, 2);
                     }
                 }
             }
+
+            // Ordenar Pareto de cada ruta por volumen de venta física (cantidad) y frecuencia descendente
+            foreach ($paretoRutasMap as $rK => &$itemsRuta) {
+                foreach ($itemsRuta as &$it) {
+                    if (($it['precio'] ?? 0) <= 0 && $it['total_cantidad'] > 0 && $it['total_monto'] > 0) {
+                        $it['precio'] = round($it['total_monto'] / $it['total_cantidad'], 2);
+                    }
+                    $it['frecuencia'] = max(count($it['fechas'] ?? []), count($it['facturas'] ?? []));
+                    $it['clientes_count'] = count($it['clientes'] ?? []);
+                }
+                unset($it);
+                uasort($itemsRuta, function ($a, $b) {
+                    if ($a['total_cantidad'] !== $b['total_cantidad']) {
+                        return $b['total_cantidad'] <=> $a['total_cantidad'];
+                    }
+                    if ($a['frecuencia'] !== $b['frecuencia']) {
+                        return $b['frecuencia'] <=> $a['frecuencia'];
+                    }
+                    return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
+                });
+            }
+            unset($itemsRuta);
 
             // Mapeo de ventas MTD (período actual) por cliente y SKU para cálculo de match con pedido sugerido
             $mtdClientSalesMap = [];
@@ -608,50 +669,50 @@ class GetAvanceCumplimientoDataAction
                 }
 
                 $cuotasMap = $this->asignarCuotasMensualesPorCliente($objetivoRuta, 150.0, $ventasHistRuta);
+                $paretoRuta = $paretoRutasMap[$r] ?? [];
 
                 $totalSugeridoRuta = 0.0;
                 $totalVentaMtdRuta = 0.0;
+
                 foreach ($clientesRuta as $cid) {
                     $pList = $clienteProdsMap[$cid] ?? [];
                     $cuotaCli = (float) ($cuotasMap[$cid] ?? 150.0);
 
-                    // Identificar SKUs habituales del cliente según filtros superiores
+                    // 1. Identificar SKUs habituales del cliente según filtros superiores
                     $habitualesCli = [];
                     foreach ($pList as $pKey => $pData) {
                         $c3m = (int) ($pData['cantidad_3m'] ?? 0);
                         $mesesDistintos = count($pData['meses'] ?? []);
                         $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
                         if ($pUlt <= 0.0 && $c3m > 0) {
-                            $pUlt = (float) ($paretoPreciosRuta[$pKey] ?? 0.0);
+                            $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
                         }
 
                         if ($mesesDistintos >= $frecuenciaMinima && $c3m >= $cantidadMinima && $pUlt > 0.0) {
                             $habitualesCli[$pKey] = [
                                 'pKey' => $pKey,
-                                'codigo' => $pData['codigo'] ?? '',
+                                'pData' => $pData,
                                 'precio' => $pUlt,
                                 'total_bs_3m' => round($c3m * $pUlt, 2),
+                                'cantidad_3m' => $c3m,
                             ];
                         }
-                    }
-
-                    if (empty($habitualesCli)) {
-                        // Pendiente de desarrollo: cuota pendiente, sugerido 0, venta MTD match 0
-                        continue;
                     }
 
                     // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
                     $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs_3m'));
                     uasort($habitualesCli, fn ($a, $b) => ($b['total_bs_3m'] ?? 0.0) <=> ($a['total_bs_3m'] ?? 0.0));
 
-                    // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base (M_j = 1)
+                    // PASO 2 y 3: Asignación base respetando TECHO HISTÓRICO estricto
                     $subtotalBase = 0.0;
                     foreach ($habitualesCli as $pk => &$hInfo) {
                         $mix_j = $ventaTotalHabitual > 0 ? ($hInfo['total_bs_3m'] / $ventaTotalHabitual) : (1.0 / count($habitualesCli));
                         $presupuestoTeorico_j = $cuotaCli * $mix_j;
                         $pj = $hInfo['precio'];
 
-                        $cantBase = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                        $c3m = (int) ($hInfo['cantidad_3m'] ?? 0);
+                        $cantCalculada = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                        $cantBase = ($c3m > 0) ? min($cantCalculada, $c3m) : $cantCalculada;
                         $montoBase = round($cantBase * $pj, 2);
 
                         $hInfo['cant_sugerida'] = $cantBase;
@@ -660,20 +721,88 @@ class GetAvanceCumplimientoDataAction
                     }
                     unset($hInfo);
 
-                    // PASO 4: Evaluación de brecha residual
-                    $brecha = round($cuotaCli - $subtotalBase, 2);
-
-                    // PASO 5: Nivelación por Criterio Comercial (Sumar unidades al SKU #1)
-                    if ($brecha > 0) {
-                        $topKey = array_key_first($habitualesCli);
-                        $p1 = $habitualesCli[$topKey]['precio'];
-                        if ($p1 <= 0.0) {
-                            $p1 = 1.0;
+                    // PASO 4: Si subtotalBase < cuotaCli (queda brecha):
+                    // Prioridad 1: Productos que el cliente ya conoce (historial no habitual del cliente, a 4 unidades fijas)
+                    if ($subtotalBase < $cuotaCli) {
+                        $candidatosHist = [];
+                        foreach ($pList as $pKey => $pData) {
+                            if (!isset($habitualesCli[$pKey])) {
+                                $c3m = (int) ($pData['cantidad_3m'] ?? 0);
+                                $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
+                                if ($pUlt <= 0.0 && $c3m > 0) {
+                                    $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
+                                }
+                                if ($c3m > 0 && $pUlt > 0.0) {
+                                    $candidatosHist[] = [
+                                        'pKey' => $pKey,
+                                        'pData' => $pData,
+                                        'precio' => $pUlt,
+                                        'cantidad_3m' => $c3m,
+                                        'total_bs_3m' => round($c3m * $pUlt, 2),
+                                    ];
+                                }
+                            }
                         }
-                        $unidadesExtra = (int) ceil($brecha / $p1);
-                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
-                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
-                        $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
+                        usort($candidatosHist, function ($a, $b) {
+                            if ($a['cantidad_3m'] !== $b['cantidad_3m']) {
+                                return $b['cantidad_3m'] <=> $a['cantidad_3m'];
+                            }
+                            return $b['total_bs_3m'] <=> $a['total_bs_3m'];
+                        });
+
+                        foreach ($candidatosHist as $cHist) {
+                            if ($subtotalBase >= $cuotaCli) {
+                                break;
+                            }
+                            $pk = $cHist['pKey'];
+                            $pUlt = $cHist['precio'];
+                            $cantNueva = 4;
+                            $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                            $habitualesCli[$pk] = [
+                                'pKey' => $pk,
+                                'pData' => $cHist['pData'],
+                                'precio' => $pUlt,
+                                'total_bs_3m' => $cHist['total_bs_3m'],
+                                'cantidad_3m' => $cHist['cantidad_3m'],
+                                'cant_sugerida' => $cantNueva,
+                                'monto_sugerido' => $montoNuevo,
+                            ];
+                            $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                        }
+                    }
+
+                    // Prioridad 2: Si aún queda brecha, completar con catálogo Pareto de la ruta (a 4 unidades fijas)
+                    if ($subtotalBase < $cuotaCli && !empty($paretoRuta)) {
+                        foreach ($paretoRuta as $pKey => $pItem) {
+                            if ($subtotalBase >= $cuotaCli) {
+                                break;
+                            }
+                            if (isset($habitualesCli[$pKey])) {
+                                continue;
+                            }
+                            $pUlt = (float) ($pItem['precio'] ?? 0.0);
+                            if ($pUlt <= 0.0) {
+                                continue;
+                            }
+                            $cantNueva = 4;
+                            $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                            $habitualesCli[$pKey] = [
+                                'pKey' => $pKey,
+                                'pData' => [
+                                    'producto' => $pItem['producto'],
+                                    'codigo' => $pItem['codigo'],
+                                ],
+                                'precio' => $pUlt,
+                                'total_bs_3m' => 0.0,
+                                'cantidad_3m' => 0,
+                                'cant_sugerida' => $cantNueva,
+                                'monto_sugerido' => $montoNuevo,
+                                'es_core_pareto' => true,
+                            ];
+                            $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                        }
                     }
 
                     $totalSugeridoRuta = round($totalSugeridoRuta + $subtotalBase, 2);
@@ -687,7 +816,7 @@ class GetAvanceCumplimientoDataAction
                         }
 
                         $montoCompradoSku = $mtdClientSalesMap[$cid][$pk] ?? 0.0;
-                        $cod = $hInfo['codigo'] ?? '';
+                        $cod = $hInfo['pData']['codigo'] ?? ($hInfo['codigo'] ?? '');
                         if ($montoCompradoSku <= 0.0 && $cod !== '') {
                             $montoCompradoSku = $mtdClientCodSalesMap[$cid][$cod] ?? 0.0;
                         }
@@ -695,7 +824,7 @@ class GetAvanceCumplimientoDataAction
                         $montoMatchCli += min($montoCompradoSku, $montoSugSku);
                     }
 
-                    $totalVentaMtdRuta = round($totalVentaMtdRuta + $montoMatchCli, 2);
+                    $totalVentaMtdRuta = round($totalVentaMtdRuta + round($montoMatchCli, 2), 2);
                 }
 
                 $sugeridoRutasMap[$r] = $totalSugeridoRuta;

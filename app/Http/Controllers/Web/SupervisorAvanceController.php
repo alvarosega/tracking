@@ -69,7 +69,9 @@ class SupervisorAvanceController extends Controller
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
         $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
-        $cantidadMinima = max(1, (int) $request->input('cantidad_minima', $omitirUnitarios ? 2 : 1));
+        $cantidadMinima = $request->has('cantidad_minima')
+            ? max(1, (int) $request->input('cantidad_minima'))
+            : ($kpi === 'cob_core' ? 4 : ($omitirUnitarios ? 2 : 1));
 
         $data = $action->execute(
             vista: $vista,
@@ -100,7 +102,9 @@ class SupervisorAvanceController extends Controller
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
         $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
-        $cantidadMinima = max(1, (int) $request->input('cantidad_minima', $omitirUnitarios ? 2 : 1));
+        $cantidadMinima = $request->has('cantidad_minima')
+            ? max(1, (int) $request->input('cantidad_minima'))
+            : ($kpi === 'cob_core' ? 4 : ($omitirUnitarios ? 2 : 1));
 
         $data = $action->execute(
             ruta: $ruta,
@@ -129,7 +133,9 @@ class SupervisorAvanceController extends Controller
         $omitirUnitarios = filter_var($request->input('omitir_unitarios_3m', false), FILTER_VALIDATE_BOOLEAN);
         $mesesHistorico = max(1, min(8, (int) $request->input('meses_historico', 3)));
         $frecuenciaMinima = max(1, (int) $request->input('frecuencia_minima', 1));
-        $cantidadMinima = max(1, (int) $request->input('cantidad_minima', $omitirUnitarios ? 2 : 1));
+        $cantidadMinima = $request->has('cantidad_minima')
+            ? max(1, (int) $request->input('cantidad_minima'))
+            : ($kpi === 'cob_core' ? 4 : ($omitirUnitarios ? 2 : 1));
         $cuotaObjetivo = $request->has('cuota_objetivo') ? (float) $request->input('cuota_objetivo') : null;
         $diaVisita = $request->input('dia_visita') ? (string) $request->input('dia_visita') : null;
 
