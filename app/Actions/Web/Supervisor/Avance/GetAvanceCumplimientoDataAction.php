@@ -34,7 +34,7 @@ class GetAvanceCumplimientoDataAction
 
     public function __construct(
         private readonly GetAvanceInitDataAction $initAction,
-        private readonly GetAvancePizarraUnileverAction $pizarraAction
+        private readonly ?GetAvancePizarraUnileverAction $pizarraAction = null
     ) {}
 
     /**
@@ -90,7 +90,8 @@ class GetAvanceCumplimientoDataAction
 
         // Si se solicita el KPI 8 (Pizarra Unilever), delegar inmediatamente a GetAvancePizarraUnileverAction
         if ($vista === 'kpi' && $kpiClave === 'pizarra_unilever') {
-            $resultado = $this->pizarraAction->execute(
+            $pizarra = $this->pizarraAction ?? app(GetAvancePizarraUnileverAction::class);
+            $resultado = $pizarra->execute(
                 fechaInicio: $fechaInicio,
                 fechaCorte: $fechaCorte,
                 canales: $canales,

@@ -25,7 +25,6 @@ class GetCumplimientoDataAction
 
     public function __construct(
         private readonly GetCatalogoRutasAction $catalogoAction,
-        private readonly ?GetDetalleReposicionRutaAction $detalleReposicionAction = null,
     ) {}
 
     /**
