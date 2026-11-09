@@ -560,11 +560,14 @@ class GetCumplimientoDataAction
                 if ($a2 !== '') $planClientesKeys[$a2] = $cid;
             }
 
-            // Conteo de visitas únicas desde fact_visitas (exclusivamente)
+            // Conteo de visitas únicas integrando Web (fact_visitas) y App Móvil (visitas)
             $visitasDetallePorCliente = [];
             $visitadosPlanUnicos = [];
             $visitadosFueraPlanUnicos = [];
+            $visitadosWebUnicos = [];
+            $visitadosAppUnicos = [];
 
+            // 1. Visitas Web (fact_visitas)
             foreach ($visitasWebRuta as $vw) {
                 $n1 = $this->normalizarTexto((string) $vw->cliente);
                 $n2 = $this->normalizarTexto((string) $vw->cliente_norm);
@@ -589,6 +592,10 @@ class GetCumplimientoDataAction
                         'cliente_id' => $cId,
                         'cliente_nombre' => $vw->cliente ?? $keyNom,
                         'check_in' => $vw->check_in,
+                        'check_in_web' => $vw->check_in,
+                        'check_in_app' => null,
+                        'hora_web' => $vw->check_in,
+                        'hora_app' => null,
                         'check_out' => $vw->check_out ?? null,
                         'tiempo_pdv' => $vw->tiempo_pdv ?? null,
                         'origen' => 'WEB',
@@ -598,12 +605,64 @@ class GetCumplimientoDataAction
 
                 if ($cId !== null) {
                     $visitadosPlanUnicos[$cId] = true;
+                    $visitadosWebUnicos[$cId] = true;
                 } else {
                     $visitadosFueraPlanUnicos[$keyNom] = true;
                 }
             }
 
+            // 2. Visitas App Móvil (visitas)
+            foreach ($visitasMovilRuta as $vm) {
+                $cId = (int) ($vm->client_id ?? 0);
+                $hMovil = $this->extraerHoraString($vm->visited_at ?? null);
+                $hasPhoto = !empty($vm->photo_path);
+
+                if ($cId > 0) {
+                    $enPlan = $carteraPlanClientes->contains('cliente_id', $cId);
+                    $detalleKey = $cId;
+
+                    if ($enPlan) {
+                        $visitadosPlanUnicos[$cId] = true;
+                        $visitadosAppUnicos[$cId] = true;
+                    } else {
+                        $visitadosFueraPlanUnicos["vm_{$cId}"] = true;
+                    }
+                } else {
+                    $detalleKey = 'vm_' . $vm->id;
+                    $visitadosFueraPlanUnicos[$detalleKey] = true;
+                }
+
+                if (isset($visitasDetallePorCliente[$detalleKey])) {
+                    $visitasDetallePorCliente[$detalleKey]['origen'] = 'WEB+APP';
+                    $visitasDetallePorCliente[$detalleKey]['check_in_app'] = $hMovil;
+                    $visitasDetallePorCliente[$detalleKey]['hora_app'] = $hMovil;
+                    if ($hasPhoto) {
+                        $visitasDetallePorCliente[$detalleKey]['fotos_count']++;
+                    }
+                    if (empty($visitasDetallePorCliente[$detalleKey]['check_in']) || ($hMovil && strcmp($hMovil, $visitasDetallePorCliente[$detalleKey]['check_in']) < 0)) {
+                        $visitasDetallePorCliente[$detalleKey]['check_in'] = $hMovil;
+                    }
+                } else {
+                    $cRow = $cId > 0 ? $carteraPlanClientes->firstWhere('cliente_id', $cId) : null;
+                    $visitasDetallePorCliente[$detalleKey] = [
+                        'cliente_id' => $cId > 0 ? $cId : null,
+                        'cliente_nombre' => $cRow ? $cRow->cliente : "Cliente #{$cId}",
+                        'check_in' => $hMovil,
+                        'check_in_web' => null,
+                        'check_in_app' => $hMovil,
+                        'hora_web' => null,
+                        'hora_app' => $hMovil,
+                        'check_out' => null,
+                        'tiempo_pdv' => null,
+                        'origen' => 'APP',
+                        'fotos_count' => $hasPhoto ? 1 : 0,
+                    ];
+                }
+            }
+
             $vActivosCount = count($visitadosPlanUnicos);
+            $visitadosWebCount = count($visitadosWebUnicos);
+            $visitadosAppCount = count($visitadosAppUnicos);
             $fueraDePlanCount = count($visitadosFueraPlanUnicos);
             $visitadosTotalCount = $vActivosCount + $fueraDePlanCount;
             $inactivosVisitadosCount = 0;
@@ -965,7 +1024,10 @@ class GetCumplimientoDataAction
                     'estado_maestro' => $cRow->estado,
                     'visitado' => $fueVisitado,
                     'tipo_visita' => $tipoVisita,
+                    'origen' => $visInfo['origen'] ?? null,
                     'hora_check_in' => $visInfo['check_in'] ?? null,
+                    'hora_web' => $visInfo['hora_web'] ?? null,
+                    'hora_app' => $visInfo['hora_app'] ?? null,
                     'hora_check_out' => $visInfo['check_out'] ?? null,
                     'tiempo_pdv' => $visInfo['tiempo_pdv'] ?? null,
                     'fotos_count' => $visInfo['fotos_count'] ?? 0,
@@ -985,7 +1047,10 @@ class GetCumplimientoDataAction
                         'estado_maestro' => 'Fuera de Plan',
                         'visitado' => true,
                         'tipo_visita' => 'Fuera de Plan',
+                        'origen' => $vData['origen'] ?? null,
                         'hora_check_in' => $vData['check_in'] ?? null,
+                        'hora_web' => $vData['hora_web'] ?? null,
+                        'hora_app' => $vData['hora_app'] ?? null,
                         'hora_check_out' => $vData['check_out'] ?? null,
                         'tiempo_pdv' => $vData['tiempo_pdv'] ?? null,
                         'fotos_count' => $vData['fotos_count'] ?? 0,
@@ -1019,6 +1084,8 @@ class GetCumplimientoDataAction
                     'cumple' => $kpi2Cumple,
                     'cartera_plan' => $cPlanCount,
                     'visitados_activos' => $vActivosCount,
+                    'visitados_web' => $visitadosWebCount,
+                    'visitados_app' => $visitadosAppCount,
                     'inactivos_visitados' => $inactivosVisitadosCount,
                     'fuera_de_plan' => $fueraDePlanCount,
                     'total_visitados' => $visitadosTotalCount,
@@ -1156,6 +1223,65 @@ class GetCumplimientoDataAction
                 'rutas_aprobadas_80' => $rutas80,
                 'efectividad_global' => $efectividadGlobal,
                 'facturacion_total_dia' => $ventaTotalDia,
+                'resumen_kpis' => [
+                    'kpi1_horario' => [
+                        'nombre' => '1. Horario de Inicio',
+                        'puntos_max' => 10,
+                        'rutas_puntuales' => count(array_filter($rutasEvaluadas, fn ($r) => $r['kpi1_horario']['cumple'])),
+                        'rutas_atrasadas' => count(array_filter($rutasEvaluadas, fn ($r) => !$r['kpi1_horario']['cumple'] && $r['kpi1_horario']['primer_checkin'] !== null)),
+                        'rutas_sin_marcar' => count(array_filter($rutasEvaluadas, fn ($r) => $r['kpi1_horario']['primer_checkin'] === null)),
+                    ],
+                    'kpi2_visitas' => [
+                        'nombre' => '2. Cobertura de Visitas',
+                        'puntos_max' => 5,
+                        'cartera_total' => $totalCarteraGlobal,
+                        'visitados_activos' => array_sum(array_map(fn ($r) => $r['kpi2_visitas']['visitados_activos'], $rutasEvaluadas)),
+                        'visitados_web' => array_sum(array_map(fn ($r) => $r['kpi2_visitas']['visitados_web'] ?? 0, $rutasEvaluadas)),
+                        'visitados_app' => array_sum(array_map(fn ($r) => $r['kpi2_visitas']['visitados_app'] ?? 0, $rutasEvaluadas)),
+                        'cobertura_promedio_pct' => $totalCarteraGlobal > 0 ? round((array_sum(array_map(fn ($r) => $r['kpi2_visitas']['visitados_activos'], $rutasEvaluadas)) / $totalCarteraGlobal) * 100, 1) : 0.0,
+                    ],
+                    'kpi3_objetivo' => [
+                        'nombre' => '3. Objetivo Diario',
+                        'puntos_max' => 10,
+                        'cuota_diaria_total' => round(array_sum(array_map(fn ($r) => $r['kpi3_objetivo']['cuota_diaria'], $rutasEvaluadas)), 2),
+                        'venta_total' => round(array_sum(array_map(fn ($r) => $r['kpi3_objetivo']['venta_hoy'], $rutasEvaluadas)), 2),
+                        'alcance_promedio_pct' => array_sum(array_map(fn ($r) => $r['kpi3_objetivo']['cuota_diaria'], $rutasEvaluadas)) > 0
+                            ? round((array_sum(array_map(fn ($r) => $r['kpi3_objetivo']['venta_hoy'], $rutasEvaluadas)) / array_sum(array_map(fn ($r) => $r['kpi3_objetivo']['cuota_diaria'], $rutasEvaluadas))) * 100, 1)
+                            : 0.0,
+                    ],
+                    'kpi4_efectividad' => [
+                        'nombre' => '4. Efectividad de Venta',
+                        'puntos_max' => 30,
+                        'cartera_total' => $totalCarteraGlobal,
+                        'total_compradores' => $totalCompradoresGlobal,
+                        'efectividad_global_pct' => $efectividadGlobal,
+                    ],
+                    'kpi5_compra_minima' => [
+                        'nombre' => '5. Compra Mínima (Drop Size)',
+                        'puntos_max' => 5,
+                        'compradores_bajo_70' => array_sum(array_map(fn ($r) => $r['kpi5_compra_minima']['compradores_bajo_70'], $rutasEvaluadas)),
+                        'compradores_sobre_70' => max(0, $totalCompradoresGlobal - array_sum(array_map(fn ($r) => $r['kpi5_compra_minima']['compradores_bajo_70'], $rutasEvaluadas))),
+                        'monto_minimo_estandar' => 70.0,
+                    ],
+                    'kpi6_reposicion' => [
+                        'nombre' => '6. Reposición (Canasta Habitual)',
+                        'puntos_max' => 15,
+                        'rutas_cumplen' => count(array_filter($rutasEvaluadas, fn ($r) => $r['kpi6_reposicion']['cumple'])),
+                        'tasa_promedio_pct' => $totalRutasCount > 0 ? round(array_sum(array_map(fn ($r) => $r['kpi6_reposicion']['tasa_pct'], $rutasEvaluadas)) / $totalRutasCount, 1) : 0.0,
+                    ],
+                    'kpi7_ampliacion' => [
+                        'nombre' => '7. Ampliación de Portafolio',
+                        'puntos_max' => 20,
+                        'estado' => 'PENDIENTE_DESARROLLO',
+                        'pendiente_desarrollo' => true,
+                    ],
+                    'kpi8_covers' => [
+                        'nombre' => '8. Covers / Descuentos',
+                        'puntos_max' => 5,
+                        'rutas_cumplen' => count(array_filter($rutasEvaluadas, fn ($r) => $r['kpi8_covers']['cumple'])),
+                        'tasa_promedio_pct' => $totalRutasCount > 0 ? round(array_sum(array_map(fn ($r) => $r['kpi8_covers']['tasa_pct'], $rutasEvaluadas)) / $totalRutasCount, 1) : 0.0,
+                    ],
+                ],
             ],
             'rutas' => $rutasEvaluadas,
         ];

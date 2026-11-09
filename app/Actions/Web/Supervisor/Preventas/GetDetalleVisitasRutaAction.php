@@ -427,7 +427,7 @@ class GetDetalleVisitasRutaAction
 
                 $enFactVisitas = ($web !== null);
                 $enVisitasApp = ($app !== null);
-                $visitado = $enFactVisitas; // Fuente oficial: fact_visitas
+                $visitado = ($enFactVisitas || $enVisitasApp); // Integración unificada: fact_visitas (Web) + visitas (App Móvil)
 
                 $montoFinal = max((float) ($web['monto'] ?? 0.0), $montoPrev);
                 $hWeb = $web['check_in'] ?? null;
