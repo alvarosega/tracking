@@ -226,18 +226,36 @@ class PizarraController extends Controller
             ];
         }
 
-        // 6. Ranking general simplificado (para que el vendedor compare su desempeño)
-        $ranking = array_map(function ($r) use ($rutaClean): array {
-            return [
-                'rank' => (int) ($r['rank'] ?? 0),
+        // 6. Ranking exclusivo para vendedores del canal TDB
+        $rutasTdb = array_values(array_filter(
+            $rutasEvaluadas,
+            fn ($r) => strtoupper(trim((string) ($r['canal'] ?? ''))) === 'TDB'
+        ));
+
+        // Reasignar posiciones de ranking (1, 2, 3...) dentro de TDB
+        $ranking = [];
+        $miRankTdb = null;
+        foreach ($rutasTdb as $idx => $r) {
+            $esMiRuta = (strtoupper(trim((string) ($r['ruta'] ?? ''))) === $rutaClean);
+            $rankNum = $idx + 1;
+            if ($esMiRuta) {
+                $miRankTdb = $rankNum;
+            }
+            $ranking[] = [
+                'rank' => $rankNum,
                 'ruta' => (string) ($r['ruta'] ?? ''),
                 'vendedor' => (string) ($r['vendedor'] ?? ''),
-                'canal' => (string) ($r['canal'] ?? ''),
+                'canal' => (string) ($r['canal'] ?? 'TDB'),
                 'score_total' => (int) ($r['score_total'] ?? 0),
                 'aprobado' => ((int) ($r['score_total'] ?? 0) >= 80),
-                'es_mi_ruta' => (strtoupper(trim((string) ($r['ruta'] ?? ''))) === $rutaClean),
+                'es_mi_ruta' => $esMiRuta,
             ];
-        }, $rutasEvaluadas);
+        }
+
+        if ($miResumen !== null && $miRankTdb !== null) {
+            $miResumen['rank'] = $miRankTdb;
+            $miResumen['total_rutas'] = count($rutasTdb);
+        }
 
         return response()->json([
             'status' => 'success',
