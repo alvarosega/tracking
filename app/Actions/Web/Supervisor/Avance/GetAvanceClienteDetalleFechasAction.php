@@ -385,100 +385,260 @@ class GetAvanceClienteDetalleFechasAction
                 ? max(150.0, (float) $cuotaObjetivo)
                 : 150.0;
 
-            if (empty($indicesHabituales)) {
-                // Sin historial consolidado: Pendiente de desarrollo
-                $estadoDesarrollo = 'pendiente_desarrollo';
-                $totalSugeridoBs = 0.0;
-                $totalSugeridoUnidades = 0;
-                $excesoBs = 0.0;
-                $pctExceso = 0.0;
-                $brechaFinal = $cuotaCliente;
-            } else {
-                $estadoDesarrollo = 'consolidado';
+            $estadoDesarrollo = 'consolidado';
+            $subtotalActual = 0.0;
+            $totalUnidadesBase = 0;
 
-                // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
-                $ventaTotalHabitual = 0.0;
-                foreach ($indicesHabituales as $idx) {
-                    $ventaTotalHabitual += (float) $productosResultado[$idx]['total_bs_3m'];
-                }
-
-                // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base
-                $subtotalActual = 0.0;
-                $totalUnidadesBase = 0;
-
-                foreach ($indicesHabituales as $idx) {
-                    $vj = (float) $productosResultado[$idx]['total_bs_3m'];
-                    $mix_j = $ventaTotalHabitual > 0 ? ($vj / $ventaTotalHabitual) : (1.0 / count($indicesHabituales));
-                    $presupuestoTeorico_j = $cuotaCliente * $mix_j;
-                    $pj = (float) $productosResultado[$idx]['precio_ultima_compra'];
-                    if ($pj <= 0.0) {
-                        $pj = 1.0;
-                    }
-
-                    // Empaque comercial M_j = 1 unidad
-                    $cantidadBase_j = max(1, (int) floor($presupuestoTeorico_j / $pj));
-                    $montoBase_j = round($cantidadBase_j * $pj, 2);
-
-                    $productosResultado[$idx]['mix_propio'] = round($mix_j * 100, 1);
-                    $productosResultado[$idx]['cant_sugerida'] = $cantidadBase_j;
-                    $productosResultado[$idx]['monto_sugerido'] = $montoBase_j;
-
-                    $subtotalActual = round($subtotalActual + $montoBase_j, 2);
-                    $totalUnidadesBase += $cantidadBase_j;
-                }
-
-                // PASO 4: Evaluación de la brecha residual
-                $brecha = round($cuotaCliente - $subtotalActual, 2);
-
-                // PASO 5: Nivelación por Criterio Comercial (Sumar unidades al SKU #1)
-                if ($brecha > 0) {
-                    // Ordenar índices habituales por volumen en Bs (rotación) descendente para identificar SKU #1
-                    usort($indicesHabituales, function ($a, $b) use ($productosResultado) {
-                        return ($productosResultado[$b]['total_bs_3m'] ?? 0.0) <=> ($productosResultado[$a]['total_bs_3m'] ?? 0.0);
-                    });
-
-                    $topIdx = $indicesHabituales[0];
-                    $p1 = (float) $productosResultado[$topIdx]['precio_ultima_compra'];
-                    if ($p1 <= 0.0) {
-                        $p1 = 1.0;
-                    }
-
-                    $unidadesExtra = (int) ceil($brecha / $p1);
-                    $productosResultado[$topIdx]['cant_sugerida'] += $unidadesExtra;
-                    $productosResultado[$topIdx]['monto_sugerido'] = round($productosResultado[$topIdx]['cant_sugerida'] * $p1, 2);
-
-                    $subtotalActual = round($subtotalActual + ($unidadesExtra * $p1), 2);
-                    $totalUnidadesBase += $unidadesExtra;
-                }
-
-                $totalSugeridoBs = $subtotalActual;
-                $totalSugeridoUnidades = $totalUnidadesBase;
-                $excesoBs = round(max(0.0, $totalSugeridoBs - $cuotaCliente), 2);
-                $pctExceso = $cuotaCliente > 0 ? round(($excesoBs / $cuotaCliente) * 100, 1) : 0.0;
-                $brechaFinal = round(max(0.0, $cuotaCliente - $totalSugeridoBs), 2);
-
-                // Actualizar estado de cumplimiento en mes actual para cada producto con match y tope
-                foreach ($productosResultado as &$p) {
-                    $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
-                    $montoMtd = (float) ($p['total_bs_mes_actual'] ?? 0.0);
-                    $cantSug = (int) ($p['cant_sugerida'] ?? 0);
-                    $montoSug = (float) ($p['monto_sugerido'] ?? 0.0);
-
-                    $p['cumple_sugerido'] = ($cantSug > 0 && $cantMtd >= $cantSug);
-                    if ($cantSug > 0) {
-                        $totalSkus3m++;
-                        if ($p['compro_mes_actual']) {
-                            $totalSkusCubiertosMtd++;
-                        }
-                        $p['monto_match_mtd'] = round(min($montoMtd, $montoSug), 2);
-                        $p['cant_match_mtd'] = min($cantMtd, $cantSug);
-                    } else {
-                        $p['monto_match_mtd'] = 0.0;
-                        $p['cant_match_mtd'] = 0;
-                    }
-                }
-                unset($p);
+            // PASO 1 y 2: Participación histórica dentro de la tienda (Mix Propio) para habituales
+            $ventaTotalHabitual = 0.0;
+            foreach ($indicesHabituales as $idx) {
+                $ventaTotalHabitual += (float) $productosResultado[$idx]['total_bs_3m'];
             }
+
+            // PASO 3: Asignación base respetando TECHO HISTÓRICO estricto
+            foreach ($indicesHabituales as $idx) {
+                $vj = (float) $productosResultado[$idx]['total_bs_3m'];
+                $mix_j = $ventaTotalHabitual > 0 ? ($vj / $ventaTotalHabitual) : (1.0 / count($indicesHabituales));
+                $presupuestoTeorico_j = $cuotaCliente * $mix_j;
+                $pj = (float) $productosResultado[$idx]['precio_ultima_compra'];
+                if ($pj <= 0.0) {
+                    $pj = 1.0;
+                }
+
+                $c3m = (int) ($productosResultado[$idx]['total_cantidad_3m'] ?? 0);
+                $cantCalculada = max(1, (int) floor($presupuestoTeorico_j / $pj));
+
+                // Techo histórico estricto: nunca exigir más unidades que su histórico
+                $cantBase = ($c3m > 0) ? min($cantCalculada, $c3m) : $cantCalculada;
+                $montoBase = round($cantBase * $pj, 2);
+
+                $productosResultado[$idx]['mix_propio'] = round($mix_j * 100, 1);
+                $productosResultado[$idx]['cant_sugerida'] = $cantBase;
+                $productosResultado[$idx]['monto_sugerido'] = $montoBase;
+
+                $subtotalActual = round($subtotalActual + $montoBase, 2);
+                $totalUnidadesBase += $cantBase;
+            }
+
+            // PASO 4: Si subtotalActual < cuotaCliente (queda brecha residual):
+            // Prioridad 1: Productos que el cliente ya conoce (historial no habitual del cliente, a 4 unidades)
+            if ($subtotalActual < $cuotaCliente) {
+                $candidatosHistorial = [];
+                foreach ($productosResultado as $idx => $pItem) {
+                    if (($pItem['cant_sugerida'] ?? 0) === 0) {
+                        $c3m = (int) ($pItem['total_cantidad_3m'] ?? 0);
+                        $cTotal = (int) ($pItem['total_cantidad'] ?? 0);
+                        if ($c3m > 0 || $cTotal > 0) {
+                            $pUlt = (float) ($pItem['precio_ultima_compra'] ?? 0.0);
+                            if ($pUlt > 0.0) {
+                                $candidatosHistorial[] = [
+                                    'idx' => $idx,
+                                    'rotacion' => max($c3m, $cTotal),
+                                    'monto_3m' => (float) ($pItem['total_bs_3m'] ?? 0.0),
+                                    'precio' => $pUlt,
+                                ];
+                            }
+                        }
+                    }
+                }
+
+                usort($candidatosHistorial, function ($a, $b) {
+                    if ($a['rotacion'] !== $b['rotacion']) {
+                        return $b['rotacion'] <=> $a['rotacion'];
+                    }
+                    return $b['monto_3m'] <=> $a['monto_3m'];
+                });
+
+                foreach ($candidatosHistorial as $cand) {
+                    if ($subtotalActual >= $cuotaCliente) {
+                        break;
+                    }
+                    $idx = $cand['idx'];
+                    $pUnit = $cand['precio'];
+                    $cantNueva = 4; // Opción A: 4 unidades estándar Cobertura Core
+                    $montoNuevo = round($cantNueva * $pUnit, 2);
+
+                    $productosResultado[$idx]['cant_sugerida'] = $cantNueva;
+                    $productosResultado[$idx]['monto_sugerido'] = $montoNuevo;
+                    $subtotalActual = round($subtotalActual + $montoNuevo, 2);
+                    $totalUnidadesBase += $cantNueva;
+                }
+            }
+
+            // Prioridad 2: Si aún queda brecha, completar con catálogo Pareto de la ruta (a 4 unidades)
+            if ($subtotalActual < $cuotaCliente) {
+                $paretoAgrupado = [];
+                $allCidsRuta = DB::connection('supervisor')->table('pan_ruteo')
+                    ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                    ->where('cliente_id', '>', 0)
+                    ->pluck('cliente_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                if (!empty($allCidsRuta)) {
+                    $paretoRows = DB::connection('supervisor')->table('fact_ventas')
+                        ->whereIn('cliente_id', $allCidsRuta)
+                        ->where('fecha_norm', '>=', $histInicio)
+                        ->where('fecha_norm', '<=', $histFin3m)
+                        ->where('monto_final', '!=', 0)
+                        ->where(function ($q): void {
+                            $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+                        })
+                        ->select([
+                            DB::raw("TRIM(codigo) as codigo"),
+                            DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
+                            DB::raw("COALESCE(categoria, '') as categoria"),
+                            DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
+                            DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
+                            DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
+                            DB::raw("COALESCE(cantidad, 0) as cantidad"),
+                        ])
+                        ->get();
+
+                    foreach ($paretoRows as $pRow) {
+                        $pNom = trim((string) $pRow->producto);
+                        $cod = trim((string) $pRow->codigo);
+                        $j1 = trim((string) ($pRow->jerarquia1 ?? ''));
+                        $j3 = trim((string) $pRow->jerarquia3);
+                        $cat = trim((string) $pRow->categoria);
+
+                        if (!$this->cumplimientoAction->aplicaTransaccion($kpiClave, $pNom, $j3, $cod, $cat)) {
+                            continue;
+                        }
+
+                        $pk = $pNom !== '' ? mb_strtoupper($pNom) : $cod;
+                        if (!isset($paretoAgrupado[$pk])) {
+                            $paretoAgrupado[$pk] = [
+                                'codigo' => $cod,
+                                'producto' => $pNom ?: $cod,
+                                'categoria' => $cat,
+                                'jerarquia1' => $j1,
+                                'total_monto' => 0.0,
+                                'total_cantidad' => 0,
+                                'precio_ref' => 0.0,
+                            ];
+                        }
+                        $c = (int) $pRow->cantidad;
+                        $m = (float) $pRow->monto_final;
+                        $paretoAgrupado[$pk]['total_monto'] += $m;
+                        $paretoAgrupado[$pk]['total_cantidad'] += $c;
+                        if ($c > 0 && $m > 0 && $paretoAgrupado[$pk]['precio_ref'] === 0.0) {
+                            $paretoAgrupado[$pk]['precio_ref'] = round($m / $c, 2);
+                        }
+                    }
+
+                    foreach ($paretoAgrupado as $pk => &$pItem) {
+                        if ($pItem['precio_ref'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
+                            $pItem['precio_ref'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
+                        }
+                    }
+                    unset($pItem);
+
+                    uasort($paretoAgrupado, fn ($a, $b) => $b['total_cantidad'] <=> $a['total_cantidad']);
+                }
+
+                $prodKeyToIndex = [];
+                foreach ($productosResultado as $idx => $item) {
+                    $pNom = trim((string) $item['producto']);
+                    $pk = $pNom !== '' ? mb_strtoupper($pNom) : trim((string) $item['codigo']);
+                    $prodKeyToIndex[$pk] = $idx;
+                }
+
+                foreach ($paretoAgrupado as $pk => $pInfo) {
+                    if ($subtotalActual >= $cuotaCliente) {
+                        break;
+                    }
+
+                    $idx = $prodKeyToIndex[$pk] ?? null;
+                    $cantSugActual = ($idx !== null) ? ($productosResultado[$idx]['cant_sugerida'] ?? 0) : 0;
+                    if ($cantSugActual > 0) {
+                        continue;
+                    }
+
+                    $pUnit = 0.0;
+                    if ($idx !== null && ($productosResultado[$idx]['precio_ultima_compra'] ?? 0.0) > 0) {
+                        $pUnit = (float) $productosResultado[$idx]['precio_ultima_compra'];
+                    } elseif (($pInfo['precio_ref'] ?? 0.0) > 0) {
+                        $pUnit = (float) $pInfo['precio_ref'];
+                    }
+
+                    if ($pUnit <= 0.0) {
+                        continue;
+                    }
+
+                    $cantNueva = 4; // Opción A: 4 unidades estándar Cobertura Core
+                    $montoNuevo = round($cantNueva * $pUnit, 2);
+
+                    if ($idx !== null) {
+                        $productosResultado[$idx]['cant_sugerida'] = $cantNueva;
+                        $productosResultado[$idx]['monto_sugerido'] = $montoNuevo;
+                        $productosResultado[$idx]['es_core_pareto'] = true;
+                    } else {
+                        $productosResultado[] = [
+                            'producto' => $pInfo['producto'],
+                            'codigo' => $pInfo['codigo'],
+                            'categoria' => $pInfo['categoria'] ?? '',
+                            'jerarquia1' => $pInfo['jerarquia1'] ?? '',
+                            'jerarquia3' => '',
+                            'precio_ultima_compra' => $pUnit,
+                            'total_bs' => 0.0,
+                            'total_bs_3m' => 0.0,
+                            'total_bs_mes_actual' => 0.0,
+                            'total_cantidad' => 0,
+                            'total_cantidad_3m' => 0,
+                            'total_cantidad_mes_actual' => 0,
+                            'meses_distintos_3m' => 0,
+                            'total_facturas' => 0,
+                            'total_dias_compra' => 0,
+                            'fechas_3m' => [],
+                            'facturas_3m' => [],
+                            'compras_3m' => [],
+                            'compras_mes_actual' => [],
+                            'por_mes' => $porMesTemplate,
+                            'frecuencia_compra' => 0,
+                            'es_unitario_3m' => false,
+                            'cant_sugerida' => $cantNueva,
+                            'monto_sugerido' => $montoNuevo,
+                            'cumple_sugerido' => false,
+                            'compro_mes_actual' => false,
+                            'es_core_pareto' => true,
+                            'mix_propio' => 0.0,
+                        ];
+                        $prodKeyToIndex[$pk] = count($productosResultado) - 1;
+                    }
+
+                    $subtotalActual = round($subtotalActual + $montoNuevo, 2);
+                    $totalUnidadesBase += $cantNueva;
+                }
+            }
+
+            $totalSugeridoBs = $subtotalActual;
+            $totalSugeridoUnidades = $totalUnidadesBase;
+            $excesoBs = round(max(0.0, $totalSugeridoBs - $cuotaCliente), 2);
+            $pctExceso = $cuotaCliente > 0 ? round(($excesoBs / $cuotaCliente) * 100, 1) : 0.0;
+            $brechaFinal = round(max(0.0, $cuotaCliente - $totalSugeridoBs), 2);
+
+            // Actualizar estado de cumplimiento en mes actual para cada producto con match y tope
+            foreach ($productosResultado as &$p) {
+                $cantMtd = (int) ($p['total_cantidad_mes_actual'] ?? 0);
+                $montoMtd = (float) ($p['total_bs_mes_actual'] ?? 0.0);
+                $cantSug = (int) ($p['cant_sugerida'] ?? 0);
+                $montoSug = (float) ($p['monto_sugerido'] ?? 0.0);
+
+                $p['cumple_sugerido'] = ($cantSug > 0 && $cantMtd >= $cantSug);
+                if ($cantSug > 0) {
+                    $totalSkus3m++;
+                    if ($p['compro_mes_actual']) {
+                        $totalSkusCubiertosMtd++;
+                    }
+                    $p['monto_match_mtd'] = round(min($montoMtd, $montoSug), 2);
+                    $p['cant_match_mtd'] = min($cantMtd, $cantSug);
+                } else {
+                    $p['monto_match_mtd'] = 0.0;
+                    $p['cant_match_mtd'] = 0;
+                }
+            }
+            unset($p);
         } else {
             $cuotaCliente = $cuotaObjetivo ?? 0.0;
             $estadoDesarrollo = 'consolidado';
@@ -499,383 +659,6 @@ class GetAvanceClienteDetalleFechasAction
                 }
             }
             unset($p);
-        }
-
-        if (false) {
-            $filasCarteraRuta = DB::connection('supervisor')->table('pan_ruteo')
-                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                ->where('cliente_id', '>', 0)
-                ->where(function ($q): void {
-                    $q->whereNull('estado')
-                      ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
-                })
-                ->select([
-                    'cliente_id',
-                    DB::raw("COALESCE(MAX(NULLIF(TRIM(dia_norm), '')), MAX(NULLIF(TRIM(dia), '')), 'Sin Día') as dia_visita"),
-                ])
-                ->groupBy('cliente_id')
-                ->get();
-
-            $cidsDia = [];
-            $cidsRuta = [];
-            $diaNormTarget = ucfirst(strtolower(str_replace(['á', 'é', 'í', 'ó', 'ú', 'Á', 'É', 'Í', 'Ó', 'Ú'], ['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'], (string) $diaVisita)));
-
-            foreach ($filasCarteraRuta as $fc) {
-                $cid = (int) $fc->cliente_id;
-                $cidsRuta[] = $cid;
-                $fcDiaNorm = ucfirst(strtolower(str_replace(['á', 'é', 'í', 'ó', 'ú', 'Á', 'É', 'Í', 'Ó', 'Ú'], ['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'], (string) $fc->dia_visita)));
-                if ($diaNormTarget !== '' && !in_array(strtolower($diaNormTarget), ['sin dia', 'historico', 'sin día', 'histórico'])) {
-                    if ($fcDiaNorm === $diaNormTarget) {
-                        $cidsDia[] = $cid;
-                    }
-                }
-            }
-
-            $cidsPareto = !empty($cidsDia) ? $cidsDia : $cidsRuta;
-
-            $paretoAgrupado = [];
-            if (!empty($cidsPareto)) {
-                $paretoRows = DB::connection('supervisor')->table('fact_ventas')
-                    ->whereIn('cliente_id', $cidsPareto)
-                    ->where('fecha_norm', '>=', $histInicio)
-                    ->where('fecha_norm', '<=', $histFin3m)
-                    ->where('monto_final', '!=', 0)
-                    ->where(function ($q): void {
-                        $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
-                    })
-                    ->select([
-                        DB::raw("TRIM(codigo) as codigo"),
-                        DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
-                        DB::raw("COALESCE(categoria, '') as categoria"),
-                        DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
-                        DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
-                        DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
-                        DB::raw("COALESCE(cantidad, 0) as cantidad"),
-                        DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
-                        DB::raw("COALESCE(nro_factura, '') as nro_factura"),
-                        'cliente_id',
-                    ])
-                    ->orderBy('fecha_norm', 'desc')
-                    ->get();
-
-                if ($paretoRows->isEmpty()) {
-                    $allCidsRuta = DB::connection('supervisor')->table('pan_ruteo')
-                        ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-                        ->where('cliente_id', '>', 0)
-                        ->pluck('cliente_id')
-                        ->map(fn ($id) => (int) $id)
-                        ->all();
-                    if (!empty($allCidsRuta)) {
-                        $paretoRows = DB::connection('supervisor')->table('fact_ventas')
-                            ->whereIn('cliente_id', $allCidsRuta)
-                            ->where('fecha_norm', '>=', $histInicio)
-                            ->where('fecha_norm', '<=', $histFin3m)
-                            ->where('monto_final', '!=', 0)
-                            ->where(function ($q): void {
-                                $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
-                            })
-                            ->select([
-                                DB::raw("TRIM(codigo) as codigo"),
-                                DB::raw("COALESCE(producto, 'Sin descripción') as producto"),
-                                DB::raw("COALESCE(categoria, '') as categoria"),
-                                DB::raw("COALESCE(jerarquia1, '') as jerarquia1"),
-                                DB::raw("COALESCE(jerarquia3, '') as jerarquia3"),
-                                DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
-                                DB::raw("COALESCE(cantidad, 0) as cantidad"),
-                                DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
-                                DB::raw("COALESCE(nro_factura, '') as nro_factura"),
-                                'cliente_id',
-                            ])
-                            ->orderBy('fecha_norm', 'desc')
-                            ->get();
-                    }
-                }
-
-                foreach ($paretoRows as $pRow) {
-                    $pNom = trim((string) $pRow->producto);
-                    $cod = trim((string) $pRow->codigo);
-                    $j1 = trim((string) ($pRow->jerarquia1 ?? ''));
-                    $j3 = trim((string) $pRow->jerarquia3);
-                    $cat = trim((string) $pRow->categoria);
-
-                    if (!$this->cumplimientoAction->aplicaTransaccion($kpiClave, $pNom, $j3, $cod, $cat)) {
-                        continue;
-                    }
-
-                    $pk = $pNom !== '' ? mb_strtoupper($pNom) : $cod;
-                    if (!isset($paretoAgrupado[$pk])) {
-                        $paretoAgrupado[$pk] = [
-                            'codigo' => trim((string) $pRow->codigo),
-                            'producto' => $pNom ?: trim((string) $pRow->codigo),
-                            'categoria' => trim((string) $pRow->categoria),
-                            'jerarquia1' => $j1,
-                            'jerarquia3' => trim((string) $pRow->jerarquia3),
-                            'total_monto' => 0.0,
-                            'total_cantidad' => 0,
-                            'precio_ref' => 0.0,
-                            'fechas' => [],
-                            'facturas' => [],
-                            'clientes' => [],
-                        ];
-                    }
-                    $m = (float) $pRow->monto_final;
-                    $c = (int) $pRow->cantidad;
-                    $paretoAgrupado[$pk]['total_monto'] += $m;
-                    $paretoAgrupado[$pk]['total_cantidad'] += $c;
-                    $f = (string) $pRow->fecha;
-                    if ($f) {
-                        $paretoAgrupado[$pk]['fechas'][$f] = true;
-                    }
-                    $fact = (string) ($pRow->nro_factura ?? '');
-                    if ($fact !== '' && $fact !== 'S/F') {
-                        $paretoAgrupado[$pk]['facturas'][$fact] = true;
-                    }
-                    $cId = (int) ($pRow->cliente_id ?? 0);
-                    if ($cId > 0) {
-                        $paretoAgrupado[$pk]['clientes'][$cId] = true;
-                    }
-                    if ($c > 0 && $m > 0 && $paretoAgrupado[$pk]['precio_ref'] === 0.0) {
-                        $paretoAgrupado[$pk]['precio_ref'] = round($m / $c, 2);
-                    }
-                }
-
-                foreach ($paretoAgrupado as $pk => &$pItem) {
-                    if ($pItem['precio_ref'] <= 0 && $pItem['total_cantidad'] > 0 && $pItem['total_monto'] > 0) {
-                        $pItem['precio_ref'] = round($pItem['total_monto'] / $pItem['total_cantidad'], 2);
-                    }
-                    $pItem['frecuencia'] = max(count($pItem['fechas'] ?? []), count($pItem['facturas'] ?? []));
-                    $pItem['clientes_count'] = count($pItem['clientes'] ?? []);
-                }
-                unset($pItem);
-
-                uasort($paretoAgrupado, function ($a, $b) {
-                    if ($a['total_cantidad'] !== $b['total_cantidad']) {
-                        return $b['total_cantidad'] <=> $a['total_cantidad'];
-                    }
-                    if ($a['frecuencia'] !== $b['frecuencia']) {
-                        return $b['frecuencia'] <=> $a['frecuencia'];
-                    }
-                    return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
-                });
-
-                // Indexar productos existentes del cliente por nombre normalizado
-                $prodKeyToIndex = [];
-                foreach ($productosResultado as $idx => $item) {
-                    $pNom = trim((string) $item['producto']);
-                    $pk = $pNom !== '' ? mb_strtoupper($pNom) : trim((string) $item['codigo']);
-                    $prodKeyToIndex[$pk] = $idx;
-                }
-
-                // Fase 1: Añadir 1 unidad de productos Pareto faltantes con selección de mínimo exceso al cruzar objetivo
-                while ($totalSugeridoBs < $cuotaObjetivo) {
-                    $gap = round($cuotaObjetivo - $totalSugeridoBs, 2);
-
-                    // Buscar productos disponibles de paretoAgrupado que aún no tienen sugerido
-                    $disponibles = [];
-                    $rank = 0;
-                    foreach ($paretoAgrupado as $pk => $pInfo) {
-                        $idx = $prodKeyToIndex[$pk] ?? null;
-                        $cantSugActual = ($idx !== null) ? ($productosResultado[$idx]['cant_sugerida'] ?? 0) : 0;
-                        if ($cantSugActual === 0) {
-                            $pUnit = 0.0;
-                            if ($idx !== null && ($productosResultado[$idx]['precio_ultima_compra'] ?? 0.0) > 0) {
-                                $pUnit = (float) $productosResultado[$idx]['precio_ultima_compra'];
-                            } elseif (($pInfo['precio_ref'] ?? 0.0) > 0) {
-                                $pUnit = (float) $pInfo['precio_ref'];
-                            }
-                            if ($pUnit > 0) {
-                                $disponibles[] = [
-                                    'pk' => $pk,
-                                    'info' => $pInfo,
-                                    'precio' => $pUnit,
-                                    'idx' => $idx,
-                                    'rank' => $rank,
-                                ];
-                            }
-                        }
-                        $rank++;
-                    }
-
-                    if (empty($disponibles)) {
-                        break;
-                    }
-
-                    $topDisponible = $disponibles[0];
-                    if ($topDisponible['precio'] <= $gap) {
-                        // El producto de mayor ranking Pareto cabe dentro del gap
-                        $elegido = $topDisponible;
-                    } else {
-                        // El producto top superaría el objetivo. Para evitar excesos desmedidos y que el exceso
-                        // sea provocado únicamente por un solo producto, buscamos entre los disponibles con precio >= gap
-                        // aquel con el menor exceso posible.
-                        $candidatos = [];
-                        foreach ($disponibles as $d) {
-                            if ($d['precio'] >= $gap) {
-                                $candidatos[] = [
-                                    'pk' => $d['pk'],
-                                    'info' => $d['info'],
-                                    'precio' => $d['precio'],
-                                    'idx' => $d['idx'],
-                                    'exceso' => round($d['precio'] - $gap, 2),
-                                    'rank' => $d['rank'],
-                                ];
-                            }
-                        }
-
-                        if (!empty($candidatos)) {
-                            usort($candidatos, function ($a, $b) {
-                                if ($a['exceso'] !== $b['exceso']) {
-                                    return $a['exceso'] <=> $b['exceso'];
-                                }
-                                return $a['rank'] <=> $b['rank'];
-                            });
-                            $elegido = $candidatos[0];
-                        } else {
-                            $elegido = $topDisponible;
-                        }
-                    }
-
-                    $pk = $elegido['pk'];
-                    $pInfo = $elegido['info'];
-                    $pUnit = $elegido['precio'];
-                    $idx = $elegido['idx'];
-
-                    if ($idx !== null) {
-                        $productosResultado[$idx]['cant_sugerida'] = 1;
-                        $productosResultado[$idx]['monto_sugerido'] = $pUnit;
-                        $productosResultado[$idx]['cumple_sugerido'] = ($productosResultado[$idx]['total_cantidad_mes_actual'] >= 1);
-                        $productosResultado[$idx]['es_core_pareto'] = true;
-
-                        $totalSugeridoBs = round($totalSugeridoBs + $pUnit, 2);
-                        $totalSugeridoUnidades += 1;
-                        $totalSkus3m += 1;
-                        if ($productosResultado[$idx]['compro_mes_actual']) {
-                            $totalSkusCubiertosMtd += 1;
-                        }
-                    } else {
-                        $nuevoProd = [
-                            'codigo' => $pInfo['codigo'] ?: 'S/C',
-                            'codigos' => [$pInfo['codigo'] => true],
-                            'producto' => $pInfo['producto'],
-                            'categoria' => $pInfo['categoria'],
-                            'jerarquia1' => $pInfo['jerarquia1'] ?? '',
-                            'jerarquia3' => $pInfo['jerarquia3'],
-                            'total_bs' => 0.0,
-                            'total_cantidad' => 0,
-                            'total_bs_3m' => 0.0,
-                            'total_cantidad_3m' => 0,
-                            'total_bs_mes_actual' => 0.0,
-                            'total_cantidad_mes_actual' => 0,
-                            'ultima_fecha' => null,
-                            'fecha_precio_ultima_compra' => null,
-                            'precio_ultima_compra' => $pUnit,
-                            'facturas' => '',
-                            'total_facturas' => 0,
-                            'total_dias_compra' => 0,
-                            'fechas_3m' => [],
-                            'facturas_3m' => [],
-                            'compras_3m' => [],
-                            'compras_mes_actual' => [],
-                            'por_mes' => $porMesTemplate,
-                            'frecuencia_compra' => 0,
-                            'es_unitario_3m' => false,
-                            'cant_sugerida' => 1,
-                            'monto_sugerido' => $pUnit,
-                            'cumple_sugerido' => false,
-                            'compro_mes_actual' => false,
-                            'es_core_pareto' => true,
-                        ];
-                        $productosResultado[] = $nuevoProd;
-                        $newIdx = count($productosResultado) - 1;
-                        $prodKeyToIndex[$pk] = $newIdx;
-
-                        $totalSugeridoBs = round($totalSugeridoBs + $pUnit, 2);
-                        $totalSugeridoUnidades += 1;
-                        $totalSkus3m += 1;
-                    }
-                }
-
-                // Fase 2: Si aún no alcanza el objetivo (catálogo Pareto agotado en Fase 1), incrementar unidades con mínimo exceso
-                if ($totalSugeridoBs < $cuotaObjetivo && !empty($paretoAgrupado)) {
-                    $maxIter = 500;
-                    $iter = 0;
-                    while ($totalSugeridoBs < $cuotaObjetivo && $iter < $maxIter) {
-                        $gap = round($cuotaObjetivo - $totalSugeridoBs, 2);
-
-                        $candidatosFase2 = [];
-                        $rank = 0;
-                        foreach ($paretoAgrupado as $pk => $pInfo) {
-                            $idx = $prodKeyToIndex[$pk] ?? null;
-                            $pUnit = 0.0;
-                            if ($idx !== null && ($productosResultado[$idx]['precio_ultima_compra'] ?? 0.0) > 0) {
-                                $pUnit = (float) $productosResultado[$idx]['precio_ultima_compra'];
-                            } elseif (($pInfo['precio_ref'] ?? 0.0) > 0) {
-                                $pUnit = (float) $pInfo['precio_ref'];
-                            }
-                            if ($pUnit > 0) {
-                                $candidatosFase2[] = [
-                                    'pk' => $pk,
-                                    'info' => $pInfo,
-                                    'precio' => $pUnit,
-                                    'idx' => $idx,
-                                    'rank' => $rank,
-                                ];
-                            }
-                            $rank++;
-                        }
-
-                        if (empty($candidatosFase2)) {
-                            break;
-                        }
-
-                        $topCand = $candidatosFase2[0];
-                        if ($topCand['precio'] <= $gap) {
-                            $elegido = $topCand;
-                        } else {
-                            $mayores = [];
-                            foreach ($candidatosFase2 as $c) {
-                                if ($c['precio'] >= $gap) {
-                                    $mayores[] = [
-                                        'pk' => $c['pk'],
-                                        'info' => $c['info'],
-                                        'precio' => $c['precio'],
-                                        'idx' => $c['idx'],
-                                        'exceso' => round($c['precio'] - $gap, 2),
-                                        'rank' => $c['rank'],
-                                    ];
-                                }
-                            }
-                            if (!empty($mayores)) {
-                                usort($mayores, function ($a, $b) {
-                                    if ($a['exceso'] !== $b['exceso']) {
-                                        return $a['exceso'] <=> $b['exceso'];
-                                    }
-                                    return $a['rank'] <=> $b['rank'];
-                                });
-                                $elegido = $mayores[0];
-                            } else {
-                                $elegido = $topCand;
-                            }
-                        }
-
-                        $pk = $elegido['pk'];
-                        $pUnit = $elegido['precio'];
-                        $idx = $elegido['idx'];
-
-                        if ($idx !== null) {
-                            $productosResultado[$idx]['cant_sugerida'] += 1;
-                            $productosResultado[$idx]['monto_sugerido'] = round($productosResultado[$idx]['cant_sugerida'] * $pUnit, 2);
-                            $productosResultado[$idx]['cumple_sugerido'] = ($productosResultado[$idx]['total_cantidad_mes_actual'] >= $productosResultado[$idx]['cant_sugerida']);
-                            $productosResultado[$idx]['es_core_pareto'] = true;
-
-                            $totalSugeridoBs = round($totalSugeridoBs + $pUnit, 2);
-                            $totalSugeridoUnidades += 1;
-                        }
-
-                        $iter++;
-                    }
-                }
-            }
         }
 
         if ($kpiClave === 'cob_core') {

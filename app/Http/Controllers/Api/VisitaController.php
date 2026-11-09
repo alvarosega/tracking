@@ -197,9 +197,7 @@ class VisitaController extends Controller
             ];
         }
 
-        $totalSugeridoFinal = ($totalSugeridoRuta > 0.0)
-            ? $totalSugeridoRuta
-            : (float) ($detalle['resumen_cobertura']['total_monto_sugerido_bs'] ?? $totalSugeridoBs);
+        $totalSugeridoFinal = (float) ($detalle['resumen_cobertura']['total_monto_sugerido_bs'] ?? ($totalSugeridoBs > 0.0 ? $totalSugeridoBs : $totalSugeridoRuta));
 
         return response()->json([
             'status' => 'success',

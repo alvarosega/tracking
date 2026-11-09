@@ -545,64 +545,125 @@ class GetAvanceClientesRutaAction
                             'pData' => $pData,
                             'precio' => $pUlt,
                             'total_bs_3m' => round($c3m * $pUlt, 2),
+                            'cantidad_3m' => $c3m,
                         ];
                     }
                 }
 
-                if (empty($habitualesCli)) {
-                    // Sin historial consolidado: Pendiente de desarrollo
-                    $sugeridoClienteMap[$cId] = 0.0;
-                    $estadoDesarrolloClienteMap[$cId] = 'pendiente_desarrollo';
-                    $brechaClienteMap[$cId] = $cuotaObj;
-                    $excesoClienteMap[$cId] = 0.0;
-                    $sugeridosPorClienteMap[$cId] = [];
-                } else {
-                    // Con historial consolidado
-                    $estadoDesarrolloClienteMap[$cId] = 'consolidado';
+                $estadoDesarrolloClienteMap[$cId] = 'consolidado';
 
-                    // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
-                    $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs_3m'));
+                // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
+                $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs_3m'));
 
-                    // Ordenar habituales por rotación en Bs descendente para tener SKU #1 primero
-                    uasort($habitualesCli, fn ($a, $b) => ($b['total_bs_3m'] ?? 0.0) <=> ($a['total_bs_3m'] ?? 0.0));
+                // Ordenar habituales por rotación en Bs descendente
+                uasort($habitualesCli, fn ($a, $b) => ($b['total_bs_3m'] ?? 0.0) <=> ($a['total_bs_3m'] ?? 0.0));
 
-                    // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base (M_j = 1)
-                    $subtotalBase = 0.0;
-                    foreach ($habitualesCli as $pk => &$hInfo) {
-                        $mix_j = $ventaTotalHabitual > 0 ? ($hInfo['total_bs_3m'] / $ventaTotalHabitual) : (1.0 / count($habitualesCli));
-                        $presupuestoTeorico_j = $cuotaObj * $mix_j;
-                        $pj = $hInfo['precio'];
+                // PASO 2 y 3: Asignación base respetando TECHO HISTÓRICO estricto
+                $subtotalBase = 0.0;
+                foreach ($habitualesCli as $pk => &$hInfo) {
+                    $mix_j = $ventaTotalHabitual > 0 ? ($hInfo['total_bs_3m'] / $ventaTotalHabitual) : (1.0 / count($habitualesCli));
+                    $presupuestoTeorico_j = $cuotaObj * $mix_j;
+                    $pj = $hInfo['precio'];
 
-                        $cantBase = max(1, (int) floor($presupuestoTeorico_j / $pj));
-                        $montoBase = round($cantBase * $pj, 2);
+                    $c3m = (int) ($hInfo['cantidad_3m'] ?? 0);
+                    $cantCalculada = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                    $cantBase = ($c3m > 0) ? min($cantCalculada, $c3m) : $cantCalculada;
+                    $montoBase = round($cantBase * $pj, 2);
 
-                        $hInfo['cant_sugerida'] = $cantBase;
-                        $hInfo['monto_sugerido'] = $montoBase;
-                        $subtotalBase = round($subtotalBase + $montoBase, 2);
-                    }
-                    unset($hInfo);
-
-                    // PASO 4: Evaluación de brecha residual
-                    $brecha = round($cuotaObj - $subtotalBase, 2);
-
-                    // PASO 5: Nivelación por Criterio Comercial (Sumar unidades al SKU #1)
-                    if ($brecha > 0) {
-                        $topKey = array_key_first($habitualesCli);
-                        $p1 = $habitualesCli[$topKey]['precio'];
-                        if ($p1 <= 0.0) {
-                            $p1 = 1.0;
-                        }
-                        $unidadesExtra = (int) ceil($brecha / $p1);
-                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
-                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
-                        $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
-                    }
-
-                    $sugeridoClienteMap[$cId] = round($subtotalBase, 2);
-                    $excesoClienteMap[$cId] = round(max(0.0, $subtotalBase - $cuotaObj), 2);
-                    $brechaClienteMap[$cId] = round(max(0.0, $cuotaObj - $subtotalBase), 2);
-                    $sugeridosPorClienteMap[$cId] = $habitualesCli;
+                    $hInfo['cant_sugerida'] = $cantBase;
+                    $hInfo['monto_sugerido'] = $montoBase;
+                    $subtotalBase = round($subtotalBase + $montoBase, 2);
                 }
+                unset($hInfo);
+
+                // PASO 4: Si subtotalBase < cuotaObj (queda brecha):
+                // Prioridad 1: Productos que el cliente ya conoce (historial no habitual del cliente, a 4 unidades)
+                if ($subtotalBase < $cuotaObj) {
+                    $candidatosHist = [];
+                    foreach ($pList as $pKey => $pData) {
+                        if (!isset($habitualesCli[$pKey])) {
+                            $c3m = (int) ($pData['cantidad_3m'] ?? 0);
+                            $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
+                            if ($pUlt <= 0.0 && $c3m > 0) {
+                                $pUlt = (float) ($paretoRuta[$pKey]['precio'] ?? 0.0);
+                            }
+                            if ($c3m > 0 && $pUlt > 0.0) {
+                                $candidatosHist[] = [
+                                    'pKey' => $pKey,
+                                    'pData' => $pData,
+                                    'precio' => $pUlt,
+                                    'cantidad_3m' => $c3m,
+                                    'total_bs_3m' => round($c3m * $pUlt, 2),
+                                ];
+                            }
+                        }
+                    }
+                    usort($candidatosHist, function ($a, $b) {
+                        if ($a['cantidad_3m'] !== $b['cantidad_3m']) {
+                            return $b['cantidad_3m'] <=> $a['cantidad_3m'];
+                        }
+                        return $b['total_bs_3m'] <=> $a['total_bs_3m'];
+                    });
+
+                    foreach ($candidatosHist as $cHist) {
+                        if ($subtotalBase >= $cuotaObj) {
+                            break;
+                        }
+                        $pk = $cHist['pKey'];
+                        $pUlt = $cHist['precio'];
+                        $cantNueva = 4; // Opción A: 4 unidades estándar Cobertura Core
+                        $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                        $habitualesCli[$pk] = [
+                            'pKey' => $pk,
+                            'pData' => $cHist['pData'],
+                            'precio' => $pUlt,
+                            'total_bs_3m' => $cHist['total_bs_3m'],
+                            'cantidad_3m' => $cHist['cantidad_3m'],
+                            'cant_sugerida' => $cantNueva,
+                            'monto_sugerido' => $montoNuevo,
+                        ];
+                        $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                    }
+                }
+
+                // Prioridad 2: Si aún queda brecha, completar con catálogo Pareto de la ruta (a 4 unidades)
+                if ($subtotalBase < $cuotaObj && !empty($paretoRuta)) {
+                    foreach ($paretoRuta as $pKey => $pItem) {
+                        if ($subtotalBase >= $cuotaObj) {
+                            break;
+                        }
+                        if (isset($habitualesCli[$pKey])) {
+                            continue;
+                        }
+                        $pUlt = (float) ($pItem['precio'] ?? 0.0);
+                        if ($pUlt <= 0.0) {
+                            continue;
+                        }
+                        $cantNueva = 4; // Opción A: 4 unidades estándar Cobertura Core
+                        $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                        $habitualesCli[$pKey] = [
+                            'pKey' => $pKey,
+                            'pData' => [
+                                'producto' => $pItem['producto'],
+                                'codigo' => $pItem['codigo'],
+                            ],
+                            'precio' => $pUlt,
+                            'total_bs_3m' => 0.0,
+                            'cantidad_3m' => 0,
+                            'cant_sugerida' => $cantNueva,
+                            'monto_sugerido' => $montoNuevo,
+                            'es_core_pareto' => true,
+                        ];
+                        $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                    }
+                }
+
+                $sugeridoClienteMap[$cId] = round($subtotalBase, 2);
+                $excesoClienteMap[$cId] = round(max(0.0, $subtotalBase - $cuotaObj), 2);
+                $brechaClienteMap[$cId] = round(max(0.0, $cuotaObj - $subtotalBase), 2);
+                $sugeridosPorClienteMap[$cId] = $habitualesCli;
             }
         } else {
             $totalRutaAcum3m = 0.0;
