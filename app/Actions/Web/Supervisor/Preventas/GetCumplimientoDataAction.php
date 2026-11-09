@@ -153,6 +153,7 @@ class GetCumplimientoDataAction
                 if ($a1 !== '' && !isset($clienteARutaAlfa[$a1])) $clienteARutaAlfa[$a1] = $r;
                 if ($a2 !== '' && !isset($clienteARutaAlfa[$a2])) $clienteARutaAlfa[$a2] = $r;
             }
+            unset($clientesRutasTodas);
         } catch (\Throwable $e) {
             Log::debug('Error precargando rutas de clientes en Cumplimiento: ' . $e->getMessage());
         }
@@ -183,11 +184,13 @@ class GetCumplimientoDataAction
                 $r = strtoupper(trim((string) ($row->ruta ?? '')));
                 return $r !== '' && isset($rutasTargetSet[$r]);
             });
+            unset($rawVisitas);
         } catch (\Throwable $e) {
             Log::warning('Error consultando fact_visitas en Cumplimiento: ' . $e->getMessage());
         }
 
         $factVisitasPorRuta = $factVisitasRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
+        unset($factVisitasRaw);
 
         // C. visitas (Local MySQL): Marcajes móviles desde la app Android
         $visitasMovilRaw = collect();
@@ -221,6 +224,7 @@ class GetCumplimientoDataAction
         }
 
         $visitasMovilPorRuta = $visitasMovilRaw->groupBy(fn ($item) => strtoupper(trim((string) ($item->route ?? ''))));
+        unset($visitasMovilRaw);
 
         // D. fact_preventas: Pedidos transaccionados intra-día en tiempo real
         $preventasRaw = collect();
@@ -383,6 +387,7 @@ class GetCumplimientoDataAction
                     }
                     $historial90DiasPorCliente[$cId]['total_lineas']++;
                 }
+                unset($histVentas);
 
                 // 2. Complementar con compras registradas en fact_preventas (ventana seleccionada de semanas)
                 $histPrev = DB::connection('supervisor')->table('fact_preventas')
@@ -447,6 +452,7 @@ class GetCumplimientoDataAction
                     }
                     $historial90DiasPorCliente[$cId]['total_lineas']++;
                 }
+                unset($histPrev);
             } catch (\Throwable $e) {
                 Log::warning('Error consultando historial 90 días en Cumplimiento: ' . $e->getMessage());
             }
