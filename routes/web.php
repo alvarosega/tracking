@@ -357,9 +357,12 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/', [SupervisorStockVentanaController::class, 'index'])->name('index');
         Route::post('/data', [SupervisorStockVentanaController::class, 'data'])->name('data');
         Route::post('/global', [SupervisorStockVentanaController::class, 'updateGlobal'])->name('global');
+        Route::post('/global/toggle', [SupervisorStockVentanaController::class, 'toggleGlobal'])->name('global.toggle');
         Route::post('/route', [SupervisorStockVentanaController::class, 'updateRoute'])->name('route');
+        Route::post('/route/toggle', [SupervisorStockVentanaController::class, 'toggleRoute'])->name('route.toggle');
         Route::post('/route/reset', [SupervisorStockVentanaController::class, 'resetRoute'])->name('route.reset');
         Route::post('/batch', [SupervisorStockVentanaController::class, 'batchUpdate'])->name('batch');
+        Route::post('/batch/toggle', [SupervisorStockVentanaController::class, 'batchToggle'])->name('batch.toggle');
     });
 
     // Módulo Ventana y Días para Pedidos Rechazados (Android)

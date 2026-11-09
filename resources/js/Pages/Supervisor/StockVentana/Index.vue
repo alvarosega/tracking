@@ -25,7 +25,7 @@
             </span>
           </div>
           <p class="text-xs text-[#6E6E73] mt-0.5">
-            Define la ventana de compras en el ERP (días hacia atrás) que la app móvil consulta al tomar inventario físico en punto de venta.
+            Configura la ventana de compras en el ERP (días hacia atrás) y activa/desactiva la toma de inventario físico en punto de venta para la app móvil.
           </p>
         </div>
 
@@ -45,43 +45,75 @@
         </div>
       </div>
 
-      <!-- CARD HERO: CONFIGURACIÓN GLOBAL DE LA VENTANA (APPLE PRO) -->
+      <!-- CARD HERO: CONFIGURACIÓN GLOBAL Y ESTADO GENERAL DEL MÓDULO (APPLE PRO) -->
       <div class="bg-white border border-[#E5E5EA] rounded-[12px] p-4 sm:p-5 shadow-2xs space-y-4">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <!-- Columna Izquierda: Título y descripción -->
           <div class="space-y-1">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <div class="w-7 h-7 rounded-[8px] bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h2 class="text-sm font-bold text-[#1D1D1F]">Ventana Histórica Global</h2>
+              <h2 class="text-sm font-bold text-[#1D1D1F]">Control General de Toma de Stock</h2>
               <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#0071E3] border border-[#0071E3]/20">
                 {{ globalDias }} días por defecto
               </span>
             </div>
             <p class="text-xs text-[#6E6E73]">
-              Aplica automáticamente a cualquier ruta que no tenga una ventana personalizada asignada.
+              Define si los vendedores tienen acceso a la toma de inventario físico en sus celulares y cuántos días de compras descarga la app desde el ERP.
             </p>
           </div>
 
-          <!-- Impacto en Fechas -->
-          <div class="bg-[#F9F9FB] border border-[#E5E5EA] rounded-[8px] px-3.5 py-2 flex items-center gap-3 shrink-0">
-            <div>
-              <span class="text-[10px] font-medium text-[#86868B] block uppercase tracking-wider">Período de compras API:</span>
-              <span class="text-xs font-mono font-bold text-[#1D1D1F]">
-                Desde {{ fechaGlobalDesde }} hasta hoy
-              </span>
+          <!-- Columna Derecha: Interruptor Global y Corte Fechas -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+            <!-- Switch Estado Global -->
+            <div class="bg-[#F9F9FB] border border-[#E5E5EA] rounded-[8px] px-3.5 py-2 flex items-center gap-3">
+              <button
+                v-if="canEditGlobal"
+                type="button"
+                @click="toggleGlobal"
+                :disabled="guardandoGlobalToggle"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50"
+                :class="moduloActivoGlobal ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'"
+                :title="moduloActivoGlobal ? 'Click para desactivar toma de stock globalmente' : 'Click para activar toma de stock globalmente'"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out"
+                  :class="moduloActivoGlobal ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+              <div>
+                <span class="text-[10px] font-medium text-[#86868B] block uppercase tracking-wider">Estado Global:</span>
+                <span
+                  class="text-xs font-semibold inline-flex items-center gap-1.5"
+                  :class="moduloActivoGlobal ? 'text-[#248A3D]' : 'text-[#C9342C]'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full" :class="moduloActivoGlobal ? 'bg-[#34C759]' : 'bg-[#FF3B30]'"></span>
+                  {{ moduloActivoGlobal ? 'Activo en Android' : 'Desactivado Global' }}
+                </span>
+              </div>
             </div>
-            <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+
+            <!-- Impacto en Fechas -->
+            <div class="bg-[#F9F9FB] border border-[#E5E5EA] rounded-[8px] px-3.5 py-2 flex items-center gap-3">
+              <div>
+                <span class="text-[10px] font-medium text-[#86868B] block uppercase tracking-wider">Período de compras API:</span>
+                <span class="text-xs font-mono font-bold text-[#1D1D1F]">
+                  Desde {{ fechaGlobalDesde }} hasta hoy
+                </span>
+              </div>
+              <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+            </div>
           </div>
         </div>
 
         <!-- Controles de Edición Global -->
-        <div v-if="isSuperAdmin" class="pt-3 border-t border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3">
+        <div v-if="canEditGlobal" class="pt-3 border-t border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3">
           <!-- Presets Rápidos -->
           <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="text-xs text-[#86868B] font-medium mr-1">Presets:</span>
+            <span class="text-xs text-[#86868B] font-medium mr-1">Presets Días:</span>
             <button
               v-for="preset in [15, 30, 45, 60, 90, 120, 180]"
               :key="preset"
@@ -116,7 +148,7 @@
               class="h-8 px-4 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-[6px] shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <span v-if="guardandoGlobal" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>Guardar Global</span>
+              <span>Guardar Días</span>
             </button>
           </div>
         </div>
@@ -131,6 +163,14 @@
         </div>
 
         <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
+          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Toma de Stock Activa</span>
+          <div class="text-xl font-bold font-mono text-[#248A3D] mt-0.5">
+            {{ kpis.rutas_activas ?? rutas.filter(r => r.modulo_activo).length }}
+          </div>
+          <span class="text-[10px] text-[#6E6E73] mt-0.5 block">Rutas habilitadas en app</span>
+        </div>
+
+        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
           <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Ventana Global</span>
           <div class="text-xl font-bold font-mono text-[#34C759] mt-0.5">{{ kpis.rutas_globales || 0 }}</div>
           <span class="text-[10px] text-[#6E6E73] mt-0.5 block">Rutas heredando {{ globalDias }} días</span>
@@ -140,12 +180,6 @@
           <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Personalizadas</span>
           <div class="text-xl font-bold font-mono text-[#0071E3] mt-0.5">{{ kpis.rutas_personalizadas || 0 }}</div>
           <span class="text-[10px] text-[#6E6E73] mt-0.5 block">Rutas con ventana específica</span>
-        </div>
-
-        <div class="bg-white border border-[#E5E5EA] rounded-[10px] p-3 shadow-2xs">
-          <span class="text-[10px] font-mono font-semibold uppercase text-[#86868B]">Corte Global</span>
-          <div class="text-xs font-bold font-mono text-[#1D1D1F] mt-1 truncate" :title="fechaGlobalDesde">{{ fechaGlobalDesde }}</div>
-          <span class="text-[10px] text-[#86868B] mt-0.5 block">Compras descargadas en app</span>
         </div>
       </div>
 
@@ -174,7 +208,17 @@
             <option v-for="c in canales" :key="c" :value="c">{{ c }}</option>
           </select>
 
-          <!-- Filtro Estado de Ventana -->
+          <!-- Filtro Estado Módulo -->
+          <select
+            v-model="filtroEstado"
+            class="h-8 px-2.5 bg-white border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] shrink-0"
+          >
+            <option value="TODAS">Todos los Estados</option>
+            <option value="ACTIVAS">Solo Activas en App</option>
+            <option value="INACTIVAS">Solo Desactivadas</option>
+          </select>
+
+          <!-- Filtro Tipo de Ventana -->
           <select
             v-model="filtroTipo"
             class="h-8 px-2.5 bg-white border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] shrink-0"
@@ -185,8 +229,8 @@
           </select>
         </div>
 
-        <!-- Acción Masiva por Canal -->
-        <div v-if="isSuperAdmin" class="flex items-center gap-2 shrink-0">
+        <!-- Acción Masiva -->
+        <div v-if="canEditMatriz" class="flex items-center gap-2 shrink-0">
           <button
             type="button"
             @click="abrirModalMasivo"
@@ -195,7 +239,7 @@
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            <span>Aplicar en Lote</span>
+            <span>Acción en Lote</span>
           </button>
           <span class="text-xs text-[#86868B] font-mono">
             {{ rutasFiltradas.length }} de {{ rutas.length }} rutas
@@ -203,7 +247,7 @@
         </div>
       </div>
 
-      <!-- TABLA MATRIZ DE VENTANAS POR RUTA -->
+      <!-- TABLA MATRIZ DE RUTAS -->
       <div class="bg-white border border-[#E5E5EA] rounded-[10px] overflow-hidden shadow-2xs">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
@@ -212,6 +256,7 @@
                 <th class="py-2.5 px-3.5">Ruta / Vendedor</th>
                 <th class="py-2.5 px-3 text-center">Canal</th>
                 <th class="py-2.5 px-3 text-center">Clientes</th>
+                <th class="py-2.5 px-3 text-center">Toma de Stock</th>
                 <th class="py-2.5 px-3 text-center">Ventana Histórica</th>
                 <th class="py-2.5 px-3 text-center">Corte de Compras en API</th>
                 <th class="py-2.5 px-3 text-right">Acción</th>
@@ -224,6 +269,7 @@
                 <td class="py-3 px-3.5"><div class="h-4 bg-[#EFEFF4] rounded w-36"></div></td>
                 <td class="py-3 px-3 text-center"><div class="h-4 bg-[#EFEFF4] rounded w-12 mx-auto"></div></td>
                 <td class="py-3 px-3 text-center"><div class="h-4 bg-[#EFEFF4] rounded w-16 mx-auto"></div></td>
+                <td class="py-3 px-3 text-center"><div class="h-4 bg-[#EFEFF4] rounded w-20 mx-auto"></div></td>
                 <td class="py-3 px-3 text-center"><div class="h-4 bg-[#EFEFF4] rounded w-24 mx-auto"></div></td>
                 <td class="py-3 px-3 text-center"><div class="h-4 bg-[#EFEFF4] rounded w-28 mx-auto"></div></td>
                 <td class="py-3 px-3 text-right"><div class="h-6 bg-[#EFEFF4] rounded w-14 ml-auto"></div></td>
@@ -236,7 +282,10 @@
                 v-for="r in rutasFiltradas"
                 :key="r.ruta"
                 class="hover:bg-[#F9F9FB] transition-colors"
-                :class="r.es_personalizado ? 'bg-[#FBFDFF]' : ''"
+                :class="[
+                  r.es_personalizado ? 'bg-[#FBFDFF]' : '',
+                  !r.modulo_activo ? 'opacity-70 bg-[#FAFAFC]' : ''
+                ]"
               >
                 <!-- Ruta / Vendedor -->
                 <td class="py-2.5 px-3.5 align-middle">
@@ -261,6 +310,34 @@
                 <!-- Clientes -->
                 <td class="py-2.5 px-3 align-middle text-center font-mono text-[#86868B]">
                   {{ r.total_clientes }} cli
+                </td>
+
+                <!-- Estado Toma de Stock (Switch Apple Pro) -->
+                <td class="py-2.5 px-3 align-middle text-center">
+                  <div class="inline-flex items-center justify-center gap-2">
+                    <button
+                      v-if="canEditMatriz"
+                      type="button"
+                      @click="toggleRuta(r)"
+                      :disabled="r.toggling"
+                      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50"
+                      :class="r.modulo_activo ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'"
+                      :title="r.modulo_activo ? 'Click para desactivar en esta ruta' : 'Click para activar en esta ruta'"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out"
+                        :class="r.modulo_activo ? 'translate-x-4' : 'translate-x-0'"
+                      />
+                    </button>
+                    <span
+                      class="text-[10px] font-semibold font-mono px-1.5 py-0.5 rounded"
+                      :class="r.modulo_activo
+                        ? 'bg-[#EBF9EF] text-[#248A3D]'
+                        : 'bg-[#F2F2F7] text-[#86868B]'"
+                    >
+                      {{ r.modulo_activo ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </div>
                 </td>
 
                 <!-- Ventana Histórica -->
@@ -290,7 +367,7 @@
                 <td class="py-2.5 px-3 align-middle text-right">
                   <div class="flex items-center justify-end gap-1.5">
                     <button
-                      v-if="isSuperAdmin"
+                      v-if="canEditMatriz"
                       type="button"
                       @click="abrirModalEdicion(r)"
                       class="px-2.5 py-1 text-[11px] font-semibold text-[#0071E3] hover:bg-[#EFF6FF] border border-[#0071E3]/20 rounded-[5px] transition-colors cursor-pointer"
@@ -299,7 +376,7 @@
                     </button>
 
                     <button
-                      v-if="isSuperAdmin && r.es_personalizado"
+                      v-if="canEditMatriz && r.es_personalizado"
                       type="button"
                       @click="resetearRuta(r)"
                       class="p-1 text-[#86868B] hover:text-[#C9342C] hover:bg-[#FDF0EF] rounded transition-colors cursor-pointer"
@@ -317,7 +394,7 @@
             <!-- Empty State -->
             <tbody v-else>
               <tr>
-                <td colspan="6" class="p-8 text-center text-xs text-[#86868B]">
+                <td colspan="7" class="p-8 text-center text-xs text-[#86868B]">
                   No se encontraron rutas comerciales con los filtros aplicados.
                 </td>
               </tr>
@@ -359,9 +436,30 @@
           </div>
 
           <div class="p-5 space-y-4">
+            <!-- Estado Activo / Inactivo en la Ruta -->
+            <div class="p-3 bg-[#F9F9FB] rounded-[8px] border border-[#E5E5EA] flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-[#1D1D1F] block">Toma de Stock en Android:</span>
+                <span class="text-[10px] text-[#86868B]">
+                  {{ modalEdicion.modulo_activo ? 'Habilitada para esta ruta' : 'Oculta en la app móvil' }}
+                </span>
+              </div>
+              <button
+                type="button"
+                @click="modalEdicion.modulo_activo = !modalEdicion.modulo_activo"
+                class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                :class="modalEdicion.modulo_activo ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out"
+                  :class="modalEdicion.modulo_activo ? 'translate-x-4' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
             <div>
               <label class="text-xs font-semibold text-[#1D1D1F] block mb-2">
-                Selecciona la ventana histórica de compras:
+                Ventana histórica de compras (ERP):
               </label>
 
               <!-- Presets Rápidos -->
@@ -400,7 +498,7 @@
                 <span class="font-mono font-bold text-[#1D1D1F]">{{ calcularFechaCorte(modalEdicion.dias) }}</span>
               </div>
               <p class="text-[11px] text-[#6E6E73] mt-1">
-                Cuando el vendedor tome stock de un cliente, la app solicitará compras en ERP desde esa fecha.
+                Al tomar stock de un cliente, la app solicitará compras en ERP desde esa fecha.
               </p>
             </div>
           </div>
@@ -440,7 +538,7 @@
         </div>
       </div>
 
-      <!-- MODAL APPLE PRO: APLICACIÓN EN LOTE (MASIVO) -->
+      <!-- MODAL APPLE PRO: ACCIÓN EN LOTE (MASIVO) -->
       <div
         v-if="modalMasivo.show"
         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs"
@@ -449,8 +547,8 @@
         <div class="bg-white rounded-[14px] shadow-2xl border border-[#E5E5EA] w-full max-w-lg overflow-hidden flex flex-col">
           <div class="px-5 py-3.5 border-b border-[#E5E5EA] flex items-center justify-between bg-[#FBFBFD]">
             <div>
-              <h2 class="text-base font-bold text-[#1D1D1F]">Aplicar Ventana en Lote</h2>
-              <p class="text-[11px] text-[#6E6E73] mt-0.5">Asigna los días de historial a múltiples rutas a la vez</p>
+              <h2 class="text-base font-bold text-[#1D1D1F]">Acción en Lote para Rutas</h2>
+              <p class="text-[11px] text-[#6E6E73] mt-0.5">Aplica ventana de compras o activa/desactiva toma de stock masivamente</p>
             </div>
             <button
               type="button"
@@ -462,6 +560,46 @@
           </div>
 
           <div class="p-5 space-y-4">
+            <!-- Operación a Realizar -->
+            <div>
+              <label class="text-xs font-semibold text-[#1D1D1F] block mb-1.5">Operación a realizar:</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  @click="modalMasivo.operacion = 'DIAS'"
+                  class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer text-xs"
+                  :class="modalMasivo.operacion === 'DIAS'
+                    ? 'bg-[#EFF6FF] border-[#0071E3] text-[#0071E3] font-bold shadow-xs'
+                    : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                >
+                  <span class="block">Ventana Días</span>
+                  <span class="text-[10px] text-[#86868B]">Ajustar historial</span>
+                </button>
+                <button
+                  type="button"
+                  @click="modalMasivo.operacion = 'ACTIVAR'"
+                  class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer text-xs"
+                  :class="modalMasivo.operacion === 'ACTIVAR'
+                    ? 'bg-[#EBF9EF] border-[#248A3D] text-[#248A3D] font-bold shadow-xs'
+                    : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                >
+                  <span class="block">Activar Stock</span>
+                  <span class="text-[10px] text-[#86868B]">Habilitar en app</span>
+                </button>
+                <button
+                  type="button"
+                  @click="modalMasivo.operacion = 'DESACTIVAR'"
+                  class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer text-xs"
+                  :class="modalMasivo.operacion === 'DESACTIVAR'
+                    ? 'bg-[#FDF0EF] border-[#C9342C] text-[#C9342C] font-bold shadow-xs'
+                    : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                >
+                  <span class="block">Desactivar</span>
+                  <span class="text-[10px] text-[#86868B]">Ocultar en app</span>
+                </button>
+              </div>
+            </div>
+
             <!-- Selección de Destino -->
             <div>
               <label class="text-xs font-semibold text-[#1D1D1F] block mb-1.5">Destino de la aplicación:</label>
@@ -503,8 +641,8 @@
               </select>
             </div>
 
-            <!-- Días de Ventana -->
-            <div>
+            <!-- Días de Ventana (solo si operacion === 'DIAS') -->
+            <div v-if="modalMasivo.operacion === 'DIAS'">
               <label class="text-xs font-semibold text-[#1D1D1F] block mb-1.5">Días de Historial a Asignar:</label>
               <div class="grid grid-cols-4 gap-2 mb-2">
                 <button
@@ -531,6 +669,17 @@
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#86868B] font-mono pointer-events-none">días</span>
               </div>
             </div>
+
+            <!-- Mensaje Informativo para activación / desactivación -->
+            <div v-else class="p-3 rounded-[8px] border text-xs" :class="modalMasivo.operacion === 'ACTIVAR' ? 'bg-[#EBF9EF] border-[#248A3D]/20 text-[#248A3D]' : 'bg-[#FDF0EF] border-[#C9342C]/20 text-[#C9342C]'">
+              <p class="font-semibold">
+                {{ modalMasivo.operacion === 'ACTIVAR' ? 'Se habilitará la toma de stock' : 'Se deshabilitará la toma de stock' }}
+                en todas las rutas del grupo seleccionado.
+              </p>
+              <p class="text-[11px] mt-0.5 opacity-90">
+                Los cambios se reflejarán de inmediato en los teléfonos de los vendedores.
+              </p>
+            </div>
           </div>
 
           <div class="px-5 py-3 border-t border-[#E5E5EA] bg-[#FBFBFD] flex items-center justify-end gap-2">
@@ -546,10 +695,13 @@
               type="button"
               @click="ejecutarAplicacionMasiva"
               :disabled="modalMasivo.guardando"
-              class="px-4 py-1.5 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-[6px] shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              class="px-4 py-1.5 text-xs font-semibold text-white rounded-[6px] shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              :class="modalMasivo.operacion === 'DESACTIVAR' ? 'bg-[#C9342C] hover:bg-[#B32E27]' : 'bg-[#0071E3] hover:bg-[#0077ED]'"
             >
               <span v-if="modalMasivo.guardando" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>Aplicar Masivamente</span>
+              <span>
+                {{ modalMasivo.operacion === 'DIAS' ? 'Aplicar Días' : (modalMasivo.operacion === 'ACTIVAR' ? 'Activar en Lote' : 'Desactivar en Lote') }}
+              </span>
             </button>
           </div>
         </div>
@@ -595,6 +747,8 @@ import { jornadasHorariosModulosTabs } from '@/Config/navigation';
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user);
 const isSuperAdmin = computed(() => !!authUser.value?.is_superadmin);
+const canEditGlobal = computed(() => isSuperAdmin.value || authUser.value?.permissions?.modules?.modulos === true);
+const canEditMatriz = computed(() => isSuperAdmin.value || authUser.value?.permissions?.modules?.modulos === true);
 
 const props = defineProps({
   initialData: {
@@ -603,19 +757,24 @@ const props = defineProps({
   },
 });
 
+const moduloActivoGlobal = ref(props.initialData?.modulo_activo_global ?? true);
 const globalDias = ref(props.initialData?.global_dias || 30);
 const nuevoGlobalDias = ref(props.initialData?.global_dias || 30);
 const fechaGlobalDesde = ref(props.initialData?.fecha_global_desde || '');
-const rutas = ref(props.initialData?.rutas ? [...props.initialData.rutas] : []);
+const rutas = ref(
+  props.initialData?.rutas ? props.initialData.rutas.map(r => ({ ...r, toggling: false })) : []
+);
 const canales = ref(props.initialData?.canales ? [...props.initialData.canales] : []);
 const kpis = ref(props.initialData?.kpis || {});
 
 const loading = ref(false);
 const guardandoGlobal = ref(false);
+const guardandoGlobalToggle = ref(false);
 
 // Filtros
 const filtroBusqueda = ref('');
 const filtroCanal = ref('TODOS');
+const filtroEstado = ref('TODAS');
 const filtroTipo = ref('TODAS');
 
 const CANAL_COLORS = {
@@ -635,6 +794,12 @@ const rutasFiltradas = computed(() => {
 
   if (filtroCanal.value !== 'TODOS') {
     list = list.filter(r => r.canal === filtroCanal.value);
+  }
+
+  if (filtroEstado.value === 'ACTIVAS') {
+    list = list.filter(r => r.modulo_activo);
+  } else if (filtroEstado.value === 'INACTIVAS') {
+    list = list.filter(r => !r.modulo_activo);
   }
 
   if (filtroTipo.value === 'PERSONALIZADAS') {
@@ -668,10 +833,11 @@ async function fetchData() {
   loading.value = true;
   try {
     const res = await axios.post('/supervisor/stock-ventana/data');
+    moduloActivoGlobal.value = res.data.modulo_activo_global ?? true;
     globalDias.value = res.data.global_dias || 30;
     nuevoGlobalDias.value = res.data.global_dias || 30;
     fechaGlobalDesde.value = res.data.fecha_global_desde || '';
-    rutas.value = res.data.rutas || [];
+    rutas.value = (res.data.rutas || []).map(r => ({ ...r, toggling: false }));
     canales.value = res.data.canales || [];
     kpis.value = res.data.kpis || {};
   } catch (err) {
@@ -682,9 +848,30 @@ async function fetchData() {
   }
 }
 
-// Guardar Global
+// Toggle Global
+async function toggleGlobal() {
+  if (!canEditGlobal.value || guardandoGlobalToggle.value) return;
+
+  guardandoGlobalToggle.value = true;
+  const nuevoEstado = !moduloActivoGlobal.value;
+  try {
+    const res = await axios.post('/supervisor/stock-ventana/global/toggle', {
+      is_active: nuevoEstado,
+    });
+    moduloActivoGlobal.value = nuevoEstado;
+    showToast(res.data.message || 'Estado global actualizado.');
+    await fetchData();
+  } catch (err) {
+    console.error('Error al alternar estado global:', err);
+    showToast(err.response?.data?.message || 'Error al modificar estado global.', true);
+  } finally {
+    guardandoGlobalToggle.value = false;
+  }
+}
+
+// Guardar Días Global
 async function guardarGlobal() {
-  if (!isSuperAdmin.value) return;
+  if (!canEditGlobal.value) return;
 
   guardandoGlobal.value = true;
   try {
@@ -701,11 +888,37 @@ async function guardarGlobal() {
   }
 }
 
+// Toggle Ruta individual
+async function toggleRuta(rutaObj) {
+  if (!canEditMatriz.value || rutaObj.toggling) return;
+
+  rutaObj.toggling = true;
+  const nuevoEstado = !rutaObj.modulo_activo;
+
+  try {
+    const res = await axios.post('/supervisor/stock-ventana/route/toggle', {
+      ruta: rutaObj.ruta,
+      is_active: nuevoEstado,
+    });
+    rutaObj.modulo_activo = nuevoEstado;
+    showToast(res.data.message || `Ruta ${rutaObj.ruta} actualizada.`);
+    if (kpis.value) {
+      kpis.value.rutas_activas = rutas.value.filter(r => r.modulo_activo).length;
+    }
+  } catch (err) {
+    console.error('Error al alternar estado de ruta:', err);
+    showToast(err.response?.data?.message || 'Error al actualizar estado de la ruta.', true);
+  } finally {
+    rutaObj.toggling = false;
+  }
+}
+
 // Modal Edición por Ruta
 const modalEdicion = ref({
   show: false,
   ruta: null,
   dias: 30,
+  modulo_activo: true,
   guardando: false,
 });
 
@@ -714,6 +927,7 @@ function abrirModalEdicion(rutaObj) {
     show: true,
     ruta: rutaObj,
     dias: rutaObj.dias_historial || globalDias.value,
+    modulo_activo: !!rutaObj.modulo_activo,
     guardando: false,
   };
 }
@@ -734,13 +948,25 @@ function calcularFechaCorte(dias) {
 
 async function guardarModalEdicion() {
   modalEdicion.value.guardando = true;
-  const rNombre = modalEdicion.value.ruta.ruta;
+  const rObj = modalEdicion.value.ruta;
+  const rNombre = rObj.ruta;
+
   try {
-    const res = await axios.post('/supervisor/stock-ventana/route', {
+    // 1. Guardar ventana de días
+    await axios.post('/supervisor/stock-ventana/route', {
       ruta: rNombre,
       dias_historial: modalEdicion.value.dias,
     });
-    showToast(res.data.message || `Ruta ${rNombre} configurada.`);
+
+    // 2. Si el estado activo cambió, actualizarlo
+    if (modalEdicion.value.modulo_activo !== rObj.modulo_activo) {
+      await axios.post('/supervisor/stock-ventana/route/toggle', {
+        ruta: rNombre,
+        is_active: modalEdicion.value.modulo_activo,
+      });
+    }
+
+    showToast(`Configuración de ruta ${rNombre} guardada exitosamente.`);
     cerrarModalEdicion();
     await fetchData();
   } catch (err) {
@@ -789,6 +1015,7 @@ async function resetearRuta(rutaObj) {
 // Modal Masivo
 const modalMasivo = ref({
   show: false,
+  operacion: 'DIAS', // 'DIAS', 'ACTIVAR', 'DESACTIVAR'
   alcance: 'CANAL',
   canalSeleccionado: 'TDB',
   dias: 30,
@@ -798,6 +1025,7 @@ const modalMasivo = ref({
 function abrirModalMasivo() {
   modalMasivo.value = {
     show: true,
+    operacion: 'DIAS',
     alcance: 'CANAL',
     canalSeleccionado: canales.value[0] || 'TDB',
     dias: globalDias.value,
@@ -824,25 +1052,44 @@ async function ejecutarAplicacionMasiva() {
     return;
   }
 
-  if (!confirm(`¿Aplicar ${modalMasivo.value.dias} días de historial a las ${rutasDestino.length} rutas seleccionadas?`)) {
+  const op = modalMasivo.value.operacion;
+  let confirmMsg = '';
+
+  if (op === 'DIAS') {
+    confirmMsg = `¿Aplicar ${modalMasivo.value.dias} días de historial a las ${rutasDestino.length} rutas seleccionadas?`;
+  } else if (op === 'ACTIVAR') {
+    confirmMsg = `¿Activar la toma de stock para las ${rutasDestino.length} rutas seleccionadas?`;
+  } else {
+    confirmMsg = `¿Desactivar la toma de stock para las ${rutasDestino.length} rutas seleccionadas?`;
+  }
+
+  if (!confirm(confirmMsg)) {
     return;
   }
 
   modalMasivo.value.guardando = true;
   try {
-    const res = await axios.post('/supervisor/stock-ventana/batch', {
-      rutas: rutasDestino,
-      dias_historial: modalMasivo.value.dias,
-    });
-    showToast(res.data.message || 'Rutas actualizadas exitosamente.');
+    if (op === 'DIAS') {
+      const res = await axios.post('/supervisor/stock-ventana/batch', {
+        rutas: rutasDestino,
+        dias_historial: modalMasivo.value.dias,
+      });
+      showToast(res.data.message || 'Rutas actualizadas exitosamente.');
+    } else {
+      const res = await axios.post('/supervisor/stock-ventana/batch/toggle', {
+        rutas: rutasDestino,
+        is_active: op === 'ACTIVAR',
+      });
+      showToast(res.data.message || 'Estado de rutas actualizado exitosamente.');
+    }
+
     cerrarModalMasivo();
     await fetchData();
   } catch (err) {
     console.error('Error en aplicación masiva:', err);
-    showToast(err.response?.data?.message || 'Error al aplicar en lote.', true);
+    showToast(err.response?.data?.message || 'Error en la acción en lote.', true);
   } finally {
     modalMasivo.value.guardando = false;
   }
 }
 </script>
-

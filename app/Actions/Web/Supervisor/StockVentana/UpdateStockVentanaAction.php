@@ -113,5 +113,74 @@ class UpdateStockVentanaAction
 
         return $count;
     }
+
+    /**
+     * Activa o desactiva la toma de stock globalmente en app_modules.
+     */
+    public function toggleGlobal(bool $isActive): AppModule
+    {
+        $modulo = AppModule::firstOrCreate(
+            ['code' => 'inventario_cliente'],
+            [
+                'name' => 'Inventario en PDV',
+                'description' => 'Módulo de toma de inventario físico en punto de venta',
+                'order' => 6,
+                'is_active' => $isActive,
+                'config' => ['dias_historial' => 30],
+            ]
+        );
+
+        $modulo->is_active = $isActive;
+        $modulo->save();
+
+        return $modulo;
+    }
+
+    /**
+     * Activa o desactiva la toma de stock para una ruta específica en app_module_routes.
+     */
+    public function toggleRoute(string $ruta, bool $isActive): AppModuleRoute
+    {
+        $cleanRuta = strtoupper(trim(preg_replace('/\s+/', ' ', $ruta)));
+
+        $override = AppModuleRoute::firstOrCreate(
+            [
+                'ruta' => $cleanRuta,
+                'module_code' => 'inventario_cliente',
+            ],
+            [
+                'is_active' => $isActive,
+                'config' => [],
+            ]
+        );
+
+        $override->is_active = $isActive;
+        $override->save();
+
+        return $override;
+    }
+
+    /**
+     * Activa o desactiva la toma de stock masivamente para un conjunto de rutas.
+     *
+     * @param array<int, string> $rutas
+     * @param bool $isActive
+     * @return int
+     */
+    public function batchToggle(array $rutas, bool $isActive): int
+    {
+        $count = 0;
+        DB::transaction(function () use ($rutas, $isActive, &$count) {
+            foreach ($rutas as $rawRuta) {
+                if (empty(trim((string) $rawRuta))) {
+                    continue;
+                }
+                $this->toggleRoute((string) $rawRuta, $isActive);
+                $count++;
+            }
+        });
+
+        return $count;
+    }
 }
 

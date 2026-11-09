@@ -147,5 +147,95 @@ class SupervisorStockVentanaController extends Controller
             'total' => $total,
         ], 200);
     }
+
+    /**
+     * Activa o desactiva la toma de stock globalmente en app_modules.
+     */
+    public function toggleGlobal(Request $request, UpdateStockVentanaAction $action): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !$user->hasModuleAccess('modulos', 'global', true)) {
+            return response()->json([
+                'message' => 'Solo usuarios Superadministrador o con permisos de Ajustes Globales pueden activar o desactivar la toma de stock global.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $isActive = (bool) $validated['is_active'];
+        $modulo = $action->toggleGlobal($isActive);
+        $estadoStr = $isActive ? 'activada' : 'desactivada';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Toma de stock global {$estadoStr} exitosamente para Android.",
+            'modulo_activo_global' => (bool) $modulo->is_active,
+        ], 200);
+    }
+
+    /**
+     * Activa o desactiva la toma de stock para una ruta específica en app_module_routes.
+     */
+    public function toggleRoute(Request $request, UpdateStockVentanaAction $action): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !$user->hasModuleAccess('modulos', 'matriz', true)) {
+            return response()->json([
+                'message' => 'Solo usuarios Superadministrador o con permisos de Matriz pueden modificar el estado de la ruta.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'ruta' => 'required|string|max:50',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $ruta = (string) $validated['ruta'];
+        $isActive = (bool) $validated['is_active'];
+
+        $override = $action->toggleRoute($ruta, $isActive);
+        $estadoStr = $isActive ? 'activada' : 'desactivada';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Toma de stock {$estadoStr} para la ruta {$ruta}.",
+            'ruta' => $ruta,
+            'modulo_activo' => (bool) $override->is_active,
+        ], 200);
+    }
+
+    /**
+     * Activa o desactiva la toma de stock masivamente para un grupo de rutas.
+     */
+    public function batchToggle(Request $request, UpdateStockVentanaAction $action): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isSuperAdmin() && !$user->hasModuleAccess('modulos', 'matriz', true)) {
+            return response()->json([
+                'message' => 'Solo usuarios Superadministrador o con permisos de Matriz pueden realizar cambios masivos.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'rutas' => 'required|array|min:1',
+            'rutas.*' => 'string|max:50',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $rutas = (array) $validated['rutas'];
+        $isActive = (bool) $validated['is_active'];
+
+        $total = $action->batchToggle($rutas, $isActive);
+        $estadoStr = $isActive ? 'activada' : 'desactivada';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Toma de stock {$estadoStr} exitosamente para {$total} rutas.",
+            'total' => $total,
+            'is_active' => $isActive,
+        ], 200);
+    }
 }
 

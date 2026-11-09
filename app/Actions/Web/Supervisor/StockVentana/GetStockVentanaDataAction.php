@@ -133,6 +133,8 @@ class GetStockVentanaDataAction
         $rutasResultado = [];
         $kpiPersonalizadas = 0;
         $kpiGlobales = 0;
+        $kpiActivas = 0;
+        $kpiInactivas = 0;
 
         foreach ($normKeysUnicas as $nKey) {
             $displayRuta = $nombresRutaMap[$nKey];
@@ -162,6 +164,12 @@ class GetStockVentanaDataAction
                 $kpiPersonalizadas++;
             } else {
                 $kpiGlobales++;
+            }
+
+            if ($isModuleActive) {
+                $kpiActivas++;
+            } else {
+                $kpiInactivas++;
             }
 
             $fechaDesdeRuta = $nowBolivia->copy()->subDays($diasHistorialRuta);
@@ -196,6 +204,8 @@ class GetStockVentanaDataAction
             'rutas' => $rutasResultado,
             'kpis' => [
                 'total_rutas' => count($rutasResultado),
+                'rutas_activas' => $kpiActivas,
+                'rutas_inactivas' => $kpiInactivas,
                 'rutas_personalizadas' => $kpiPersonalizadas,
                 'rutas_globales' => $kpiGlobales,
                 'dias_global' => $globalDias,
