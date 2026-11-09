@@ -24,7 +24,8 @@ class GetCumplimientoDataAction
     private const EVALUAR_KPI8_COVERS = true; // KPI 8: Covers (Descuento >= 50% · 5 pts) activado
 
     public function __construct(
-        private readonly GetCatalogoRutasAction $catalogoAction
+        private readonly GetCatalogoRutasAction $catalogoAction,
+        private readonly GetDetalleReposicionRutaAction $detalleReposicionAction,
     ) {}
 
     /**
@@ -747,111 +748,49 @@ class GetCumplimientoDataAction
             $tiendasNuevasRepo = 0;
             $detalleReposicionTiendas = [];
 
+            // ----------------------------------------------------
+            // KPI 6: Pedido de Reposición (15 Puntos · Criterio Binario >= 20%)
+            // Evaluación con la misma lógica de Cobertura Core (GetDetalleReposicionRutaAction)
+            // ----------------------------------------------------
             if (self::EVALUAR_KPI6_REPOSICION) {
-                foreach ($preventasPorCliente as $cId => $itemsCliente) {
-                    $cIdInt = (int) $cId;
-                    $historial = $historial90DiasPorCliente[$cIdInt] ?? null;
-                    $canonicalKeys = $historial['canonical_keys'] ?? []; // [$canonicalKey => $pesoFi]
-                    $tieneBase = !empty($canonicalKeys);
-
-                    $skusBaseCount = count($canonicalKeys);
-                    $puntosEsperadosTienda = 0;
-                    foreach ($canonicalKeys as $cKey => $pesoFi) {
-                        $puntosEsperadosTienda += (int) $pesoFi;
-                    }
-
-                    $matchesCliente = 0;
-                    $fueraCanastaCliente = 0;
-                    $puntosMatchTienda = 0;
-                    $matchedCanonicalKeys = [];
-
-                    foreach ($itemsCliente as $it) {
-                        $cod = trim((string) ($it->codigo_producto ?? ''));
-                        $pid = (int) ($it->producto_id ?? 0);
-                        $prodNorm = mb_strtolower(trim((string) ($it->producto ?? '')));
-
-                        $matchedCanonicalKey = null;
-                        if ($tieneBase) {
-                            if ($cod !== '' && isset($historial['keys_map']["cod_{$cod}"])) {
-                                $matchedCanonicalKey = $historial['keys_map']["cod_{$cod}"];
-                            } elseif ($pid > 0 && isset($historial['keys_map']["id_{$pid}"])) {
-                                $matchedCanonicalKey = $historial['keys_map']["id_{$pid}"];
-                            } elseif ($prodNorm !== '' && isset($historial['keys_map']["nom_{$prodNorm}"])) {
-                                $matchedCanonicalKey = $historial['keys_map']["nom_{$prodNorm}"];
-                            }
-                        }
-
-                        if ($matchedCanonicalKey !== null && isset($canonicalKeys[$matchedCanonicalKey])) {
-                            $matchesCliente++;
-                            if (!isset($matchedCanonicalKeys[$matchedCanonicalKey])) {
-                                $matchedCanonicalKeys[$matchedCanonicalKey] = true;
-                                $puntosMatchTienda += (int) $canonicalKeys[$matchedCanonicalKey];
-                            }
-                        } else {
-                            $fueraCanastaCliente++;
-                        }
-                    }
-
-                    // Regla de Cliente Nuevo o Recuperado (Puntos Esperados Tienda = 0)
-                    $esNeutro = !$tieneBase || $puntosEsperadosTienda === 0;
-
-                    if (!$esNeutro) {
-                        $pctTienda = round(($puntosMatchTienda / $puntosEsperadosTienda) * 100.0, 1);
-                        $cumpleTienda = ($pctTienda >= 60.0);
-
-                        $totalPuntosEsperadosRuta += $puntosEsperadosTienda;
-                        $totalPuntosMatchRuta += $puntosMatchTienda;
-                        $tiendasEvaluadasRepo++;
-                    } else {
-                        // Neutro (Excluido): Aporta 0 al numerador y 0 al denominador de la ruta
-                        $pctTienda = null;
-                        $cumpleTienda = null;
-                        $tiendasNuevasRepo++;
-                    }
-
-                    $totalSkusEsperadosRuta += $skusBaseCount;
-                    $totalSkusMatchRuta += $matchesCliente;
-                    $totalSkusFueraCanastaRuta += $fueraCanastaCliente;
-
-                    $primerItem = $itemsCliente->first();
-                    $detalleReposicionTiendas[] = [
-                        'cliente_id' => $cIdInt,
-                        'codigo_cliente' => $primerItem->codigo_cliente ?? (string) $cIdInt,
-                        'cliente' => $primerItem->cliente ?? "Cliente #{$cIdInt}",
-                        'tiene_base_historica' => $tieneBase,
-                        'es_neutro' => $esNeutro,
-                        'puntos_esperados' => $puntosEsperadosTienda,
-                        'puntos_match' => $puntosMatchTienda,
-                        'skus_esperados' => $skusBaseCount,
-                        'skus_con_match' => $matchesCliente,
-                        'skus_fuera_canasta' => $fueraCanastaCliente,
-                        'porcentaje_reposicion' => $pctTienda,
-                        'cumple' => $cumpleTienda,
-                    ];
-                }
-
-                // Paso 2: Porcentaje de Reposición del Día de la Ruta (Ponderado Global de Puntos)
-                if ($totalPuntosEsperadosRuta > 0) {
-                    $tasaReposicion = round(($totalPuntosMatchRuta / $totalPuntosEsperadosRuta) * 100.0, 1);
-                } elseif ($totalCompradores > 0) {
-                    // Caso de borde único: 100% de las tiendas son clientes nuevos sin historial
-                    $tasaReposicion = 100.0;
+                if ($totalCompradores > 0) {
+                    $repoRuta = $this->detalleReposicionAction->execute($rutaCodigo, $fechaNorm, $semanasHistoria);
+                    $tasaReposicion = (float) ($repoRuta['totales']['porcentaje_reposicion_ruta'] ?? 0.0);
+                    $kpi6Cumple = (bool) ($repoRuta['totales']['cumple_umbral'] ?? false);
+                    $kpi6Puntos = (float) ($repoRuta['totales']['puntos_obtenidos'] ?? 0.0);
+                    $totalPuntosEsperadosRuta = (int) ($repoRuta['totales']['puntos_esperados_total'] ?? 0);
+                    $totalPuntosMatchRuta = (int) ($repoRuta['totales']['puntos_match_total'] ?? 0);
+                    $totalSkusEsperadosRuta = (int) ($repoRuta['totales']['skus_esperados_total'] ?? 0);
+                    $totalSkusMatchRuta = (int) ($repoRuta['totales']['skus_con_match_total'] ?? 0);
+                    $totalSkusFueraCanastaRuta = (int) ($repoRuta['totales']['skus_fuera_canasta_total'] ?? 0);
+                    $tiendasEvaluadasRepo = (int) ($repoRuta['totales']['compradores_evaluables'] ?? 0);
+                    $tiendasNuevasRepo = (int) ($repoRuta['totales']['compradores_nuevos'] ?? 0);
+                    $detalleReposicionTiendas = $repoRuta['tiendas'] ?? [];
                 } else {
-                    $tasaReposicion = 0.0;
-                }
-
-                // Paso 3: Asignación de Puntos (15 Puntos a partir de 20% de reposición)
-                if ($totalCompradores === 0 || $tasaReposicion < self::UMBRAL_REPOSICION_PCT) {
-                    $kpi6Puntos = 0.0;
                     $kpi6Cumple = false;
-                } else {
-                    $kpi6Puntos = 15.0;
-                    $kpi6Cumple = true;
+                    $kpi6Puntos = 0.0;
+                    $tasaReposicion = 0.0;
+                    $totalPuntosEsperadosRuta = 0;
+                    $totalPuntosMatchRuta = 0;
+                    $totalSkusEsperadosRuta = 0;
+                    $totalSkusMatchRuta = 0;
+                    $totalSkusFueraCanastaRuta = 0;
+                    $tiendasEvaluadasRepo = 0;
+                    $tiendasNuevasRepo = 0;
+                    $detalleReposicionTiendas = [];
                 }
             } else {
                 $kpi6Cumple = false;
                 $kpi6Puntos = 0.0;
                 $tasaReposicion = 0.0;
+                $totalPuntosEsperadosRuta = 0;
+                $totalPuntosMatchRuta = 0;
+                $totalSkusEsperadosRuta = 0;
+                $totalSkusMatchRuta = 0;
+                $totalSkusFueraCanastaRuta = 0;
+                $tiendasEvaluadasRepo = 0;
+                $tiendasNuevasRepo = 0;
+                $detalleReposicionTiendas = [];
             }
 
             // ----------------------------------------------------

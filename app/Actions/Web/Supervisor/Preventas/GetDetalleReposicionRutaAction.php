@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Log;
 
 class GetDetalleReposicionRutaAction
 {
+    private static array $cacheDiasHabiles = [];
+    private static array $cacheMetas = [];
+
     /**
      * Normaliza texto para comparaciones seguras de cadenas.
      */
@@ -30,6 +33,11 @@ class GetDetalleReposicionRutaAction
      */
     private function calcularDiasHabiles(int $year, int $month, string $fechaCorte): array
     {
+        $cacheKey = "{$year}-{$month}-{$fechaCorte}";
+        if (isset(self::$cacheDiasHabiles[$cacheKey])) {
+            return self::$cacheDiasHabiles[$cacheKey];
+        }
+
         $diasTotales = 25;
 
         try {
@@ -62,7 +70,7 @@ class GetDetalleReposicionRutaAction
         $diasOperados = max(1, $diasOperados);
         $diasRestantes = max(1, $diasTotales - $diasOperados);
 
-        return [
+        return self::$cacheDiasHabiles[$cacheKey] = [
             'dias_totales' => $diasTotales,
             'dias_transcurridos' => $diasOperados,
             'dias_restantes' => $diasRestantes,
@@ -74,6 +82,11 @@ class GetDetalleReposicionRutaAction
      */
     private function obtenerMetaMesRuta(string $rutaClean, int $year, int $month, string $fInicioMes): float
     {
+        $cacheKey = "{$rutaClean}-{$year}-{$month}";
+        if (isset(self::$cacheMetas[$cacheKey])) {
+            return self::$cacheMetas[$cacheKey];
+        }
+
         try {
             $mesesEspCompleto = [
                 1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
@@ -104,9 +117,10 @@ class GetDetalleReposicionRutaAction
                 ->selectRaw("MAX(CAST(COALESCE(objetivo_de_venta, 0.0) AS DECIMAL(14, 2))) as meta_vol")
                 ->first();
 
-            return $metaRow && $metaRow->meta_vol ? (float) $metaRow->meta_vol : 0.0;
+            $metaVal = $metaRow && $metaRow->meta_vol ? (float) $metaRow->meta_vol : 0.0;
+            return self::$cacheMetas[$cacheKey] = $metaVal;
         } catch (\Throwable) {
-            return 0.0;
+            return self::$cacheMetas[$cacheKey] = 0.0;
         }
     }
 
@@ -516,6 +530,51 @@ class GetDetalleReposicionRutaAction
                 $ventasHistoricasMap
             );
 
+            // 6.1 Catálogo Pareto de la ruta ordenado por mayor rotación física (volumen de unidades compradas)
+            $paretoRuta = [];
+            foreach ($historialPorCliente as $cIdHist => $prodsHist) {
+                foreach ($prodsHist as $pKey => $pData) {
+                    if (!isset($paretoRuta[$pKey])) {
+                        $paretoRuta[$pKey] = [
+                            'producto_id' => $pData['producto_id'],
+                            'codigo_producto' => $pData['codigo_producto'],
+                            'producto' => $pData['producto'],
+                            'categoria' => $pData['categoria'],
+                            'total_unidades' => 0,
+                            'total_bs' => 0.0,
+                            'precio' => 0.0,
+                            'frecuencia' => 0,
+                            'clientes_count' => 0,
+                        ];
+                    }
+                    $paretoRuta[$pKey]['total_unidades'] += (int) ($pData['total_unidades'] ?? 0);
+                    $paretoRuta[$pKey]['total_bs'] += (float) ($pData['total_bs'] ?? 0.0);
+                    $paretoRuta[$pKey]['frecuencia'] += (int) ($pData['frecuencia_compra'] ?? 0);
+                    $paretoRuta[$pKey]['clientes_count']++;
+                    if ($paretoRuta[$pKey]['precio'] <= 0.0 && ($pData['total_unidades'] ?? 0) > 0 && ($pData['total_bs'] ?? 0) > 0) {
+                        $paretoRuta[$pKey]['precio'] = round($pData['total_bs'] / $pData['total_unidades'], 2);
+                    }
+                }
+            }
+
+            foreach ($paretoRuta as &$itPareto) {
+                if ($itPareto['precio'] <= 0.0 && $itPareto['total_unidades'] > 0 && $itPareto['total_bs'] > 0) {
+                    $itPareto['precio'] = round($itPareto['total_bs'] / $itPareto['total_unidades'], 2);
+                }
+            }
+            unset($itPareto);
+
+            // Ordenar Pareto de la ruta por rotación física (unidades vendidas) descendente y frecuencia descendente
+            uasort($paretoRuta, function ($a, $b) {
+                if ($a['total_unidades'] !== $b['total_unidades']) {
+                    return $b['total_unidades'] <=> $a['total_unidades'];
+                }
+                if ($a['frecuencia'] !== $b['frecuencia']) {
+                    return $b['frecuencia'] <=> $a['frecuencia'];
+                }
+                return $b['clientes_count'] <=> $a['clientes_count'];
+            });
+
             // 7. Evaluar Reposición Semanal Tienda por Tienda con Lógica Cobertura Core
             // La cuota mensual se divide entre las semanas hábiles restantes del mes (las visitas son semanales)
             $tiendas = [];
@@ -539,144 +598,230 @@ class GetDetalleReposicionRutaAction
                     : $cuotaMensualCli;
                 $cuotaSemanalCli = max(10.0, $cuotaSemanalCli);
 
-                // Filtrar SKUs habituales del cliente (comprados con frecuencia >= 1 y unidades >= 1)
+                // 1. Filtrar SKUs habituales del cliente (frecuencia >= 1 y unidades acumuladas >= 4)
                 $habitualesCli = [];
                 foreach ($canastaRaw as $hKey => $hab) {
-                    $uHist = (int) $hab['total_unidades'];
-                    $bHist = (float) $hab['total_bs'];
-                    $fHist = (int) $hab['frecuencia_compra'];
+                    $uHist = (int) ($hab['total_unidades'] ?? 0);
+                    $bHist = (float) ($hab['total_bs'] ?? 0.0);
+                    $fHist = (int) ($hab['frecuencia_compra'] ?? 0);
 
-                    if ($fHist >= 1 && $uHist >= 1) {
-                        $pCalc = $uHist > 0 && $bHist > 0 ? round($bHist / $uHist, 2) : 0.0;
-                        if ($pCalc <= 0.0) {
-                            $pCalc = 1.0;
-                        }
+                    $pCalc = $uHist > 0 && $bHist > 0 ? round($bHist / $uHist, 2) : 0.0;
+                    if ($pCalc <= 0.0) {
+                        $pCalc = (float) ($paretoRuta[$hKey]['precio'] ?? 1.0);
+                    }
+                    if ($pCalc <= 0.0) {
+                        $pCalc = 1.0;
+                    }
 
+                    if ($fHist >= 1 && $uHist >= 4) {
                         $habitualesCli[$hKey] = array_merge($hab, [
                             'precio' => $pCalc,
                             'total_bs' => $bHist,
+                            'tipo_origen' => 'HABITO_CLIENTE',
                         ]);
                     }
                 }
 
+                // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
+                $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs'));
+                // Ordenar habituales por rotación en Bs descendente para tener SKU #1 primero
+                uasort($habitualesCli, fn ($a, $b) => ($b['total_bs'] <=> $a['total_bs']));
+
+                // PASO 2 y 3: Asignación de base monetaria respetando TECHO HISTÓRICO estricto
+                $subtotalBase = 0.0;
+                foreach ($habitualesCli as $pk => &$hInfo) {
+                    $mix_j = $ventaTotalHabitual > 0
+                        ? ($hInfo['total_bs'] / $ventaTotalHabitual)
+                        : (1.0 / count($habitualesCli));
+                    $presupuestoTeorico_j = $cuotaSemanalCli * $mix_j;
+                    $pj = $hInfo['precio'] > 0 ? $hInfo['precio'] : 1.0;
+
+                    $uHist = (int) ($hInfo['total_unidades'] ?? 0);
+                    $cantCalculada = max(1, (int) floor($presupuestoTeorico_j / $pj));
+                    // REGLA: No inflar más de lo que compró en su histórico
+                    $cantBase = ($uHist > 0) ? min($cantCalculada, $uHist) : $cantCalculada;
+                    $montoBase = round($cantBase * $pj, 2);
+
+                    $hInfo['cant_sugerida'] = $cantBase;
+                    $hInfo['monto_sugerido'] = $montoBase;
+                    $hInfo['mix_propio'] = $mix_j;
+                    $hInfo['presupuesto_teorico'] = round($presupuestoTeorico_j, 2);
+                    $subtotalBase = round($subtotalBase + $montoBase, 2);
+                }
+                unset($hInfo);
+
+                // PASO 4: Nivelación comercial si queda brecha (subtotalBase < cuotaSemanalCli)
+                // Prioridad 1: Productos que el cliente ya conoce (del histórico con cantidad < 4 a 4 unidades fijas)
+                if ($subtotalBase < $cuotaSemanalCli) {
+                    $candidatosHist = [];
+                    foreach ($canastaRaw as $hKey => $hab) {
+                        if (!isset($habitualesCli[$hKey])) {
+                            $uHist = (int) ($hab['total_unidades'] ?? 0);
+                            $bHist = (float) ($hab['total_bs'] ?? 0.0);
+                            $pCalc = $uHist > 0 && $bHist > 0 ? round($bHist / $uHist, 2) : 0.0;
+                            if ($pCalc <= 0.0) {
+                                $pCalc = (float) ($paretoRuta[$hKey]['precio'] ?? 1.0);
+                            }
+                            if ($pCalc <= 0.0) {
+                                $pCalc = 1.0;
+                            }
+                            if ($uHist > 0) {
+                                $candidatosHist[] = array_merge($hab, [
+                                    'hKey' => $hKey,
+                                    'precio' => $pCalc,
+                                    'total_bs' => $bHist,
+                                    'total_unidades' => $uHist,
+                                ]);
+                            }
+                        }
+                    }
+
+                    // Ordenar candidatos del cliente: 1° volumen físico (unidades), 2° monto Bs
+                    usort($candidatosHist, function ($a, $b) {
+                        if ($a['total_unidades'] !== $b['total_unidades']) {
+                            return $b['total_unidades'] <=> $a['total_unidades'];
+                        }
+                        return $b['total_bs'] <=> $a['total_bs'];
+                    });
+
+                    foreach ($candidatosHist as $cHist) {
+                        if ($subtotalBase >= $cuotaSemanalCli) {
+                            break;
+                        }
+                        $hk = $cHist['hKey'];
+                        $pUlt = $cHist['precio'];
+                        $cantNueva = 4;
+                        $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                        $habitualesCli[$hk] = array_merge($cHist, [
+                            'cant_sugerida' => $cantNueva,
+                            'monto_sugerido' => $montoNuevo,
+                            'mix_propio' => 0.0,
+                            'presupuesto_teorico' => $montoNuevo,
+                            'tipo_origen' => 'HISTORIAL_CLIENTE',
+                        ]);
+                        $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                    }
+                }
+
+                // Prioridad 2: Si aún queda brecha, catálogo Pareto de la ruta (a 4 unidades fijas)
+                if ($subtotalBase < $cuotaSemanalCli && !empty($paretoRuta)) {
+                    foreach ($paretoRuta as $pKey => $pItem) {
+                        if ($subtotalBase >= $cuotaSemanalCli) {
+                            break;
+                        }
+                        if (isset($habitualesCli[$pKey])) {
+                            continue;
+                        }
+                        $pUlt = (float) ($pItem['precio'] ?? 0.0);
+                        if ($pUlt <= 0.0) {
+                            continue;
+                        }
+                        $cantNueva = 4;
+                        $montoNuevo = round($cantNueva * $pUlt, 2);
+
+                        $habitualesCli[$pKey] = [
+                            'producto_id' => $pItem['producto_id'],
+                            'codigo_producto' => $pItem['codigo_producto'],
+                            'producto' => $pItem['producto'],
+                            'categoria' => $pItem['categoria'],
+                            'frecuencia_compra' => 1,
+                            'dias_con_compra' => 1,
+                            'total_unidades' => 0,
+                            'total_bs' => 0.0,
+                            'precio' => $pUlt,
+                            'cant_sugerida' => $cantNueva,
+                            'monto_sugerido' => $montoNuevo,
+                            'mix_propio' => 0.0,
+                            'presupuesto_teorico' => $montoNuevo,
+                            'tipo_origen' => 'PARETO_RUTA',
+                            'es_core_pareto' => true,
+                            'historial_compras' => [],
+                        ];
+                        $subtotalBase = round($subtotalBase + $montoNuevo, 2);
+                    }
+                }
+
+                $subtotalSugeridoSemanal = $subtotalBase;
+
+                // PASO 5: Match contra el pedido de hoy
                 $keysUsadasHoy = [];
                 $canastaBase = [];
                 $matchesCliente = 0;
                 $puntosEsperadosTienda = 0;
                 $puntosMatchTienda = 0;
                 $montoMatchTienda = 0.0;
-                $subtotalSugeridoSemanal = 0.0;
 
-                if (!empty($habitualesCli)) {
-                    // PASO 1: Participación histórica dentro de la tienda (Mix Propio)
-                    $ventaTotalHabitual = array_sum(array_column($habitualesCli, 'total_bs'));
-                    // Ordenar habituales por rotación en Bs descendente para tener SKU #1 primero
-                    uasort($habitualesCli, fn ($a, $b) => ($b['total_bs'] <=> $a['total_bs']));
+                foreach ($habitualesCli as $hKey => $hab) {
+                    $cod = $hab['codigo_producto'];
+                    $pid = $hab['producto_id'];
+                    $prodNorm = $this->normalizar($hab['producto']);
 
-                    // PASO 2 y 3: Asignación de base monetaria y cálculo de unidades base (M_j = 1)
-                    $subtotalBase = 0.0;
-                    foreach ($habitualesCli as $pk => &$hInfo) {
-                        $mix_j = $ventaTotalHabitual > 0
-                            ? ($hInfo['total_bs'] / $ventaTotalHabitual)
-                            : (1.0 / count($habitualesCli));
-                        $presupuestoTeorico_j = $cuotaSemanalCli * $mix_j;
-                        $pj = $hInfo['precio'] > 0 ? $hInfo['precio'] : 1.0;
-
-                        $cantBase = max(1, (int) floor($presupuestoTeorico_j / $pj));
-                        $montoBase = round($cantBase * $pj, 2);
-
-                        $hInfo['cant_sugerida'] = $cantBase;
-                        $hInfo['monto_sugerido'] = $montoBase;
-                        $hInfo['mix_propio'] = $mix_j;
-                        $hInfo['presupuesto_teorico'] = round($presupuestoTeorico_j, 2);
-                        $subtotalBase = round($subtotalBase + $montoBase, 2);
-                    }
-                    unset($hInfo);
-
-                    // PASO 4: Brecha residual y nivelación comercial (Sumar unidades al SKU #1)
-                    $brecha = round($cuotaSemanalCli - $subtotalBase, 2);
-                    if ($brecha > 0 && !empty($habitualesCli)) {
-                        $topKey = array_key_first($habitualesCli);
-                        $p1 = $habitualesCli[$topKey]['precio'] > 0 ? $habitualesCli[$topKey]['precio'] : 1.0;
-                        $unidadesExtra = (int) ceil($brecha / $p1);
-                        $habitualesCli[$topKey]['cant_sugerida'] += $unidadesExtra;
-                        $habitualesCli[$topKey]['monto_sugerido'] = round($habitualesCli[$topKey]['cant_sugerida'] * $p1, 2);
-                        $subtotalBase = round($subtotalBase + ($unidadesExtra * $p1), 2);
-                    }
-                    $subtotalSugeridoSemanal = $subtotalBase;
-
-                    // PASO 5: Match contra el pedido de hoy
-                    foreach ($habitualesCli as $hKey => $hab) {
-                        $cod = $hab['codigo_producto'];
-                        $pid = $hab['producto_id'];
-                        $prodNorm = $this->normalizar($hab['producto']);
-
-                        $keyMatch = null;
-                        if ($cod !== '' && isset($keysHoy["cod_{$cod}"])) {
-                            $keyMatch = $keysHoy["cod_{$cod}"];
-                        } elseif ($pid > 0 && isset($keysHoy["id_{$pid}"])) {
-                            $keyMatch = $keysHoy["id_{$pid}"];
-                        } elseif ($prodNorm !== '' && isset($keysHoy["nom_{$prodNorm}"])) {
-                            $keyMatch = $keysHoy["nom_{$prodNorm}"];
-                        }
-
-                        $esMatch = ($keyMatch !== null && isset($pedidoHoy[$keyMatch]));
-                        $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
-                        $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
-
-                        $freqCompra = max(1, (int) ($hab['frecuencia_compra'] ?? 1));
-                        $pesoFi = $freqCompra;
-                        $puntosEsperadosTienda += $pesoFi;
-
-                        $cantRepoSemanal = (int) ($hab['cant_sugerida'] ?? 1);
-                        $montoRepoSemanal = (float) ($hab['monto_sugerido'] ?? round($cantRepoSemanal * ($hab['precio'] ?? 1.0), 2));
-
-                        if ($esMatch) {
-                            $matchesCliente++;
-                            $keysUsadasHoy[$keyMatch] = true;
-                            $puntosMatchTienda += $pesoFi;
-                            $montoMatchTienda += min($montoHoy, $montoRepoSemanal);
-                        }
-
-                        $canastaBase[] = [
-                            'producto_id' => $hab['producto_id'],
-                            'codigo_producto' => $hab['codigo_producto'],
-                            'producto' => $hab['producto'],
-                            'descripcion' => $hab['producto'],
-                            'categoria' => $hab['categoria'],
-                            'tipo_origen' => 'HABITO_CLIENTE',
-                            'peso_fi' => $pesoFi,
-                            'frecuencia_compra' => $freqCompra,
-                            'unidades_acumuladas' => $hab['total_unidades'],
-                            'dias_con_compra' => $freqCompra,
-                            'semanas_transcurridas' => $semanas,
-                            'semanas_habiles_restantes' => $semanasHabilesRestantes,
-                            'precio_unitario' => round((float) $hab['precio'], 2),
-                            'mix_propio_pct' => round(($hab['mix_propio'] ?? 0.0) * 100, 1),
-                            'presupuesto_teorico' => round((float) ($hab['presupuesto_teorico'] ?? 0.0), 2),
-                            'cantidad_repo' => $cantRepoSemanal,
-                            'cant_sugerida' => $cantRepoSemanal,
-                            'monto_sugerido' => $montoRepoSemanal,
-                            'monto_acumulado_bs' => round($hab['total_bs'], 2),
-                            'unidades_hoy' => $unidadesHoy,
-                            'monto_hoy' => $montoHoy,
-                            'recomprado_hoy' => $esMatch,
-                            'estatus' => $esMatch ? 'MATCH_SKU' : 'OMITIDO',
-                            'historial_compras' => $hab['historial_compras'] ?? [],
-                        ];
+                    $keyMatch = null;
+                    if ($cod !== '' && isset($keysHoy["cod_{$cod}"])) {
+                        $keyMatch = $keysHoy["cod_{$cod}"];
+                    } elseif ($pid > 0 && isset($keysHoy["id_{$pid}"])) {
+                        $keyMatch = $keysHoy["id_{$pid}"];
+                    } elseif ($prodNorm !== '' && isset($keysHoy["nom_{$prodNorm}"])) {
+                        $keyMatch = $keysHoy["nom_{$prodNorm}"];
                     }
 
-                    // Ordenar canasta habitual: primero recomprados, luego peso f_i descendente
-                    usort($canastaBase, function ($a, $b) {
-                        if ($a['recomprado_hoy'] !== $b['recomprado_hoy']) {
-                            return $b['recomprado_hoy'] <=> $a['recomprado_hoy'];
-                        }
-                        if ($a['peso_fi'] !== $b['peso_fi']) {
-                            return $b['peso_fi'] <=> $a['peso_fi'];
-                        }
-                        return $b['monto_sugerido'] <=> $a['monto_sugerido'];
-                    });
+                    $esMatch = ($keyMatch !== null && isset($pedidoHoy[$keyMatch]));
+                    $unidadesHoy = $esMatch ? (int) $pedidoHoy[$keyMatch]['cantidad'] : 0;
+                    $montoHoy = $esMatch ? round((float) $pedidoHoy[$keyMatch]['monto'], 2) : 0.0;
+
+                    $freqCompra = max(1, (int) ($hab['frecuencia_compra'] ?? 1));
+                    $pesoFi = $freqCompra;
+                    $puntosEsperadosTienda += $pesoFi;
+
+                    $cantRepoSemanal = (int) ($hab['cant_sugerida'] ?? 1);
+                    $montoRepoSemanal = (float) ($hab['monto_sugerido'] ?? round($cantRepoSemanal * ($hab['precio'] ?? 1.0), 2));
+
+                    if ($esMatch) {
+                        $matchesCliente++;
+                        $keysUsadasHoy[$keyMatch] = true;
+                        $puntosMatchTienda += $pesoFi;
+                        $montoMatchTienda += min($montoHoy, $montoRepoSemanal);
+                    }
+
+                    $canastaBase[] = [
+                        'producto_id' => $hab['producto_id'],
+                        'codigo_producto' => $hab['codigo_producto'],
+                        'producto' => $hab['producto'],
+                        'descripcion' => $hab['producto'],
+                        'categoria' => $hab['categoria'],
+                        'tipo_origen' => $hab['tipo_origen'] ?? 'HABITO_CLIENTE',
+                        'peso_fi' => $pesoFi,
+                        'frecuencia_compra' => $freqCompra,
+                        'unidades_acumuladas' => $hab['total_unidades'] ?? 0,
+                        'dias_con_compra' => $freqCompra,
+                        'semanas_transcurridas' => $semanas,
+                        'semanas_habiles_restantes' => $semanasHabilesRestantes,
+                        'precio_unitario' => round((float) $hab['precio'], 2),
+                        'mix_propio_pct' => round(($hab['mix_propio'] ?? 0.0) * 100, 1),
+                        'presupuesto_teorico' => round((float) ($hab['presupuesto_teorico'] ?? 0.0), 2),
+                        'cantidad_repo' => $cantRepoSemanal,
+                        'cant_sugerida' => $cantRepoSemanal,
+                        'monto_sugerido' => $montoRepoSemanal,
+                        'monto_acumulado_bs' => round((float) ($hab['total_bs'] ?? 0.0), 2),
+                        'unidades_hoy' => $unidadesHoy,
+                        'monto_hoy' => $montoHoy,
+                        'recomprado_hoy' => $esMatch,
+                        'estatus' => $esMatch ? 'MATCH_SKU' : 'OMITIDO',
+                        'historial_compras' => $hab['historial_compras'] ?? [],
+                    ];
                 }
+
+                // Ordenar canasta habitual: primero recomprados, luego peso f_i descendente
+                usort($canastaBase, function ($a, $b) {
+                    if ($a['recomprado_hoy'] !== $b['recomprado_hoy']) {
+                        return $b['recomprado_hoy'] <=> $a['recomprado_hoy'];
+                    }
+                    if ($a['peso_fi'] !== $b['peso_fi']) {
+                        return $b['peso_fi'] <=> $a['peso_fi'];
+                    }
+                    return $b['monto_sugerido'] <=> $a['monto_sugerido'];
+                });
 
                 // Detectar pedidos de hoy fuera de canasta (Ampliación / Nuevos)
                 $pedidosHoyVista = [];
