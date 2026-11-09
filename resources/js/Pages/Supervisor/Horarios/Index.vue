@@ -408,12 +408,16 @@ const saveScheduleChanges = async () => {
   saving.value = true;
   try {
     for (let day = 1; day <= 7; day++) {
+      const isWorking = Boolean(modalDays.value[day].is_working_day);
+      const rawStart = modalDays.value[day].start_time;
+      const rawEnd = modalDays.value[day].end_time;
+
       const payload = {
         route: editingRoute.value.route,
         day_of_week: day,
-        start_time: modalDays.value[day].start_time,
-        end_time: modalDays.value[day].end_time,
-        is_working_day: modalDays.value[day].is_working_day,
+        start_time: rawStart ? String(rawStart).slice(0, 5) : (isWorking ? '07:20' : '00:00'),
+        end_time: rawEnd ? String(rawEnd).slice(0, 5) : (isWorking ? (day === 6 ? '15:00' : '19:00') : '00:00'),
+        is_working_day: isWorking,
       };
       await axios.post('/supervisor/horarios/update', payload);
     }
@@ -421,7 +425,9 @@ const saveScheduleChanges = async () => {
     showToast(`Horarios actualizados para ${editingRoute.value.route}`);
     editingRoute.value = null;
   } catch (e) {
-    showToast('Error al actualizar los horarios.', true);
+    console.error('Error al actualizar horarios:', e);
+    const msg = e?.response?.data?.message || 'Error al actualizar los horarios.';
+    showToast(msg, true);
   } finally {
     saving.value = false;
   }

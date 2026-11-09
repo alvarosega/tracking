@@ -37,20 +37,54 @@ class SupervisorHorariosController extends Controller
      */
     public function update(Request $request, UpdateRouteScheduleAction $action): JsonResponse
     {
-        $validated = $request->validate([
-            'route'          => 'required|string|max:50',
-            'day_of_week'    => 'required|integer|between:1,7',
-            'start_time'     => 'required|date_format:H:i',
-            'end_time'       => 'required|date_format:H:i|after:start_time',
-            'is_working_day' => 'required|boolean',
-        ]);
+        $route = trim((string) $request->input('route'));
+        $dayOfWeek = (int) $request->input('day_of_week');
+        $isWorkingDay = filter_var($request->input('is_working_day', true), FILTER_VALIDATE_BOOLEAN);
+
+        if ($route === '' || $dayOfWeek < 1 || $dayOfWeek > 7) {
+            return response()->json([
+                'message' => 'Ruta y día de la semana válidos son requeridos.',
+                'errors' => [
+                    'route' => ['Ruta requerida.'],
+                    'day_of_week' => ['Día de semana debe estar entre 1 y 7.']
+                ]
+            ], 422);
+        }
+
+        $rawStart = trim((string) $request->input('start_time', ''));
+        $rawEnd = trim((string) $request->input('end_time', ''));
+
+        // Normalizar formato H:i
+        $startTime = substr($rawStart, 0, 5);
+        $endTime = substr($rawEnd, 0, 5);
+
+        if (!$isWorkingDay) {
+            // Día no laborable: si no viene horario, default seguro
+            $startTime = $startTime !== '' ? $startTime : '00:00';
+            $endTime = $endTime !== '' ? $endTime : '00:00';
+        } else {
+            // Día laborable: validar y asegurar horas coherentes
+            if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $startTime)) {
+                $startTime = '07:20';
+            }
+            if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $endTime)) {
+                $endTime = ($dayOfWeek === 6) ? '15:00' : '19:00';
+            }
+            if ($endTime <= $startTime) {
+                // Si la hora de salida no es posterior, asignar salida estándar
+                $endTime = ($dayOfWeek === 6) ? '15:00' : '19:00';
+                if ($endTime <= $startTime) {
+                    $endTime = '23:59';
+                }
+            }
+        }
 
         $schedule = $action->execute(
-            route: (string) $validated['route'],
-            dayOfWeek: (int) $validated['day_of_week'],
-            startTime: (string) $validated['start_time'],
-            endTime: (string) $validated['end_time'],
-            isWorkingDay: (bool) $validated['is_working_day']
+            route: $route,
+            dayOfWeek: $dayOfWeek,
+            startTime: $startTime,
+            endTime: $endTime,
+            isWorkingDay: $isWorkingDay
         );
 
         return response()->json([
