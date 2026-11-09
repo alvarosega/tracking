@@ -474,16 +474,19 @@ class GetAvanceCumplimientoDataAction
                     cantidadMinima: $cantidadMinima
                 );
 
-                $sugeridoRutasMap[$r] = (float) ($detRuta['totales']['total_sugerido'] ?? 0.0);
-                $ventaMtdRutasMap[$r] = (float) ($detRuta['totales']['venta_mtd'] ?? 0.0);
+                $totales3m = $detRuta['totales_3m_ruta'] ?? ($detRuta['totales'] ?? []);
+                $resumenRuta = $detRuta['resumen'] ?? [];
+
+                $sugeridoRutasMap[$r] = (float) ($totales3m['total_sugerido'] ?? ($resumenRuta['total_sugerido_ruta'] ?? 0.0));
+                $ventaMtdRutasMap[$r] = (float) ($resumenRuta['venta_total_bs'] ?? ($acumVol[$r]['vol_general'] ?? 0.0));
 
                 if (!empty($mesesCerrados)) {
-                    $histRutasMap[$r][$mesesCerrados[0]['ym']] = (float) ($detRuta['totales']['mes_1'] ?? 0.0);
+                    $histRutasMap[$r][$mesesCerrados[0]['ym']] = (float) ($totales3m['mes_1'] ?? 0.0);
                     if (isset($mesesCerrados[1])) {
-                        $histRutasMap[$r][$mesesCerrados[1]['ym']] = (float) ($detRuta['totales']['mes_2'] ?? 0.0);
+                        $histRutasMap[$r][$mesesCerrados[1]['ym']] = (float) ($totales3m['mes_2'] ?? 0.0);
                     }
                     if (isset($mesesCerrados[2])) {
-                        $histRutasMap[$r][$mesesCerrados[2]['ym']] = (float) ($detRuta['totales']['mes_3'] ?? 0.0);
+                        $histRutasMap[$r][$mesesCerrados[2]['ym']] = (float) ($totales3m['mes_3'] ?? 0.0);
                     }
                 }
                 unset($detRuta);
