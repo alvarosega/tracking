@@ -66,6 +66,7 @@ class GetCumplimientoDataAction
 
         // 2. Cálculo del día de la semana para pan_ruteo
         $carbonFecha = Carbon::parse($fecha);
+        $fechaNorm = $carbonFecha->toDateString();
         $diasMap = [
             1 => ['lunes', 'Lunes'],
             2 => ['martes', 'Martes'],
