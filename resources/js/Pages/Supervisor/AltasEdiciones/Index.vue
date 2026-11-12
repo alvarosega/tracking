@@ -2864,8 +2864,6 @@ async function exportarPadronActualizado() {
   try {
     const url = typeof route === 'function' ? route('supervisor.altas-ediciones.exportar-padron') : '/supervisor/altas-ediciones/exportar-padron';
     const res = await axios.post(url, {
-      fecha_inicio: filtroFechaInicio.value || null,
-      fecha_fin: filtroFechaFin.value || null,
       canales: filtroCanales.value,
       rutas: filtroRutas.value,
       tipos: filtroTipos.value,
