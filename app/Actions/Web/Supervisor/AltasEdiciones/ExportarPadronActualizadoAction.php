@@ -463,11 +463,15 @@ class ExportarPadronActualizadoAction
         }
 
         if ($total === 1) {
-            return ['', '', $tokens[0]];
+            return ['', '', $this->capitalizar($tokens[0])];
         }
 
         if ($total === 2) {
-            return [$tokens[1], '', $tokens[0]];
+            return [
+                $this->capitalizar($tokens[1]),
+                '',
+                $this->capitalizar($tokens[0])
+            ];
         }
 
         // 3 o más palabras: las 2 últimas son Paterno y Materno, todo lo anterior es Nombres
@@ -475,6 +479,22 @@ class ExportarPadronActualizadoAction
         $paterno = array_pop($tokens);
         $nombres = implode(' ', $tokens);
 
-        return [$paterno, $materno, $nombres];
+        return [
+            $this->capitalizar($paterno),
+            $this->capitalizar($materno),
+            $this->capitalizar($nombres)
+        ];
+    }
+
+    /**
+     * Capitaliza una cadena poniendo la primera letra en mayúscula y el resto en minúscula (Title Case con soporte UTF-8).
+     */
+    private function capitalizar(?string $text): string
+    {
+        $trimmed = trim((string) $text);
+        if ($trimmed === '') {
+            return '';
+        }
+        return mb_convert_case($trimmed, MB_CASE_TITLE, 'UTF-8');
     }
 }
