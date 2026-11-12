@@ -49,6 +49,15 @@ export const navigationConfig = {
           icon: 'ClockIcon',
           group: 'Auditoría de Ruteo'
         },
+        {
+          id: 'clientes',
+          module: 'auditoria',
+          name: 'Cambios por Cliente',
+          route: 'supervisor.auditoria.clientes',
+          component: 'Supervisor/Auditoria/Clientes',
+          icon: 'UserGroupIcon',
+          group: 'Auditoría de Ruteo'
+        },
 
         // 2. Saneamiento Padrón
         {
@@ -262,24 +271,28 @@ export const navigationConfig = {
       id: 'altas-ediciones',
       name: 'Altas & Ediciones',
       shortName: 'Altas / Modif.',
-      route: 'supervisor.altas-ediciones.index',
+      route: 'supervisor.altas-ediciones.altas',
       componentPrefix: 'Supervisor/AltasEdiciones',
       icon: 'UserPlusIcon',
       description: 'Control de clientes creados o editados en ruta',
       submodules: [
         {
-          id: 'listado',
-          name: 'Bandeja de Aprobación',
-          route: 'supervisor.altas-ediciones.index',
+          id: 'altas',
+          module: 'altas-ediciones',
+          name: 'Nuevas Altas',
+          route: 'supervisor.altas-ediciones.altas',
           component: 'Supervisor/AltasEdiciones/Index',
-          icon: 'UserPlusIcon'
+          icon: 'UserPlusIcon',
+          group: 'Altas & Ediciones'
         },
         {
-          id: 'cercanos',
-          name: 'Clientes Cercanos',
-          route: 'supervisor.altas-ediciones.index',
+          id: 'modificaciones',
+          module: 'altas-ediciones',
+          name: 'Modificaciones',
+          route: 'supervisor.altas-ediciones.modificaciones',
           component: 'Supervisor/AltasEdiciones/Index',
-          icon: 'RadarIcon'
+          icon: 'PencilSquareIcon',
+          group: 'Altas & Ediciones'
         }
       ]
     },
@@ -516,7 +529,8 @@ export const preventasSubTabs = [
 
 export const auditoriaSubTabs = [
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
-  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' }
+  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
+  { id: 'clientes', module: 'auditoria', name: 'Cambios por Cliente', route: 'supervisor.auditoria.clientes' }
 ];
 
 export const saneamientoSubTabs = [
@@ -530,6 +544,11 @@ export const saneamientoSubTabs = [
 ];
 
 export const ruteoSubTabs = [];
+
+export const altasEdicionesSubTabs = [
+  { id: 'altas', module: 'altas-ediciones', name: 'Nuevas Altas', route: 'supervisor.altas-ediciones.altas' },
+  { id: 'modificaciones', module: 'altas-ediciones', name: 'Modificaciones', route: 'supervisor.altas-ediciones.modificaciones' }
+];
 
 export const auditoriaSaneamientoSubTabs = [
   ...auditoriaSubTabs,

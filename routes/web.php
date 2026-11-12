@@ -200,6 +200,10 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::get('/historico', [SupervisorAuditoriaController::class, 'historico'])->name('historico');
         Route::match(['get', 'post'], '/historico/consultar', [SupervisorAuditoriaController::class, 'historicoConsultar'])->name('historico.consultar');
 
+        // 3. Cambios por Clientes (Agrupación por Código de Cliente)
+        Route::get('/clientes', [SupervisorAuditoriaController::class, 'clientes'])->name('clientes');
+        Route::match(['get', 'post'], '/clientes/consultar', [SupervisorAuditoriaController::class, 'clientesConsultar'])->name('clientes.consultar');
+
         // Rutas de compatibilidad con submódulos previos (redirigen a pendientes con categoría)
         Route::get('/inactivados', [SupervisorAuditoriaController::class, 'inactivados'])->name('inactivados');
         Route::match(['get', 'post'], '/inactivados/consultar', [SupervisorAuditoriaController::class, 'inactivadosConsultar'])->name('inactivados.consultar');
@@ -248,26 +252,20 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         });
     });
 
-    // Módulo Altas & Ediciones
+    // Módulo Altas & Ediciones (Dividido en 2 submódulos: Nuevas Altas y Modificaciones)
     Route::prefix('altas-ediciones')->name('altas-ediciones.')->middleware('module.access:altas-ediciones')->group(function () {
-        Route::get('/', function (\Illuminate\Http\Request $request) {
-            $user = $request->user();
-            if ($user->hasModuleAccess('altas-ediciones', 'listado') || $user->hasModuleAccess('altas-ediciones', 'cercanos')) {
-                return app()->call([app(SupervisorAltasEdicionesController::class), 'index']);
-            }
-            return redirect()->route('supervisor.index')->with('warning', 'No tienes submódulos habilitados en Altas & Ediciones.');
-        })->name('index');
+        Route::get('/', [SupervisorAltasEdicionesController::class, 'index'])->name('index');
+
+        // Submódulo 1: Nuevas Altas
+        Route::get('/altas', [SupervisorAltasEdicionesController::class, 'altas'])->name('altas');
+
+        // Submódulo 2: Modificaciones
+        Route::get('/modificaciones', [SupervisorAltasEdicionesController::class, 'modificaciones'])->name('modificaciones');
 
         Route::get('/fotos-cliente/{clienteId}', [SupervisorAltasEdicionesController::class, 'fotosCliente'])->name('fotos-cliente');
-
-        Route::middleware('module.access:altas-ediciones,listado')->group(function () {
-            Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
-            Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
-        });
-
-        Route::middleware('module.access:altas-ediciones,cercanos')->group(function () {
-            Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
-        });
+        Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
+        Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
+        Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
     });
 
     // Módulo Auditoría de Visitas & Cobertura Fotográfica

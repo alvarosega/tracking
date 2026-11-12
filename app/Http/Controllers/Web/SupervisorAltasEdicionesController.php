@@ -12,6 +12,7 @@ use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -20,9 +21,17 @@ use Inertia\Response;
 class SupervisorAltasEdicionesController extends Controller
 {
     /**
-     * Muestra la vista principal de Altas & Ediciones con sus catálogos iniciales.
+     * Redirige al submódulo inicial de Nuevas Altas.
      */
-    public function index(GetAltasEdicionesInitDataAction $action): Response
+    public function index(): RedirectResponse
+    {
+        return redirect()->route('supervisor.altas-ediciones.altas');
+    }
+
+    /**
+     * Submódulo 1: Nuevas Altas (tipo_registro = ALTA).
+     */
+    public function altas(GetAltasEdicionesInitDataAction $action): Response
     {
         $data = $action->execute();
 
@@ -31,6 +40,25 @@ class SupervisorAltasEdicionesController extends Controller
             'canales' => $data['canales'],
             'tipos_registro' => $data['tipos_registro'],
             'estados_revision' => $data['estados_revision'],
+            'tipoFijo' => 'ALTA',
+            'submoduloActivo' => 'altas',
+        ]);
+    }
+
+    /**
+     * Submódulo 2: Modificaciones de Clientes (tipo_registro = MODIFICACION).
+     */
+    public function modificaciones(GetAltasEdicionesInitDataAction $action): Response
+    {
+        $data = $action->execute();
+
+        return Inertia::render('Supervisor/AltasEdiciones/Index', [
+            'catalogo_rutas' => $data['catalogo_rutas'],
+            'canales' => $data['canales'],
+            'tipos_registro' => $data['tipos_registro'],
+            'estados_revision' => $data['estados_revision'],
+            'tipoFijo' => 'MODIFICACION',
+            'submoduloActivo' => 'modificaciones',
         ]);
     }
 

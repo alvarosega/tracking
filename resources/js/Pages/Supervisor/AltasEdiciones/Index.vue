@@ -2,6 +2,11 @@
   <SupervisorLayout full-bleed>
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F5F5F7]">
       
+      <!-- Barra de Submódulos: Nuevas Altas vs Modificaciones -->
+      <div class="bg-white border-b border-[#E5E5EA] px-3 md:px-4 py-2 shrink-0">
+        <AltasEdicionesSubTabs :active-tab="submoduloActivo" />
+      </div>
+
       <!-- Barra Superior de Control Apple Pro -->
       <header class="bg-white border-b border-[#E5E5EA] px-3 md:px-4 py-2 flex items-center justify-between gap-2 shrink-0 relative z-30">
         
@@ -15,8 +20,17 @@
         <!-- Filtros con Scroll Horizontal -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
           
-          <!-- Filtro: Tipo de Registro (Altas / Ediciones) -->
+          <!-- Filtro / Badge de Tipo de Registro -->
+          <div
+            v-if="props.tipoFijo"
+            class="h-7 px-2.5 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 shrink-0 select-none border"
+            :class="submoduloActivo === 'altas' ? 'bg-[#EBF9EF] text-[#248A3D] border-[#248A3D]/20' : 'bg-[#EFF6FF] text-[#0071E3] border-[#0071E3]/20'"
+          >
+            <span class="text-[#86868B]">Módulo:</span>
+            <span class="font-bold">{{ submoduloActivo === 'altas' ? 'Nuevas Altas' : 'Modificaciones' }}</span>
+          </div>
           <button
+            v-else
             type="button"
             @click.stop="toggleMenu('tipos', $event)"
             class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
@@ -112,14 +126,19 @@
             </button>
           </div>
 
-          <div class="hidden lg:flex px-2 py-0.5 bg-[#EBF9EF] text-[#248A3D] border border-[#E5E5EA] rounded-[6px] items-center gap-1 font-bold">
+          <div v-if="submoduloActivo === 'altas'" class="hidden lg:flex px-2 py-0.5 bg-[#EBF9EF] text-[#248A3D] border border-[#E5E5EA] rounded-[6px] items-center gap-1 font-bold">
             <span class="w-1.5 h-1.5 rounded-full bg-[#248A3D]"></span>
             <span>Altas: {{ kpis.altas }}</span>
           </div>
 
-          <div class="hidden lg:flex px-2 py-0.5 bg-[#EFF6FF] text-[#0071E3] border border-[#E5E5EA] rounded-[6px] items-center gap-1 font-bold">
+          <div v-else class="hidden lg:flex px-2 py-0.5 bg-[#EFF6FF] text-[#0071E3] border border-[#E5E5EA] rounded-[6px] items-center gap-1 font-bold">
             <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
-            <span>Ediciones: {{ kpis.ediciones }}</span>
+            <span>Modificaciones: {{ kpis.ediciones }}</span>
+          </div>
+
+          <div class="hidden sm:flex px-2 py-0.5 bg-[#FFF5E5] text-[#B25E00] border border-[#E5E5EA] rounded-[6px] items-center gap-1 font-semibold">
+            <span>Pendientes:</span>
+            <span class="font-bold font-mono">{{ kpis.pendientes }}</span>
           </div>
 
           <div class="hidden sm:flex px-2 py-0.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] items-center gap-1">
@@ -2367,6 +2386,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, Teleport } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
+import AltasEdicionesSubTabs from './Components/AltasEdicionesSubTabs.vue';
 import { mapsConfig } from '@/Config/maps';
 import { descargarExcelXlsx } from '@/Utils/exportExcel';
 import L from 'leaflet';
@@ -2400,6 +2420,14 @@ const props = defineProps({
     type: Array,
     default: () => ['PENDIENTE', 'APROBADO', 'RECHAZADO'],
   },
+  tipoFijo: {
+    type: String,
+    default: null,
+  },
+  submoduloActivo: {
+    type: String,
+    default: 'altas',
+  },
 });
 
 const CANAL_COLORS = {
@@ -2419,7 +2447,7 @@ function getTipoColor(tipo) {
   if (!tipo) return 'bg-[#8E8E93]';
   const t = tipo.toUpperCase();
   if (t.includes('ALTA')) return 'bg-[#248A3D]';
-  if (t.includes('EDIC')) return 'bg-[#0071E3]';
+  if (t.includes('EDIC') || t.includes('MODIF')) return 'bg-[#0071E3]';
   return 'bg-[#FF9500]';
 }
 
@@ -2439,7 +2467,12 @@ function formatCoord(val) {
 }
 
 // Filtros Reactivos
-const filtroTipos = ref([...props.tipos_registro]);
+const tipoFijoUpper = props.tipoFijo ? props.tipoFijo.toUpperCase() : null;
+const tiposIniciales = tipoFijoUpper
+  ? props.tipos_registro.filter(t => t.toUpperCase().includes(tipoFijoUpper))
+  : [...props.tipos_registro];
+
+const filtroTipos = ref(tiposIniciales.length > 0 ? tiposIniciales : (tipoFijoUpper ? [tipoFijoUpper] : [...props.tipos_registro]));
 const filtroEstados = ref([...props.estados_revision]);
 const filtroCanales = ref([...props.canales]);
 const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));

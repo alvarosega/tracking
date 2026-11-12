@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaCatalogoAction;
+use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaClientesAction;
 use App\Actions\Web\Supervisor\Auditoria\GetAuditoriaRuteoAction;
 use App\Actions\Web\Supervisor\Auditoria\ResolverAuditoriaRuteoAction;
 use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
@@ -109,6 +110,30 @@ class SupervisorAuditoriaController extends Controller
                 $params['estado_auditoria'] = 'RESUELTOS';
             }
             return response()->json($action->execute($params));
+        } catch (Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // ── 3. CAMBIOS DE RUTEO AGRUPADOS POR CLIENTE ───────────────────────────
+
+    public function clientes(Request $request, GetAuditoriaCatalogoAction $catalogoAction): Response
+    {
+        $catalogo = $catalogoAction->execute();
+
+        return Inertia::render('Supervisor/Auditoria/Clientes', [
+            'canales' => $catalogo['canales'],
+            'rutas' => $catalogo['rutas'],
+            'archivos_base' => $catalogo['archivos_base'],
+            'initial_categoria' => $request->query('categoria', 'TODOS'),
+            'initial_estado' => $request->query('estado', 'TODOS'),
+        ]);
+    }
+
+    public function clientesConsultar(Request $request, GetAuditoriaClientesAction $action): JsonResponse
+    {
+        try {
+            return response()->json($action->execute($request->all()));
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
