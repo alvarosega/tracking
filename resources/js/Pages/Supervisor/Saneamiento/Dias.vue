@@ -174,6 +174,36 @@
 
           <div id="mapaDias" class="flex-1 w-full min-h-[380px] sm:min-h-[500px] h-[50vh] sm:h-[500px] relative z-0"></div>
 
+          <!-- Controles flotantes sobre el mapa: Capa y Recentrar -->
+          <div class="absolute top-14 right-4 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1 rounded-card border border-neutral-200/80 shadow-subtle text-[10px]">
+            <button
+              type="button"
+              @click="cambiarCapaMapa('openStreetMap')"
+              class="px-2 py-1 font-bold rounded transition-all cursor-pointer"
+              :class="capaActual === 'openStreetMap' ? 'bg-[#0071E3] text-white shadow-2xs' : 'text-neutral-600 hover:text-black'"
+            >
+              Calles
+            </button>
+            <button
+              type="button"
+              @click="cambiarCapaMapa('satellite')"
+              class="px-2 py-1 font-bold rounded transition-all cursor-pointer"
+              :class="capaActual === 'satellite' ? 'bg-[#0071E3] text-white shadow-2xs' : 'text-neutral-600 hover:text-black'"
+            >
+              Satélite
+            </button>
+            <button
+              type="button"
+              @click="centrarEnClientes"
+              title="Recentrar en clientes"
+              class="p-1 text-neutral-600 hover:text-[#0071E3] hover:bg-black/[0.04] rounded transition-all cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+            </button>
+          </div>
+
           <!-- Leyenda de Días -->
           <div class="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-neutral-200/80 rounded-card shadow-float px-3 py-2 text-[10px] z-20 space-y-1 max-w-[280px]">
             <div class="font-bold text-ink uppercase tracking-wider text-[9px] border-b pb-1">
@@ -407,6 +437,7 @@ import 'leaflet/dist/leaflet.css'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SaneamientoSubTabs from './Components/SaneamientoSubTabs.vue'
 import ClienteFotosModal from './Components/ClienteFotosModal.vue'
+import { mapsConfig } from '@/Config/maps'
 
 const props = defineProps({
   catalogo: {
@@ -427,14 +458,34 @@ const DIAS_SEMANA = [
 
 const DIAS_LUNES_A_SABADO = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 
+function normalizarDia(dia) {
+  return String(dia || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+}
+
 function getColorDia(dia) {
-  const dUpper = String(dia || '').trim().toUpperCase()
-  const found = DIAS_SEMANA.find(d => d.val === dUpper)
+  const norm = normalizarDia(dia)
+  const found = DIAS_SEMANA.find(d => d.val === norm)
   return found ? found.color : '#6B7280'
+}
+
+function getRouteUrl(name, defaultPath) {
+  try {
+    if (typeof route === 'function') {
+      return route(name)
+    }
+  } catch {
+    // fallback
+  }
+  return defaultPath
 }
 
 const cargando = ref(false)
 const vistaMovil = ref('mapa')
+const capaActual = ref('openStreetMap')
 
 function setVistaMovil(v) {
   vistaMovil.value = v
@@ -444,6 +495,7 @@ function setVistaMovil(v) {
     })
   }
 }
+
 const canalSeleccionado = ref('TDB')
 const rutaSeleccionada = ref('')
 const bufferMetros = ref(35)
@@ -460,20 +512,22 @@ const modalFotosVisible = ref(false)
 const clienteSeleccionadoFotos = ref(null)
 
 let map = null
+let currentTileLayer = null
+let mapResizeObserver = null
 let layerGroupPoligonos = null
 let layerGroupPuntos = null
 
-const canalesDisponibles = computed(() => props.catalogo.canales || [])
+const canalesDisponibles = computed(() => props.catalogo?.canales || [])
 
 const rutasDisponibles = computed(() => {
-  const rutas = props.catalogo.rutas || []
+  const rutas = props.catalogo?.rutas || []
   if (canalSeleccionado.value === 'TODOS') return rutas
   return rutas.filter(r => r.canal === canalSeleccionado.value)
 })
 
 const totalClientesRuta = computed(() => {
   return clientesRuta.value.filter(c => {
-    const d = String(c.dia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
+    const d = normalizarDia(c.dia)
     return DIAS_LUNES_A_SABADO.includes(d)
   }).length
 })
@@ -481,7 +535,7 @@ const totalClientesRuta = computed(() => {
 const conteoPorDia = computed(() => {
   const conteo = {}
   clientesRuta.value.forEach(c => {
-    const d = String(c.dia || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
+    const d = normalizarDia(c.dia)
     conteo[d] = (conteo[d] || 0) + 1
   })
   return conteo
@@ -491,49 +545,126 @@ const clientesListaFiltrada = computed(() => {
   if (!filtroClienteTexto.value.trim()) return clientesRuta.value
   const q = filtroClienteTexto.value.trim().toLowerCase()
   return clientesRuta.value.filter(c =>
-    c.cliente.toLowerCase().includes(q) ||
-    String(c.cliente_id).includes(q) ||
-    c.direccion.toLowerCase().includes(q)
+    (c.cliente || '').toLowerCase().includes(q) ||
+    String(c.cliente_id || '').includes(q) ||
+    (c.direccion || '').toLowerCase().includes(q)
   )
 })
 
-onMounted(() => {
-  if (rutasDisponibles.value.length > 0) {
-    rutaSeleccionada.value = rutasDisponibles.value[0].ruta
+onMounted(async () => {
+  // 1. Ajustar canal inicial válido
+  if (canalesDisponibles.value.length > 0) {
+    if (!canalesDisponibles.value.includes(canalSeleccionado.value)) {
+      canalSeleccionado.value = canalesDisponibles.value[0]
+    }
+  } else {
+    canalSeleccionado.value = 'TODOS'
   }
+
+  // 2. Ajustar ruta inicial válida
+  if (rutasDisponibles.value.length > 0) {
+    if (!rutaSeleccionada.value || !rutasDisponibles.value.some(r => r.ruta === rutaSeleccionada.value)) {
+      rutaSeleccionada.value = rutasDisponibles.value[0].ruta
+    }
+  }
+
+  await nextTick()
   inicializarMapa()
-  consultarDias()
+
+  // 3. ResizeObserver para contenedor del mapa
+  const container = document.getElementById('mapaDias')
+  if (container && window.ResizeObserver) {
+    mapResizeObserver = new ResizeObserver(() => {
+      if (map) map.invalidateSize()
+    })
+    mapResizeObserver.observe(container)
+  }
+
+  // 4. Consultar datos iniciales
+  if (rutaSeleccionada.value) {
+    await consultarDias()
+  }
+
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 250)
 })
 
 onUnmounted(() => {
+  if (mapResizeObserver) {
+    mapResizeObserver.disconnect()
+    mapResizeObserver = null
+  }
   if (map) {
     map.remove()
     map = null
   }
 })
 
+function cambiarCapaMapa(nombreCapa) {
+  if (!map) return
+  const layerConf = mapsConfig.tileLayers[nombreCapa] || mapsConfig.tileLayers.openStreetMap
+  capaActual.value = nombreCapa
+
+  if (currentTileLayer) {
+    map.removeLayer(currentTileLayer)
+  }
+
+  currentTileLayer = L.tileLayer(layerConf.url, {
+    maxZoom: layerConf.maxZoom || 19,
+    subdomains: layerConf.subdomains || 'abc',
+    attribution: layerConf.attribution,
+  }).addTo(map)
+}
+
 function inicializarMapa() {
   const container = document.getElementById('mapaDias')
   if (!container || map) return
 
-  map = L.map('mapaDias', {
-    zoomControl: true,
-    preferCanvas: true,
-  }).setView([-17.7833, -63.1821], 13)
+  const defaultLoc = mapsConfig.defaultLocation || { lat: -16.5050, lng: -68.1650, zoom: 13 }
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; CartoDB &copy; OpenStreetMap',
-  }).addTo(map)
+  map = L.map('mapaDias', {
+    zoomControl: false,
+    preferCanvas: true,
+  }).setView([defaultLoc.lat, defaultLoc.lng], defaultLoc.zoom)
+
+  L.control.zoom({ position: 'topleft' }).addTo(map)
+
+  cambiarCapaMapa(capaActual.value)
 
   layerGroupPoligonos = L.layerGroup().addTo(map)
   layerGroupPuntos = L.layerGroup().addTo(map)
+}
+
+function centrarEnClientes() {
+  if (!map || clientesRuta.value.length === 0) return
+  const bounds = []
+  clientesRuta.value.forEach(cli => {
+    const lat = Number(cli.latitud)
+    const lng = Number(cli.longitud)
+    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+      bounds.push([lat, lng])
+    }
+  })
+  if (bounds.length > 0) {
+    try {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 })
+    } catch {
+      // ignore
+    }
+  }
 }
 
 function alCambiarCanal() {
   if (rutasDisponibles.value.length > 0) {
     rutaSeleccionada.value = rutasDisponibles.value[0].ruta
     consultarDias()
+  } else {
+    rutaSeleccionada.value = ''
+    clientesRuta.value = []
+    diasData.value = {}
+    if (layerGroupPoligonos) layerGroupPoligonos.clearLayers()
+    if (layerGroupPuntos) layerGroupPuntos.clearLayers()
   }
 }
 
@@ -541,7 +672,8 @@ async function consultarDias() {
   if (!rutaSeleccionada.value) return
   cargando.value = true
   try {
-    const { data } = await axios.get(route('supervisor.saneamiento.dias-desalineados'), {
+    const url = getRouteUrl('supervisor.saneamiento.dias-desalineados', '/supervisor/saneamiento/dias-desalineados')
+    const { data } = await axios.get(url, {
       params: {
         ruta: rutaSeleccionada.value,
         buffer: bufferMetros.value,
@@ -576,28 +708,35 @@ function renderizarDistribucionEnMapa() {
   const bounds = []
 
   // 1. Polígonos de días
-  Object.keys(diasData.value).forEach(dia => {
+  Object.keys(diasData.value || {}).forEach(dia => {
     const info = diasData.value[dia]
-    const coords = info.poligono || []
+    if (!info) return
+    const rawCoords = info.poligono || []
+    const coords = rawCoords.filter(p => Array.isArray(p) && p.length >= 2 && !isNaN(Number(p[0])) && !isNaN(Number(p[1])))
     if (coords.length >= 3) {
       const color = getColorDia(dia)
-      const poly = L.polygon(coords, {
+      const validPoints = coords.map(p => [Number(p[0]), Number(p[1])])
+      const poly = L.polygon(validPoints, {
         color: color,
         weight: 2,
         fillColor: color,
-        fillOpacity: 0.15,
+        fillOpacity: 0.18,
       })
-      poly.bindTooltip(`<div class="font-bold text-[11px] font-mono">${dia} (${info.total_pdvs} PDVs)</div>`)
+      poly.bindTooltip(`<div class="font-bold text-[11px] font-mono">${dia} (${info.total_pdvs || 0} PDVs)</div>`)
       layerGroupPoligonos.addLayer(poly)
     }
   })
 
   // 2. Puntos de clientes
   clientesRuta.value.forEach(cli => {
-    bounds.push([cli.latitud, cli.longitud])
+    const lat = Number(cli.latitud)
+    const lng = Number(cli.longitud)
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return
+
+    bounds.push([lat, lng])
     const color = getColorDia(cli.dia)
 
-    const marker = L.circleMarker([cli.latitud, cli.longitud], {
+    const marker = L.circleMarker([lat, lng], {
       radius: cli.es_multidia ? 6.5 : 5,
       color: cli.es_multidia ? '#DC2626' : '#FFFFFF',
       weight: cli.es_multidia ? 2.5 : 1.5,
@@ -607,7 +746,7 @@ function renderizarDistribucionEnMapa() {
 
     marker.bindPopup(`
       <div class="p-2 font-sans text-xs">
-        <div class="font-bold text-slate-900">${cli.cliente}</div>
+        <div class="font-bold text-slate-900">${cli.cliente || 'Sin Nombre'}</div>
         <div class="text-[10px] text-slate-500 font-mono">ID: ${cli.cliente_id} • Ruta: ${cli.ruta}</div>
         <div class="text-[10px] text-slate-500 truncate">${cli.direccion || ''}</div>
         <div class="mt-1 pt-1 border-t flex items-center justify-between text-[10px] font-mono">
@@ -616,7 +755,7 @@ function renderizarDistribucionEnMapa() {
             ${cli.dia}
           </span>
         </div>
-        ${cli.es_multidia ? `<div class="mt-1 text-[10px] text-rose-600 font-bold font-mono">Visitas Múltiples: ${cli.dias_asignados.join(', ')}</div>` : ''}
+        ${cli.es_multidia ? `<div class="mt-1 text-[10px] text-rose-600 font-bold font-mono">Visitas Múltiples: ${(cli.dias_asignados || []).join(', ')}</div>` : ''}
       </div>
     `)
 
@@ -630,12 +769,17 @@ function renderizarDistribucionEnMapa() {
       // ignore
     }
   }
+
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 150)
 }
 
 async function solicitarCambioDia(cli, nuevoDia) {
   if (cli.dia === nuevoDia) return
   try {
-    const { data } = await axios.post(route('supervisor.saneamiento.dias.cambiar-dia'), {
+    const url = getRouteUrl('supervisor.saneamiento.dias.cambiar-dia', '/supervisor/saneamiento/dias-desalineados/cambiar-dia')
+    const { data } = await axios.post(url, {
       cliente_id: cli.cliente_id,
       cliente: cli.cliente,
       ruta: cli.ruta,
@@ -666,7 +810,8 @@ async function solicitarCambioDia(cli, nuevoDia) {
 
 async function cambiarEstadoPropuesta(propuestaId, estado) {
   try {
-    await axios.post(route('supervisor.saneamiento.dias.cambiar-estado'), {
+    const url = getRouteUrl('supervisor.saneamiento.dias.cambiar-estado', '/supervisor/saneamiento/dias-desalineados/cambiar-estado')
+    await axios.post(url, {
       propuesta_id: propuestaId,
       estado: estado,
     })
@@ -678,7 +823,8 @@ async function cambiarEstadoPropuesta(propuestaId, estado) {
 
 async function revertirPropuesta(propuestaId) {
   try {
-    await axios.post(route('supervisor.saneamiento.dias.revertir'), {
+    const url = getRouteUrl('supervisor.saneamiento.dias.revertir', '/supervisor/saneamiento/dias-desalineados/revertir')
+    await axios.post(url, {
       propuesta_id: propuestaId,
       ruta: rutaSeleccionada.value,
     })
@@ -694,7 +840,8 @@ async function guardarFronteraDiaActual() {
   if (!info || !info.poligono || info.poligono.length < 3) return
 
   try {
-    await axios.post(route('supervisor.saneamiento.dias.guardar-frontera'), {
+    const url = getRouteUrl('supervisor.saneamiento.dias.guardar-frontera', '/supervisor/saneamiento/dias-desalineados/guardar-frontera')
+    await axios.post(url, {
       ruta: rutaSeleccionada.value,
       dia: dia,
       coordenadas: info.poligono,

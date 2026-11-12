@@ -177,40 +177,45 @@ class AuditarDiasDesalineadosAction
 
     protected function obtenerFronterasGuardadasDiasRuta(string $ruta): array
     {
-        $conn = DB::connection('supervisor');
+        try {
+            $conn = DB::connection('supervisor');
 
-        $rows = $conn->table('dim_fronteras_dias')
-            ->where(DB::raw("TRIM(UPPER(ruta))"), strtoupper(trim($ruta)))
-            ->where('estado', 'ACTIVO')
-            ->select([
-                DB::raw("TRIM(UPPER(dia)) as dia"),
-                'origen',
-                DB::raw("ST_AsGeoJSON(poligono) as geojson_str"),
-            ])
-            ->get();
+            $rows = $conn->table('dim_fronteras_dias')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), strtoupper(trim($ruta)))
+                ->where('estado', 'ACTIVO')
+                ->select([
+                    DB::raw("TRIM(UPPER(dia)) as dia"),
+                    'origen',
+                    DB::raw("ST_AsGeoJSON(poligono) as geojson_str"),
+                ])
+                ->get();
 
-        $fronteras = [];
-        foreach ($rows as $r) {
-            if (empty($r->geojson_str)) {
-                continue;
-            }
-            try {
-                $gj = json_decode((string) $r->geojson_str, true);
-                $coordsLonLat = $gj['coordinates'][0] ?? [];
-                $coordsLatLon = [];
-                foreach ($coordsLonLat as $pt) {
-                    $coordsLatLon[] = [(float) $pt[1], (float) $pt[0]];
+            $fronteras = [];
+            foreach ($rows as $r) {
+                if (empty($r->geojson_str)) {
+                    continue;
                 }
-                $fronteras[(string) $r->dia] = [
-                    'poligono' => $coordsLatLon,
-                    'origen' => (string) $r->origen,
-                ];
-            } catch (\Throwable) {
-                continue;
+                try {
+                    $gj = json_decode((string) $r->geojson_str, true);
+                    $coordsLonLat = $gj['coordinates'][0] ?? [];
+                    $coordsLatLon = [];
+                    foreach ($coordsLonLat as $pt) {
+                        $coordsLatLon[] = [(float) $pt[1], (float) $pt[0]];
+                    }
+                    $fronteras[(string) $r->dia] = [
+                        'poligono' => $coordsLatLon,
+                        'origen' => (string) $r->origen,
+                    ];
+                } catch (\Throwable) {
+                    continue;
+                }
             }
-        }
 
-        return $fronteras;
+            return $fronteras;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('AuditarDiasDesalineadosAction::obtenerFronterasGuardadasDiasRuta aviso: ' . $e->getMessage());
+            return [];
+        }
     }
 }
 
