@@ -27,10 +27,17 @@ class ExportarPadronActualizadoAction
         array $canales = [],
         array $rutas = [],
         array $tipos = [],
-        array $estados = []
+        array $estados = [],
+        ?bool $soloModificados = null
     ): string {
         @ini_set('memory_limit', '1024M');
         @set_time_limit(300);
+
+        // Detectar si el filtro de canal está activo (si se especificó un canal en particular)
+        $todosCanales = DB::connection('supervisor')->table('dim_rutas')
+            ->distinct()->whereNotNull('canal')->pluck('canal')->toArray();
+        $canalFiltradoActivo = !empty($canales) && count($canales) < count($todosCanales);
+        $filtrarSoloModificados = ($soloModificados === true) || ($soloModificados === null && $canalFiltradoActivo);
 
         // 1. Filtrar rutas por canal si corresponde
         $rutasFiltradas = $rutas;
@@ -120,6 +127,25 @@ class ExportarPadronActualizadoAction
 
         // 3. Consultar clientes de pan_ruteo
         $queryPan = DB::connection('supervisor')->table('pan_ruteo');
+
+        // Si se filtró por canal, descargar ÚNICAMENTE los clientes que fueron modificados
+        if ($filtrarSoloModificados) {
+            $clienteIdsModificados = array_keys($correccionesMap);
+            $idsPuros = [];
+            foreach ($clienteIdsModificados as $k) {
+                if (is_numeric($k)) {
+                    $idsPuros[] = (int) $k;
+                }
+            }
+            $idsPuros = array_values(array_unique($idsPuros));
+
+            if (empty($idsPuros)) {
+                throw new RuntimeException('No se encontraron clientes con modificaciones registradas en el canal seleccionado.');
+            }
+
+            $queryPan->whereIn('cliente_id', $idsPuros);
+        }
+
         if (!empty($rutasFiltradas)) {
             $queryPan->whereIn('ruta', $rutasFiltradas);
         }

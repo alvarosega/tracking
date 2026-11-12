@@ -93,7 +93,8 @@ class SupervisorAltasEdicionesController extends Controller
                 canales: (array) $request->input('canales', []),
                 rutas: (array) $request->input('rutas', []),
                 tipos: (array) $request->input('tipos', []),
-                estados: (array) $request->input('estados', [])
+                estados: (array) $request->input('estados', []),
+                soloModificados: $request->has('solo_modificados') ? $request->boolean('solo_modificados') : null
             );
 
             $fechaHoy = date('Y-m-d');

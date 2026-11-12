@@ -2863,11 +2863,13 @@ async function exportarPadronActualizado() {
 
   try {
     const url = typeof route === 'function' ? route('supervisor.altas-ediciones.exportar-padron') : '/supervisor/altas-ediciones/exportar-padron';
+    const canalFiltrado = filtroCanales.value.length > 0 && filtroCanales.value.length < props.canales.length;
     const res = await axios.post(url, {
       canales: filtroCanales.value,
       rutas: filtroRutas.value,
       tipos: filtroTipos.value,
       estados: filtroEstados.value,
+      solo_modificados: canalFiltrado,
     }, {
       responseType: 'blob',
     });
@@ -2884,7 +2886,7 @@ async function exportarPadronActualizado() {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(link.href);
 
-    mostrarToast('Padrón actualizado descargado en Excel (.xlsx) con campos modificados en negrilla.');
+    mostrarToast(canalFiltrado ? 'Padrón de clientes modificados del canal descargado en Excel (.xlsx).' : 'Padrón actualizado descargado en Excel (.xlsx) con campos modificados en negrilla.');
   } catch (err) {
     console.error('Error al exportar padrón actualizado:', err);
     let msg = 'Error de conexión o servidor.';
