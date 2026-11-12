@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SupervisorAltasEdicionesController extends Controller
 {
@@ -82,24 +83,35 @@ class SupervisorAltasEdicionesController extends Controller
 
     /**
      * Exporta la totalidad de clientes correspondientes a las rutas filtradas en la barra superior
-     * con las correcciones de saneamiento_base reemplazadas en formato maestro de 36 columnas.
+     * con las correcciones de saneamiento_base reemplazadas en formato maestro de 36 columnas,
+     * formateando los campos modificados en negrilla.
      */
-    public function exportarPadron(Request $request, ExportarPadronActualizadoAction $action): JsonResponse
+    public function exportarPadron(Request $request, ExportarPadronActualizadoAction $action): BinaryFileResponse|JsonResponse
     {
-        $resultado = $action->execute(
-            fechaInicio: $request->input('fecha_inicio'),
-            fechaFin: $request->input('fecha_fin'),
-            canales: (array) $request->input('canales', []),
-            rutas: (array) $request->input('rutas', []),
-            tipos: (array) $request->input('tipos', []),
-            estados: (array) $request->input('estados', [])
-        );
+        try {
+            $filePath = $action->generateXlsx(
+                canales: (array) $request->input('canales', []),
+                rutas: (array) $request->input('rutas', []),
+                tipos: (array) $request->input('tipos', []),
+                estados: (array) $request->input('estados', [])
+            );
 
-        if (!($resultado['success'] ?? false)) {
-            return response()->json($resultado, 422);
+            $fechaHoy = date('Y-m-d');
+            $fileName = "padron_actualizado_ruteo_{$fechaHoy}.xlsx";
+
+            return response()->download($filePath, $fileName, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            Log::error('Error en exportarPadron: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el padrón actualizado: ' . $e->getMessage(),
+            ], 422);
         }
-
-        return response()->json($resultado);
     }
 
     /**

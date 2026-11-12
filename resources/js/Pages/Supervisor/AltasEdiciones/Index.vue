@@ -2868,22 +2868,38 @@ async function exportarPadronActualizado() {
       rutas: filtroRutas.value,
       tipos: filtroTipos.value,
       estados: filtroEstados.value,
+    }, {
+      responseType: 'blob',
     });
 
-    if (!res.data.success || !res.data.rows || res.data.rows.length <= 1) {
-      alert(res.data.message || 'No se encontraron clientes para exportar con las rutas seleccionadas.');
-      return;
-    }
-
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const fechaHoy = new Date().toISOString().slice(0, 10);
     const nombreArchivo = `padron_actualizado_ruteo_${fechaHoy}.xlsx`;
 
-    descargarExcelXlsx(res.data.rows, nombreArchivo, 'Padrón Actualizado');
-    mostrarToast(`Se descargaron ${res.data.total} clientes del padrón actualizado en Excel (.xlsx).`);
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = nombreArchivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(link.href);
+
+    mostrarToast('Padrón actualizado descargado en Excel (.xlsx) con campos modificados en negrilla.');
   } catch (err) {
     console.error('Error al exportar padrón actualizado:', err);
-    const mensajeDetallado = err.response?.data?.message || err.message || 'Error de conexión o servidor.';
-    alert(`No se pudo generar el archivo del padrón:\n${mensajeDetallado}`);
+    let msg = 'Error de conexión o servidor.';
+    if (err.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const json = JSON.parse(text);
+        msg = json.message || msg;
+      } catch (e) {}
+    } else if (err.response?.data?.message) {
+      msg = err.response.data.message;
+    } else if (err.message) {
+      msg = err.message;
+    }
+    alert(`No se pudo generar el archivo del padrón:\n${msg}`);
   } finally {
     descargandoPadron.value = false;
   }
