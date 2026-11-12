@@ -236,16 +236,20 @@ class ExportarPadronActualizadoAction
             $f1 = [(string)($pr->cliente_id ?? ''), false];
             // 2. Codigo
             $f2 = [(string)($pr->nodo_id ?: ($pr->cliente_id ?? '')), false];
-            // 3. ApellidoPaterno
-            $f3 = ['', false];
-            // 4. ApellidoMaterno
-            $f4 = ['', false];
-
-            // 5. Nombres
+            // 3, 4 y 5: División algorítmica de Nombre Completo en ApellidoPaterno, ApellidoMaterno y Nombres
             $origNombre = trim((string)($pr->cliente ?: ($pr->cliente_norm ?? '')));
             $modNombre = $corr && !empty(trim((string)($corr->cliente ?? ''))) ? trim((string)$corr->cliente) : null;
             $nombreBold = $modNombre !== null && $this->isDiferente($origNombre, $modNombre);
-            $f5 = [$nombreBold ? $modNombre : $origNombre, $nombreBold];
+            $nombreFinal = $nombreBold ? $modNombre : $origNombre;
+
+            [$apellidoPaterno, $apellidoMaterno, $nombres] = $this->dividirNombreCompleto($nombreFinal);
+
+            // 3. ApellidoPaterno
+            $f3 = [$apellidoPaterno, $nombreBold && $apellidoPaterno !== ''];
+            // 4. ApellidoMaterno
+            $f4 = [$apellidoMaterno, $nombreBold && $apellidoMaterno !== ''];
+            // 5. Nombres
+            $f5 = [$nombres, $nombreBold && $nombres !== ''];
 
             // 6. TipoNegocio
             $origTN = trim((string)($pr->tipo_negocio ?? ''));
@@ -437,5 +441,40 @@ class ExportarPadronActualizadoAction
             $colIndex = (int) (($colIndex - 1) / 26);
         }
         return $letter;
+    }
+
+    /**
+     * Algoritmo de partición de nombres según número de palabras:
+     * - 1 palabra: Nombres = palabra 1, Apellidos vacíos
+     * - 2 palabras: Nombres = palabra 1, ApellidoPaterno = palabra 2, ApellidoMaterno vacío
+     * - 3 palabras: Nombres = palabra 1, ApellidoPaterno = palabra 2, ApellidoMaterno = palabra 3
+     * - 4 o más palabras: ApellidoMaterno = última, ApellidoPaterno = penúltima, Nombres = todas las anteriores
+     *
+     * @param string $fullName
+     * @return array{0: string, 1: string, 2: string} [ApellidoPaterno, ApellidoMaterno, Nombres]
+     */
+    private function dividirNombreCompleto(string $fullName): array
+    {
+        $tokens = preg_split('/\s+/', trim($fullName), -1, PREG_SPLIT_NO_EMPTY);
+        $total = count($tokens);
+
+        if ($total === 0) {
+            return ['', '', ''];
+        }
+
+        if ($total === 1) {
+            return ['', '', $tokens[0]];
+        }
+
+        if ($total === 2) {
+            return [$tokens[1], '', $tokens[0]];
+        }
+
+        // 3 o más palabras: las 2 últimas son Paterno y Materno, todo lo anterior es Nombres
+        $materno = array_pop($tokens);
+        $paterno = array_pop($tokens);
+        $nombres = implode(' ', $tokens);
+
+        return [$paterno, $materno, $nombres];
     }
 }
