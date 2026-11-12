@@ -264,6 +264,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
 
         Route::get('/fotos-cliente/{clienteId}', [SupervisorAltasEdicionesController::class, 'fotosCliente'])->name('fotos-cliente');
         Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
+        Route::post('/exportar-padron', [SupervisorAltasEdicionesController::class, 'exportarPadron'])->name('exportar-padron');
         Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
         Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
     });

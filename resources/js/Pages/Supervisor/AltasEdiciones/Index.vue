@@ -89,23 +89,65 @@
             Consultando solicitudes...
           </span>
 
-          <!-- Botón Descargar Excel de Ediciones Pendientes Comparadas con pan_ruteo -->
-          <button
-            type="button"
-            @click="exportarEdicionesExcel"
-            :disabled="cargando || conteoEdicionesPendientes === 0"
-            class="h-7 px-2.5 bg-[#248A3D] hover:bg-[#1E7433] active:bg-[#185E29] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
-            :title="conteoEdicionesPendientes > 0 ? `Descargar ${conteoEdicionesPendientes} cliente(s) con edición pendiente comparados y actualizados con pan_ruteo` : 'No hay clientes con ediciones pendientes en la selección actual'"
-          >
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span class="hidden sm:inline">Descargar Excel</span>
-            <span class="sm:hidden">Excel</span>
-            <span v-if="conteoEdicionesPendientes > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
-              {{ conteoEdicionesPendientes }}
-            </span>
-          </button>
+          <!-- Botones de Descarga Excel según Submódulo Activo -->
+          <template v-if="submoduloActivo === 'modificaciones'">
+            <!-- Botón 1: Descargar Comparativo -->
+            <button
+              type="button"
+              @click="exportarComparativoExcel"
+              :disabled="cargando || conteoEdiciones === 0"
+              class="h-7 px-2.5 bg-[#248A3D] hover:bg-[#1E7433] active:bg-[#185E29] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+              :title="conteoEdiciones > 0 ? `Descargar comparativo de ${conteoEdiciones} edición(es) filtrada(s)` : 'No hay ediciones con los filtros actuales'"
+            >
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="hidden sm:inline">Descargar Comparativo</span>
+              <span class="sm:hidden">Comparativo</span>
+              <span v-if="conteoEdiciones > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+                {{ conteoEdiciones }}
+              </span>
+            </button>
+
+            <!-- Botón 2: Descargar Padrón Actualizado -->
+            <button
+              type="button"
+              @click="exportarPadronActualizado"
+              :disabled="cargando || descargandoPadron"
+              class="h-7 px-2.5 bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#005BB5] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+              title="Descargar la totalidad de clientes de las rutas filtradas con correcciones reemplazadas"
+            >
+              <svg v-if="descargandoPadron" class="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+              </svg>
+              <span class="hidden sm:inline">{{ descargandoPadron ? 'Descargando...' : 'Descargar Padrón Actualizado' }}</span>
+              <span class="sm:hidden">{{ descargandoPadron ? 'Padrón...' : 'Padrón' }}</span>
+            </button>
+          </template>
+
+          <template v-else>
+            <!-- Botón Descargar Altas -->
+            <button
+              type="button"
+              @click="exportarAltasExcel"
+              :disabled="cargando || registrosFiltrados.length === 0"
+              class="h-7 px-2.5 bg-[#248A3D] hover:bg-[#1E7433] active:bg-[#185E29] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+              title="Descargar altas registradas en Excel"
+            >
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="hidden sm:inline">Descargar Altas</span>
+              <span class="sm:hidden">Altas</span>
+              <span v-if="registrosFiltrados.length > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+                {{ registrosFiltrados.length }}
+              </span>
+            </button>
+          </template>
 
           <div class="flex md:hidden items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
             <button
@@ -2703,74 +2745,189 @@ const registrosFiltrados = computed(() => {
   );
 });
 
-// Ediciones Pendientes para exportación comparada contra pan_ruteo
-const edicionesPendientes = computed(() => {
+// Ediciones filtradas para exportación comparativa contra pan_ruteo
+const edicionesFiltradas = computed(() => {
   let lista = registrosFiltrados.value.filter(r => {
     const tipo = (r.tipo_registro || '').toUpperCase();
-    const estado = (r.estado_revision || '').toUpperCase();
-    return tipo.includes('EDIC') && estado === 'PENDIENTE';
+    return tipo.includes('EDIC') || tipo.includes('MODIF');
   });
 
   if (lista.length === 0 && !busquedaTexto.value.trim()) {
     lista = registros.value.filter(r => {
       const tipo = (r.tipo_registro || '').toUpperCase();
-      const estado = (r.estado_revision || '').toUpperCase();
-      return tipo.includes('EDIC') && estado === 'PENDIENTE';
+      return tipo.includes('EDIC') || tipo.includes('MODIF');
     });
   }
 
   return lista;
 });
 
-const conteoEdicionesPendientes = computed(() => edicionesPendientes.value.length);
+const conteoEdiciones = computed(() => edicionesFiltradas.value.length);
 
-function exportarEdicionesExcel() {
-  const lista = edicionesPendientes.value;
+// 1. Descarga Comparativa: IdCliente, Codigo, Cliente Anterior, Cliente Nuevo, etc.
+function exportarComparativoExcel() {
+  const lista = edicionesFiltradas.value;
 
   if (lista.length === 0) {
-    alert('No se encontraron clientes con ediciones pendientes para descargar.');
+    alert('No se encontraron solicitudes de edición con los filtros actuales para descargar.');
     return;
   }
 
   const headers = [
-    'Código Cliente',
-    'Nodo ID',
-    'Nodo',
-    'Cliente (Actualizado)',
+    'IdCliente',
+    'Codigo',
+    'Cliente Anterior',
+    'Cliente Nuevo',
+    'Tipo Negocio Anterior',
+    'Tipo Negocio Nuevo',
+    'Dirección Anterior',
+    'Dirección Nueva',
+    'Referencia Anterior',
+    'Referencia Nueva',
+    'Contacto Anterior',
+    'Contacto Nuevo',
+    'Teléfono Anterior',
+    'Teléfono Nuevo',
+    'Celular Anterior',
+    'Celular Nuevo',
+    'Nombre Factura Anterior',
+    'Nombre Factura Nuevo',
+    'NIT Anterior',
+    'NIT Nuevo',
+    'Zona Anterior',
+    'Zona Nueva',
+    'Precio Lista Anterior',
+    'Precio Lista Nuevo',
+    'Ruta Anterior',
+    'Ruta Nueva',
+    'Latitud Anterior',
+    'Latitud Nueva',
+    'Longitud Anterior',
+    'Longitud Nueva',
+  ];
+
+  const rows = [headers];
+
+  lista.forEach(r => {
+    const orig = r.original || {};
+
+    const row = [
+      r.cliente_id || orig.cliente_id || '',
+      orig.nodo_id || r.cliente_id || orig.cliente_id || '',
+      orig.cliente || '',
+      r.cliente || '',
+      orig.tipo_negocio || '',
+      r.tipo_negocio || '',
+      orig.direccion || '',
+      r.direccion || '',
+      orig.referencia || '',
+      r.referencia || '',
+      orig.contacto || '',
+      r.contacto || '',
+      orig.telefono || '',
+      r.telefono || '',
+      orig.celular || '',
+      r.celular || '',
+      orig.nombre_factura || '',
+      r.nombre_factura || '',
+      orig.nit || '',
+      r.nit || '',
+      orig.territorio || orig.zona_venta || orig.zona || '',
+      r.zona || '',
+      orig.precio || orig.lista_precios || '',
+      r.lista_precios || '',
+      orig.ruta || '',
+      r.ruta || '',
+      orig.latitud !== null && orig.latitud !== undefined ? orig.latitud : '',
+      r.latitud !== null && r.latitud !== undefined ? r.latitud : '',
+      orig.longitud !== null && orig.longitud !== undefined ? orig.longitud : '',
+      r.longitud !== null && r.longitud !== undefined ? r.longitud : '',
+    ];
+
+    rows.push(row);
+  });
+
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const nombreArchivo = `ediciones_comparativo_${fechaHoy}.xlsx`;
+
+  descargarExcelXlsx(rows, nombreArchivo, 'Comparativo Ediciones');
+  mostrarToast(`Se descargaron ${lista.length} registro(s) de comparativo en Excel (.xlsx).`);
+}
+
+// 2. Descarga Padrón Actualizado: Totalidad de clientes de las rutas con correcciones reemplazadas
+const descargandoPadron = ref(false);
+
+async function exportarPadronActualizado() {
+  if (descargandoPadron.value) return;
+  descargandoPadron.value = true;
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const response = await fetch('/supervisor/altas-ediciones/exportar-padron', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        fecha_inicio: filtroFechaInicio.value || null,
+        fecha_fin: filtroFechaFin.value || null,
+        canales: filtroCanales.value,
+        rutas: filtroRutas.value,
+        tipos: filtroTipos.value,
+        estados: filtroEstados.value,
+      }),
+    });
+
+    const res = await response.json();
+
+    if (!res.success || !res.rows || res.rows.length <= 1) {
+      alert(res.message || 'No se encontraron clientes para exportar con las rutas seleccionadas.');
+      return;
+    }
+
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    const nombreArchivo = `padron_actualizado_ruteo_${fechaHoy}.xlsx`;
+
+    descargarExcelXlsx(res.rows, nombreArchivo, 'Padrón Actualizado');
+    mostrarToast(`Se descargaron ${res.total} clientes del padrón actualizado en Excel (.xlsx).`);
+  } catch (err) {
+    console.error('Error al exportar padrón actualizado:', err);
+    alert('Ocurrió un error al generar el archivo del padrón. Por favor intente nuevamente.');
+  } finally {
+    descargandoPadron.value = false;
+  }
+}
+
+// 3. Descarga de Nuevas Altas en Excel
+function exportarAltasExcel() {
+  const lista = registrosFiltrados.value;
+
+  if (lista.length === 0) {
+    alert('No se encontraron solicitudes de altas para descargar.');
+    return;
+  }
+
+  const headers = [
+    'ID Solicitud',
+    'Cliente',
+    'Ruta',
+    'Canal',
     'Vendedor',
-    'Código Vendedor',
-    'Tipo Negocio (Actualizado)',
-    'Territorio / Zona (Actualizado)',
-    'Mercado',
-    'Zona Venta (Actualizada)',
-    'Lista Precios / Precio (Actualizado)',
-    'Cluster T',
-    'Cluster C',
-    'Ruta (Actualizada)',
-    'Día Visita',
-    'Día Visita Normalizado',
-    'Secuencia Venta',
-    'Secuencia Distribuidor',
-    'Contacto (Actualizado)',
-    'CI',
-    'Teléfono (Actualizado)',
-    'Celular (Actualizado)',
-    'Dirección (Actualizada)',
-    'Nro',
-    'Referencia (Actualizada)',
-    'Razón Social Factura (Actualizada)',
-    'NIT (Actualizado)',
-    'Tipo Pago',
-    'Días Crédito',
-    'Límite Crédito',
-    'Latitud (Actualizada)',
-    'Longitud (Actualizada)',
-    'Estado Cliente',
-    'ID Solicitud Edición',
+    'Tipo Negocio',
+    'Zona',
+    'Lista Precios',
+    'Contacto',
+    'Teléfono',
+    'Celular',
+    'Dirección',
+    'Referencia',
+    'Nombre Factura',
+    'NIT',
+    'Latitud',
+    'Longitud',
     'Estado Revisión',
-    'Campos Modificados',
-    'Total Campos Modificados',
-    'Desplazamiento GPS (m)',
     'Fecha Solicitud',
     'Usuario Solicitante',
   ];
@@ -2778,157 +2935,35 @@ function exportarEdicionesExcel() {
   const rows = [headers];
 
   lista.forEach(r => {
-    const orig = r.original || {};
-    const cambios = [];
-
-    // 1. Cliente
-    let clienteFinal = orig.cliente || r.cliente || '';
-    if (r.cliente && isDiferente(orig.cliente, r.cliente)) {
-      clienteFinal = r.cliente;
-      cambios.push('Cliente');
-    }
-
-    // 2. Tipo de Negocio
-    let tipoNegocioFinal = orig.tipo_negocio || r.tipo_negocio || '';
-    if (r.tipo_negocio && isDiferente(orig.tipo_negocio, r.tipo_negocio)) {
-      tipoNegocioFinal = r.tipo_negocio;
-      cambios.push('Tipo Negocio');
-    }
-
-    // 3. Dirección
-    let direccionFinal = orig.direccion || r.direccion || '';
-    if (r.direccion && isDiferente(orig.direccion, r.direccion)) {
-      direccionFinal = r.direccion;
-      cambios.push('Dirección');
-    }
-
-    // 4. Referencia
-    let referenciaFinal = orig.referencia || r.referencia || '';
-    if (r.referencia && isDiferente(orig.referencia, r.referencia)) {
-      referenciaFinal = r.referencia;
-      cambios.push('Referencia');
-    }
-
-    // 5. Contacto
-    let contactoFinal = orig.contacto || r.contacto || '';
-    if (r.contacto && isDiferente(orig.contacto, r.contacto)) {
-      contactoFinal = r.contacto;
-      cambios.push('Contacto');
-    }
-
-    // 6. Teléfono
-    let telefonoFinal = orig.telefono || r.telefono || '';
-    if (r.telefono && isDiferente(orig.telefono, r.telefono)) {
-      telefonoFinal = r.telefono;
-      cambios.push('Teléfono');
-    }
-
-    // 7. Celular
-    let celularFinal = orig.celular || r.celular || '';
-    if (r.celular && isDiferente(orig.celular, r.celular)) {
-      celularFinal = r.celular;
-      cambios.push('Celular');
-    }
-
-    // 8. Razón Social Factura (Nombre Factura)
-    let nombreFacturaFinal = orig.nombre_factura || r.nombre_factura || '';
-    if (r.nombre_factura && isDiferente(orig.nombre_factura, r.nombre_factura)) {
-      nombreFacturaFinal = r.nombre_factura;
-      cambios.push('Nombre Factura');
-    }
-
-    // 9. NIT
-    let nitFinal = orig.nit || r.nit || '';
-    if (r.nit && isDiferente(orig.nit, r.nit)) {
-      nitFinal = r.nit;
-      cambios.push('NIT');
-    }
-
-    // 10. Zona / Territorio
-    let territorioFinal = orig.territorio || orig.zona || r.zona || '';
-    let zonaVentaFinal = orig.zona_venta || orig.zona || r.zona || '';
-    if (r.zona && isDiferente(orig.zona, r.zona)) {
-      territorioFinal = r.zona;
-      zonaVentaFinal = r.zona;
-      cambios.push('Zona/Territorio');
-    }
-
-    // 11. Lista de Precios
-    let precioFinal = orig.precio || orig.lista_precios || r.lista_precios || '';
-    if (r.lista_precios && isDiferente(orig.lista_precios, r.lista_precios)) {
-      precioFinal = r.lista_precios;
-      cambios.push('Lista Precios');
-    }
-
-    // 12. Ruta
-    let rutaFinal = orig.ruta || r.ruta || '';
-    if (r.ruta && isDiferente(orig.ruta, r.ruta)) {
-      rutaFinal = r.ruta;
-      cambios.push('Ruta');
-    }
-
-    // 13. GPS Latitud y Longitud
-    let latitudFinal = (orig.latitud !== null && orig.latitud !== undefined && orig.latitud !== '') ? orig.latitud : (r.latitud ?? '');
-    let longitudFinal = (orig.longitud !== null && orig.longitud !== undefined && orig.longitud !== '') ? orig.longitud : (r.longitud ?? '');
-    if (r.tiene_gps && r.latitud && r.longitud) {
-      if (orig.latitud === null || orig.latitud === undefined || isDiferente(orig.latitud, r.latitud) || isDiferente(orig.longitud, r.longitud)) {
-        latitudFinal = r.latitud;
-        longitudFinal = r.longitud;
-        cambios.push('Coordenadas GPS');
-      }
-    }
-
-    const row = [
-      r.cliente_id || orig.cliente_id || '',
-      orig.nodo_id ?? '',
-      orig.nodo ?? '',
-      clienteFinal,
-      orig.vendedor || r.vendedor || '',
-      orig.cod_vendedor ?? '',
-      tipoNegocioFinal,
-      territorioFinal,
-      orig.mercado ?? '',
-      zonaVentaFinal,
-      precioFinal,
-      orig.cluster_t ?? '',
-      orig.cluster_c ?? '',
-      rutaFinal,
-      orig.dia ?? '',
-      orig.dia_norm ?? '',
-      orig.secuencia_venta ?? '',
-      orig.secuencia_distribuidor ?? '',
-      contactoFinal,
-      orig.ci ?? '',
-      telefonoFinal,
-      celularFinal,
-      direccionFinal,
-      orig.nro ?? '',
-      referenciaFinal,
-      nombreFacturaFinal,
-      nitFinal,
-      orig.tipo_pago ?? '',
-      orig.dias_credito ?? '',
-      orig.limite ?? '',
-      latitudFinal,
-      longitudFinal,
-      orig.estado || 'Activo',
+    rows.push([
       r.id,
+      r.cliente || '',
+      r.ruta || '',
+      r.canal || '',
+      r.vendedor || '',
+      r.tipo_negocio || '',
+      r.zona || '',
+      r.lista_precios || '',
+      r.contacto || '',
+      r.telefono || '',
+      r.celular || '',
+      r.direccion || '',
+      r.referencia || '',
+      r.nombre_factura || '',
+      r.nit || '',
+      r.latitud ?? '',
+      r.longitud ?? '',
       r.estado_revision || 'PENDIENTE',
-      cambios.length > 0 ? cambios.join(', ') : 'Sin cambios detectados',
-      cambios.length,
-      r.distancia_desplazamiento_m !== null && r.distancia_desplazamiento_m !== undefined ? `${r.distancia_desplazamiento_m} m` : 'Sin cambio',
       r.fecha_registro || '',
       r.usuario || '',
-    ];
-
-    rows.push(row);
+    ]);
   });
 
   const fechaHoy = new Date().toISOString().slice(0, 10);
-  const nombreArchivo = `ediciones_pendientes_ruteo_${fechaHoy}.xlsx`;
+  const nombreArchivo = `nuevas_altas_${fechaHoy}.xlsx`;
 
-  descargarExcelXlsx(rows, nombreArchivo, 'Ediciones Pendientes');
-  mostrarToast(`Se descargaron ${lista.length} cliente(s) con edición comparados y actualizados con pan_ruteo en Excel (.xlsx).`);
+  descargarExcelXlsx(rows, nombreArchivo, 'Nuevas Altas');
+  mostrarToast(`Se descargaron ${lista.length} alta(s) en Excel (.xlsx).`);
 }
 
 function toggleMenu(nombre, event) {

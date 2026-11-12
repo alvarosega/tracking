@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\AltasEdiciones\CambiarEstadoRevisionAction;
+use App\Actions\Web\Supervisor\AltasEdiciones\ExportarPadronActualizadoAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
@@ -66,6 +67,24 @@ class SupervisorAltasEdicionesController extends Controller
      * Retorna los registros de altas y modificaciones según los filtros aplicados.
      */
     public function data(Request $request, GetAltasEdicionesDataAction $action): JsonResponse
+    {
+        $resultado = $action->execute(
+            fechaInicio: $request->input('fecha_inicio'),
+            fechaFin: $request->input('fecha_fin'),
+            canales: (array) $request->input('canales', []),
+            rutas: (array) $request->input('rutas', []),
+            tipos: (array) $request->input('tipos', []),
+            estados: (array) $request->input('estados', [])
+        );
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Exporta la totalidad de clientes correspondientes a las rutas filtradas en la barra superior
+     * con las correcciones de saneamiento_base reemplazadas en formato maestro de 36 columnas.
+     */
+    public function exportarPadron(Request $request, ExportarPadronActualizadoAction $action): JsonResponse
     {
         $resultado = $action->execute(
             fechaInicio: $request->input('fecha_inicio'),
