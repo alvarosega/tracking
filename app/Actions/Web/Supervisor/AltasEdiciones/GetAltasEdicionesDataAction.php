@@ -92,7 +92,26 @@ class GetAltasEdicionesDataAction
         }
 
         if (!empty($tipos)) {
-            $query->whereIn('sb.tipo_registro', $tipos);
+            $tiposNorm = [];
+            foreach ($tipos as $t) {
+                $tUp = strtoupper(trim((string) $t));
+                if (str_contains($tUp, 'EDIC') || str_contains($tUp, 'MODIF')) {
+                    $tiposNorm[] = 'EDICION';
+                    $tiposNorm[] = 'MODIFICACION';
+                    $tiposNorm[] = 'EDICIÓN';
+                    $tiposNorm[] = 'MODIFICACIÓN';
+                } elseif (str_contains($tUp, 'ALTA')) {
+                    $tiposNorm[] = 'ALTA';
+                    $tiposNorm[] = 'NUEVA_ALTA';
+                } else {
+                    $tiposNorm[] = $t;
+                }
+            }
+            $tiposNorm = array_values(array_unique($tiposNorm));
+            $query->where(function ($q) use ($tiposNorm) {
+                $q->whereIn('sb.tipo_registro', $tiposNorm)
+                  ->orWhereIn(DB::raw('UPPER(TRIM(sb.tipo_registro))'), $tiposNorm);
+            });
         }
 
         if (!empty($estados)) {

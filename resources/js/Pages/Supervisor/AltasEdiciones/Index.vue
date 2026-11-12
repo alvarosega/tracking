@@ -2468,11 +2468,18 @@ function formatCoord(val) {
 
 // Filtros Reactivos
 const tipoFijoUpper = props.tipoFijo ? props.tipoFijo.toUpperCase() : null;
-const tiposIniciales = tipoFijoUpper
-  ? props.tipos_registro.filter(t => t.toUpperCase().includes(tipoFijoUpper))
-  : [...props.tipos_registro];
+function calcularTiposIniciales() {
+  if (!tipoFijoUpper) return [...props.tipos_registro];
+  if (tipoFijoUpper.includes('ALTA')) {
+    const list = props.tipos_registro.filter(t => t.toUpperCase().includes('ALTA'));
+    return list.length > 0 ? list : ['ALTA'];
+  }
+  // Para ediciones / modificaciones: aceptar tanto EDICION como MODIFICACION
+  const list = props.tipos_registro.filter(t => t.toUpperCase().includes('EDIC') || t.toUpperCase().includes('MODIF'));
+  return list.length > 0 ? list : ['EDICION', 'MODIFICACION'];
+}
 
-const filtroTipos = ref(tiposIniciales.length > 0 ? tiposIniciales : (tipoFijoUpper ? [tipoFijoUpper] : [...props.tipos_registro]));
+const filtroTipos = ref(calcularTiposIniciales());
 const filtroEstados = ref([...props.estados_revision]);
 const filtroCanales = ref([...props.canales]);
 const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));

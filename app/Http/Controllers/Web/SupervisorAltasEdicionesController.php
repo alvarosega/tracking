@@ -46,7 +46,7 @@ class SupervisorAltasEdicionesController extends Controller
     }
 
     /**
-     * Submódulo 2: Modificaciones de Clientes (tipo_registro = MODIFICACION).
+     * Submódulo 2: Modificaciones de Clientes (tipo_registro = EDICION / MODIFICACION).
      */
     public function modificaciones(GetAltasEdicionesInitDataAction $action): Response
     {
@@ -57,7 +57,7 @@ class SupervisorAltasEdicionesController extends Controller
             'canales' => $data['canales'],
             'tipos_registro' => $data['tipos_registro'],
             'estados_revision' => $data['estados_revision'],
-            'tipoFijo' => 'MODIFICACION',
+            'tipoFijo' => 'EDICION',
             'submoduloActivo' => 'modificaciones',
         ]);
     }
