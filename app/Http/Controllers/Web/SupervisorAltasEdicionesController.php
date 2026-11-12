@@ -95,6 +95,10 @@ class SupervisorAltasEdicionesController extends Controller
             estados: (array) $request->input('estados', [])
         );
 
+        if (!($resultado['success'] ?? false)) {
+            return response()->json($resultado, 422);
+        }
+
         return response()->json($resultado);
     }
 

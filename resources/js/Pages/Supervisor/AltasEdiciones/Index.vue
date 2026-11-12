@@ -2862,39 +2862,30 @@ async function exportarPadronActualizado() {
   descargandoPadron.value = true;
 
   try {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const response = await fetch('/supervisor/altas-ediciones/exportar-padron', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        fecha_inicio: filtroFechaInicio.value || null,
-        fecha_fin: filtroFechaFin.value || null,
-        canales: filtroCanales.value,
-        rutas: filtroRutas.value,
-        tipos: filtroTipos.value,
-        estados: filtroEstados.value,
-      }),
+    const url = typeof route === 'function' ? route('supervisor.altas-ediciones.exportar-padron') : '/supervisor/altas-ediciones/exportar-padron';
+    const res = await axios.post(url, {
+      fecha_inicio: filtroFechaInicio.value || null,
+      fecha_fin: filtroFechaFin.value || null,
+      canales: filtroCanales.value,
+      rutas: filtroRutas.value,
+      tipos: filtroTipos.value,
+      estados: filtroEstados.value,
     });
 
-    const res = await response.json();
-
-    if (!res.success || !res.rows || res.rows.length <= 1) {
-      alert(res.message || 'No se encontraron clientes para exportar con las rutas seleccionadas.');
+    if (!res.data.success || !res.data.rows || res.data.rows.length <= 1) {
+      alert(res.data.message || 'No se encontraron clientes para exportar con las rutas seleccionadas.');
       return;
     }
 
     const fechaHoy = new Date().toISOString().slice(0, 10);
     const nombreArchivo = `padron_actualizado_ruteo_${fechaHoy}.xlsx`;
 
-    descargarExcelXlsx(res.rows, nombreArchivo, 'Padrón Actualizado');
-    mostrarToast(`Se descargaron ${res.total} clientes del padrón actualizado en Excel (.xlsx).`);
+    descargarExcelXlsx(res.data.rows, nombreArchivo, 'Padrón Actualizado');
+    mostrarToast(`Se descargaron ${res.data.total} clientes del padrón actualizado en Excel (.xlsx).`);
   } catch (err) {
     console.error('Error al exportar padrón actualizado:', err);
-    alert('Ocurrió un error al generar el archivo del padrón. Por favor intente nuevamente.');
+    const mensajeDetallado = err.response?.data?.message || err.message || 'Error de conexión o servidor.';
+    alert(`No se pudo generar el archivo del padrón:\n${mensajeDetallado}`);
   } finally {
     descargandoPadron.value = false;
   }

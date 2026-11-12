@@ -35,8 +35,8 @@ class ExportarPadronActualizadoAction
         array $tipos = [],
         array $estados = []
     ): array {
-        @ini_set('memory_limit', '512M');
-        @set_time_limit(180);
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(300);
 
         try {
             // 1. Filtrar rutas por canal si corresponde
@@ -133,13 +133,13 @@ class ExportarPadronActualizadoAction
             }
 
             // 3. Consultar la totalidad de clientes correspondientes a las rutas filtradas en pan_ruteo
-            $queryPan = DB::connection('supervisor')->table('pan_ruteo as pr');
+            $queryPan = DB::connection('supervisor')->table('pan_ruteo');
 
             if (!empty($rutasFiltradas)) {
-                $queryPan->whereIn('pr.ruta', $rutasFiltradas);
+                $queryPan->whereIn('ruta', $rutasFiltradas);
             }
 
-            $clientesPan = $queryPan->orderBy('pr.ruta')->get();
+            $clientesPan = $queryPan->orderBy('ruta')->get();
 
             if ($clientesPan->isEmpty()) {
                 return [
@@ -311,6 +311,8 @@ class ExportarPadronActualizadoAction
             ];
         } catch (\Throwable $e) {
             Log::error('Error en ExportarPadronActualizadoAction: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
