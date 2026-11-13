@@ -103,8 +103,16 @@
             <span
               v-if="clientesMultidia.length > 0"
               class="px-2.5 py-1 rounded-[10px] apple-control-pill text-rose-700 font-bold bg-rose-50 border border-rose-200"
+              title="Clientes con 2 o más días de visita en el padrón pan_ruteo"
             >
-              Multi-Día: {{ clientesMultidia.length }}
+              Varios Días: {{ clientesMultidia.length }}
+            </span>
+            <span
+              v-if="clientesMultiruta.length > 0"
+              class="px-2.5 py-1 rounded-[10px] apple-control-pill text-purple-700 font-bold bg-purple-50 border border-purple-200"
+              title="Clientes asignados a 2 o más rutas en el padrón pan_ruteo"
+            >
+              Varias Rutas: {{ clientesMultiruta.length }}
             </span>
           </div>
 
@@ -250,25 +258,84 @@
               </div>
             </div>
 
-            <!-- Alerta Multi-Día si existe -->
-            <div v-if="clientesMultidia.length > 0" class="p-2.5 rounded-card bg-rose-50 border border-rose-200 text-rose-900 space-y-1.5">
-              <div class="flex items-center gap-1.5 font-bold text-[11px] text-rose-700">
-                <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-                <span>{{ clientesMultidia.length }} Clientes con Visitas Múltiples</span>
+            <!-- Alerta Multi-Día / Multi-Ruta si existe (evaluado contra todo pan_ruteo) -->
+            <div v-if="clientesMultiples.length > 0" class="p-2.5 rounded-card bg-amber-50/70 border border-amber-200/80 text-amber-950 space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5 font-bold text-[11px] text-amber-900">
+                  <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                  <span>{{ clientesMultiples.length }} Asignaciones Múltiples</span>
+                </div>
+                <span class="text-[8.5px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300/50">
+                  Todo el Padrón
+                </span>
               </div>
-              <p class="text-[10px] text-rose-600">
-                Clientes asignados a 2 o más días en la misma semana. Se recomienda consolidar la frecuencia.
+              <p class="text-[10px] text-amber-800/90 leading-tight">
+                Clientes de esta ruta que presentan visitas en varios días o presencia en varias rutas del padrón general.
               </p>
-              <div class="space-y-1 max-h-36 overflow-y-auto custom-scroll pt-1">
-                <div
-                  v-for="mCli in clientesMultidia"
-                  :key="mCli.cliente_id"
-                  class="p-1.5 rounded bg-white/80 border border-rose-200/60 flex items-center justify-between text-[10px]"
+
+              <!-- Conmutador de pestaña dentro de la alerta -->
+              <div class="flex items-center gap-1 text-[9.5px] border-b border-amber-200/60 pb-1.5">
+                <button
+                  type="button"
+                  @click="tabAlertaMultiple = 'todos'"
+                  class="px-2 py-0.5 rounded font-bold transition-all cursor-pointer"
+                  :class="tabAlertaMultiple === 'todos' ? 'bg-amber-800 text-white shadow-2xs' : 'text-amber-800 hover:bg-amber-100'"
                 >
-                  <span class="font-semibold truncate max-w-[140px]">{{ mCli.cliente }}</span>
-                  <span class="font-mono text-rose-700 font-bold">{{ mCli.dias_asignados.join(', ') }}</span>
+                  Todos ({{ clientesMultiples.length }})
+                </button>
+                <button
+                  type="button"
+                  @click="tabAlertaMultiple = 'dias'"
+                  class="px-2 py-0.5 rounded font-bold transition-all cursor-pointer"
+                  :class="tabAlertaMultiple === 'dias' ? 'bg-rose-700 text-white shadow-2xs' : 'text-rose-700 hover:bg-rose-100'"
+                >
+                  Varios Días ({{ clientesMultidia.length }})
+                </button>
+                <button
+                  type="button"
+                  @click="tabAlertaMultiple = 'rutas'"
+                  class="px-2 py-0.5 rounded font-bold transition-all cursor-pointer"
+                  :class="tabAlertaMultiple === 'rutas' ? 'bg-purple-700 text-white shadow-2xs' : 'text-purple-700 hover:bg-purple-100'"
+                >
+                  Varias Rutas ({{ clientesMultiruta.length }})
+                </button>
+              </div>
+
+              <!-- Lista de clientes en alerta múltiple -->
+              <div class="space-y-1.5 max-h-44 overflow-y-auto custom-scroll pt-0.5">
+                <div
+                  v-for="mCli in clientesAlertaFiltrados"
+                  :key="mCli.cliente_id"
+                  class="p-2 rounded bg-white border border-amber-200/70 shadow-2xs space-y-1 text-[10px]"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-900 truncate max-w-[140px]">{{ mCli.cliente }}</span>
+                    <span class="font-mono text-[9px] text-[#86868B]">ID: {{ mCli.cliente_id }}</span>
+                  </div>
+
+                  <!-- Badges de advertencia -->
+                  <div class="flex flex-wrap items-center gap-1 font-mono text-[9px]">
+                    <span
+                      v-if="mCli.es_multidia"
+                      class="px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold"
+                    >
+                      Días: {{ mCli.dias_asignados.join(', ') }}
+                    </span>
+                    <span
+                      v-if="mCli.es_multiruta"
+                      class="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold"
+                    >
+                      Rutas: {{ mCli.rutas_asignadas.join(', ') }}
+                    </span>
+                  </div>
+
+                  <!-- Detalle de asignaciones en pan_ruteo -->
+                  <div v-if="mCli.asignaciones_pan && mCli.asignaciones_pan.length > 0" class="text-[8.5px] text-slate-600 font-mono bg-slate-50 rounded p-1 border border-slate-100">
+                    <span class="text-slate-400 font-bold">Padrón:</span>
+                    {{ mCli.asignaciones_pan.map(a => `${a.ruta} (${a.dia})`).join(' • ') }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -285,6 +352,36 @@
                 />
               </div>
 
+              <!-- Filtro rápido por tipo de cliente -->
+              <div class="flex items-center gap-1 overflow-x-auto custom-scroll pb-1 text-[9px]">
+                <button
+                  type="button"
+                  @click="filtroTipoCliente = 'TODOS'"
+                  class="px-2 py-0.5 rounded font-bold cursor-pointer transition-all whitespace-nowrap"
+                  :class="filtroTipoCliente === 'TODOS' ? 'bg-slate-900 text-white shadow-2xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                >
+                  Todos ({{ clientesRuta.length }})
+                </button>
+                <button
+                  v-if="clientesMultidia.length > 0"
+                  type="button"
+                  @click="filtroTipoCliente = 'MULTIDIA'"
+                  class="px-2 py-0.5 rounded font-bold cursor-pointer transition-all whitespace-nowrap"
+                  :class="filtroTipoCliente === 'MULTIDIA' ? 'bg-rose-700 text-white shadow-2xs' : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'"
+                >
+                  Varios Días ({{ clientesMultidia.length }})
+                </button>
+                <button
+                  v-if="clientesMultiruta.length > 0"
+                  type="button"
+                  @click="filtroTipoCliente = 'MULTIRUTA'"
+                  class="px-2 py-0.5 rounded font-bold cursor-pointer transition-all whitespace-nowrap"
+                  :class="filtroTipoCliente === 'MULTIRUTA' ? 'bg-purple-700 text-white shadow-2xs' : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'"
+                >
+                  Varias Rutas ({{ clientesMultiruta.length }})
+                </button>
+              </div>
+
               <div class="space-y-1 max-h-64 overflow-y-auto custom-scroll">
                 <div
                   v-for="cli in clientesListaFiltrada"
@@ -293,7 +390,11 @@
                 >
                   <div class="flex items-center justify-between">
                     <span class="font-bold text-ink truncate pr-1">{{ cli.cliente }}</span>
-                    <span class="font-mono text-[9px] text-[#86868B] shrink-0">ID: {{ cli.cliente_id }}</span>
+                    <div class="flex items-center gap-1 shrink-0 font-mono text-[9px]">
+                      <span v-if="cli.es_multidia" class="px-1 py-0.2 rounded bg-rose-100 text-rose-700 font-bold border border-rose-200 text-[8px]" title="Varios días en el padrón">Varios Días</span>
+                      <span v-if="cli.es_multiruta" class="px-1 py-0.2 rounded bg-purple-100 text-purple-700 font-bold border border-purple-200 text-[8px]" title="Varias rutas en el padrón">Varias Rutas</span>
+                      <span class="text-[#86868B]">ID: {{ cli.cliente_id }}</span>
+                    </div>
                   </div>
                   <div class="flex items-center justify-between text-[10px] font-mono">
                     <span class="text-neutral-500 truncate max-w-[120px]">{{ cli.direccion }}</span>
@@ -504,6 +605,10 @@ const diaParaEditarFrontera = ref('LUNES')
 
 const clientesRuta = ref([])
 const clientesMultidia = ref([])
+const clientesMultiruta = ref([])
+const clientesMultiples = ref([])
+const tabAlertaMultiple = ref('todos') // 'todos' | 'dias' | 'rutas'
+const filtroTipoCliente = ref('TODOS') // 'TODOS' | 'MULTIDIA' | 'MULTIRUTA' | 'MULTIPLES'
 const diasData = ref({})
 const propuestasPendientes = ref([])
 const filtroClienteTexto = ref('')
@@ -541,10 +646,25 @@ const conteoPorDia = computed(() => {
   return conteo
 })
 
+const clientesAlertaFiltrados = computed(() => {
+  if (tabAlertaMultiple.value === 'dias') return clientesMultidia.value
+  if (tabAlertaMultiple.value === 'rutas') return clientesMultiruta.value
+  return clientesMultiples.value
+})
+
 const clientesListaFiltrada = computed(() => {
-  if (!filtroClienteTexto.value.trim()) return clientesRuta.value
+  let list = clientesRuta.value
+  if (filtroTipoCliente.value === 'MULTIDIA') {
+    list = list.filter(c => c.es_multidia)
+  } else if (filtroTipoCliente.value === 'MULTIRUTA') {
+    list = list.filter(c => c.es_multiruta)
+  } else if (filtroTipoCliente.value === 'MULTIPLES') {
+    list = list.filter(c => c.es_multiple)
+  }
+
+  if (!filtroClienteTexto.value.trim()) return list
   const q = filtroClienteTexto.value.trim().toLowerCase()
-  return clientesRuta.value.filter(c =>
+  return list.filter(c =>
     (c.cliente || '').toLowerCase().includes(q) ||
     String(c.cliente_id || '').includes(q) ||
     (c.direccion || '').toLowerCase().includes(q)
@@ -682,6 +802,8 @@ async function consultarDias() {
 
     diasData.value = data?.dias || {}
     clientesMultidia.value = data?.clientes_multidia || []
+    clientesMultiruta.value = data?.clientes_multiruta || []
+    clientesMultiples.value = data?.clientes_multiples || []
     propuestasPendientes.value = data?.propuestas_pendientes || []
 
     // Aplanar clientes
@@ -735,14 +857,22 @@ function renderizarDistribucionEnMapa() {
 
     bounds.push([lat, lng])
     const color = getColorDia(cli.dia)
+    const esMultiple = Boolean(cli.es_multidia || cli.es_multiruta)
+    const strokeColor = cli.es_multiruta ? '#7C3AED' : (cli.es_multidia ? '#DC2626' : '#FFFFFF')
 
     const marker = L.circleMarker([lat, lng], {
-      radius: cli.es_multidia ? 6.5 : 5,
-      color: cli.es_multidia ? '#DC2626' : '#FFFFFF',
-      weight: cli.es_multidia ? 2.5 : 1.5,
+      radius: esMultiple ? 6.5 : 5,
+      color: strokeColor,
+      weight: esMultiple ? 2.5 : 1.5,
       fillColor: color,
       fillOpacity: 0.95,
     })
+
+    const asignacionesHtml = (cli.asignaciones_pan && cli.asignaciones_pan.length > 1)
+      ? `<div class="mt-1 text-[9px] text-slate-600 font-mono bg-slate-50 p-1 rounded border border-slate-200">
+           <span class="text-slate-400 font-bold">Padrón:</span> ${cli.asignaciones_pan.map(a => `${a.ruta} (${a.dia})`).join(' • ')}
+         </div>`
+      : ''
 
     marker.bindPopup(`
       <div class="p-2 font-sans text-xs">
@@ -755,7 +885,9 @@ function renderizarDistribucionEnMapa() {
             ${cli.dia}
           </span>
         </div>
-        ${cli.es_multidia ? `<div class="mt-1 text-[10px] text-rose-600 font-bold font-mono">Visitas Múltiples: ${(cli.dias_asignados || []).join(', ')}</div>` : ''}
+        ${cli.es_multidia ? `<div class="mt-1 text-[10px] text-rose-600 font-bold font-mono">Varios Días en Padrón: ${(cli.dias_asignados || []).join(', ')}</div>` : ''}
+        ${cli.es_multiruta ? `<div class="mt-1 text-[10px] text-purple-600 font-bold font-mono">Varias Rutas en Padrón: ${(cli.rutas_asignadas || []).join(', ')}</div>` : ''}
+        ${asignacionesHtml}
       </div>
     `)
 
@@ -791,6 +923,8 @@ async function solicitarCambioDia(cli, nuevoDia) {
     if (data?.distribucion_actualizada) {
       diasData.value = data.distribucion_actualizada.dias || {}
       clientesMultidia.value = data.distribucion_actualizada.clientes_multidia || []
+      clientesMultiruta.value = data.distribucion_actualizada.clientes_multiruta || []
+      clientesMultiples.value = data.distribucion_actualizada.clientes_multiples || []
       propuestasPendientes.value = data.distribucion_actualizada.propuestas_pendientes || []
 
       const todos = []

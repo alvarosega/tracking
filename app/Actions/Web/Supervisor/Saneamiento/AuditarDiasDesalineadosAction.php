@@ -57,8 +57,12 @@ class AuditarDiasDesalineadosAction
                 'total_clientes' => 0,
                 'total_propuestas_pendientes' => 0,
                 'total_multidia' => 0,
+                'total_multiruta' => 0,
+                'total_multiples' => 0,
                 'dias' => (object) [],
                 'clientes_multidia' => [],
+                'clientes_multiruta' => [],
+                'clientes_multiples' => [],
                 'propuestas_pendientes' => [],
             ];
         }
@@ -77,29 +81,85 @@ class AuditarDiasDesalineadosAction
             $mapaPropuestas[$clave] = $p;
         }
 
-        // 3. Conteo de días por cliente_id para multi-día
+        // 3. Evaluar clientes filtrados contra todo el padrón pan_ruteo (días múltiples y rutas múltiples)
+        $clientIds = $clientesBaseRaw->pluck('cliente_id')->unique()->filter()->values()->all();
+
         $diasPorCliente = [];
-        foreach ($clientesBaseRaw as $c) {
-            $cid = (int) $c->cliente_id;
-            $diaB = strtoupper(trim((string) $c->dia_base));
-            $clave = "{$cid}_{$diaB}";
-            $diaEfectivo = isset($mapaPropuestas[$clave])
-                ? strtoupper(trim((string) $mapaPropuestas[$clave]['dia_propuesto']))
-                : $diaB;
-            $diasPorCliente[$cid][] = $diaEfectivo;
+        $rutasPorCliente = [];
+        $asignacionesPorCliente = [];
+
+        if (!empty($clientIds)) {
+            $panTodosRaw = $conn->table('pan_ruteo as p')
+                ->whereIn('p.cliente_id', $clientIds)
+                ->where(function ($w) {
+                    $w->whereRaw("LOWER(TRIM(p.estado)) = 'activo'")
+                        ->orWhereNull('p.estado')
+                        ->orWhereRaw("p.estado = ''");
+                })
+                ->select([
+                    'p.cliente_id',
+                    DB::raw("TRIM(UPPER(p.ruta)) as ruta"),
+                    DB::raw("COALESCE(TRIM(p.dia_norm), TRIM(p.dia), 'SIN DIA') as dia"),
+                ])
+                ->get();
+
+            foreach ($panTodosRaw as $row) {
+                $cid = (int) $row->cliente_id;
+                $r = strtoupper(trim((string) $row->ruta));
+                $d = strtoupper(trim((string) $row->dia));
+                if ($d === '' || $d === 'SIN DIA') {
+                    $d = 'SIN DIA';
+                }
+
+                $clave = "{$cid}_{$d}";
+                $diaEfectivo = isset($mapaPropuestas[$clave])
+                    ? strtoupper(trim((string) $mapaPropuestas[$clave]['dia_propuesto']))
+                    : $d;
+
+                if ($diaEfectivo !== '' && $diaEfectivo !== 'SIN DIA') {
+                    $diasPorCliente[$cid][$diaEfectivo] = true;
+                }
+                if ($r !== '') {
+                    $rutasPorCliente[$cid][$r] = true;
+                    $asignacionesPorCliente[$cid][$r . '__' . $diaEfectivo] = [
+                        'ruta' => $r,
+                        'dia' => $diaEfectivo,
+                    ];
+                }
+            }
         }
 
-        // 4. Inyectar proyección en memoria
+        // 4. Inyectar proyección en memoria y categorizar multidia / multiruta
         $clientesProyectados = [];
         $agrupadoDias = [];
         $clientesMultidiaDict = [];
+        $clientesMultirutaDict = [];
+        $clientesMultiplesDict = [];
 
         foreach ($clientesBaseRaw as $c) {
             $cid = (int) $c->cliente_id;
             $diaBase = strtoupper(trim((string) $c->dia_base));
             $clave = "{$cid}_{$diaBase}";
-            $diasAsignados = array_values(array_unique($diasPorCliente[$cid] ?? []));
+
+            $diasAsignados = array_values(array_keys($diasPorCliente[$cid] ?? []));
+            if (empty($diasAsignados) && $diaBase !== '' && $diaBase !== 'SIN DIA') {
+                $diasAsignados = [$diaBase];
+            }
+            $rutasAsignadas = array_values(array_keys($rutasPorCliente[$cid] ?? []));
+            if (empty($rutasAsignadas) && trim((string) $c->ruta) !== '') {
+                $rutasAsignadas = [strtoupper(trim((string) $c->ruta))];
+            }
+            $asignacionesPan = array_values($asignacionesPorCliente[$cid] ?? []);
+            if (empty($asignacionesPan)) {
+                $asignacionesPan = [[
+                    'ruta' => strtoupper(trim((string) $c->ruta)),
+                    'dia' => $diaBase,
+                ]];
+            }
+
             $esMultidia = count($diasAsignados) >= 2;
+            $esMultiruta = count($rutasAsignadas) >= 2;
+            $esMultiple = $esMultidia || $esMultiruta;
 
             $item = [
                 'cliente_id' => $cid,
@@ -118,6 +178,10 @@ class AuditarDiasDesalineadosAction
                 'tipo_negocio' => (string) $c->tipo_negocio,
                 'es_multidia' => $esMultidia,
                 'dias_asignados' => $diasAsignados,
+                'es_multiruta' => $esMultiruta,
+                'rutas_asignadas' => $rutasAsignadas,
+                'es_multiple' => $esMultiple,
+                'asignaciones_pan' => $asignacionesPan,
             ];
 
             if (isset($mapaPropuestas[$clave])) {
@@ -137,6 +201,12 @@ class AuditarDiasDesalineadosAction
 
             if ($esMultidia && !isset($clientesMultidiaDict[$cid])) {
                 $clientesMultidiaDict[$cid] = $item;
+            }
+            if ($esMultiruta && !isset($clientesMultirutaDict[$cid])) {
+                $clientesMultirutaDict[$cid] = $item;
+            }
+            if ($esMultiple && !isset($clientesMultiplesDict[$cid])) {
+                $clientesMultiplesDict[$cid] = $item;
             }
         }
 
@@ -169,7 +239,11 @@ class AuditarDiasDesalineadosAction
             'total_clientes' => count($clientesProyectados),
             'total_propuestas_pendientes' => count($propuestasPendientes),
             'total_multidia' => count($clientesMultidiaDict),
+            'total_multiruta' => count($clientesMultirutaDict),
+            'total_multiples' => count($clientesMultiplesDict),
             'clientes_multidia' => array_values($clientesMultidiaDict),
+            'clientes_multiruta' => array_values($clientesMultirutaDict),
+            'clientes_multiples' => array_values($clientesMultiplesDict),
             'dias' => $resultadoDias,
             'propuestas_pendientes' => $propuestasPendientes,
         ];
