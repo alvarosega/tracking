@@ -294,6 +294,57 @@ class GetRuteoDataAction
             }
         }
 
+        // Evaluar clientes filtrados contra todo el padrón pan_ruteo (días múltiples y rutas múltiples)
+        $diasPorClientePan = [];
+        $rutasPorClientePan = [];
+        $asignacionesPorClientePan = [];
+
+        if (!empty($cidsTodos)) {
+            try {
+                foreach (array_chunk($cidsTodos, 1000) as $chunkIds) {
+                    $panMultiplesRaw = DB::connection('supervisor')->table('pan_ruteo as p')
+                        ->whereIn('p.cliente_id', $chunkIds)
+                        ->where(function ($w) {
+                            $w->whereRaw("LOWER(TRIM(p.estado)) = 'activo'")
+                                ->orWhereNull('p.estado')
+                                ->orWhereRaw("p.estado = ''");
+                        })
+                        ->select([
+                            'p.cliente_id',
+                            DB::raw("TRIM(UPPER(p.ruta)) as ruta"),
+                            DB::raw("COALESCE(TRIM(p.dia_norm), TRIM(p.dia), 'SIN DIA') as dia"),
+                        ])
+                        ->get();
+
+                    foreach ($panMultiplesRaw as $row) {
+                        $cid = (int) $row->cliente_id;
+                        $r = strtoupper(trim((string) $row->ruta));
+                        $d = strtoupper(trim((string) $row->dia));
+                        if ($d === '' || $d === 'SIN DIA') {
+                            $d = 'SIN DIA';
+                        }
+
+                        if ($d !== 'SIN DIA') {
+                            $diasPorClientePan[$cid][$d] = true;
+                        }
+                        if ($r !== '') {
+                            $rutasPorClientePan[$cid][$r] = true;
+                            $asignacionesPorClientePan[$cid][$r . '__' . $d] = [
+                                'ruta' => $r,
+                                'dia' => $d,
+                            ];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silenciar si pan_ruteo no responde temporalmente
+            }
+        }
+
+        $cidsMultidia = [];
+        $cidsMultiruta = [];
+        $cidsMultiples = [];
+
         $kpis = [
             'total' => 0,
             'con_gps' => 0,
@@ -302,6 +353,9 @@ class GetRuteoDataAction
             'inactivos' => 0,
             'con_cambios' => 0,
             'total_propuestas' => $totalPropuestasEnRutas,
+            'total_multidia' => 0,
+            'total_multiruta' => 0,
+            'total_multiples' => 0,
         ];
         $clientes = [];
 
@@ -316,6 +370,37 @@ class GetRuteoDataAction
 
             $rutaOriginal = strtoupper(trim((string)$c->ruta));
             $diaOriginal = strtoupper(trim((string)$c->dia_norm));
+
+            $diasAsignadosPan = array_values(array_keys($diasPorClientePan[$cid] ?? []));
+            if (empty($diasAsignadosPan) && $diaOriginal !== '' && $diaOriginal !== 'SIN DIA') {
+                $diasAsignadosPan = [$diaOriginal];
+            }
+            $rutasAsignadasPan = array_values(array_keys($rutasPorClientePan[$cid] ?? []));
+            if (empty($rutasAsignadasPan) && $rutaOriginal !== '') {
+                $rutasAsignadasPan = [$rutaOriginal];
+            }
+            $asignacionesPan = array_values($asignacionesPorClientePan[$cid] ?? []);
+            if (empty($asignacionesPan)) {
+                $asignacionesPan = [[
+                    'ruta' => $rutaOriginal,
+                    'dia' => $diaOriginal,
+                ]];
+            }
+
+            $esMultidia = count($diasAsignadosPan) >= 2;
+            $esMultiruta = count($rutasAsignadasPan) >= 2;
+            $esMultiple = $esMultidia || $esMultiruta;
+            $esMultidiaYMultiruta = $esMultidia && $esMultiruta;
+
+            if ($esMultidia) {
+                $cidsMultidia[$cid] = true;
+            }
+            if ($esMultiruta) {
+                $cidsMultiruta[$cid] = true;
+            }
+            if ($esMultiple) {
+                $cidsMultiples[$cid] = true;
+            }
 
             if ($modoVista === 'original') {
                 // BASE ORIGINAL PURA:
@@ -405,6 +490,15 @@ class GetRuteoDataAction
                 'estado' => $c->estado ?? 'Activo',
                 'tiene_gps' => $tieneGps,
 
+                // Asignaciones múltiples evaluadas contra todo pan_ruteo
+                'es_multidia' => $esMultidia,
+                'dias_asignados' => $diasAsignadosPan,
+                'es_multiruta' => $esMultiruta,
+                'rutas_asignadas' => $rutasAsignadasPan,
+                'es_multiple' => $esMultiple,
+                'es_multidia_y_multiruta' => $esMultidiaYMultiruta,
+                'asignaciones_pan' => $asignacionesPan,
+
                 // Ventas históricas agrupadas por periodo 'YYYY-MM' (últimos 11 meses)
                 'ventas_historicas' => $ventasMap[$cid] ?? [],
                 'venta_mes_actual' => (float) ($ventasMap[$cid][$mesActualPeriodo]['monto'] ?? 0.0),
@@ -415,6 +509,10 @@ class GetRuteoDataAction
                 'frecuencia_mes_anterior_2' => (int) ($ventasMap[$cid][$mesAnterior2Periodo]['frecuencia'] ?? 0),
             ];
         }
+
+        $kpis['total_multidia'] = count($cidsMultidia);
+        $kpis['total_multiruta'] = count($cidsMultiruta);
+        $kpis['total_multiples'] = count($cidsMultiples);
 
         // Consulta de Polígonos de Rutas
         $fronterasRutas = [];

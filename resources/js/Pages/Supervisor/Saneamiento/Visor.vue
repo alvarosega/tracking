@@ -1813,7 +1813,7 @@
               Matriz de Clientes y Propuestas RTM
             </span>
 
-            <!-- Selector de vista en matriz inferior: Solo Cambios vs Todos los Clientes -->
+            <!-- Selector de vista en matriz inferior: Solo Cambios vs Todos los Clientes vs Múltiples Días/Rutas -->
             <div class="flex items-center bg-slate-200/80 p-0.5 rounded-md font-mono text-[10px]">
               <button
                 type="button"
@@ -1822,6 +1822,15 @@
                 :class="filtroMatrizInferior === 'cambios' ? 'bg-white font-bold text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
               >
                 Con Cambios ({{ clientesConCambio.length }})
+              </button>
+              <button
+                v-if="totalClientesMultiples > 0"
+                type="button"
+                @click="filtroMatrizInferior = 'multiples'"
+                class="px-2 py-0.5 rounded transition-all cursor-pointer"
+                :class="filtroMatrizInferior === 'multiples' ? 'bg-purple-600 text-white font-bold shadow-2xs' : 'text-purple-700 hover:text-purple-900 font-semibold'"
+              >
+                Múltiples Días/Rutas ({{ totalClientesMultiples }})
               </button>
               <button
                 type="button"
@@ -2190,8 +2199,22 @@
                   {{ c.cliente_id }}
                 </td>
                 <td class="py-2 px-3 whitespace-nowrap">
-                  <div class="flex items-center gap-1.5">
+                  <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-semibold text-slate-900 text-xs">{{ c.nombre }}</span>
+                    <span
+                      v-if="c.es_multidia"
+                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold"
+                      :title="'Varios días en padrón: ' + (c.dias_asignados || []).join(', ')"
+                    >
+                      Varios Días
+                    </span>
+                    <span
+                      v-if="c.es_multiruta"
+                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-purple-50 text-purple-700 border-purple-200 font-bold"
+                      :title="'Varias rutas en padrón: ' + (c.rutas_asignadas || []).join(', ')"
+                    >
+                      Varias Rutas
+                    </span>
                     <span
                       v-if="(c.estado || '').toLowerCase() === 'inactivo'"
                       class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
@@ -3545,6 +3568,10 @@ const tituloCodificacionLeyenda = computed(() => {
   return modoColor.value.toUpperCase();
 });
 
+const totalClientesMultiples = computed(() => {
+  return clientes.value.filter(c => c.es_multidia || c.es_multiruta).length;
+});
+
 // Elementos dinámicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
   if (clientes.value.length === 0 || filtroRutas.value.length === 0) return [];
@@ -3552,10 +3579,17 @@ const elementosLeyenda = computed(() => {
   const modoEfectivo = modoColorEfectivo.value;
   const setRutasPuntosPermitidas = new Set(filtroRutas.value.map(r => normalizarRutaClave(r)));
 
+  let conteoMultiples = 0;
+
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
     const rKey = normalizarRutaClave(c.ruta);
     if (!setRutasPuntosPermitidas.has(rKey)) return;
+
+    if (modoPrincipal.value === 'ajuste_rtm' && (c.es_multidia || c.es_multiruta)) {
+      conteoMultiples++;
+      return;
+    }
 
     let key, nombre, color;
 
@@ -3581,7 +3615,16 @@ const elementosLeyenda = computed(() => {
     mapCounts.get(key).conteo++;
   });
 
-  return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+  const list = Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+  if (conteoMultiples > 0) {
+    list.unshift({
+      id: '__multiples__',
+      nombre: 'Múltiples Días/Rutas',
+      color: '#8B5CF6',
+      conteo: conteoMultiples,
+    });
+  }
+  return list;
 });
 
 // ── TABLA INFERIOR DE REGISTRO DE CAMBIOS ──
@@ -3863,6 +3906,9 @@ const clientesConCambio = computed(() => {
 const clientesMatrizInferior = computed(() => {
   if (filtroMatrizInferior.value === 'todos') {
     return clientes.value;
+  }
+  if (filtroMatrizInferior.value === 'multiples') {
+    return clientes.value.filter(c => c.es_multidia || c.es_multiruta);
   }
   return clientesConCambio.value;
 });
@@ -6084,6 +6130,19 @@ function generarPopupHtmlRtm(c) {
             </div>
           </div>
         ` : ''}
+        ${(c.es_multidia || c.es_multiruta) ? `
+          <div style="margin-top: 4px; padding: 4px 6px; background-color: #FAF5FF; border: 1.5px solid #C084FC; border-radius: 4px; font-size: 9.5px; font-family: monospace;">
+            <div style="font-weight: 700; color: #6B21A8; display: flex; align-items: center; justify-content: space-between;">
+              <span>ASIGNACIÓN MÚLTIPLE EN PADRÓN:</span>
+              <span style="background: #F3E8FF; color: #7E22CE; padding: 0 4px; border-radius: 2px; font-weight: bold;">
+                ${c.es_multidia && c.es_multiruta ? 'DÍAS Y RUTAS' : (c.es_multiruta ? 'VARIAS RUTAS' : 'VARIOS DÍAS')}
+              </span>
+            </div>
+            ${c.es_multidia ? `<div style="color: #7E22CE; margin-top: 1px;">Días: <b>${(c.dias_asignados || []).join(', ')}</b></div>` : ''}
+            ${c.es_multiruta ? `<div style="color: #7E22CE; margin-top: 1px;">Rutas: <b>${(c.rutas_asignadas || []).join(', ')}</b></div>` : ''}
+            ${(c.asignaciones_pan && c.asignaciones_pan.length > 1) ? `<div style="color: #9333EA; font-size: 8.5px; margin-top: 2px; border-top: 1px solid #E9D5FF; padding-top: 1px;">Padrón: ${c.asignaciones_pan.map(a => `${a.ruta} (${a.dia})`).join(' • ')}</div>` : ''}
+          </div>
+        ` : ''}
       </div>
 
       <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MESES HISTÓRICOS SELECCIONADOS) -->
@@ -6477,11 +6536,19 @@ function renderizarEnMapa(mantenerVista = false) {
       else if (cambioDia) etiquetaCambio = 'CAMBIO DE DÍA';
 
       const esInactivo = (c.estado || '').toLowerCase() !== 'activo' && Boolean(c.estado);
+      const esMultipleAsignacion = Boolean(c.es_multidia || c.es_multiruta);
       let markerColor, markerBorder, markerWeight, markerDashArray, markerRadius;
 
       if (esModoAjusteRtm) {
         // EN MODO AJUSTAR RTM:
-        if (tieneUnaSolaRutaMarcada.value) {
+        if (esMultipleAsignacion) {
+          // Cliente con múltiples días de visita o múltiples rutas en padrón: TODO el punto de color morado
+          markerColor = '#8B5CF6'; // Relleno morado
+          markerBorder = tieneCambio ? '#0F172A' : (esInactivo ? '#E11D48' : '#581C87'); // Borde morado oscuro o dashed
+          markerWeight = tieneCambio ? 3.5 : (esInactivo ? 3 : 2.5);
+          markerDashArray = tieneCambio ? '3, 3' : (esInactivo ? '2, 2' : null);
+          markerRadius = 7;
+        } else if (tieneUnaSolaRutaMarcada.value) {
           // Si solo tenemos una ruta marcada: se ven solo los colores del DÍA de visita
           markerColor = getDiaColor(diaEfectivo);
           markerBorder = tieneCambio ? '#0F172A' : (esInactivo ? '#E11D48' : '#FFFFFF');
@@ -6560,6 +6627,13 @@ function renderizarEnMapa(mantenerVista = false) {
           </div>`
         : '';
 
+      const bannerMultipleTooltip = esMultipleAsignacion
+        ? `<div style="margin-top: 3px; padding: 2px 5px; background: #FAF5FF; border: 1px solid #C084FC; border-radius: 4px; font-size: 9px; font-family: monospace; color: #6B21A8; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+             <span><b>${(c.es_multidia && c.es_multiruta) ? 'MÚLTIPLES DÍAS Y RUTAS' : (c.es_multiruta ? 'VARIAS RUTAS' : 'VARIOS DÍAS')}</b></span>
+             <span style="color: #7E22CE;">${c.asignaciones_pan ? c.asignaciones_pan.map(a => `${a.ruta}(${a.dia})`).join(' • ') : ''}</span>
+           </div>`
+        : '';
+
       if (modoPrincipal.value === 'ajuste_rtm') {
         // En modo Ajuste RTM: se enlaza el popup interactivo compacto en el punto con métricas de fact_ventas
         marker.bindPopup(generarPopupHtmlRtm(c), {
@@ -6590,6 +6664,7 @@ function renderizarEnMapa(mantenerVista = false) {
               <span>•</span>
               <span style="color: #475569;">ID: ${c.cliente_id}</span>
             </div>
+            ${bannerMultipleTooltip}
             ${bannerPropuesta}
             <div style="margin-top: 3px; font-size: 9.5px; font-weight: 600; color: #0F172A;">Clic para configurar Ajuste RTM</div>
           </div>
@@ -6614,6 +6689,7 @@ function renderizarEnMapa(mantenerVista = false) {
               <span>•</span>
               <span style="color: #475569;">ID: ${c.cliente_id}</span>
             </div>
+            ${bannerMultipleTooltip}
             ${bannerPropuesta}
             <div style="margin-top: 3px; font-size: 9.5px; font-weight: 600; color: #475569;">Clic para ver ficha</div>
           </div>
