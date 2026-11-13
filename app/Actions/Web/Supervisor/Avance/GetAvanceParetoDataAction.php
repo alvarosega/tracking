@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Web\Supervisor\Avance;
 
+use App\Actions\Web\Supervisor\Auditoria\EnriquecerFotosAction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,11 @@ use Illuminate\Support\Facades\DB;
 class GetAvanceParetoDataAction
 {
     private const CACHE_TTL_SECS = 300;
+
+    public function __construct(
+        private readonly EnriquecerFotosAction $enriquecerFotosAction
+    ) {
+    }
 
     /**
      * Ejecuta el análisis Pareto y scoring multicriterio de clientes.
@@ -284,6 +290,9 @@ class GetAvanceParetoDataAction
                 'tiene_fotos' => isset($clientesConFotos[$cid]),
             ];
         }
+
+        // Enriquecer registros con evidencias fotográficas del cliente
+        $clientes = $this->enriquecerFotosAction->execute($clientes, 'cliente_id');
 
         // 9. Ordenar clientes por venta_mtd DESC para calcular curva de Pareto
         usort($clientes, fn ($a, $b) => $b['venta_mtd'] <=> $a['venta_mtd']);

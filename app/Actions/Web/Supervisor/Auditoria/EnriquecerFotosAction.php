@@ -87,10 +87,12 @@ class EnriquecerFotosAction
                 $r['cant_fotos'] = $mapaFotos[$cid]['cant_fotos'];
                 $r['foto_reciente_url'] = $mapaFotos[$cid]['foto_reciente_url'];
                 $r['foto_reciente_fecha'] = $mapaFotos[$cid]['foto_reciente_fecha'];
+                $r['tiene_fotos'] = ($r['cant_fotos'] > 0);
             } else {
                 $r['cant_fotos'] = 0;
                 $r['foto_reciente_url'] = null;
                 $r['foto_reciente_fecha'] = null;
+                $r['tiene_fotos'] = false;
             }
         }
         unset($r);

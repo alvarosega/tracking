@@ -265,6 +265,7 @@
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] w-7 text-center">#</th>
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] w-10 text-center">Clase</th>
                   <th class="py-2 px-2.5 border-b border-r border-black/[0.06] min-w-[160px]">Cliente</th>
+                  <th class="py-2 px-2 border-b border-r border-black/[0.06] w-12 text-center" title="Histórico de Fotografías de Visitas del Cliente">Fotos</th>
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] w-16">Ruta</th>
                   <th class="py-2 px-2.5 border-b border-r border-black/[0.06] text-right min-w-[95px]" title="Monto Facturado en Bs MTD">Monto Bs</th>
                   <th class="py-2 px-2 border-b border-r border-black/[0.06] text-right min-w-[80px]" title="Unidades Físicas y Cajas Físicas">Unid / Cj</th>
@@ -329,6 +330,48 @@
                           INACTIVO
                         </span>
                       </div>
+                    </td>
+
+                    <!-- Histórico de Fotografías del Cliente -->
+                    <td class="py-1 px-1.5 text-center border-r border-black/[0.04] whitespace-nowrap" @click.stop>
+                      <button
+                        v-if="c.cant_fotos > 0 || c.foto_reciente_url"
+                        type="button"
+                        @click="abrirModalFotos(c)"
+                        class="relative group rounded-[6px] overflow-hidden border border-black/10 shadow-2xs hover:border-[#0071E3] hover:scale-105 transition-all cursor-pointer bg-slate-100 inline-flex items-center justify-center p-0.5"
+                        :title="`Ver histórico de fotografías (${c.cant_fotos || 1} evidencias - Última: ${c.foto_reciente_fecha || 'registrada'})`"
+                      >
+                        <img
+                          v-if="c.foto_reciente_url"
+                          :src="c.foto_reciente_url"
+                          :alt="'Foto ' + c.cliente"
+                          class="w-6 h-6 object-cover rounded-[4px]"
+                          loading="lazy"
+                        />
+                        <div v-else class="w-6 h-6 flex items-center justify-center bg-blue-50 text-[#0071E3] rounded-[4px]">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          </svg>
+                        </div>
+                        <span
+                          v-if="(c.cant_fotos || 0) > 1"
+                          class="absolute -top-1 -right-1 bg-[#0071E3] text-white text-[7.5px] font-bold rounded-full min-w-3.5 h-3.5 px-0.5 flex items-center justify-center border border-white font-mono shadow-2xs"
+                        >
+                          {{ c.cant_fotos }}
+                        </span>
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        @click="abrirModalFotos(c)"
+                        class="w-6 h-6 rounded-[6px] bg-black/[0.02] border border-black/[0.06] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] hover:bg-blue-50/50 hover:border-blue-200 transition-all cursor-pointer"
+                        title="Consultar histórico de fotos de este cliente"
+                      >
+                        <svg class="w-3.5 h-3.5 text-[#AEAEB2] group-hover:text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
                     </td>
 
                     <!-- Ruta -->
@@ -403,37 +446,25 @@
 
                     <!-- GIS Acciones -->
                     <td class="py-1.5 px-1.5 text-center whitespace-nowrap" @click.stop>
-                      <div class="flex items-center justify-center gap-1">
-                        <button
-                          v-if="c.latitud && c.longitud"
-                          type="button"
-                          @click="enfocarClienteEnMapa(c)"
-                          class="p-1 text-[#0071E3] hover:bg-sky-50 rounded cursor-pointer transition-colors"
-                          title="Enfocar cliente en el Mapa"
-                        >
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </button>
-                        <button
-                          v-if="c.tiene_fotos"
-                          type="button"
-                          @click="abrirModalFotos(c)"
-                          class="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded cursor-pointer transition-colors"
-                          title="Ver evidencia fotográfica"
-                        >
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          </svg>
-                        </button>
-                      </div>
+                      <button
+                        v-if="c.latitud && c.longitud"
+                        type="button"
+                        @click="enfocarClienteEnMapa(c)"
+                        class="p-1 text-[#0071E3] hover:bg-sky-50 rounded cursor-pointer transition-colors"
+                        title="Enfocar cliente en el Mapa"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                      <span v-else class="text-[#C7C7CC] text-[10px] font-mono">-</span>
                     </td>
                   </tr>
 
                   <!-- FILA EXPANDIBLE: COMPORTAMIENTO 6 MESES ATRÁS -->
                   <tr v-if="clientesExpandidos.has(c.cliente_id)" class="bg-slate-50/80 border-b border-black/[0.08]" @click.stop>
-                    <td colspan="13" class="p-3">
+                    <td colspan="14" class="p-3">
                       <!-- Loading Skeleton -->
                       <div v-if="cargandoHistorialCliente[c.cliente_id]" class="py-5 flex items-center justify-center gap-2 text-xs text-[#86868B] font-mono bg-white rounded-xl border border-black/[0.06]">
                         <svg class="w-4 h-4 animate-spin text-[#0071E3]" fill="none" viewBox="0 0 24 24">
@@ -1004,6 +1035,7 @@
       <ClienteFotosModal
         :show="modalFotosVisible"
         :cliente="clienteFotosActivo"
+        endpoint-url="/supervisor/avance/paretos/fotos"
         @close="modalFotosVisible = false"
       />
     </div>

@@ -121,6 +121,7 @@ import axios from 'axios';
 const props = defineProps({
   show: { type: Boolean, default: false },
   cliente: { type: Object, default: null },
+  endpointUrl: { type: String, default: null },
 });
 
 defineEmits(['close']);
@@ -140,9 +141,14 @@ async function cargarFotos(clienteId) {
   cargando.value = true;
   fotos.value = [];
   try {
-    const url = typeof route === 'function'
-      ? route('supervisor.preventas.cumplimiento.fotos', clienteId)
-      : `/supervisor/preventas/cumplimiento/fotos/${clienteId}`;
+    let url;
+    if (props.endpointUrl) {
+      url = `${props.endpointUrl.replace(/\/$/, '')}/${clienteId}`;
+    } else {
+      url = typeof route === 'function'
+        ? route('supervisor.preventas.cumplimiento.fotos', clienteId)
+        : `/supervisor/preventas/cumplimiento/fotos/${clienteId}`;
+    }
 
     const res = await axios.post(url);
     if (res.data?.success) {

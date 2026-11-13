@@ -96,6 +96,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/paretos/detalle-amplitud', [SupervisorAvanceController::class, 'paretoDetalleAmplitud'])->name('paretos.detalle-amplitud');
             Route::post('/paretos/detalle-frecuencia', [SupervisorAvanceController::class, 'paretoDetalleFrecuencia'])->name('paretos.detalle-frecuencia');
             Route::post('/paretos/cliente-historial', [SupervisorAvanceController::class, 'paretoClienteHistorial'])->name('paretos.cliente-historial');
+            Route::post('/paretos/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('paretos.fotos');
         });
 
         // Entregas
