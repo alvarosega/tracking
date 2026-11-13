@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Web\Supervisor\Avance;
 
-use App\Actions\Web\Supervisor\Auditoria\EnriquecerFotosAction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -12,11 +11,6 @@ use Illuminate\Support\Facades\DB;
 class GetAvanceParetoDataAction
 {
     private const CACHE_TTL_SECS = 300;
-
-    public function __construct(
-        private readonly EnriquecerFotosAction $enriquecerFotosAction
-    ) {
-    }
 
     /**
      * Ejecuta el análisis Pareto y scoring multicriterio de clientes.
@@ -78,18 +72,35 @@ class GetAvanceParetoDataAction
         $fechaMinimaGlobal = min($fActInicio, $fLmInicio, $fM2Inicio, $fM3Inicio, $fLyInicio, $f6mInicio, $f12mInicio);
         $fechaMaximaGlobal = max($fActFin, $fLmFin, $fM2Fin, $fM3Fin, $fLyFin);
 
-        // 4. Clientes con fotos
-        $clientesConFotos = [];
+        // 4. Clientes con fotos y última evidencia fotográfica desde visitas
+        $mapaFotos = [];
         try {
-            $clientesConFotos = DB::connection('mysql')->table('visitas')
+            $visitasRows = DB::connection('mysql')->table('visitas')
                 ->whereNotNull('photo_path')
-                ->whereRaw("TRIM(photo_path) != ''")
-                ->distinct()
-                ->pluck('client_id')
-                ->filter()
-                ->map(fn ($id) => (int) $id)
-                ->flip()
-                ->toArray();
+                ->where('photo_path', '!=', '')
+                ->selectRaw('client_id, COUNT(*) as cant_fotos, MAX(visited_at) as ultima_fecha, SUBSTRING_INDEX(GROUP_CONCAT(photo_path ORDER BY visited_at DESC SEPARATOR "###"), "###", 1) as foto_reciente')
+                ->groupBy('client_id')
+                ->get();
+
+            foreach ($visitasRows as $vr) {
+                $p = ltrim(str_replace('\\', '/', (string) ($vr->foto_reciente ?? '')), '/');
+                $url = null;
+                if ($p !== '') {
+                    if (str_starts_with($p, 'http://') || str_starts_with($p, 'https://')) {
+                        $url = $p;
+                    } elseif (str_starts_with($p, 'storage/')) {
+                        $url = '/' . $p;
+                    } else {
+                        $url = '/storage/' . $p;
+                    }
+                }
+
+                $mapaFotos[(int) $vr->client_id] = [
+                    'cant_fotos' => (int) $vr->cant_fotos,
+                    'foto_reciente_url' => $url,
+                    'foto_reciente_fecha' => $vr->ultima_fecha ? date('Y-m-d H:i', strtotime((string) $vr->ultima_fecha)) : null,
+                ];
+            }
         } catch (\Throwable $e) {
             // Silencioso si no está disponible la tabla en la BD local
         }
@@ -287,12 +298,12 @@ class GetAvanceParetoDataAction
                 'var_l2m' => $this->calcDesvio($vAct, $promL2m),
                 'var_l3m' => $this->calcDesvio($vAct, $promL3m),
                 'var_ly' => $this->calcDesvio($vAct, $vLy),
-                'tiene_fotos' => isset($clientesConFotos[$cid]),
+                'cant_fotos' => $mapaFotos[$cid]['cant_fotos'] ?? 0,
+                'foto_reciente_url' => $mapaFotos[$cid]['foto_reciente_url'] ?? null,
+                'foto_reciente_fecha' => $mapaFotos[$cid]['foto_reciente_fecha'] ?? null,
+                'tiene_fotos' => isset($mapaFotos[$cid]),
             ];
         }
-
-        // Enriquecer registros con evidencias fotográficas del cliente
-        $clientes = $this->enriquecerFotosAction->execute($clientes, 'cliente_id');
 
         // 9. Ordenar clientes por venta_mtd DESC para calcular curva de Pareto
         usort($clientes, fn ($a, $b) => $b['venta_mtd'] <=> $a['venta_mtd']);

@@ -72,7 +72,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/data', [SupervisorAvanceController::class, 'cumplimientoData'])->name('cumplimiento.data');
             Route::post('/cumplimiento/clientes-ruta', [SupervisorAvanceController::class, 'clientesRuta'])->name('cumplimiento.clientes-ruta');
             Route::post('/cumplimiento/cliente-detalle-fechas', [SupervisorAvanceController::class, 'clienteDetalleFechas'])->name('cumplimiento.cliente-detalle-fechas');
-            Route::post('/cumplimiento/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('cumplimiento.fotos');
+            Route::match(['get', 'post'], '/cumplimiento/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('cumplimiento.fotos');
         });
 
         // Preventas Históricas
@@ -96,7 +96,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/paretos/detalle-amplitud', [SupervisorAvanceController::class, 'paretoDetalleAmplitud'])->name('paretos.detalle-amplitud');
             Route::post('/paretos/detalle-frecuencia', [SupervisorAvanceController::class, 'paretoDetalleFrecuencia'])->name('paretos.detalle-frecuencia');
             Route::post('/paretos/cliente-historial', [SupervisorAvanceController::class, 'paretoClienteHistorial'])->name('paretos.cliente-historial');
-            Route::post('/paretos/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('paretos.fotos');
+            Route::match(['get', 'post'], '/paretos/fotos/{clienteId}', [SupervisorAvanceController::class, 'fotosCliente'])->name('paretos.fotos');
         });
 
         // Entregas

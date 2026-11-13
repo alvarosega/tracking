@@ -14,9 +14,9 @@
           <div class="min-w-0 pr-3">
             <div class="flex items-center gap-2">
               <span class="text-xs font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded">
-                Cód. {{ cliente?.codigo_cliente || cliente?.cliente_id }}
+                Cód. {{ cliente?.codigo_cliente || cliente?.cliente_id || cliente?.id || '-' }}
               </span>
-              <h3 class="text-sm font-bold truncate text-white">{{ cliente?.cliente }}</h3>
+              <h3 class="text-sm font-bold truncate text-white">{{ cliente?.cliente || cliente?.nombre || 'Cliente' }}</h3>
             </div>
             <p class="text-[11px] text-slate-400 font-mono mt-0.5 truncate">
               {{ cliente?.direccion || 'Sin dirección registrada' }} • {{ cliente?.tipo_negocio || 'Comercio General' }}
@@ -38,6 +38,24 @@
           <div v-if="cargando" class="flex flex-col items-center justify-center py-12 text-slate-400">
             <span class="w-7 h-7 border-3 border-sky-500 border-t-transparent rounded-full animate-spin mb-3"></span>
             <p class="text-xs font-mono">Cargando evidencia fotográfica...</p>
+          </div>
+
+          <!-- Error de Carga -->
+          <div v-else-if="errorMsg" class="flex flex-col items-center justify-center py-10 text-rose-500 text-center px-4">
+            <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <p class="text-xs font-bold text-rose-700">Error al consultar fotografías</p>
+            <p class="text-[11px] text-slate-500 mt-0.5 max-w-sm">{{ errorMsg }}</p>
+            <button
+              type="button"
+              @click="clienteId && cargarFotos(clienteId)"
+              class="mt-3 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer"
+            >
+              Reintentar
+            </button>
           </div>
 
           <!-- Sin Fotos -->
@@ -115,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -128,34 +146,58 @@ defineEmits(['close']);
 
 const fotos = ref([]);
 const cargando = ref(false);
+const errorMsg = ref(null);
 
-watch(() => props.show, async (newVal) => {
-  if (newVal && props.cliente?.cliente_id) {
-    await cargarFotos(props.cliente.cliente_id);
-  } else {
-    fotos.value = [];
-  }
+const clienteId = computed(() => {
+  if (!props.cliente) return null;
+  return props.cliente.cliente_id ?? props.cliente.id ?? props.cliente.client_id ?? props.cliente.codigo_cliente ?? null;
 });
 
-async function cargarFotos(clienteId) {
+watch(
+  [() => props.show, () => clienteId.value],
+  async ([show, id]) => {
+    if (show && id) {
+      await cargarFotos(id);
+    } else if (!show) {
+      fotos.value = [];
+      errorMsg.value = null;
+    }
+  },
+  { immediate: true }
+);
+
+async function cargarFotos(id) {
+  if (!id) return;
   cargando.value = true;
   fotos.value = [];
+  errorMsg.value = null;
+
   try {
     let url;
     if (props.endpointUrl) {
-      url = `${props.endpointUrl.replace(/\/$/, '')}/${clienteId}`;
+      url = `${props.endpointUrl.replace(/\/$/, '')}/${id}`;
     } else {
       url = typeof route === 'function'
-        ? route('supervisor.preventas.cumplimiento.fotos', clienteId)
-        : `/supervisor/preventas/cumplimiento/fotos/${clienteId}`;
+        ? route('supervisor.preventas.cumplimiento.fotos', id)
+        : `/supervisor/preventas/cumplimiento/fotos/${id}`;
     }
 
     const res = await axios.post(url);
-    if (res.data?.success) {
-      fotos.value = res.data.fotos || [];
+    const data = res.data;
+    if (data?.success && Array.isArray(data.fotos)) {
+      fotos.value = data.fotos;
+    } else if (Array.isArray(data)) {
+      fotos.value = data;
+    } else if (data?.fotos && Array.isArray(data.fotos)) {
+      fotos.value = data.fotos;
+    } else if (data?.visitas && Array.isArray(data.visitas)) {
+      fotos.value = data.visitas;
+    } else {
+      fotos.value = [];
     }
   } catch (error) {
     console.error('Error al cargar fotos del cliente:', error);
+    errorMsg.value = error.response?.data?.message || error.response?.data?.error || error.message || 'Error de comunicación al consultar fotografías.';
   } finally {
     cargando.value = false;
   }
