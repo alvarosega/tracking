@@ -169,6 +169,28 @@
                 {{ registrosFiltrados.length }}
               </span>
             </button>
+
+            <!-- Botón Cambio Masivo de Estado para Nuevas Altas -->
+            <button
+              type="button"
+              @click="abrirModalCambioMasivo"
+              :disabled="cargando || procesandoCambioMasivo || registrosFiltrados.length === 0"
+              class="h-7 px-2.5 bg-[#5856D6] hover:bg-[#4745C4] active:bg-[#3A38A8] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+              :title="registrosFiltrados.length > 0 ? `Cambiar masivamente el estado de ${registrosFiltrados.length} altas filtradas` : 'No hay registros filtrados'"
+            >
+              <svg v-if="procesandoCambioMasivo" class="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span class="hidden sm:inline">Cambio Masivo</span>
+              <span class="sm:hidden">Masivo</span>
+              <span v-if="registrosFiltrados.length > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+                {{ registrosFiltrados.length }}
+              </span>
+            </button>
           </template>
 
           <div class="flex md:hidden items-center bg-[#F2F2F7] p-0.5 rounded-[6px] border border-[#E5E5EA]">
@@ -2441,7 +2463,9 @@
                 <span class="w-2.5 h-2.5 rounded-full bg-[#5856D6]"></span>
                 <div>
                   <h3 class="text-sm font-bold text-[#1D1D1F]">Cambio Masivo de Estado</h3>
-                  <p class="text-[11px] text-[#6E6E73] font-medium">Modificaciones de Clientes Filtradas</p>
+                  <p class="text-[11px] text-[#6E6E73] font-medium">
+                    {{ submoduloActivo === 'altas' ? 'Nuevas Altas Filtradas' : 'Modificaciones de Clientes Filtradas' }}
+                  </p>
                 </div>
               </div>
               <button
@@ -2466,7 +2490,9 @@
                   </span>
                 </div>
                 <p class="text-[11px] text-[#6E6E73] leading-relaxed">
-                  Se actualizará el estado de revisión de todas las modificaciones que cumplen con los filtros actualmente aplicados en pantalla.
+                  {{ submoduloActivo === 'altas'
+                    ? 'Se actualizará el estado de revisión de todas las nuevas altas que cumplen con los filtros actualmente aplicados en pantalla.'
+                    : 'Se actualizará el estado de revisión de todas las modificaciones que cumplen con los filtros actualmente aplicados en pantalla.' }}
                 </p>
               </div>
 
