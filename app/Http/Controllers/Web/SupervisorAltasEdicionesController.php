@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Web\Supervisor\AltasEdiciones\CambiarEstadoRevisionAction;
+use App\Actions\Web\Supervisor\AltasEdiciones\CambiarEstadoRevisionMasivoAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\ExportarPadronActualizadoAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
 use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionMasivoRequest;
 use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -187,6 +189,35 @@ class SupervisorAltasEdicionesController extends Controller
                 'error' => $e->getMessage(),
                 'fotos' => [],
             ], 500);
+        }
+    }
+
+    /**
+     * Actualiza masivamente el estado de revisión (APROBADO / RECHAZADO / PENDIENTE)
+     * de los registros seleccionados exclusivamente en saneamiento_base.
+     * Bajo ninguna circunstancia modifica ni altera la tabla pan_ruteo.
+     */
+    public function cambiarEstadoMasivo(
+        CambiarEstadoRevisionMasivoRequest $request,
+        CambiarEstadoRevisionMasivoAction $action
+    ): JsonResponse {
+        try {
+            $resultado = $action->execute(
+                ids: $request->ids(),
+                nuevoEstado: $request->estado(),
+                motivo: $request->motivo()
+            );
+
+            return response()->json($resultado);
+        } catch (\Throwable $e) {
+            Log::error('Error al cambiar masivamente el estado en saneamiento_base: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar el cambio masivo: ' . $e->getMessage(),
+            ], 422);
         }
     }
 

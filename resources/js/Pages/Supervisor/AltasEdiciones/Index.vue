@@ -127,6 +127,28 @@
               <span class="hidden sm:inline">{{ descargandoPadron ? 'Descargando...' : 'Descargar Padrón Actualizado' }}</span>
               <span class="sm:hidden">{{ descargandoPadron ? 'Padrón...' : 'Padrón' }}</span>
             </button>
+
+            <!-- Botón 3: Cambio Masivo de Estado -->
+            <button
+              type="button"
+              @click="abrirModalCambioMasivo"
+              :disabled="cargando || procesandoCambioMasivo || registrosFiltrados.length === 0"
+              class="h-7 px-2.5 bg-[#5856D6] hover:bg-[#4745C4] active:bg-[#3A38A8] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
+              :title="registrosFiltrados.length > 0 ? `Cambiar masivamente el estado de ${registrosFiltrados.length} modificaciones filtradas` : 'No hay registros filtrados'"
+            >
+              <svg v-if="procesandoCambioMasivo" class="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span class="hidden sm:inline">Cambio Masivo</span>
+              <span class="sm:hidden">Masivo</span>
+              <span v-if="registrosFiltrados.length > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+                {{ registrosFiltrados.length }}
+              </span>
+            </button>
           </template>
 
           <template v-else>
@@ -2400,6 +2422,156 @@
         </div>
       </Teleport>
 
+      <!-- ======================================================== -->
+      <!-- MODAL DE CAMBIO MASIVO DE ESTADO DE REVISIÓN             -->
+      <!-- ======================================================== -->
+      <Teleport to="body">
+        <div
+          v-if="modalCambioMasivoAbierto"
+          class="fixed inset-0 z-[99996] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 select-none font-sans animate-in fade-in duration-150"
+          @click.self="cerrarModalCambioMasivo"
+        >
+          <div
+            class="bg-white rounded-[16px] shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-[#E5E5EA]"
+            @click.stop
+          >
+            <!-- Cabecera del Modal -->
+            <div class="px-5 py-4 bg-[#FBFBFD] border-b border-[#E5E5EA] flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#5856D6]"></span>
+                <div>
+                  <h3 class="text-sm font-bold text-[#1D1D1F]">Cambio Masivo de Estado</h3>
+                  <p class="text-[11px] text-[#6E6E73] font-medium">Modificaciones de Clientes Filtradas</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                @click="cerrarModalCambioMasivo"
+                :disabled="procesandoCambioMasivo"
+                class="w-7 h-7 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F] flex items-center justify-center text-sm font-bold transition-colors cursor-pointer disabled:opacity-40"
+                title="Cerrar ventana"
+              >
+                &times;
+              </button>
+            </div>
+
+            <!-- Cuerpo del Modal -->
+            <div class="p-5 space-y-4 text-xs">
+              <!-- Banner con Total de Registros Filtrados -->
+              <div class="p-3 bg-[#F5F5F7] rounded-[10px] border border-[#E5E5EA] space-y-1">
+                <div class="flex items-center justify-between text-[#1D1D1F] font-semibold">
+                  <span>Registros a modificar:</span>
+                  <span class="px-2 py-0.5 rounded-full bg-[#5856D6] text-white font-mono font-bold text-[11px]">
+                    {{ registrosFiltrados.length }} solicitud(es)
+                  </span>
+                </div>
+                <p class="text-[11px] text-[#6E6E73] leading-relaxed">
+                  Se actualizará el estado de revisión de todas las modificaciones que cumplen con los filtros actualmente aplicados en pantalla.
+                </p>
+              </div>
+
+              <!-- Selector de Nuevo Estado -->
+              <div class="space-y-2">
+                <label class="block font-bold text-[#1D1D1F] text-[11px] uppercase tracking-wider">
+                  Seleccione el nuevo estado:
+                </label>
+
+                <div class="grid grid-cols-3 gap-2">
+                  <!-- APROBADO -->
+                  <button
+                    type="button"
+                    @click="estadoMasivoSeleccionado = 'APROBADO'"
+                    class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5"
+                    :class="estadoMasivoSeleccionado === 'APROBADO'
+                      ? 'border-[#248A3D] bg-[#EBF9EF] text-[#248A3D] font-bold ring-2 ring-[#248A3D]/20 shadow-2xs'
+                      : 'border-[#E5E5EA] bg-white text-[#1D1D1F] hover:bg-[#F9F9FB]'"
+                  >
+                    <svg class="w-4 h-4 text-[#248A3D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span class="text-xs">Aprobar</span>
+                  </button>
+
+                  <!-- RECHAZADO -->
+                  <button
+                    type="button"
+                    @click="estadoMasivoSeleccionado = 'RECHAZADO'"
+                    class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5"
+                    :class="estadoMasivoSeleccionado === 'RECHAZADO'
+                      ? 'border-[#FF3B30] bg-[#FDF0EF] text-[#C9342C] font-bold ring-2 ring-[#FF3B30]/20 shadow-2xs'
+                      : 'border-[#E5E5EA] bg-white text-[#1D1D1F] hover:bg-[#F9F9FB]'"
+                  >
+                    <svg class="w-4 h-4 text-[#FF3B30]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span class="text-xs">Rechazar</span>
+                  </button>
+
+                  <!-- PENDIENTE -->
+                  <button
+                    type="button"
+                    @click="estadoMasivoSeleccionado = 'PENDIENTE'"
+                    class="p-2.5 rounded-[8px] border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5"
+                    :class="estadoMasivoSeleccionado === 'PENDIENTE'
+                      ? 'border-[#FF9500] bg-[#FFF8E6] text-[#B25E00] font-bold ring-2 ring-[#FF9500]/20 shadow-2xs'
+                      : 'border-[#E5E5EA] bg-white text-[#1D1D1F] hover:bg-[#F9F9FB]'"
+                  >
+                    <svg class="w-4 h-4 text-[#FF9500]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-xs">Pendiente</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Motivo u Observación Opcional -->
+              <div class="space-y-1.5">
+                <label class="block font-bold text-[#1D1D1F] text-[11px] uppercase tracking-wider">
+                  Motivo u observación (opcional):
+                </label>
+                <textarea
+                  v-model="motivoCambioMasivo"
+                  rows="2"
+                  placeholder="Observación o justificación del cambio masivo..."
+                  class="w-full text-xs rounded-[8px] border border-[#E5E5EA] p-2.5 text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3] focus:border-[#0071E3] transition-all resize-none"
+                ></textarea>
+              </div>
+
+              <!-- Mensaje de Error si ocurre -->
+              <div
+                v-if="errorCambioMasivo"
+                class="p-2.5 rounded-[8px] bg-[#FDF0EF] text-[#C9342C] border border-[#C9342C]/20 text-[11px] flex items-center justify-between"
+              >
+                <span>{{ errorCambioMasivo }}</span>
+                <button type="button" @click="errorCambioMasivo = null" class="font-bold text-xs ml-2 cursor-pointer">&times;</button>
+              </div>
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="px-5 py-3.5 bg-[#FBFBFD] border-t border-[#E5E5EA] flex items-center justify-end gap-2.5 shrink-0">
+              <button
+                type="button"
+                @click="cerrarModalCambioMasivo"
+                :disabled="procesandoCambioMasivo"
+                class="px-3.5 py-1.5 rounded-[8px] border border-[#D2D2D7] text-xs font-semibold text-[#1D1D1F] hover:bg-[#F2F2F7] transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                @click="confirmarCambioMasivo"
+                :disabled="procesandoCambioMasivo || registrosFiltrados.length === 0"
+                class="px-4 py-1.5 rounded-[8px] text-xs font-bold text-white transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                :class="estadoMasivoSeleccionado === 'APROBADO' ? 'bg-[#248A3D] hover:bg-[#1E7433]' : (estadoMasivoSeleccionado === 'RECHAZADO' ? 'bg-[#FF3B30] hover:bg-[#D70015]' : 'bg-[#FF9500] hover:bg-[#D77E00]')"
+              >
+                <span v-if="procesandoCambioMasivo" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span>{{ procesandoCambioMasivo ? 'Actualizando...' : `Aplicar a ${registrosFiltrados.length} registros` }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Toast de Notificaciones -->
       <Transition
         enter-active-class="transition duration-200 ease-out"
@@ -2552,6 +2724,13 @@ const cambiandoEstadoId = ref(null);
 const estadoEnProceso = ref(null);
 const mensajeEstado = ref(null);
 const toastMensaje = ref('');
+
+// Estado Reactivo para Cambio Masivo de Estado
+const modalCambioMasivoAbierto = ref(false);
+const estadoMasivoSeleccionado = ref('APROBADO');
+const motivoCambioMasivo = ref('');
+const procesandoCambioMasivo = ref(false);
+const errorCambioMasivo = ref(null);
 
 function mostrarToast(msg) {
   toastMensaje.value = msg;
@@ -3075,6 +3254,82 @@ async function cambiarEstadoRevision(registro, nuevoEstado) {
   } finally {
     cambiandoEstadoId.value = null;
     estadoEnProceso.value = null;
+  }
+}
+
+// =========================================================================
+// CAMBIO MASIVO DE ESTADO DE REVISIÓN
+// =========================================================================
+function abrirModalCambioMasivo() {
+  if (registrosFiltrados.value.length === 0) {
+    alert('No se encontraron solicitudes con los filtros actuales para actualizar.');
+    return;
+  }
+  estadoMasivoSeleccionado.value = 'APROBADO';
+  motivoCambioMasivo.value = '';
+  errorCambioMasivo.value = null;
+  modalCambioMasivoAbierto.value = true;
+}
+
+function cerrarModalCambioMasivo() {
+  if (procesandoCambioMasivo.value) return;
+  modalCambioMasivoAbierto.value = false;
+  errorCambioMasivo.value = null;
+}
+
+async function confirmarCambioMasivo() {
+  const lista = registrosFiltrados.value;
+  const ids = lista.map(r => r.id).filter(id => typeof id === 'number' && id > 0);
+
+  if (ids.length === 0) {
+    alert('No se encontraron IDs válidos en las solicitudes filtradas.');
+    return;
+  }
+
+  procesandoCambioMasivo.value = true;
+  errorCambioMasivo.value = null;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.cambiar-estado-masivo')
+      : '/supervisor/altas-ediciones/cambiar-estado-masivo';
+
+    const res = await axios.post(url, {
+      ids,
+      estado: estadoMasivoSeleccionado.value,
+      motivo: motivoCambioMasivo.value || null,
+    });
+
+    if (res.data && res.data.success) {
+      const nuevoEstado = res.data.estado_revision;
+      const revisadoAt = res.data.revisado_at;
+      const idsSet = new Set(res.data.ids || ids);
+
+      // Actualizar reactivamente cada registro en el arreglo local
+      registros.value.forEach(r => {
+        if (idsSet.has(r.id)) {
+          r.estado_revision = nuevoEstado;
+          r.revisado_at = revisadoAt;
+        }
+      });
+
+      // Si el registro actualmente abierto en el panel de detalle fue afectado, sincronizarlo
+      if (registroSeleccionado.value && idsSet.has(registroSeleccionado.value.id)) {
+        registroSeleccionado.value.estado_revision = nuevoEstado;
+        registroSeleccionado.value.revisado_at = revisadoAt;
+      }
+
+      recalcularKpis();
+      modalCambioMasivoAbierto.value = false;
+      mostrarToast(res.data.message || `Se actualizaron ${res.data.count} registro(s) a estado ${nuevoEstado}.`);
+    } else {
+      errorCambioMasivo.value = res.data?.message || 'No fue posible completar la actualización masiva.';
+    }
+  } catch (err) {
+    console.error('Error al cambiar masivamente el estado:', err);
+    errorCambioMasivo.value = err.response?.data?.message || 'Error de red o comunicación al procesar el cambio masivo.';
+  } finally {
+    procesandoCambioMasivo.value = false;
   }
 }
 
@@ -3625,6 +3880,8 @@ function manejarTeclasModal(e) {
   if (e.key === 'Escape') {
     if (modalFotos.abierto || modalFotos.open) {
       cerrarModalFotos();
+    } else if (modalCambioMasivoAbierto.value) {
+      cerrarModalCambioMasivo();
     } else if (clienteCercanoDetalle.value) {
       cerrarDetalleCercano();
     }
