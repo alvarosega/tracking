@@ -2719,8 +2719,17 @@ function calcularTiposIniciales() {
   return list.length > 0 ? list : ['EDICION', 'MODIFICACION'];
 }
 
+function calcularEstadosIniciales() {
+  const esAlta = props.submoduloActivo === 'altas' || (tipoFijoUpper && tipoFijoUpper.includes('ALTA'));
+  if (esAlta) {
+    const pendiente = props.estados_revision.find(e => e.toUpperCase() === 'PENDIENTE');
+    return pendiente ? [pendiente] : ['PENDIENTE'];
+  }
+  return [...props.estados_revision];
+}
+
 const filtroTipos = ref(calcularTiposIniciales());
-const filtroEstados = ref([...props.estados_revision]);
+const filtroEstados = ref(calcularEstadosIniciales());
 const filtroCanales = ref([...props.canales]);
 const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));
 const busquedaTexto = ref('');
@@ -2909,6 +2918,7 @@ const labelTipos = computed(() => {
 const labelEstados = computed(() => {
   if (filtroEstados.value.length === props.estados_revision.length) return 'Todos';
   if (filtroEstados.value.length === 0) return 'Sin filtro';
+  if (filtroEstados.value.length === 1) return filtroEstados.value[0];
   return `${filtroEstados.value.length} sel.`;
 });
 
