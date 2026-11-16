@@ -91,12 +91,16 @@ class GetDetalleEfectividadRutaAction
                 ->get();
 
             if ($vendedorValido) {
+                // Solo preventas emitidas por este vendedor
                 $filas = $filasRaw->filter(fn ($f) => $this->normalizarVendedor((string) $f->vendedor) === $vendedorNorm);
-                if ($filas->isEmpty()) {
-                    $filas = $filasRaw->filter(fn ($f) => strtoupper(trim((string) $f->ruta)) === $rutaClean);
-                }
             } else {
-                $filas = $filasRaw->filter(fn ($f) => strtoupper(trim((string) $f->ruta)) === $rutaClean);
+                // Rutas sin vendedor: solo preventas sin vendedor asignado
+                $filas = $filasRaw->filter(function ($f) use ($rutaClean) {
+                    $rMatch = strtoupper(trim((string) $f->ruta)) === $rutaClean;
+                    $vP = $this->normalizarVendedor((string) $f->vendedor);
+                    $sinV = ($vP === '' || in_array($vP, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true));
+                    return $rMatch && $sinV;
+                });
             }
 
             $clientesDict = [];

@@ -502,12 +502,20 @@ class GetCumplimientoDataAction
             $visitasMovilRuta = $visitasMovilPorRuta->get($rutaUpper, collect());
             $preventasRuta = $preventasPorRuta->get($rutaUpper, collect());
 
-            // Preventas asignadas al vendedor de la ruta para Efectividad Comercial
+            // Preventas asignadas estrictamente al vendedor de la ruta (sin replicar en otras rutas)
             $vendedorNorm = $this->normalizarVendedor($vendedor);
             $vendedorValido = ($vendedorNorm !== '' && !in_array($vendedorNorm, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true));
-            $preventasVendedor = ($vendedorValido && $preventasPorVendedor->has($vendedorNorm))
-                ? $preventasPorVendedor->get($vendedorNorm, collect())
-                : $preventasRuta;
+
+            if ($vendedorValido) {
+                // Solo las preventas realizadas por este vendedor
+                $preventasVendedor = $preventasPorVendedor->get($vendedorNorm, collect());
+            } else {
+                // Rutas sin vendedor asignado: únicamente preventas sin vendedor identificado
+                $preventasVendedor = $preventasRuta->filter(function ($p) {
+                    $vP = $this->normalizarVendedor((string) ($p->vendedor ?? ''));
+                    return $vP === '' || in_array($vP, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true);
+                });
+            }
 
             // ----------------------------------------------------
             // KPI 1: Horario de Ingreso (10 Puntos)

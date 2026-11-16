@@ -320,8 +320,8 @@ class GetAvanceCumplimientoDataAction
 
             $vFact = trim((string) ($v->vendedor_factura ?? ''));
             $vFactNorm = $this->normalizarVendedor($vFact);
-            if ($vFactNorm === '' || in_array($vFactNorm, ['sin asignar', 'no asignado', 'sin vendedor'], true)) {
-                $vFactNorm = $this->normalizarVendedor((string) ($rutasCatalogo[$targetRuta]['vendedor'] ?? 'Sin Asignar'));
+            if ($vFactNorm === '') {
+                $vFactNorm = 'sin asignar';
             }
 
             // Evaluación por cada KPI
