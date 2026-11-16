@@ -177,28 +177,6 @@ class GetAvanceHistoricoPreventasAction
               AND v.cliente_norm IS NOT NULL 
               AND TRIM(v.cliente_norm) != ''
             GROUP BY ur.ruta_clean, v.fecha_norm
-        ),
-        preventas_clientes AS (
-            SELECT 
-                TRIM(UPPER(p.ruta)) AS ruta_clean, 
-                p.fecha_norm, 
-                p.cliente_id,
-                SUM(p.monto_final) AS monto_acumulado_cliente
-            FROM fact_preventas p
-            WHERE p.fecha_norm >= ? AND p.fecha_norm <= ?
-              AND p.monto_final > 0
-            GROUP BY TRIM(UPPER(p.ruta)), p.fecha_norm, p.cliente_id
-        ),
-        preventas_rutas AS (
-            SELECT 
-                ruta_clean, 
-                fecha_norm, 
-                COUNT(DISTINCT cliente_id) AS con_preventa,
-                COUNT(DISTINCT CASE WHEN monto_acumulado_cliente >= 70.0 THEN cliente_id END) AS sobre_umbral,
-                COUNT(DISTINCT CASE WHEN monto_acumulado_cliente < 70.0 THEN cliente_id END) AS bajo_umbral,
-                SUM(monto_acumulado_cliente) AS volumen_bs
-            FROM preventas_clientes
-            GROUP BY ruta_clean, fecha_norm
         )
         SELECT
             ur.ruta, 
@@ -206,26 +184,59 @@ class GetAvanceHistoricoPreventasAction
             COALESCE(ur.vendedor, 'Sin asignar') AS vendedor,
             ft.fecha_norm,
             COALESCE(pd.plan, 0)                  AS plan,
-            COALESCE(vr.total_visitados, 0)      AS visitados,
-            COALESCE(pr.con_preventa, 0)          AS con_preventa,
-            COALESCE(pr.sobre_umbral, 0)          AS sobre_umbral,
-            COALESCE(pr.bajo_umbral, 0)           AS bajo_umbral,
-            COALESCE(pr.volumen_bs, 0.0)          AS volumen_bs
+            COALESCE(vr.total_visitados, 0)      AS visitados
         FROM universo_rutas ur
         CROSS JOIN fechas_tabla ft
-        LEFT JOIN plan_dias pd       ON pd.ruta_clean = ur.ruta_clean AND pd.fecha_norm = ft.fecha_norm
-        LEFT JOIN visitas_rutas vr   ON vr.ruta_clean = ur.ruta_clean AND vr.fecha_norm = ft.fecha_norm
-        LEFT JOIN preventas_rutas pr ON pr.ruta_clean = ur.ruta_clean AND pr.fecha_norm = ft.fecha_norm
+        LEFT JOIN plan_dias pd     ON pd.ruta_clean = ur.ruta_clean AND pd.fecha_norm = ft.fecha_norm
+        LEFT JOIN visitas_rutas vr ON vr.ruta_clean = ur.ruta_clean AND vr.fecha_norm = ft.fecha_norm
         ORDER BY ur.ruta, ft.fecha_norm
         ";
 
         $allParams = array_merge(
             $paramsCanal,
             $paramsFechas,
-            [$fechaInicio, $fechaCorte, $fechaInicio, $fechaCorte]
+            [$fechaInicio, $fechaCorte]
         );
 
         $rawRows = DB::connection('supervisor')->select($sql, $allParams);
+
+        // 4.1. Extracción y agrupación de preventas estrictamente por vendedor asignado
+        $preventasRaw = DB::connection('supervisor')->table('fact_preventas')
+            ->where('fecha_norm', '>=', $fechaInicio)
+            ->where('fecha_norm', '<=', $fechaCorte)
+            ->where('monto_final', '>', 0)
+            ->select([
+                'fecha_norm',
+                'ruta',
+                'cliente_id',
+                'vendedor',
+                'monto_final',
+            ])
+            ->get();
+
+        $prevPorVendedorYFecha = [];
+        $prevSinVendedor = [];
+
+        foreach ($preventasRaw as $p) {
+            $fNorm = (string) $p->fecha_norm;
+            $vNorm = $this->normalizarVendedor($p->vendedor);
+            $cid = (int) $p->cliente_id;
+            $monto = (float) $p->monto_final;
+            $rClean = strtoupper(trim((string) $p->ruta));
+
+            if ($vNorm !== '' && !in_array($vNorm, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true)) {
+                if (!isset($prevPorVendedorYFecha[$vNorm][$fNorm][$cid])) {
+                    $prevPorVendedorYFecha[$vNorm][$fNorm][$cid] = 0.0;
+                }
+                $prevPorVendedorYFecha[$vNorm][$fNorm][$cid] += $monto;
+            } else {
+                if (!isset($prevSinVendedor[$rClean][$fNorm][$cid])) {
+                    $prevSinVendedor[$rClean][$fNorm][$cid] = 0.0;
+                }
+                $prevSinVendedor[$rClean][$fNorm][$cid] += $monto;
+            }
+        }
+        unset($preventasRaw);
 
         // 5. Agrupamiento en matriz por ruta y consolidación de métricas
         $rutasMap = [];
@@ -256,13 +267,31 @@ class GetAvanceHistoricoPreventasAction
 
             $plan = (int) $r->plan;
             $visitados = (int) $r->visitados;
-            $conPrev = (int) $r->con_preventa;
-            $sobreU = (int) $r->sobre_umbral;
-            $bajoU = (int) $r->bajo_umbral;
-            $volBs = round((float) $r->volumen_bs, 2);
+            $fNorm = (string) $r->fecha_norm;
+
+            $vNorm = $this->normalizarVendedor((string) $r->vendedor);
+            $esValido = ($vNorm !== '' && !in_array($vNorm, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true));
+
+            $clientesDelDia = $esValido
+                ? ($prevPorVendedorYFecha[$vNorm][$fNorm] ?? [])
+                : ($prevSinVendedor[strtoupper(trim((string) $r->ruta))][$fNorm] ?? []);
+
+            $conPrev = count($clientesDelDia);
+            $sobreU = 0;
+            $bajoU = 0;
+            $volBs = 0.0;
+
+            foreach ($clientesDelDia as $montoCliente) {
+                $volBs += $montoCliente;
+                if ($montoCliente >= 70.0) {
+                    $sobreU++;
+                } else {
+                    $bajoU++;
+                }
+            }
+            $volBs = round($volBs, 2);
             $efect = $plan > 0 ? round(($conPrev / $plan) * 100, 1) : 0.0;
 
-            $fNorm = (string) $r->fecha_norm;
             $rutasMap[$ruta]['dias'][$fNorm] = [
                 'plan' => $plan,
                 'visitados' => $visitados,
@@ -376,6 +405,22 @@ class GetAvanceHistoricoPreventasAction
                 'progreso_mes_pct' => 76.9,
             ];
         }
+    }
+
+    /**
+     * Normaliza el nombre del vendedor para coincidencia exacta entre dim_rutas y fact_preventas.
+     */
+    private function normalizarVendedor(?string $vendedor): string
+    {
+        if (empty($vendedor)) {
+            return '';
+        }
+        $v = trim(preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
+        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
+        $aliases = [
+            'juan daniel conde quispe' => 'daniel conde quispe',
+        ];
+        return $aliases[$v] ?? $v;
     }
 }
 
