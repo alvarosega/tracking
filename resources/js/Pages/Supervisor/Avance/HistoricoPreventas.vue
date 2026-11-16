@@ -124,14 +124,11 @@
             <thead class="bg-[#F5F5F7] text-[#1D1D1F] font-bold uppercase text-[10px] tracking-tight sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
               <!-- Nivel 1: Cabeceras de Ruta y Días del Rango -->
               <tr class="border-b border-[#E5E5EA]">
-                <th rowspan="2" class="py-2.5 px-3 border-r border-[#E5E5EA] min-w-[130px] whitespace-nowrap bg-[#F5F5F7]">
-                  Ruta
-                </th>
-                <th rowspan="2" class="py-2.5 px-2.5 border-r border-[#E5E5EA] min-w-[65px] text-center whitespace-nowrap bg-[#F5F5F7]">
-                  Canal
-                </th>
-                <th rowspan="2" class="py-2.5 px-3 border-r-2 border-[#D1D1D6] min-w-[150px] whitespace-nowrap bg-[#F5F5F7]">
-                  Preventista
+                <th
+                  rowspan="2"
+                  class="py-2 px-2.5 border-r border-[#D1D1D6] min-w-[150px] sm:min-w-[175px] max-w-[210px] whitespace-nowrap bg-[#F5F5F7] sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]"
+                >
+                  <div class="text-[10px] sm:text-[11px] font-bold text-[#1D1D1F]">Ruta / Preventista</div>
                 </th>
 
                 <!-- Días del Rango -->
@@ -211,14 +208,18 @@
                   class="hover:bg-[#F5F5F7] transition-colors cursor-pointer group"
                   @click="toggleAcordeon(r.ruta)"
                 >
-                  <!-- Ruta (con índice y chevron interactivo) -->
-                  <td class="py-2 px-3 border-r border-[#E5E5EA] whitespace-nowrap">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[10px] text-[#86868B] font-mono w-4 text-center">{{ idx + 1 }}</span>
+                  <!-- Ruta y Preventista (Compacto y Sticky Left-0) -->
+                  <td
+                    class="py-1.5 px-2.5 border-r border-[#D1D1D6] whitespace-nowrap sticky left-0 z-10 bg-white group-hover:bg-[#F5F5F7] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] transition-colors min-w-[150px] sm:min-w-[175px] max-w-[210px]"
+                    :title="`${r.ruta} - ${r.vendedor}`"
+                  >
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="text-[10px] text-[#86868B] font-mono w-3.5 text-center shrink-0">{{ idx + 1 }}</span>
                       <button
                         type="button"
-                        class="p-0.5 rounded hover:bg-black/[0.08] text-[#86868B] group-hover:text-[#1D1D1F] transition-all cursor-pointer"
+                        class="p-0.5 rounded hover:bg-black/[0.08] text-[#86868B] group-hover:text-[#1D1D1F] transition-all cursor-pointer shrink-0"
                         @click.stop="toggleAcordeon(r.ruta)"
+                        title="Ver detalle de clientes"
                       >
                         <svg
                           class="w-3.5 h-3.5 transition-transform duration-200"
@@ -230,20 +231,13 @@
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
-                      <span class="font-bold text-[#1D1D1F]">{{ r.ruta }}</span>
+                      <div class="min-w-0">
+                        <div class="font-bold text-[#1D1D1F] text-[11px] leading-tight truncate">{{ r.ruta }}</div>
+                        <div class="text-[9.5px] text-[#6E6E73] font-medium leading-tight truncate max-w-[145px]" :title="r.vendedor">
+                          {{ r.vendedor }}
+                        </div>
+                      </div>
                     </div>
-                  </td>
-
-                  <!-- Canal -->
-                  <td class="py-2 px-2.5 text-center border-r border-[#E5E5EA] whitespace-nowrap">
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#F5F5F7] text-[#6E6E73] border border-[#E5E5EA]">
-                      {{ r.canal }}
-                    </span>
-                  </td>
-
-                  <!-- Preventista -->
-                  <td class="py-2 px-3 border-r-2 border-[#D1D1D6] text-[#1D1D1F] text-[11px] truncate max-w-[180px] whitespace-nowrap">
-                    {{ r.vendedor }}
                   </td>
 
                   <!-- Días Columnas -->
@@ -448,7 +442,9 @@
             <!-- TFOOT (TOTALES GLOBALES RESPONSIVOS) -->
             <tfoot class="bg-[#FAFAFC] border-t-2 border-[#D1D1D6] font-bold text-[#1D1D1F] sticky bottom-0 z-20 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
               <tr>
-                <td colspan="3" class="py-2.5 px-3 text-right uppercase text-[10px] tracking-wider border-r-2 border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC]">
+                <td
+                  class="py-2 px-2.5 text-left uppercase text-[10px] tracking-wider border-r border-[#D1D1D6] whitespace-nowrap bg-[#FAFAFC] sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] font-bold min-w-[150px] sm:min-w-[175px] max-w-[210px]"
+                >
                   Total General
                 </td>
 
@@ -588,7 +584,7 @@ const obtenerClaseEfectividad = (pct) => {
 }
 
 const calcularTotalColumnas = () => {
-  const base = 3 // Ruta + Canal + Preventista
+  const base = 1 // Ruta / Preventista unificado
   const numDias = diasColumnas.value.length
   let subPorDia = 1
   let subTotal = 1
@@ -778,14 +774,14 @@ const copiarTablaAlPortapapeles = async () => {
   // 1. Encabezados de columnas
   if (vistaActiva.value === 'efectividad') {
     if (soloEfectividad.value) {
-      const header = ['Ruta', 'Canal', 'Preventista', ...diasColumnas.value.map(d => d.dia_label), 'Total Efectividad']
+      const header = ['Ruta', 'Preventista', ...diasColumnas.value.map(d => d.dia_label), 'Total Efectividad']
       lineas.push(header.join('\t'))
     } else {
       const colHeaders = []
       diasColumnas.value.forEach(d => {
         colHeaders.push(`${d.dia_label} (Plan)`, `${d.dia_label} (Vis)`, `${d.dia_label} (Prev)`, `${d.dia_label} (Efect)`)
       })
-      const header = ['Ruta', 'Canal', 'Preventista', ...colHeaders, 'Total Plan', 'Total Vis', 'Total Prev', 'Total Efectividad']
+      const header = ['Ruta', 'Preventista', ...colHeaders, 'Total Plan', 'Total Vis', 'Total Prev', 'Total Efectividad']
       lineas.push(header.join('\t'))
     }
   } else {
@@ -794,13 +790,13 @@ const copiarTablaAlPortapapeles = async () => {
     diasColumnas.value.forEach(d => {
       colHeaders.push(`${d.dia_label} (Prev >=70)`, `${d.dia_label} (Volumen Bs)`)
     })
-    const header = ['Ruta', 'Canal', 'Preventista', ...colHeaders, 'Total Prev >=70', 'Total Volumen Bs']
+    const header = ['Ruta', 'Preventista', ...colHeaders, 'Total Prev >=70', 'Total Volumen Bs']
     lineas.push(header.join('\t'))
   }
 
   // 2. Filas de datos
   rutasFiltradas.value.forEach(r => {
-    const fila = [r.ruta, r.canal, r.vendedor]
+    const fila = [r.ruta, r.vendedor]
     if (vistaActiva.value === 'efectividad') {
       if (soloEfectividad.value) {
         diasColumnas.value.forEach(d => {
@@ -827,7 +823,7 @@ const copiarTablaAlPortapapeles = async () => {
   })
 
   // 3. Fila de Total General
-  const filaTotales = ['TOTAL GENERAL', '', '']
+  const filaTotales = ['TOTAL GENERAL', '']
   if (vistaActiva.value === 'efectividad') {
     if (soloEfectividad.value) {
       diasColumnas.value.forEach(d => {
