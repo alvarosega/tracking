@@ -230,7 +230,6 @@ class GetCumplimientoDataAction
         try {
             $preventasRaw = DB::connection('supervisor')->table('fact_preventas')
                 ->where('fecha_norm', $fecha)
-                ->whereIn('ruta', $rutasFiltradas)
                 ->select([
                     'id',
                     'nro_preventa',
@@ -253,7 +252,8 @@ class GetCumplimientoDataAction
             Log::warning('Error consultando fact_preventas en Cumplimiento: ' . $e->getMessage());
         }
 
-        $preventasPorRuta = $preventasRaw->groupBy('ruta');
+        $preventasPorRuta = $preventasRaw->groupBy(fn ($item) => strtoupper(trim((string) $item->ruta)));
+        $preventasPorVendedor = $preventasRaw->groupBy(fn ($item) => $this->normalizarVendedor((string) $item->vendedor));
 
         // E. fact_metas: Cuota volumétrica mensual asignada por ruta del mes seleccionado en el filtro
         $metasPorRuta = collect();
@@ -496,10 +496,18 @@ class GetCumplimientoDataAction
             $canal = is_array($infoRuta) ? ($infoRuta['canal'] ?? 'TDB') : ($infoRuta?->canal ?? 'TDB');
 
             // Colecciones locales de la ruta
+            $rutaUpper = strtoupper(trim((string) $rutaCodigo));
             $carteraRuta = $carteraPorRuta->get($rutaCodigo, collect());
-            $visitasWebRuta = $factVisitasPorRuta->get($rutaCodigo, collect());
-            $visitasMovilRuta = $visitasMovilPorRuta->get($rutaCodigo, collect());
-            $preventasRuta = $preventasPorRuta->get($rutaCodigo, collect());
+            $visitasWebRuta = $factVisitasPorRuta->get($rutaUpper, collect());
+            $visitasMovilRuta = $visitasMovilPorRuta->get($rutaUpper, collect());
+            $preventasRuta = $preventasPorRuta->get($rutaUpper, collect());
+
+            // Preventas asignadas al vendedor de la ruta para Efectividad Comercial
+            $vendedorNorm = $this->normalizarVendedor($vendedor);
+            $vendedorValido = ($vendedorNorm !== '' && !in_array($vendedorNorm, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true));
+            $preventasVendedor = ($vendedorValido && $preventasPorVendedor->has($vendedorNorm))
+                ? $preventasPorVendedor->get($vendedorNorm, collect())
+                : $preventasRuta;
 
             // ----------------------------------------------------
             // KPI 1: Horario de Ingreso (10 Puntos)
@@ -749,17 +757,20 @@ class GetCumplimientoDataAction
             $brecha = max(0.0, $metaMensual - $facturadoPrevio);
             $cuotaDiaria = ($metaMensual > 0) ? round($brecha / $divisorPreventa, 2) : 0.0;
 
-            // Venta Preventa Hoy
-            $ventaPreventaHoy = (float) $preventasRuta->sum('monto_final');
+            // Venta Preventa Hoy (evaluada por el vendedor asignado o fallback por ruta)
+            $ventaPreventaHoy = (float) $preventasVendedor->sum('monto_final');
 
             $kpi3Cumple = ($cuotaDiaria > 0) ? ($ventaPreventaHoy >= $cuotaDiaria) : ($ventaPreventaHoy > 0);
             $kpi3Puntos = $kpi3Cumple ? 10 : 0;
             $alcanceObjetivoPct = ($cuotaDiaria > 0) ? round(($ventaPreventaHoy / $cuotaDiaria) * 100, 1) : ($ventaPreventaHoy > 0 ? 100.0 : 0.0);
 
             // ----------------------------------------------------
-            // KPI 4: Efectividad en Ruta (30 Puntos)
+            // KPI 4: Efectividad Comercial (30 Puntos)
+            // Cartera Plan: Clientes de pan_ruteo para la ruta hoy
+            // Compradores: Preventas emitidas por el vendedor asignado
+            // Efectividad: Compradores / Cartera Plan
             // ----------------------------------------------------
-            $preventasPorCliente = $preventasRuta->groupBy('cliente_id');
+            $preventasPorCliente = $preventasVendedor->groupBy('cliente_id');
             $compradoresIdsRuta = $preventasPorCliente->keys()->map(fn ($id) => (int) $id)->toArray();
             $totalCompradores = count($compradoresIdsRuta);
 
@@ -1477,5 +1488,21 @@ class GetCumplimientoDataAction
             $mes2d,
             (string) $month,
         ])));
+    }
+
+    /**
+     * Normaliza el nombre del vendedor para coincidencia exacta entre dim_rutas y fact_preventas.
+     */
+    private function normalizarVendedor(?string $vendedor): string
+    {
+        if (empty($vendedor)) {
+            return '';
+        }
+        $v = trim(preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
+        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
+        $aliases = [
+            'juan daniel conde quispe' => 'daniel conde quispe',
+        ];
+        return $aliases[$v] ?? $v;
     }
 }

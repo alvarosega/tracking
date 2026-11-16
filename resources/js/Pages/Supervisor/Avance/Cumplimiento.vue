@@ -11,17 +11,26 @@
         <template #after-rutas>
           <div
             v-if="modoActivo === 'vol_general'"
-            class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1"
+            class="flex items-center gap-2 apple-control-pill rounded-[10px] px-2.5 py-1 select-none"
             title="Alternar entre evaluación por Ruta o por Vendedor para Volumen General"
           >
-            <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-[#1D1D1F] select-none">
-              <input
-                type="checkbox"
-                v-model="store.evaluarPorVendedor"
-                class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+            <span class="text-[11px] font-bold text-[#1D1D1F]">
+              {{ store.evaluarPorVendedor ? 'Por Vendedor' : 'Por Ruta' }}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="store.evaluarPorVendedor"
+              @click="store.evaluarPorVendedor = !store.evaluarPorVendedor"
+              class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="store.evaluarPorVendedor ? 'bg-[#0071E3]' : 'bg-[#D2D2D7]'"
+            >
+              <span
+                aria-hidden="true"
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="store.evaluarPorVendedor ? 'translate-x-4' : 'translate-x-0'"
               />
-              <span>{{ store.evaluarPorVendedor ? 'Por Vendedor' : 'Por Ruta' }}</span>
-            </label>
+            </button>
           </div>
         </template>
       </AvanceFiltrosBar>
@@ -283,20 +292,26 @@
               </span>
             </div>
 
-            <!-- Selector para evaluar por Ruta o por Vendedor (Volumen General) -->
+            <!-- Selector Apple Switch para evaluar por Ruta o por Vendedor (Volumen General) -->
             <div
               v-if="modoActivo === 'vol_general'"
-              class="ml-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-[8px] bg-white/90 border border-black/[0.08] shadow-2xs select-none"
+              class="ml-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-[10px] bg-white/90 border border-black/[0.08] shadow-2xs select-none"
               title="Alternar entre evaluación por Ruta individual o consolidada por Vendedor"
             >
-              <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-[#1D1D1F]">
-                <input
-                  type="checkbox"
-                  v-model="store.evaluarPorVendedor"
-                  class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="store.evaluarPorVendedor"
+                @click="store.evaluarPorVendedor = !store.evaluarPorVendedor"
+                class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                :class="store.evaluarPorVendedor ? 'bg-[#0071E3]' : 'bg-[#D2D2D7]'"
+              >
+                <span
+                  aria-hidden="true"
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  :class="store.evaluarPorVendedor ? 'translate-x-4' : 'translate-x-0'"
                 />
-                <span>Evaluar por Vendedor</span>
-              </label>
+              </button>
               <div class="inline-flex items-center rounded-[6px] bg-black/[0.05] p-0.5 text-[10px] font-semibold">
                 <button
                   type="button"
@@ -2654,6 +2669,39 @@ const rutasFiltradas = computed(() => {
 })
 
 const vendedoresFiltrados = computed(() => {
+  const listaBackend = store.datosCumplimiento?.vendedores
+  if (Array.isArray(listaBackend) && listaBackend.length > 0) {
+    // Si hay rutas filtradas por el supervisor, filtrar vendedores que posean alguna de esas rutas
+    const rutasVisibles = new Set((rutasFiltradas.value || []).map(r => String(r.ruta || '').trim().toUpperCase()))
+    let arr = listaBackend.filter(v => {
+      if (rutasVisibles.size === 0) return true
+      const vRutas = (v.rutas || []).map(r => String(r || '').trim().toUpperCase())
+      return vRutas.some(r => rutasVisibles.has(r))
+    })
+
+    if (arr.length === 0) {
+      arr = [...listaBackend]
+    }
+
+    const col = sortKpiCol.value || 'pct'
+    const dir = sortKpiDir.value === 'asc' ? 1 : -1
+
+    arr.sort((a, b) => {
+      if (col === 'vendedor' || col === 'ruta') {
+        return dir * String(a.vendedor || '').localeCompare(String(b.vendedor || ''), undefined, { numeric: true })
+      }
+      let valA = Number(a[col] ?? 0)
+      let valB = Number(b[col] ?? 0)
+      if (valA !== valB) {
+        return dir * (valA - valB)
+      }
+      return String(a.vendedor || '').localeCompare(String(b.vendedor || ''), undefined, { numeric: true })
+    })
+
+    return arr
+  }
+
+  // Fallback si no viniera la lista consolidada del backend
   const lista = rutasFiltradas.value || []
   const mapa = {}
 

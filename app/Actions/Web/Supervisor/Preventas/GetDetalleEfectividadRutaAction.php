@@ -68,15 +68,19 @@ class GetDetalleEfectividadRutaAction
                 $carteraPlan = (int) $rowPlan->total_plan;
             }
 
-            // 2. Preventas del día
-            $filas = DB::connection('supervisor')->table('fact_preventas')
+            // 2. Preventas del día: evaluadas por el vendedor asignado a la ruta
+            $vendedorNorm = $this->normalizarVendedor($vendedor);
+            $vendedorValido = ($vendedorNorm !== '' && !in_array($vendedorNorm, ['sin vendedor', 'sin asignar', 'no asignado', 'prueba'], true));
+
+            $filasRaw = DB::connection('supervisor')->table('fact_preventas')
                 ->where('fecha_norm', $fechaNorm)
                 ->where('monto_final', '>', 0)
-                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->select([
                     DB::raw("COALESCE(TRIM(nro_preventa), '-') as nro_preventa"),
                     'cliente_id',
                     DB::raw("COALESCE(TRIM(cliente), 'CLIENTE S/N') as cliente"),
+                    DB::raw("COALESCE(TRIM(vendedor), '') as vendedor"),
+                    DB::raw("COALESCE(TRIM(ruta), '') as ruta"),
                     DB::raw("COALESCE(TRIM(producto), '-') as producto"),
                     DB::raw("COALESCE(TRIM(categoria), 'GENERAL') as categoria"),
                     DB::raw("COALESCE(cantidad, 0) as cantidad"),
@@ -85,6 +89,15 @@ class GetDetalleEfectividadRutaAction
                 ->orderBy('cliente', 'asc')
                 ->orderBy('nro_preventa', 'asc')
                 ->get();
+
+            if ($vendedorValido) {
+                $filas = $filasRaw->filter(fn ($f) => $this->normalizarVendedor((string) $f->vendedor) === $vendedorNorm);
+                if ($filas->isEmpty()) {
+                    $filas = $filasRaw->filter(fn ($f) => strtoupper(trim((string) $f->ruta)) === $rutaClean);
+                }
+            } else {
+                $filas = $filasRaw->filter(fn ($f) => strtoupper(trim((string) $f->ruta)) === $rutaClean);
+            }
 
             $clientesDict = [];
             foreach ($filas as $f) {
@@ -176,6 +189,22 @@ class GetDetalleEfectividadRutaAction
                 'clientes_bajo_minimo' => [],
             ];
         }
+    }
+
+    /**
+     * Normaliza el nombre del vendedor para coincidencia exacta.
+     */
+    private function normalizarVendedor(?string $vendedor): string
+    {
+        if (empty($vendedor)) {
+            return '';
+        }
+        $v = trim(preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
+        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
+        $aliases = [
+            'juan daniel conde quispe' => 'daniel conde quispe',
+        ];
+        return $aliases[$v] ?? $v;
     }
 }
 

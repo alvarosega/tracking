@@ -258,12 +258,14 @@ class GetAvanceCumplimientoDataAction
         $universoRutas = array_keys($universo);
         sort($universoRutas);
 
-        // 6. Acumuladores de Métricas MTD y Diarias por Ruta
+        // 6. Acumuladores de Métricas MTD y Diarias por Ruta y por Vendedor
         $acumVol = [];
         $acumCob = [];
         $comprasCob = [];
         $acumVolDia = [];
         $acumCobDia = [];
+        $acumVolVendedor = [];
+        $acumVolDiaVendedor = [];
 
         $kpisComerciales = array_values(array_filter(self::KPIS_LISTA, fn ($k) => $k['tipo'] !== 'SCORE'));
         $kpisOrden = array_column($kpisComerciales, 'id');
@@ -316,6 +318,12 @@ class GetAvanceCumplimientoDataAction
             $fVStr = substr((string) $v->fecha, 0, 10);
             $esDiaCorte = ($fVStr === $fechaCorte);
 
+            $vFact = trim((string) ($v->vendedor_factura ?? ''));
+            $vFactNorm = $this->normalizarVendedor($vFact);
+            if ($vFactNorm === '' || in_array($vFactNorm, ['sin asignar', 'no asignado', 'sin vendedor'], true)) {
+                $vFactNorm = $this->normalizarVendedor((string) ($rutasCatalogo[$targetRuta]['vendedor'] ?? 'Sin Asignar'));
+            }
+
             // Evaluación por cada KPI
             foreach ($kpisOrden as $kId) {
                 if ($this->aplicaTransaccion($kId, $prod, $j3, $cod, $cat)) {
@@ -324,6 +332,12 @@ class GetAvanceCumplimientoDataAction
                         $acumVol[$targetRuta][$kId] += $monto;
                         if ($esDiaCorte) {
                             $acumVolDia[$targetRuta][$kId] += $monto;
+                        }
+                        if ($vFactNorm !== '') {
+                            $acumVolVendedor[$vFactNorm][$kId] = ($acumVolVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                            if ($esDiaCorte) {
+                                $acumVolDiaVendedor[$vFactNorm][$kId] = ($acumVolDiaVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                            }
                         }
                     } elseif ($cid > 0) {
                         $acumCob[$targetRuta][$kId][$cid] = true;
@@ -714,6 +728,85 @@ class GetAvanceCumplimientoDataAction
             'venta_mtd' => round($totVentaMtd, 2),
         ];
 
+        // Consolidación de métricas reales agrupadas por vendedor
+        $rutasPorVendedor = [];
+        foreach ($universoRutas as $r) {
+            $infoDim = $rutasCatalogo[$r] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
+            $vNom = trim((string) ($infoDim['vendedor'] ?? 'No Asignado'));
+            $vKey = $this->normalizarVendedor($vNom);
+            if ($vKey === '') $vKey = 'no_asignado';
+
+            if (!isset($rutasPorVendedor[$vKey])) {
+                $rutasPorVendedor[$vKey] = [
+                    'nombre' => $vNom,
+                    'rutas' => [],
+                    'canales' => [],
+                    'meta_mes' => 0.0,
+                    'meta_dia' => 0.0,
+                ];
+            }
+            if (!in_array($r, $rutasPorVendedor[$vKey]['rutas'], true)) {
+                $rutasPorVendedor[$vKey]['rutas'][] = $r;
+            }
+            if (!empty($infoDim['canal'])) {
+                $rutasPorVendedor[$vKey]['canales'][$infoDim['canal']] = true;
+            }
+            $metasR = $metasTodas[$r] ?? [];
+            $metaRuta = (float) ($metasR[$clave] ?? ($metasR['vol_general'] ?? 0.0));
+            $rutasPorVendedor[$vKey]['meta_mes'] += $metaRuta;
+            $rutasPorVendedor[$vKey]['meta_dia'] += ($dTot > 0) ? round($metaRuta / $dTot, 2) : 0.0;
+        }
+
+        $matrizVendedores = [];
+        foreach ($rutasPorVendedor as $vKey => $vData) {
+            $metaMes = round($vData['meta_mes'], 2);
+            $metaDia = round($vData['meta_dia'], 2);
+
+            $logMtd = round((float) ($acumVolVendedor[$vKey][$clave] ?? ($acumVolVendedor[$vKey]['vol_general'] ?? 0.0)), 2);
+            $logDia = round((float) ($acumVolDiaVendedor[$vKey][$clave] ?? ($acumVolDiaVendedor[$vKey]['vol_general'] ?? 0.0)), 2);
+
+            if ($modoTemporal === 'diario') {
+                $logrado = $logDia;
+                $meta = $metaDia;
+            } else {
+                $logrado = $logMtd;
+                $meta = $metaMes;
+            }
+
+            $brecha = round(max(0.0, $meta - $logrado), 2);
+            $cuota = ($dRestCuota > 0) ? round($brecha / $dRestCuota, 2) : 0.0;
+            $proy = ($dTrans > 0) ? round(($logrado / $dTrans) * $dTot, 2) : 0.0;
+            $pct = $meta > 0 ? round(($logrado / $meta) * 100.0, 1) : 0.0;
+            $pctProy = $meta > 0 ? round(($proy / $meta) * 100.0, 1) : 0.0;
+
+            $canalesStr = implode(', ', array_keys($vData['canales'])) ?: 'SC';
+            $rutasStr = implode(', ', $vData['rutas']);
+
+            $matrizVendedores[] = [
+                'clave_id' => $vData['nombre'],
+                'vendedor' => $vData['nombre'],
+                'ruta' => $rutasStr,
+                'rutas' => $vData['rutas'],
+                'canal' => $canalesStr,
+                'meta' => $meta,
+                'meta_dia' => $metaDia,
+                'meta_mes' => $metaMes,
+                'logrado' => $logrado,
+                'logrado_mtd' => $logMtd,
+                'logrado_dia' => $logDia,
+                'brecha' => $brecha,
+                'brecha_mes' => $brecha,
+                'cuota_dia' => $cuota,
+                'cuota_diaria_req' => $cuota,
+                'proyeccion_cierre' => $proy,
+                'pct' => $pct,
+                'pct_avance_mtd' => $pct,
+                'pct_proyeccion' => $pctProy,
+            ];
+        }
+
+        usort($matrizVendedores, fn ($a, $b) => $b['pct'] <=> $a['pct']);
+
         return [
             'modo' => 'kpi',
             'kpi' => $clave,
@@ -728,6 +821,7 @@ class GetAvanceCumplimientoDataAction
             'canales_disponibles' => $canalesDisponibles,
             'totales' => $totales,
             'rutas' => $filas,
+            'vendedores' => $matrizVendedores,
             'meses_historico' => $mesesHistorico,
             'frecuencia_minima' => $frecuenciaMinima,
             'cantidad_minima' => $cantidadMinima,
@@ -1171,6 +1265,22 @@ class GetAvanceCumplimientoDataAction
         }
 
         return $cuotasAsignadas;
+    }
+
+    /**
+     * Normaliza el nombre del vendedor para coincidencia exacta entre dim_rutas y fact_ventas.
+     */
+    private function normalizarVendedor(?string $vendedor): string
+    {
+        if (empty($vendedor)) {
+            return '';
+        }
+        $v = trim(preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
+        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
+        $aliases = [
+            'juan daniel conde quispe' => 'daniel conde quispe',
+        ];
+        return $aliases[$v] ?? $v;
     }
 }
 
