@@ -7,7 +7,24 @@
       </div>
 
       <!-- Barra Superior de Filtros Transversales -->
-      <AvanceFiltrosBar @consultar="ejecutarConsulta" />
+      <AvanceFiltrosBar @consultar="ejecutarConsulta">
+        <template #after-rutas>
+          <div
+            v-if="modoActivo === 'vol_general'"
+            class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1"
+            title="Alternar entre evaluación por Ruta o por Vendedor para Volumen General"
+          >
+            <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-[#1D1D1F] select-none">
+              <input
+                type="checkbox"
+                v-model="store.evaluarPorVendedor"
+                class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+              />
+              <span>{{ store.evaluarPorVendedor ? 'Por Vendedor' : 'Por Ruta' }}</span>
+            </label>
+          </div>
+        </template>
+      </AvanceFiltrosBar>
 
       <!-- Segmented Control de KPIs Oficiales -->
       <div class="apple-glass-card rounded-[14px] p-1.5 flex items-center gap-1 w-full overflow-x-auto custom-scroll select-none">
@@ -266,6 +283,40 @@
               </span>
             </div>
 
+            <!-- Selector para evaluar por Ruta o por Vendedor (Volumen General) -->
+            <div
+              v-if="modoActivo === 'vol_general'"
+              class="ml-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-[8px] bg-white/90 border border-black/[0.08] shadow-2xs select-none"
+              title="Alternar entre evaluación por Ruta individual o consolidada por Vendedor"
+            >
+              <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-[#1D1D1F]">
+                <input
+                  type="checkbox"
+                  v-model="store.evaluarPorVendedor"
+                  class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+                />
+                <span>Evaluar por Vendedor</span>
+              </label>
+              <div class="inline-flex items-center rounded-[6px] bg-black/[0.05] p-0.5 text-[10px] font-semibold">
+                <button
+                  type="button"
+                  @click="store.evaluarPorVendedor = false"
+                  :class="!store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                  class="px-2 py-0.5 rounded-[5px] transition-all cursor-pointer"
+                >
+                  Por Ruta
+                </button>
+                <button
+                  type="button"
+                  @click="store.evaluarPorVendedor = true"
+                  :class="store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                  class="px-2 py-0.5 rounded-[5px] transition-all cursor-pointer"
+                >
+                  Por Vendedor
+                </button>
+              </div>
+            </div>
+
             <!-- Selector para elegir la cantidad mínima acumulada en el histórico -->
             <div
               v-if="modoActivo === 'cob_core'"
@@ -351,7 +402,7 @@
               <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
             </span>
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              Rutas: <strong class="text-[#1D1D1F] font-bold">{{ rutasFiltradas.length }}</strong>
+              {{ (store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Vendedores:' : 'Rutas:' }} <strong class="text-[#1D1D1F] font-bold">{{ itemsMonograficoFiltrados.length }}</strong>
             </span>
           </div>
         </div>
@@ -362,13 +413,15 @@
               <tr>
                 <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
                 <th
-                  @click="toggleSortKpi('ruta')"
+                  @click="toggleSortKpi(store.evaluarPorVendedor && modoActivo === 'vol_general' ? 'vendedor' : 'ruta')"
                   class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
-                  title="Ordenar por Ruta"
+                  :title="store.evaluarPorVendedor && modoActivo === 'vol_general' ? 'Ordenar por Vendedor' : 'Ordenar por Ruta'"
                 >
                   <div class="flex items-center gap-1.5">
-                    <span :class="sortKpiCol === 'ruta' ? 'text-[#0071E3] font-bold' : ''">Ruta / Preventista</span>
-                    <svg v-if="sortKpiCol === 'ruta'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span :class="(sortKpiCol === 'ruta' || sortKpiCol === 'vendedor') ? 'text-[#0071E3] font-bold' : ''">
+                      {{ (store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Vendedor / Rutas' : 'Ruta / Preventista' }}
+                    </span>
+                    <svg v-if="sortKpiCol === 'ruta' || sortKpiCol === 'vendedor'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                       <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
                     </svg>
@@ -467,7 +520,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04] bg-white/70 font-mono tabular-nums">
-              <template v-for="(r, idx) in rutasFiltradas" :key="r.ruta">
+              <template v-for="(r, idx) in itemsMonograficoFiltrados" :key="r.clave_id || r.ruta">
                 <tr class="hover:bg-blue-50/40 transition-colors group">
                   <td class="py-2 px-3 text-center font-bold text-[#86868B] text-[10px] sticky left-0 z-20 bg-white group-hover:bg-blue-50/40">
                     {{ idx + 1 }}
@@ -476,23 +529,37 @@
                     <div class="flex items-center gap-1.5">
                       <button
                         type="button"
-                        @click="toggleDetalleRuta(r.ruta)"
+                        @click="toggleDetalleItem(r)"
                         class="w-5 h-5 rounded hover:bg-black/[0.05] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] transition-transform cursor-pointer shrink-0"
-                        :class="rutaExpandida === r.ruta ? 'rotate-90 text-[#0071E3] font-bold' : ''"
-                        title="Ver desglose de clientes y días"
+                        :class="isItemExpandido(r) ? 'rotate-90 text-[#0071E3] font-bold' : ''"
+                        :title="(store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Ver rutas del vendedor' : 'Ver desglose de clientes y días'"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                       <div class="min-w-0">
-                        <div
-                          class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
-                          @click="toggleDetalleRuta(r.ruta)"
-                        >
-                          <span>{{ r.ruta }}</span>
-                        </div>
-                        <div class="text-[10px] text-[#6E6E73] truncate max-w-[140px]">{{ r.vendedor || 'No Asignado' }}</div>
+                        <template v-if="store.evaluarPorVendedor && modoActivo === 'vol_general'">
+                          <div
+                            class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
+                            @click="toggleDetalleItem(r)"
+                          >
+                            <span>{{ r.vendedor }}</span>
+                          </div>
+                          <div class="text-[10px] text-[#6E6E73] truncate max-w-[150px]">
+                            {{ r.rutas.length > 1 ? `${r.rutas.length} rutas (${r.rutas.join(', ')})` : `Ruta ${r.rutas[0] || '-'}` }}
+                            <span v-if="r.canal" class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/[0.04] text-[#6E6E73] ml-1">{{ r.canal }}</span>
+                          </div>
+                        </template>
+                        <template v-else>
+                          <div
+                            class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
+                            @click="toggleDetalleItem(r)"
+                          >
+                            <span>{{ r.ruta }}</span>
+                          </div>
+                          <div class="text-[10px] text-[#6E6E73] truncate max-w-[140px]">{{ r.vendedor || 'No Asignado' }}</div>
+                        </template>
                       </div>
                     </div>
                   </td>
@@ -543,8 +610,92 @@
                   </template>
                 </tr>
 
+                <!-- FILA EXPANDIBLE: Desglose de Rutas del Vendedor (cuando se evalúa por vendedor en vol_general) -->
+                <tr v-if="store.evaluarPorVendedor && modoActivo === 'vol_general' && vendedorExpandido === r.vendedor" class="bg-black/[0.02]">
+                  <td colspan="8" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                    <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3.5 shadow-md space-y-3">
+                      <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
+                          <div>
+                            <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5">
+                              <span>Desglose de Rutas: {{ r.vendedor }}</span>
+                              <span class="text-[10px] text-[#86868B] font-normal">({{ r.rutas.length }} {{ r.rutas.length === 1 ? 'ruta asignada' : 'rutas asignadas' }})</span>
+                            </div>
+                            <div class="text-[10px] text-[#6E6E73]">
+                              Canal: <strong class="text-[#1D1D1F]">{{ r.canal }}</strong> · 
+                              Rutas asignadas: <strong class="text-[#0071E3] font-mono">{{ r.rutas.join(', ') }}</strong>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="text-[11px] text-[#6E6E73] font-mono">
+                          Meta consolidada: <strong class="text-[#1D1D1F]">Bs {{ formatNum(r.meta, 1) }}</strong> ·
+                          Logrado: <strong class="text-[#0071E3]">Bs {{ formatNum(r.logrado, 1) }}</strong> ({{ formatPct(r.pct) }})
+                        </div>
+                      </div>
+
+                      <div class="overflow-x-auto rounded-[10px] border border-black/[0.06]">
+                        <table class="w-full text-left border-collapse text-[11px] font-mono tabular-nums">
+                          <thead class="bg-[#F8F8FA] text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
+                            <tr>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-left">Ruta</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-left">Canal</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Meta Mes</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Logrado</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">% Avance</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Brecha</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Cuota Diaria</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Proyección</th>
+                              <th class="py-2 px-3 border-b border-black/[0.06] text-center font-sans">Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-black/[0.04] bg-white">
+                            <tr v-for="rSub in r.rutas_detalle" :key="rSub.ruta" class="hover:bg-blue-50/30 transition-colors">
+                              <td class="py-2 px-3 font-bold text-[#1D1D1F] font-sans">
+                                {{ rSub.ruta }}
+                              </td>
+                              <td class="py-2 px-3 font-sans text-[#6E6E73] text-[10px]">
+                                {{ rSub.canal || 'SC' }}
+                              </td>
+                              <td class="py-2 px-3 text-right text-[#1D1D1F]">
+                                {{ formatValorKpi(rSub.meta) }}
+                              </td>
+                              <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">
+                                {{ formatValorKpi(rSub.logrado) }}
+                              </td>
+                              <td class="py-2 px-3 text-right font-bold" :class="colorPct(rSub.pct_proyeccion ?? rSub.pct)">
+                                {{ formatPct(rSub.pct) }}
+                              </td>
+                              <td class="py-2 px-3 text-right" :class="rSub.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
+                                {{ formatValorKpi(rSub.brecha) }}
+                              </td>
+                              <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">
+                                {{ formatValorKpi(rSub.cuota_dia ?? rSub.cuota_diaria_req) }}
+                              </td>
+                              <td class="py-2 px-3 text-right">
+                                <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(rSub.proyeccion_cierre) }}</div>
+                                <div class="text-[9px]" :class="colorPct(rSub.pct_proyeccion)">{{ formatPct(rSub.pct_proyeccion) }}</div>
+                              </td>
+                              <td class="py-2 px-3 text-center font-sans">
+                                <button
+                                  type="button"
+                                  @click="abrirRutaEnModoRuta(rSub.ruta)"
+                                  class="px-2.5 py-1 rounded-[6px] text-[10px] font-semibold bg-white hover:bg-black/[0.04] text-[#0071E3] border border-[#0071E3]/30 transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                                  title="Abrir la evaluación por ruta con clientes y días de esta ruta"
+                                >
+                                  <span>Ver Clientes / Días</span>
+                                </button>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
                 <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
-                <tr v-if="rutaExpandida === r.ruta" class="bg-black/[0.02]">
+                <tr v-else-if="(!store.evaluarPorVendedor || modoActivo !== 'vol_general') && rutaExpandida === r.ruta" class="bg-black/[0.02]">
                   <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
@@ -1463,7 +1614,7 @@
               <tr>
                 <td class="py-2.5 px-3 text-center text-[10px] text-[#6E6E73] sticky bottom-0 left-0 z-40 bg-[#F8F8FA] font-sans">TOTAL</td>
                 <td class="py-2.5 px-3 text-[10px] text-[#6E6E73] sticky bottom-0 left-10 z-40 bg-[#F8F8FA] font-sans shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                  CONSOLIDADO ({{ rutasFiltradas.length }})
+                  CONSOLIDADO ({{ itemsMonograficoFiltrados.length }})
                 </td>
                 <template v-if="modoActivo === 'cob_core'">
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ totalesKpi?.cartera ?? 0 }} Cli</td>
@@ -1948,7 +2099,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
@@ -1983,7 +2134,8 @@ const sortKpiDir = ref('desc')
 
 const sortLabelsKpi = computed(() => {
   const labels = {
-    ruta: 'Ruta',
+    ruta: (store.evaluarPorVendedor && modoActivo.value === 'vol_general') ? 'Vendedor' : 'Ruta',
+    vendedor: 'Vendedor',
     meta: 'Meta Mes',
     logrado: 'Logrado / Compradores',
     pct: '% Cobertura',
@@ -2033,7 +2185,7 @@ function toggleSortKpi(col) {
     sortKpiDir.value = sortKpiDir.value === 'desc' ? 'asc' : 'desc'
   } else {
     sortKpiCol.value = col
-    sortKpiDir.value = 'desc'
+    sortKpiDir.value = (col === 'ruta' || col === 'vendedor') ? 'asc' : 'desc'
   }
 }
 
@@ -2049,6 +2201,7 @@ const kpisLista = [
 ]
 
 const rutaExpandida = ref(null)
+const vendedorExpandido = ref(null)
 const cargandoClientes = ref(false)
 const carteraClientes = ref([])
 const diasRuta = ref([])
@@ -2498,6 +2651,119 @@ const rutasFiltradas = computed(() => {
   }
 
   return copia
+})
+
+const vendedoresFiltrados = computed(() => {
+  const lista = rutasFiltradas.value || []
+  const mapa = {}
+
+  for (const r of lista) {
+    const vNombre = String(r.vendedor || 'No Asignado').trim() || 'No Asignado'
+    if (!mapa[vNombre]) {
+      mapa[vNombre] = {
+        clave_id: vNombre,
+        vendedor: vNombre,
+        rutas: [],
+        canales: new Set(),
+        meta: 0,
+        meta_dia: 0,
+        meta_mes: 0,
+        logrado: 0,
+        logrado_mtd: 0,
+        logrado_dia: 0,
+        brecha: 0,
+        brecha_mes: 0,
+        cuota_dia: 0,
+        cuota_diaria_req: 0,
+        proyeccion_cierre: 0,
+        rutas_detalle: []
+      }
+    }
+    const entry = mapa[vNombre]
+    if (r.ruta && !entry.rutas.includes(r.ruta)) {
+      entry.rutas.push(r.ruta)
+    }
+    if (r.canal) {
+      entry.canales.add(r.canal)
+    }
+    entry.meta += Number(r.meta || 0)
+    entry.meta_dia += Number(r.meta_dia || 0)
+    entry.meta_mes += Number(r.meta_mes || 0)
+    entry.logrado += Number(r.logrado || 0)
+    entry.logrado_mtd += Number(r.logrado_mtd || 0)
+    entry.logrado_dia += Number(r.logrado_dia || 0)
+    entry.brecha += Number(r.brecha || 0)
+    entry.brecha_mes += Number(r.brecha_mes || 0)
+    entry.cuota_dia += Number(r.cuota_dia || r.cuota_diaria_req || 0)
+    entry.cuota_diaria_req += Number(r.cuota_diaria_req || r.cuota_dia || 0)
+    entry.proyeccion_cierre += Number(r.proyeccion_cierre || 0)
+    entry.rutas_detalle.push(r)
+  }
+
+  const arr = Object.values(mapa).map(item => {
+    const canalStr = Array.from(item.canales).join(', ') || 'SC'
+    const pct = item.meta > 0 ? (item.logrado / item.meta) * 100 : 0
+    const pctProy = item.meta > 0 ? (item.proyeccion_cierre / item.meta) * 100 : 0
+    return {
+      ...item,
+      ruta: item.rutas.join(', '),
+      canal: canalStr,
+      pct: Number(pct.toFixed(1)),
+      pct_avance_mtd: Number(pct.toFixed(1)),
+      pct_proyeccion: Number(pctProy.toFixed(1))
+    }
+  })
+
+  const col = sortKpiCol.value || 'pct'
+  const dir = sortKpiDir.value === 'asc' ? 1 : -1
+
+  arr.sort((a, b) => {
+    if (col === 'vendedor' || col === 'ruta') {
+      return dir * a.vendedor.localeCompare(b.vendedor, undefined, { numeric: true })
+    }
+    let valA = Number(a[col] ?? 0)
+    let valB = Number(b[col] ?? 0)
+    if (valA !== valB) {
+      return dir * (valA - valB)
+    }
+    return a.vendedor.localeCompare(b.vendedor, undefined, { numeric: true })
+  })
+
+  return arr
+})
+
+const itemsMonograficoFiltrados = computed(() => {
+  if (modoActivo.value === 'vol_general' && store.evaluarPorVendedor) {
+    return vendedoresFiltrados.value
+  }
+  return rutasFiltradas.value
+})
+
+function isItemExpandido(r) {
+  if (store.evaluarPorVendedor && modoActivo.value === 'vol_general') {
+    return vendedorExpandido.value === r.vendedor
+  }
+  return rutaExpandida.value === r.ruta
+}
+
+function toggleDetalleItem(r) {
+  if (store.evaluarPorVendedor && modoActivo.value === 'vol_general') {
+    vendedorExpandido.value = vendedorExpandido.value === r.vendedor ? null : r.vendedor
+  } else {
+    toggleDetalleRuta(r.ruta)
+  }
+}
+
+function abrirRutaEnModoRuta(ruta) {
+  store.evaluarPorVendedor = false
+  toggleDetalleRuta(ruta)
+}
+
+watch(() => store.evaluarPorVendedor, () => {
+  vendedorExpandido.value = null
+  rutaExpandida.value = null
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
 })
 
 const totalesResumen = computed(() => {

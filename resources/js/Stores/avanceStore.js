@@ -40,6 +40,15 @@ const omitirUnitarios3m = ref(false)
 const mesesHistorico = ref(3)
 const frecuenciaMinima = ref(1)
 const cantidadMinima = ref(4)
+const evaluarPorVendedor = ref(typeof window !== 'undefined' ? localStorage.getItem('avance_vol_general_por_vendedor') === 'true' : false)
+
+watch(evaluarPorVendedor, (val) => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('avance_vol_general_por_vendedor', String(val))
+    }
+  } catch (e) {}
+})
 
 function actualizarCanalSeleccionadoTexto() {
   const sel = canalesSeleccionados.value || []
@@ -399,6 +408,7 @@ export function useAvanceStore() {
     mesesHistorico,
     frecuenciaMinima,
     cantidadMinima,
+    evaluarPorVendedor,
 
     aplicarFiltros,
     guardarEstado,
