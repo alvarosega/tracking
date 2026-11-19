@@ -588,92 +588,8 @@
                   </template>
                 </tr>
 
-                <!-- FILA EXPANDIBLE: Desglose de Rutas del Vendedor (cuando se evalúa por vendedor en vol_general) -->
-                <tr v-if="esModoVendedorActivo && modoActivo === 'vol_general' && vendedorExpandido === r.vendedor" class="bg-black/[0.02]">
-                  <td colspan="8" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
-                    <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3.5 shadow-md space-y-3">
-                      <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
-                        <div class="flex items-center gap-2">
-                          <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
-                          <div>
-                            <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5">
-                              <span>Desglose de Rutas: {{ r.vendedor }}</span>
-                              <span class="text-[10px] text-[#86868B] font-normal">({{ r.rutas.length }} {{ r.rutas.length === 1 ? 'ruta asignada' : 'rutas asignadas' }})</span>
-                            </div>
-                            <div class="text-[10px] text-[#6E6E73]">
-                              Canal: <strong class="text-[#1D1D1F]">{{ r.canal }}</strong> · 
-                              Rutas asignadas: <strong class="text-[#0071E3] font-mono">{{ r.rutas.join(', ') }}</strong>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="text-[11px] text-[#6E6E73] font-mono">
-                          Meta consolidada: <strong class="text-[#1D1D1F]">Bs {{ formatNum(r.meta, 1) }}</strong> ·
-                          Logrado: <strong class="text-[#0071E3]">Bs {{ formatNum(r.logrado, 1) }}</strong> ({{ formatPct(r.pct) }})
-                        </div>
-                      </div>
-
-                      <div class="overflow-x-auto rounded-[10px] border border-black/[0.06]">
-                        <table class="w-full text-left border-collapse text-[11px] font-mono tabular-nums">
-                          <thead class="bg-[#F8F8FA] text-[#1D1D1F] font-bold text-[10px] uppercase tracking-tight">
-                            <tr>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-left">Ruta</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-left">Canal</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Meta Mes</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Logrado</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">% Avance</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Brecha</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Cuota Diaria</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-right">Proyección</th>
-                              <th class="py-2 px-3 border-b border-black/[0.06] text-center font-sans">Acción</th>
-                            </tr>
-                          </thead>
-                          <tbody class="divide-y divide-black/[0.04] bg-white">
-                            <tr v-for="rSub in r.rutas_detalle" :key="rSub.ruta" class="hover:bg-blue-50/30 transition-colors">
-                              <td class="py-2 px-3 font-bold text-[#1D1D1F] font-sans">
-                                {{ rSub.ruta }}
-                              </td>
-                              <td class="py-2 px-3 font-sans text-[#6E6E73] text-[10px]">
-                                {{ rSub.canal || 'SC' }}
-                              </td>
-                              <td class="py-2 px-3 text-right text-[#1D1D1F]">
-                                {{ formatValorKpi(rSub.meta) }}
-                              </td>
-                              <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">
-                                {{ formatValorKpi(rSub.logrado) }}
-                              </td>
-                              <td class="py-2 px-3 text-right font-bold" :class="colorPct(rSub.pct_proyeccion ?? rSub.pct)">
-                                {{ formatPct(rSub.pct) }}
-                              </td>
-                              <td class="py-2 px-3 text-right" :class="rSub.brecha > 0 ? 'text-red-600' : 'text-emerald-600'">
-                                {{ formatValorKpi(rSub.brecha) }}
-                              </td>
-                              <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">
-                                {{ formatValorKpi(rSub.cuota_dia ?? rSub.cuota_diaria_req) }}
-                              </td>
-                              <td class="py-2 px-3 text-right">
-                                <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(rSub.proyeccion_cierre) }}</div>
-                                <div class="text-[9px]" :class="colorPct(rSub.pct_proyeccion)">{{ formatPct(rSub.pct_proyeccion) }}</div>
-                              </td>
-                              <td class="py-2 px-3 text-center font-sans">
-                                <button
-                                  type="button"
-                                  @click="abrirRutaEnModoRuta(rSub.ruta)"
-                                  class="px-2.5 py-1 rounded-[6px] text-[10px] font-semibold bg-white hover:bg-black/[0.04] text-[#0071E3] border border-[#0071E3]/30 transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                                  title="Abrir la evaluación por ruta con clientes y días de esta ruta"
-                                >
-                                  <span>Ver Clientes / Días</span>
-                                </button>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-
-                <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
-                <tr v-else-if="(!esModoVendedorActivo || modoActivo !== 'vol_general') && rutaExpandida === r.ruta" class="bg-black/[0.02]">
+                <!-- FILA EXPANDIBLE: Desglose directo de la Ruta (Venta por Día vs Por Clientes) -->
+                <tr v-if="isItemExpandido(r)" class="bg-black/[0.02]">
                   <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
@@ -681,9 +597,23 @@
                         <div class="flex items-center gap-2">
                           <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
                           <div>
-                            <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5">
-                              <span>Desglose de Ruta: {{ r.ruta }}</span>
+                            <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5 flex-wrap">
+                              <span>Desglose de Ruta: {{ rutaExpandida || r.ruta }}</span>
                               <span class="text-[10px] text-[#86868B] font-normal">({{ r.vendedor || 'Preventista no asignado' }})</span>
+
+                              <!-- Selector directo si el vendedor posee múltiples rutas -->
+                              <div v-if="r.rutas && r.rutas.length > 1" class="ml-2 inline-flex items-center gap-1 p-0.5 rounded-[8px] bg-black/[0.04]">
+                                <button
+                                  v-for="subR in r.rutas"
+                                  :key="subR"
+                                  type="button"
+                                  @click.stop="cambiarSubRutaVendedor(subR)"
+                                  class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold transition-all cursor-pointer select-none"
+                                  :class="rutaExpandida === subR ? 'bg-white text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                                >
+                                  {{ subR }}
+                                </button>
+                              </div>
                             </div>
                             <div class="text-[10px] text-[#6E6E73]">
                               <template v-if="modoDetalleRuta === 'dias'">
@@ -2808,26 +2738,34 @@ const itemsMonograficoFiltrados = computed(() => {
 
 function isItemExpandido(r) {
   if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
-    return vendedorExpandido.value === r.vendedor
+    return vendedorExpandido.value === r.vendedor && Boolean(rutaExpandida.value)
   }
   return rutaExpandida.value === r.ruta
 }
 
 function toggleDetalleItem(r) {
   if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
-    vendedorExpandido.value = vendedorExpandido.value === r.vendedor ? null : r.vendedor
+    if (vendedorExpandido.value === r.vendedor) {
+      vendedorExpandido.value = null
+      rutaExpandida.value = null
+      diaSeleccionadoInline.value = null
+      clienteExpandidoId.value = null
+      errorCargaClientes.value = null
+    } else {
+      vendedorExpandido.value = r.vendedor
+      const target = (Array.isArray(r.rutas) && r.rutas.length > 0) ? r.rutas[0] : (r.ruta || '')
+      if (target) {
+        toggleDetalleRuta(target)
+      }
+    }
   } else {
     toggleDetalleRuta(r.ruta)
   }
 }
 
-async function abrirRutaEnModoRuta(ruta) {
-  store.evaluarPorVendedor = false
-  if (store.filtrosAplicados) {
-    store.filtrosAplicados.evaluarPorVendedor = false
-  }
-  await nextTick()
-  await toggleDetalleRuta(ruta)
+async function cambiarSubRutaVendedor(subR) {
+  if (rutaExpandida.value === subR) return
+  await toggleDetalleRuta(subR)
 }
 
 watch(esModoVendedorActivo, () => {
