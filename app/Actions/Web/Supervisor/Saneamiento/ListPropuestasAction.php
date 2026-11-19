@@ -16,6 +16,7 @@ class ListPropuestasAction
      * @param string|null $estado
      * @param bool $soloUltimasPorCliente
      * @param int $limit
+     * @param string|null $busqueda
      * @return array<array<string, mixed>>
      */
     public function execute(
@@ -23,7 +24,8 @@ class ListPropuestasAction
         ?array $rutas = null,
         ?string $estado = 'PENDIENTE',
         bool $soloUltimasPorCliente = false,
-        int $limit = 300
+        int $limit = 500,
+        ?string $busqueda = null
     ): array {
         $conn = DB::connection('supervisor');
 
@@ -79,6 +81,21 @@ class ListPropuestasAction
                         ->orWhereIn(DB::raw("TRIM(UPPER(p.ruta_propuesta))"), $rutasNorm);
                 });
             }
+        }
+
+        if (!empty($busqueda)) {
+            $term = '%' . trim((string) $busqueda) . '%';
+            $query->where(function ($q) use ($term, $busqueda) {
+                if (is_numeric($busqueda)) {
+                    $q->where('p.id', (int) $busqueda)
+                      ->orWhere('p.cliente_id_origen', (int) $busqueda)
+                      ->orWhere('p.cliente_id_vinculado', (int) $busqueda);
+                }
+                $q->orWhere('p.cliente_nombre', 'LIKE', $term)
+                  ->orWhere('p.ruta_actual', 'LIKE', $term)
+                  ->orWhere('p.ruta_propuesta', 'LIKE', $term)
+                  ->orWhere('p.observaciones', 'LIKE', $term);
+            });
         }
 
         $query->orderByDesc('p.id')->limit($limit);

@@ -752,12 +752,28 @@ class SupervisorSaneamientoController extends Controller
 
     public function historialPropuestas(Request $request, ListPropuestasAction $action): JsonResponse
     {
-        $tipo = $request->query('tipo');
+        $tipo = $request->input('tipo') ?: $request->query('tipo');
+        $estado = $request->input('estado') ?: $request->query('estado', 'TODOS');
+        $ruta = $request->input('ruta') ?: $request->query('ruta');
+        $rutasRaw = $request->input('rutas') ?: $request->query('rutas');
+
+        $rutas = null;
+        if (!empty($rutasRaw)) {
+            $rutas = is_array($rutasRaw) ? $rutasRaw : explode(',', (string) $rutasRaw);
+        } elseif (!empty($ruta) && strtoupper($ruta) !== 'TODOS') {
+            $rutas = [$ruta];
+        }
+
+        $busqueda = $request->input('busqueda') ?: $request->query('busqueda') ?: $request->input('q') ?: $request->query('q');
+        $limit = (int) ($request->input('limit') ?: $request->query('limit', 500));
+
         return response()->json($action->execute(
             tipoHallazgo: $tipo ? (string) $tipo : null,
-            rutas: null,
-            estado: 'TODOS',
-            soloUltimasPorCliente: true
+            rutas: $rutas,
+            estado: $estado ? (string) $estado : 'TODOS',
+            soloUltimasPorCliente: false,
+            limit: $limit > 0 ? $limit : 500,
+            busqueda: $busqueda ? (string) $busqueda : null
         ));
     }
 

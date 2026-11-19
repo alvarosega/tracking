@@ -485,7 +485,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         // Historial de Propuestas
         Route::middleware('module.access:saneamiento,propuestas')->group(function () {
             Route::get('/propuestas', [SupervisorSaneamientoController::class, 'propuestas'])->name('propuestas');
-            Route::get('/propuestas/historial', [SupervisorSaneamientoController::class, 'historialPropuestas'])->name('propuestas.historial');
+            Route::match(['get', 'post'], '/propuestas/historial', [SupervisorSaneamientoController::class, 'historialPropuestas'])->name('propuestas.historial');
             Route::post('/propuestas/actualizar-estado', [SupervisorSaneamientoController::class, 'actualizarEstadoPropuesta'])->name('propuestas.actualizar-estado');
             Route::post('/propuestas/actualizar-estado-masivo', [SupervisorSaneamientoController::class, 'actualizarEstadoMasivo'])->name('propuestas.actualizar-estado-masivo');
         });
