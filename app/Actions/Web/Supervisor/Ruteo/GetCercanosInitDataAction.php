@@ -58,22 +58,8 @@ class GetCercanosInitDataAction
             ->pluck('anio')
             ->toArray();
 
-        // Polígonos de fronteras días para visualización territorial
-        $poligonosDias = FronteraDia::query()
-            ->activos()
-            ->select(['ruta', 'dia', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
-            ->get();
-
+        // Fronteras días ya no se utilizan en clientes cercanos para optimizar la carga
         $fronterasDias = [];
-        foreach ($poligonosDias as $fd) {
-            if (!empty($fd->geojson)) {
-                $fronterasDias[] = [
-                    'ruta' => $fd->ruta,
-                    'dia' => strtoupper(trim((string) $fd->dia)),
-                    'geojson' => json_decode($fd->geojson, true),
-                ];
-            }
-        }
 
         // Polígonos de fronteras rutas para visualización territorial
         $poligonosRutas = FronteraRuta::query()

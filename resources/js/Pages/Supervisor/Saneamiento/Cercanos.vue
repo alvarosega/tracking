@@ -34,7 +34,7 @@
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
               </svg>
-              Lista ({{ clientesCercanos.length }})
+              Lista ({{ clientesFiltrados.length }})
             </button>
           </div>
 
@@ -44,18 +44,18 @@
               type="button"
               @click="drawerFiltrosMovil = true"
               class="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
-              title="Ajustar radio, color, fronteras rutas y fronteras dias"
+              title="Ajustar radio, canal, rutas y fronteras"
             >
               <svg class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
               </svg>
               <span>Filtros</span>
-              <span v-if="verFronterasRutas || verFronterasDias" class="w-2 h-2 rounded-full bg-sky-500"></span>
+              <span v-if="verFronterasRutas || filtroCanales.length > 0 || filtroRutas.length > 0" class="w-2 h-2 rounded-full bg-sky-500"></span>
             </button>
 
             <div class="h-7 px-2 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 text-xs font-mono font-bold text-slate-900 shadow-2xs">
               <span class="text-slate-400 font-normal text-[10px]">Radio:</span>
-              <span class="tabular-nums text-xs">{{ clientesCercanos.length }}</span>
+              <span class="tabular-nums text-xs">{{ clientesFiltrados.length }}</span>
             </div>
           </div>
         </div>
@@ -107,8 +107,34 @@
           </select>
         </div>
 
-        <!-- Fila 3: Quick Bar Tactil de Fronteras Rutas y Fronteras Dias -->
+        <!-- Fila 3: Quick Bar Tactil (Canal, Rutas, Fronteras Rutas) -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-0.5 custom-scroll text-xs">
+          <!-- Chip Canal -->
+          <button
+            type="button"
+            @click="drawerFiltrosMovil = true"
+            class="h-6 px-2 rounded-md font-mono text-[10.5px] font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer border"
+            :class="filtroCanales.length > 0 ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs' : 'bg-slate-100 text-slate-600 border-slate-200'"
+            title="Ajustar filtro de canal"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="filtroCanales.length > 0 ? 'bg-amber-500' : 'bg-slate-400'"></span>
+            <span class="text-slate-400 font-normal">Canal:</span>
+            <span>{{ labelCanales }}</span>
+          </button>
+
+          <!-- Chip Rutas -->
+          <button
+            type="button"
+            @click="drawerFiltrosMovil = true"
+            class="h-6 px-2 rounded-md font-mono text-[10.5px] font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer border"
+            :class="filtroRutas.length > 0 ? 'bg-indigo-50 text-indigo-900 border-indigo-300 shadow-2xs' : 'bg-slate-100 text-slate-600 border-slate-200'"
+            title="Ajustar filtro de rutas"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="filtroRutas.length > 0 ? 'bg-indigo-600' : 'bg-slate-400'"></span>
+            <span class="text-slate-400 font-normal">Rutas:</span>
+            <span>{{ labelRutas }}</span>
+          </button>
+
           <!-- Toggle Fronteras Rutas -->
           <button
             type="button"
@@ -123,43 +149,6 @@
               {{ labelFronterasRutas }}
             </span>
           </button>
-
-          <!-- Toggle Fronteras Dias -->
-          <button
-            type="button"
-            @click="verFronterasDias = !verFronterasDias"
-            class="h-6 px-2 rounded-md font-mono text-[10.5px] font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer border"
-            :class="verFronterasDias ? 'bg-sky-50 text-sky-700 border-sky-300 shadow-2xs' : 'bg-slate-100 text-slate-400 border-slate-200'"
-            title="Activar o desactivar poligonos de fronteras dias"
-          >
-            <span class="w-1.5 h-1.5 rounded-full" :class="verFronterasDias ? 'bg-sky-600' : 'bg-slate-400'"></span>
-            <span>F. Dias</span>
-          </button>
-
-          <!-- Chips de Dias de la Semana (si F. Dias activo) -->
-          <div v-if="verFronterasDias" class="flex items-center gap-1 shrink-0">
-            <button
-              v-for="dia in DIAS_SEMANA_CONFIG"
-              :key="dia.key"
-              type="button"
-              @click="toggleDiaFrontera(dia.key)"
-              class="h-6 w-6 rounded-md font-mono text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer border"
-              :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0', color: '#94A3B8' }"
-              :title="`Alternar frontera dia ${dia.label}`"
-            >
-              {{ dia.corto.charAt(0) }}
-            </button>
-
-            <!-- Reset / Todos -->
-            <button
-              type="button"
-              @click="toggleTodosDiasFrontera"
-              class="h-6 px-1.5 rounded-md font-mono text-[9.5px] font-bold text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all cursor-pointer"
-              title="Seleccionar todos o ningun dia"
-            >
-              {{ filtroDiasFrontera.length === DIAS_SEMANA_CONFIG.length ? 'Ninguno' : 'Todos' }}
-            </button>
-          </div>
         </div>
 
         <!-- Toast Feedback Maps -->
@@ -177,7 +166,14 @@
       <!-- DESKTOP HEADER (>= md): 1 FILA COMPLETA   -->
       <!-- ========================================== -->
       <div class="hidden md:flex bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2 items-center justify-between gap-2 shrink-0 relative z-30">
-        <div class="flex items-center gap-2 flex-wrap py-0.5 flex-1 min-w-0">
+        <!-- Backdrop para cerrar popovers al hacer click fuera -->
+        <div
+          v-if="menuAbierto"
+          class="fixed inset-0 z-30"
+          @click="menuAbierto = null"
+        ></div>
+
+        <div class="flex items-center gap-2 flex-wrap py-0.5 flex-1 min-w-0 relative z-40">
           <!-- Boton de GPS Actual -->
           <button
             type="button"
@@ -202,7 +198,7 @@
               v-model="inputEnlaceMaps"
               @keydown.enter.prevent="resolverEnlaceMaps"
               placeholder="Enlace Maps o coords..."
-              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-52 lg:w-60 transition-all"
+              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-48 lg:w-56 transition-all"
               title="Pega enlaces de Google Maps o coordenadas (-16.505, -68.165)"
             />
             <button
@@ -236,6 +232,186 @@
             >
               <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
             </select>
+          </div>
+
+          <!-- FILTRO CANAL EN DESKTOP -->
+          <div class="relative shrink-0">
+            <button
+              type="button"
+              @click="toggleMenu('canales')"
+              class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer shadow-2xs"
+              :class="filtroCanales.length > 0 ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+              title="Filtrar clientes por canal"
+            >
+              <span class="w-2 h-2 rounded-full" :class="filtroCanales.length > 0 ? 'bg-amber-500' : 'bg-slate-300'"></span>
+              <span class="text-slate-500 font-normal">Canal:</span>
+              <span class="font-mono">{{ labelCanales }}</span>
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- Popover Canal -->
+            <div
+              v-if="menuAbierto === 'canales'"
+              class="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
+            >
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <span class="font-bold text-slate-800 text-xs">Filtro por Canal</span>
+                <button
+                  type="button"
+                  @click="menuAbierto = null"
+                  class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <!-- Acciones rapidas: Solo TDB | Todos | Limpiar -->
+              <div class="flex items-center gap-1 text-[10.5px]">
+                <button
+                  type="button"
+                  @click="seleccionarSoloCanalTDB"
+                  class="px-2 py-0.5 rounded text-[10.5px] font-bold border transition-colors cursor-pointer"
+                  :class="filtroCanales.length === 1 && filtroCanales[0] === 'TDB' ? 'bg-amber-500 text-white border-amber-600 shadow-2xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'"
+                >
+                  Solo TDB
+                </button>
+                <button
+                  type="button"
+                  @click="seleccionarTodosCanales"
+                  class="px-2 py-0.5 rounded text-[10.5px] font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  @click="limpiarCanales"
+                  class="px-2 py-0.5 rounded text-[10.5px] font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-auto"
+                >
+                  Limpiar
+                </button>
+              </div>
+
+              <div class="max-h-48 overflow-y-auto custom-scroll space-y-0.5">
+                <label
+                  v-for="canal in canalesDisponibles"
+                  :key="canal"
+                  class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                  :class="filtroCanales.includes(canal) ? 'bg-amber-50/60 font-semibold text-slate-900' : 'text-slate-600'"
+                >
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      :checked="filtroCanales.includes(canal)"
+                      @change="toggleCanal(canal)"
+                      class="rounded border-slate-300 text-amber-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(canal) }"></span>
+                    <span>{{ canal }}</span>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-sans">
+                    {{ contarRutasPorCanal(canal) }} rts
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- FILTRO RUTAS EN DESKTOP -->
+          <div class="relative shrink-0">
+            <button
+              type="button"
+              @click="toggleMenu('rutas')"
+              class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer shadow-2xs"
+              :class="filtroRutas.length > 0 ? 'bg-indigo-50 text-indigo-900 border-indigo-300 font-bold' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+              title="Filtrar clientes por rutas específicas"
+            >
+              <span class="w-2 h-2 rounded-full" :class="filtroRutas.length > 0 ? 'bg-indigo-600' : 'bg-slate-300'"></span>
+              <span class="text-slate-500 font-normal">Rutas:</span>
+              <span class="font-mono">{{ labelRutas }}</span>
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- Popover Rutas -->
+            <div
+              v-if="menuAbierto === 'rutas'"
+              class="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
+            >
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                  <span class="font-bold text-slate-800 text-xs">Filtrar por Ruta</span>
+                </div>
+                <button
+                  type="button"
+                  @click="menuAbierto = null"
+                  class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <!-- Acciones: Todas | Limpiar -->
+              <div class="flex items-center justify-between text-[10.5px]">
+                <button
+                  type="button"
+                  @click="seleccionarTodasRutas"
+                  class="px-2 py-0.5 rounded text-[10.5px] font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
+                >
+                  Todas las Rutas
+                </button>
+                <button
+                  v-if="filtroRutas.length > 0"
+                  type="button"
+                  @click="limpiarFiltroRutas"
+                  class="px-2 py-0.5 rounded text-[10.5px] font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  Limpiar ({{ filtroRutas.length }})
+                </button>
+              </div>
+
+              <!-- Buscador de Ruta -->
+              <input
+                v-model="busquedaFiltroRutas"
+                type="text"
+                placeholder="Buscar ruta o canal..."
+                class="h-7 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-slate-400 font-mono"
+              />
+
+              <!-- Lista de Rutas -->
+              <div class="max-h-48 overflow-y-auto custom-scroll space-y-0.5 pr-0.5">
+                <div v-if="rutasFiltradasBusqueda.length === 0" class="py-3 text-center text-slate-400 text-xs">
+                  No hay rutas coincidentes
+                </div>
+                <label
+                  v-for="r in rutasFiltradasBusqueda"
+                  :key="r"
+                  class="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                  :class="filtroRutas.includes(r) ? 'bg-indigo-50/60 font-semibold text-slate-900' : 'text-slate-600'"
+                >
+                  <div class="flex items-center gap-2 truncate min-w-0">
+                    <input
+                      type="checkbox"
+                      :checked="filtroRutas.includes(r)"
+                      @change="toggleFiltroRuta(r)"
+                      class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                    <span class="truncate">{{ formatRuta(r) }}</span>
+                  </div>
+                  <span
+                    v-if="getCanalDeRuta(r)"
+                    class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
+                    :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
+                  >
+                    {{ getCanalDeRuta(r) }}
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <!-- Selector de Modo de Coloracion (Ruta | Canal | Dia) -->
@@ -287,7 +463,7 @@
             <div v-if="verFronterasRutas" class="relative ml-0.5">
               <button
                 type="button"
-                @click="dropdownRutasFronterasRutasAbierto = !dropdownRutasFronterasRutasAbierto; dropdownRutasFronteraAbierto = false"
+                @click="toggleMenu('fronteras_rutas')"
                 class="px-2 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
                 :class="filtroRutasFronterasRutas.length > 0 ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
                 title="Filtrar qué rutas de fronteras mostrar"
@@ -300,7 +476,7 @@
 
               <!-- Popover de Rutas (Fronteras Rutas) -->
               <div
-                v-if="dropdownRutasFronterasRutasAbierto"
+                v-if="menuAbierto === 'fronteras_rutas'"
                 class="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
               >
                 <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
@@ -310,7 +486,7 @@
                   </div>
                   <button
                     type="button"
-                    @click="dropdownRutasFronterasRutasAbierto = false"
+                    @click="menuAbierto = null"
                     class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
                   >
                     &times;
@@ -384,107 +560,10 @@
               </div>
             </div>
           </div>
-
-          <!-- SELECCIONADOR DE FRONTERAS DIAS EN DESKTOP -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
-            <button
-              type="button"
-              @click="verFronterasDias = !verFronterasDias"
-              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer flex items-center gap-1.5"
-              :class="verFronterasDias ? 'bg-white text-sky-800 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
-              title="Activar o desactivar visualizacion de Fronteras Dias"
-            >
-              <span class="w-2 h-2 rounded-full" :class="verFronterasDias ? 'bg-sky-500' : 'bg-slate-300'"></span>
-              <span>F. Dias</span>
-              <span v-if="verFronterasDias" class="text-[9.5px] px-1 py-0.2 rounded bg-sky-100 text-sky-800 font-mono font-bold">
-                {{ filtroDiasFrontera.length }}/{{ DIAS_SEMANA_CONFIG.length }}
-              </span>
-            </button>
-
-            <!-- Chips de Dias Inline si estan activas -->
-            <div v-if="verFronterasDias" class="flex items-center gap-0.5 ml-1 pl-1 border-l border-slate-200">
-              <button
-                v-for="dia in DIAS_SEMANA_CONFIG"
-                :key="dia.key"
-                type="button"
-                @click="toggleDiaFrontera(dia.key)"
-                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer border"
-                :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F1F5F9', borderColor: 'transparent', color: '#94A3B8' }"
-                :title="`Alternar ${dia.label}`"
-              >
-                {{ dia.corto }}
-              </button>
-
-              <!-- Dropdown Selector de Rutas de Fronteras Dias -->
-              <div class="relative ml-0.5">
-                <button
-                  type="button"
-                  @click="dropdownRutasFronteraAbierto = !dropdownRutasFronteraAbierto; dropdownRutasFronterasRutasAbierto = false"
-                  class="px-1.5 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
-                  :class="filtroRutasFrontera.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
-                  title="Filtrar que rutas de fronteras dias mostrar"
-                >
-                  <span>{{ filtroRutasFrontera.length === 0 ? 'Todas Rutas' : `${filtroRutasFrontera.length} rutas` }}</span>
-                  <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-
-                <!-- Popover de Rutas (Fronteras Dias) -->
-                <div
-                  v-if="dropdownRutasFronteraAbierto"
-                  class="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 text-xs flex flex-col gap-1.5"
-                >
-                  <div class="flex items-center justify-between pb-1 border-b border-slate-100">
-                    <span class="font-bold text-slate-800 text-[11px]">Rutas (Frontera Dia)</span>
-                    <button
-                      type="button"
-                      @click="dropdownRutasFronteraAbierto = false"
-                      class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
-                    >
-                      &times;
-                    </button>
-                  </div>
-
-                  <input
-                    v-model="busquedaRutaFrontera"
-                    type="text"
-                    placeholder="Buscar ruta..."
-                    class="h-7 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
-                  />
-
-                  <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
-                    <button type="button" @click="seleccionarTodasRutasFronteras" class="text-sky-600 hover:underline cursor-pointer">
-                      Ver Todas
-                    </button>
-                    <button v-if="filtroRutasFrontera.length > 0" type="button" @click="filtroRutasFrontera = []" class="text-rose-600 hover:underline cursor-pointer">
-                      Limpiar
-                    </button>
-                  </div>
-
-                  <div class="max-h-40 overflow-y-auto custom-scroll space-y-0.5 pr-1">
-                    <label
-                      v-for="r in rutasFronterasFiltradasBusqueda"
-                      :key="r"
-                      class="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-mono text-[11px]"
-                    >
-                      <input
-                        type="checkbox"
-                        :checked="filtroRutasFrontera.includes(r)"
-                        @change="toggleRutaFrontera(r)"
-                        class="rounded border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
-                      />
-                      <span class="text-slate-700">{{ formatRuta(r) }}</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Indicador de Carga y Contador de Puntos en Radio -->
-        <div class="flex items-center gap-2 text-xs font-mono shrink-0">
+        <div class="flex items-center gap-2 text-xs font-mono shrink-0 relative z-40">
           <span v-if="cargando" class="text-[11px] text-slate-500 flex items-center gap-1.5 animate-pulse mr-1">
             <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
             Rastreando...
@@ -492,7 +571,7 @@
 
           <div class="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
             <span class="text-slate-400">En radio:</span>
-            <span class="font-bold text-slate-900 tabular-nums">{{ clientesCercanos.length }} pts</span>
+            <span class="font-bold text-slate-900 tabular-nums">{{ clientesFiltrados.length }} pts</span>
           </div>
         </div>
       </div>
@@ -538,6 +617,10 @@
               <div v-if="clientesCercanos.length === 0" class="p-8 text-center text-slate-400 text-xs">
                 <p class="font-medium text-slate-600 mb-1">Sin clientes en el radar</p>
                 <p>Haz clic en el mapa, usa tu ubicacion GPS o pega un enlace de Google Maps para inspeccionar clientes cercanos.</p>
+              </div>
+              <div v-else-if="clientesFiltrados.length === 0" class="p-8 text-center text-slate-400 text-xs">
+                <p class="font-medium text-slate-600 mb-1">Sin coincidencias con los filtros</p>
+                <p>Prueba seleccionando otro canal, ruta o limpiando el texto de búsqueda.</p>
               </div>
 
               <div
@@ -784,7 +867,7 @@
 
           <!-- Boton Flotante para Abrir Leyenda cuando esta Colapsada -->
           <button
-            v-if="clientesCercanos.length > 0 && leyendaColapsada"
+            v-if="clientesFiltrados.length > 0 && leyendaColapsada"
             type="button"
             @click="leyendaColapsada = false"
             class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl px-2.5 py-1.5 shadow-xl z-30 text-xs flex items-center gap-1.5 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
@@ -801,7 +884,7 @@
 
           <!-- Leyenda Dinamica en Tiempo Real (Expandida) -->
           <div
-            v-if="clientesCercanos.length > 0 && !leyendaColapsada"
+            v-if="clientesFiltrados.length > 0 && !leyendaColapsada"
             class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-xl z-30 text-xs w-[220px] sm:w-72 max-h-44 sm:max-h-64 flex flex-col"
           >
             <div class="flex items-center justify-between pb-1 mb-1.5 border-b border-slate-100 shrink-0 gap-1.5">
@@ -855,7 +938,7 @@
             <div class="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
                 <h4 class="font-bold text-slate-900 text-sm">Filtros & Fronteras</h4>
-                <p class="text-[11px] text-slate-500">Configura radio, colores y poligonos de rutas y dias</p>
+                <p class="text-[11px] text-slate-500">Configura radio, colores, canal, rutas y fronteras</p>
               </div>
               <button
                 type="button"
@@ -914,7 +997,127 @@
               </div>
             </div>
 
-            <!-- Seccion 3: Fronteras Rutas -->
+            <!-- Seccion 3: Filtro de Canal -->
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Filtro de Canal</label>
+                <span class="text-xs font-mono font-bold text-amber-700">{{ labelCanales }}</span>
+              </div>
+
+              <!-- Acciones rapidas Canal -->
+              <div class="flex items-center gap-1.5 text-xs">
+                <button
+                  type="button"
+                  @click="seleccionarSoloCanalTDB"
+                  class="px-2 py-1 rounded-md text-xs font-bold border transition-colors cursor-pointer"
+                  :class="filtroCanales.length === 1 && filtroCanales[0] === 'TDB' ? 'bg-amber-500 text-white border-amber-600' : 'bg-amber-50 text-amber-900 border-amber-200'"
+                >
+                  Solo TDB
+                </button>
+                <button
+                  type="button"
+                  @click="seleccionarTodosCanales"
+                  class="px-2 py-1 rounded-md text-xs font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  @click="limpiarCanales"
+                  class="px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-auto"
+                >
+                  Limpiar
+                </button>
+              </div>
+
+              <div class="space-y-1">
+                <label
+                  v-for="canal in canalesDisponibles"
+                  :key="canal"
+                  class="flex items-center justify-between p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                  :class="filtroCanales.includes(canal) ? 'bg-amber-50/60 border-amber-300 font-semibold text-slate-900' : 'bg-white text-slate-700'"
+                >
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      :checked="filtroCanales.includes(canal)"
+                      @change="toggleCanal(canal)"
+                      class="rounded border-slate-300 text-amber-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getCanalColor(canal) }"></span>
+                    <span>{{ canal }}</span>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-sans">
+                    {{ contarRutasPorCanal(canal) }} rutas
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Seccion 4: Filtro de Rutas -->
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Filtro de Rutas</label>
+                <span class="text-xs font-mono font-bold text-indigo-700">{{ labelRutas }}</span>
+              </div>
+
+              <div class="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  @click="seleccionarTodasRutas"
+                  class="text-indigo-600 hover:underline font-semibold cursor-pointer text-[11px]"
+                >
+                  Todas las Rutas
+                </button>
+                <button
+                  v-if="filtroRutas.length > 0"
+                  type="button"
+                  @click="limpiarFiltroRutas"
+                  class="text-rose-600 hover:underline font-medium cursor-pointer text-[11px]"
+                >
+                  Limpiar seleccion
+                </button>
+              </div>
+
+              <input
+                v-model="busquedaFiltroRutas"
+                type="text"
+                placeholder="Buscar ruta o canal..."
+                class="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white font-mono"
+              />
+
+              <div class="max-h-40 overflow-y-auto custom-scroll border border-slate-200 rounded-lg divide-y divide-slate-100">
+                <div v-if="rutasFiltradasBusqueda.length === 0" class="py-3 text-center text-slate-400 text-xs font-sans">
+                  No hay rutas coincidentes
+                </div>
+                <label
+                  v-for="r in rutasFiltradasBusqueda"
+                  :key="r"
+                  class="flex items-center justify-between p-2 hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                  :class="filtroRutas.includes(r) ? 'bg-indigo-50/50 font-semibold' : ''"
+                >
+                  <div class="flex items-center gap-2 truncate min-w-0">
+                    <input
+                      type="checkbox"
+                      :checked="filtroRutas.includes(r)"
+                      @change="toggleFiltroRuta(r)"
+                      class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                    <span class="text-slate-800 truncate">{{ formatRuta(r) }}</span>
+                  </div>
+                  <span
+                    v-if="getCanalDeRuta(r)"
+                    class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
+                    :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
+                  >
+                    {{ getCanalDeRuta(r) }}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Seccion 5: Fronteras Rutas -->
             <div class="space-y-2 pt-2 border-t border-slate-100">
               <div class="flex items-center justify-between">
                 <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Fronteras Rutas (Poligonos)</label>
@@ -994,90 +1197,6 @@
               </div>
             </div>
 
-            <!-- Seccion 4: Fronteras Dias -->
-            <div class="space-y-2 pt-2 border-t border-slate-100">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Fronteras Dias (Poligonos)</label>
-                <button
-                  type="button"
-                  @click="verFronterasDias = !verFronterasDias"
-                  class="text-xs font-bold px-2 py-0.5 rounded cursor-pointer transition-all"
-                  :class="verFronterasDias ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'"
-                >
-                  {{ verFronterasDias ? 'Activado' : 'Desactivado' }}
-                </button>
-              </div>
-
-              <!-- Selector de Dias Detallado -->
-              <div v-if="verFronterasDias" class="space-y-2">
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                  <span>Seleccionar dias visibles:</span>
-                  <button
-                    type="button"
-                    @click="toggleTodosDiasFrontera"
-                    class="text-sky-600 hover:underline font-semibold cursor-pointer"
-                  >
-                    {{ filtroDiasFrontera.length === DIAS_SEMANA_CONFIG.length ? 'Desmarcar todos' : 'Marcar todos' }}
-                  </button>
-                </div>
-
-                <div class="grid grid-cols-2 gap-1.5">
-                  <button
-                    v-for="dia in DIAS_SEMANA_CONFIG"
-                    :key="dia.key"
-                    type="button"
-                    @click="toggleDiaFrontera(dia.key)"
-                    class="py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all border cursor-pointer"
-                    :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', color: '#94A3B8' }"
-                  >
-                    <div class="flex items-center gap-1.5">
-                      <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: dia.color }"></span>
-                      <span>{{ dia.label }}</span>
-                    </div>
-                    <span class="font-mono text-[10px]">{{ esDiaFronteraActivo(dia.key) ? 'Visible' : 'Oculto' }}</span>
-                  </button>
-                </div>
-
-                <!-- Filtro de Rutas en Fronteras Dias -->
-                <div class="pt-2 border-t border-slate-100 space-y-1.5">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-700">Filtrar por Ruta (Dias):</span>
-                    <button
-                      v-if="filtroRutasFrontera.length > 0"
-                      type="button"
-                      @click="filtroRutasFrontera = []"
-                      class="text-rose-600 text-[11px] font-semibold hover:underline cursor-pointer"
-                    >
-                      Ver todas las rutas
-                    </button>
-                  </div>
-
-                  <input
-                    v-model="busquedaRutaFrontera"
-                    type="text"
-                    placeholder="Buscar ruta de frontera..."
-                    class="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
-                  />
-
-                  <div class="max-h-36 overflow-y-auto custom-scroll border border-slate-200 rounded-lg divide-y divide-slate-100">
-                    <label
-                      v-for="r in rutasFronterasFiltradasBusqueda"
-                      :key="r"
-                      class="flex items-center justify-between p-2 hover:bg-slate-50 cursor-pointer text-xs font-mono"
-                    >
-                      <span class="text-slate-800">{{ formatRuta(r) }}</span>
-                      <input
-                        type="checkbox"
-                        :checked="filtroRutasFrontera.includes(r)"
-                        @change="toggleRutaFrontera(r)"
-                        class="rounded border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Boton de Cierre -->
             <button
               type="button"
@@ -1110,7 +1229,7 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
-import { getCanalColor, getRutaColor, formatRuta, getDiaColor, DIAS_SEMANA_CONFIG } from '@/Config/colors';
+import { getCanalColor, getRutaColor, formatRuta, getDiaColor } from '@/Config/colors';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -1201,11 +1320,171 @@ const resolviendoEnlace = ref(false);
 const mensajeEnlace = ref(null);
 
 // ==========================================
+// CONTROL DE MENUS DESPLEGABLES
+// ==========================================
+const menuAbierto = ref(null); // 'canales' | 'rutas' | 'fronteras_rutas' | null
+
+function toggleMenu(nombre) {
+  menuAbierto.value = menuAbierto.value === nombre ? null : nombre;
+}
+
+// ==========================================
+// FILTRO DE CANAL
+// ==========================================
+const canalesDisponibles = computed(() => {
+  if (props.canales && props.canales.length > 0) {
+    return [...props.canales].sort();
+  }
+  const set = new Set();
+  (props.catalogo_rutas || []).forEach(r => {
+    if (r.canal) set.add(String(r.canal).trim().toUpperCase());
+  });
+  return Array.from(set).sort();
+});
+
+// Por defecto se marca el canal TDB si existe, o el primer canal
+const filtroCanales = ref(
+  props.canales && props.canales.includes('TDB')
+    ? ['TDB']
+    : (props.canales && props.canales.length > 0 ? [props.canales[0]] : [])
+);
+
+const labelCanales = computed(() => {
+  const sel = filtroCanales.value.length;
+  const total = canalesDisponibles.value.length;
+  if (sel === 0 || (total > 0 && sel === total)) return 'Todos';
+  if (sel === 1) return filtroCanales.value[0];
+  return `${sel} canales`;
+});
+
+function toggleCanal(canal) {
+  const c = String(canal).trim().toUpperCase();
+  const idx = filtroCanales.value.indexOf(c);
+  if (idx > -1) {
+    filtroCanales.value.splice(idx, 1);
+  } else {
+    filtroCanales.value.push(c);
+  }
+  // Limpiar rutas seleccionadas que ya no correspondan a los canales activos
+  if (filtroCanales.value.length > 0 && filtroRutas.value.length > 0) {
+    filtroRutas.value = filtroRutas.value.filter(r => {
+      const cr = getCanalDeRuta(r);
+      return filtroCanales.value.includes(cr);
+    });
+  }
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function seleccionarSoloCanalTDB() {
+  filtroCanales.value = ['TDB'];
+  if (filtroRutas.value.length > 0) {
+    filtroRutas.value = filtroRutas.value.filter(r => getCanalDeRuta(r) === 'TDB');
+  }
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function seleccionarTodosCanales() {
+  filtroCanales.value = [...canalesDisponibles.value];
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function limpiarCanales() {
+  filtroCanales.value = [];
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function contarRutasPorCanal(canal) {
+  const norm = String(canal).trim().toUpperCase();
+  return (props.catalogo_rutas || []).filter(r => String(r.canal || '').trim().toUpperCase() === norm).length;
+}
+
+// ==========================================
+// FILTRO DE RUTAS
+// ==========================================
+const filtroRutas = ref([]);
+const busquedaFiltroRutas = ref('');
+
+const rutasDisponiblesCanal = computed(() => {
+  let list = props.catalogo_rutas || [];
+  if (filtroCanales.value.length > 0) {
+    list = list.filter(r => {
+      const c = String(r.canal || '').trim().toUpperCase();
+      return filtroCanales.value.includes(c);
+    });
+  }
+  const set = new Set();
+  list.forEach(r => {
+    if (r.ruta) set.add(String(r.ruta).trim());
+  });
+  if (set.size === 0 && props.fronteras_rutas) {
+    props.fronteras_rutas.forEach(f => {
+      const c = getCanalDeRuta(f.ruta);
+      if (filtroCanales.value.length === 0 || filtroCanales.value.includes(c)) {
+        if (f.ruta) set.add(String(f.ruta).trim());
+      }
+    });
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+});
+
+const rutasFiltradasBusqueda = computed(() => {
+  const q = busquedaFiltroRutas.value.trim().toLowerCase();
+  if (!q) return rutasDisponiblesCanal.value;
+  return rutasDisponiblesCanal.value.filter(r => {
+    const canal = getCanalDeRuta(r).toLowerCase();
+    return r.toLowerCase().includes(q) || canal.includes(q);
+  });
+});
+
+const labelRutas = computed(() => {
+  const sel = filtroRutas.value.length;
+  const total = rutasDisponiblesCanal.value.length;
+  if (sel === 0 || (total > 0 && sel === total)) return 'Todas';
+  if (sel === 1) return formatRuta(filtroRutas.value[0]);
+  return `${sel} rutas`;
+});
+
+function toggleFiltroRuta(ruta) {
+  const r = String(ruta).trim();
+  const idx = filtroRutas.value.indexOf(r);
+  if (idx > -1) {
+    filtroRutas.value.splice(idx, 1);
+  } else {
+    filtroRutas.value.push(r);
+  }
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function seleccionarTodasRutas() {
+  filtroRutas.value = [];
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+function limpiarFiltroRutas() {
+  filtroRutas.value = [];
+  if (origenConsulta.value) {
+    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
+  }
+}
+
+// ==========================================
 // ESTADO DE FRONTERAS RUTAS
 // ==========================================
 const verFronterasRutas = ref(true);
-const dropdownRutasFronterasRutasAbierto = ref(false);
 const busquedaRutaFronterasRutas = ref('');
+const drawerFiltrosMovil = ref(false);
 
 function getCanalDeRuta(ruta) {
   if (!ruta) return '';
@@ -1308,107 +1587,46 @@ const fronterasRutasFiltradas = computed(() => {
   return props.fronteras_rutas.filter(f => filtroRutasFronterasRutas.value.includes(String(f.ruta).trim()));
 });
 
-// ==========================================
-// ESTADO DE FRONTERAS DIAS
-// ==========================================
-const verFronterasDias = ref(true);
-const filtroDiasFrontera = ref(DIAS_SEMANA_CONFIG.map(d => d.key));
-const filtroRutasFrontera = ref([]);
-const drawerFiltrosMovil = ref(false);
-const dropdownRutasFronteraAbierto = ref(false);
-const busquedaRutaFrontera = ref('');
-
 let map = null;
 let currentTileLayer = null;
 let centerMarker = null;
 let radiusCircle = null;
 let clientsLayer = null;
 let fronterasRutasLayer = null;
-let fronterasDiasLayer = null;
 const clientMarkersMap = new Map();
 
-function normalizarDiaKey(dia) {
-  if (!dia) return '';
-  return String(dia).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-}
-
-function esDiaFronteraActivo(diaKey) {
-  return filtroDiasFrontera.value.includes(normalizarDiaKey(diaKey));
-}
-
-function toggleDiaFrontera(diaKey) {
-  const norm = normalizarDiaKey(diaKey);
-  const idx = filtroDiasFrontera.value.indexOf(norm);
-  if (idx > -1) {
-    filtroDiasFrontera.value.splice(idx, 1);
-  } else {
-    filtroDiasFrontera.value.push(norm);
-  }
-}
-
-function toggleTodosDiasFrontera() {
-  if (filtroDiasFrontera.value.length === DIAS_SEMANA_CONFIG.length) {
-    filtroDiasFrontera.value = [];
-  } else {
-    filtroDiasFrontera.value = DIAS_SEMANA_CONFIG.map(d => d.key);
-  }
-}
-
-const rutasDisponiblesFronteras = computed(() => {
-  const set = new Set();
-  (props.fronteras_dias || []).forEach(f => {
-    if (f.ruta) set.add(String(f.ruta).trim());
-  });
-  return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-});
-
-const rutasFronterasFiltradasBusqueda = computed(() => {
-  const q = busquedaRutaFrontera.value.trim().toLowerCase();
-  if (!q) return rutasDisponiblesFronteras.value;
-  return rutasDisponiblesFronteras.value.filter(r => r.toLowerCase().includes(q));
-});
-
-function toggleRutaFrontera(ruta) {
-  const idx = filtroRutasFrontera.value.indexOf(ruta);
-  if (idx > -1) {
-    filtroRutasFrontera.value.splice(idx, 1);
-  } else {
-    filtroRutasFrontera.value.push(ruta);
-  }
-}
-
-function seleccionarTodasRutasFronteras() {
-  filtroRutasFrontera.value = [];
-}
-
-const fronterasFiltradas = computed(() => {
-  if (!verFronterasDias.value || !props.fronteras_dias || props.fronteras_dias.length === 0) {
-    return [];
-  }
-  return props.fronteras_dias.filter(f => {
-    const diaNorm = normalizarDiaKey(f.dia);
-    if (!filtroDiasFrontera.value.includes(diaNorm)) return false;
-    if (filtroRutasFrontera.value.length > 0 && !filtroRutasFrontera.value.includes(f.ruta)) return false;
-    return true;
-  });
-});
-
 const clientesFiltrados = computed(() => {
-  if (!busquedaTexto.value.trim()) return clientesCercanos.value;
-  const q = busquedaTexto.value.toLowerCase();
-  return clientesCercanos.value.filter(c =>
-    (c.cliente && c.cliente.toLowerCase().includes(q)) ||
-    (c.cliente_id && String(c.cliente_id).includes(q)) ||
-    (c.ruta && c.ruta.toLowerCase().includes(q))
-  );
+  let list = clientesCercanos.value;
+
+  if (filtroCanales.value.length > 0) {
+    list = list.filter(c => {
+      const canal = c.canal_calculado || getCanalDeRuta(c.ruta);
+      return filtroCanales.value.includes(canal);
+    });
+  }
+
+  if (filtroRutas.value.length > 0) {
+    list = list.filter(c => filtroRutas.value.includes(String(c.ruta).trim()));
+  }
+
+  if (busquedaTexto.value.trim()) {
+    const q = busquedaTexto.value.toLowerCase();
+    list = list.filter(c =>
+      (c.cliente && c.cliente.toLowerCase().includes(q)) ||
+      (c.cliente_id && String(c.cliente_id).includes(q)) ||
+      (c.ruta && c.ruta.toLowerCase().includes(q))
+    );
+  }
+
+  return list;
 });
 
 // Elementos dinamicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
-  if (clientesCercanos.value.length === 0) return [];
+  if (clientesFiltrados.value.length === 0) return [];
   const mapCounts = new Map();
 
-  clientesCercanos.value.forEach(c => {
+  clientesFiltrados.value.forEach(c => {
     let key, nombre, color;
 
     if (modoColor.value === 'ruta') {
@@ -1535,8 +1753,8 @@ async function consultarCercanos(lat, lng) {
       latitud: lat,
       longitud: lng,
       radio: radioSeleccionado.value,
-      canales: [],
-      rutas: [],
+      canales: filtroCanales.value,
+      rutas: filtroRutas.value,
       meses: filtroMeses.value,
       anio: anioSeleccionado.value,
       solo_activos: false,
@@ -1545,8 +1763,8 @@ async function consultarCercanos(lat, lng) {
     const list = res.data.clientes || [];
     // Mapear canal calculado
     list.forEach(c => {
-      const rutaInfo = props.catalogo_rutas.find(r => r.ruta === c.ruta);
-      c.canal_calculado = rutaInfo ? rutaInfo.canal : 'GENERAL';
+      const rutaInfo = (props.catalogo_rutas || []).find(r => r.ruta === c.ruta);
+      c.canal_calculado = rutaInfo ? rutaInfo.canal : (getCanalDeRuta(c.ruta) || 'GENERAL');
     });
 
     clientesCercanos.value = list;
@@ -1587,14 +1805,11 @@ function initMap() {
 
   // Orden jerarquico de capas Leaflet:
   // 1. Fronteras Rutas (poligonos de mayor extension)
-  // 2. Fronteras Dias (sub-poligonos por dia)
-  // 3. Clientes (puntos y marcadores en radio)
+  // 2. Clientes (puntos y marcadores en radio)
   fronterasRutasLayer = L.featureGroup().addTo(map);
-  fronterasDiasLayer = L.featureGroup().addTo(map);
   clientsLayer = L.featureGroup().addTo(map);
 
   renderizarFronterasRutas();
-  renderizarFronterasDias();
 
   map.on('click', (e) => {
     consultarCercanos(e.latlng.lat, e.latlng.lng);
@@ -1641,47 +1856,6 @@ function renderizarFronterasRutas() {
   });
 }
 
-function renderizarFronterasDias() {
-  if (!map) return;
-  if (!fronterasDiasLayer) {
-    fronterasDiasLayer = L.featureGroup().addTo(map);
-  } else {
-    fronterasDiasLayer.clearLayers();
-  }
-
-  if (!verFronterasDias.value) return;
-
-  fronterasFiltradas.value.forEach(fd => {
-    if (!fd.geojson) return;
-    const color = getDiaColor(fd.dia);
-    const layer = L.geoJSON(fd.geojson, {
-      style: {
-        color: color,
-        weight: 2,
-        dashArray: '5, 5',
-        fillColor: color,
-        fillOpacity: 0.12,
-      },
-      onEachFeature: (feature, l) => {
-        l.bindTooltip(`
-          <div style="font-family: inherit; font-size: 11px; line-height: 1.3;">
-            <div style="font-weight: bold; color: ${color};">Frontera Dia: ${fd.dia}</div>
-            <div style="font-size: 10px; color: #475569;">Ruta: ${formatRuta(fd.ruta)}</div>
-          </div>
-        `, { sticky: true, opacity: 0.95 });
-
-        l.on('mouseover', () => {
-          l.setStyle({ fillOpacity: 0.28, weight: 3 });
-        });
-        l.on('mouseout', () => {
-          l.setStyle({ fillOpacity: 0.12, weight: 2 });
-        });
-      }
-    });
-    layer.addTo(fronterasDiasLayer);
-  });
-}
-
 function getMarkerColor(c) {
   if (modoColor.value === 'ruta') {
     return getRutaColor(c.ruta);
@@ -1723,7 +1897,7 @@ function renderizarEnMapa() {
     dashArray: '4, 6',
   }).addTo(map);
 
-  clientesCercanos.value.forEach(c => {
+  clientesFiltrados.value.forEach(c => {
     const markerColor = getMarkerColor(c);
 
     const marker = L.circleMarker([c.latitud, c.longitud], {
@@ -1817,9 +1991,9 @@ watch([verFronterasRutas, filtroRutasFronterasRutas], () => {
   renderizarFronterasRutas();
 }, { deep: true });
 
-watch([verFronterasDias, filtroDiasFrontera, filtroRutasFrontera], () => {
-  renderizarFronterasDias();
-}, { deep: true });
+watch(clientesFiltrados, () => {
+  renderizarEnMapa();
+});
 
 watch(vistaMovil, (newVal) => {
   if (newVal === 'mapa' && map) {
