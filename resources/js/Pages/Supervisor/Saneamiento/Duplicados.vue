@@ -383,8 +383,9 @@
                   type="button"
                   @click="enfocarGrupoEnMapa(grupoActivo)"
                   class="h-6 px-2 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer shadow-2xs"
+                  title="Ajustar vista para ver ambos clientes en conflicto"
                 >
-                  Recentrar
+                  Recentrar (Ver ambos)
                 </button>
               </div>
             </div>
@@ -436,8 +437,11 @@
                   <div
                     v-for="(cli, idx) in grupoActivo.clientes"
                     :key="cli.cliente_id"
-                    class="p-3 rounded-xl border flex flex-col justify-between space-y-2.5"
-                    :class="cli.es_master_sugerido ? 'bg-emerald-50/30 border-emerald-300 ring-1 ring-emerald-200' : 'bg-slate-50/50 border-slate-200'"
+                    class="p-3 rounded-xl border flex flex-col justify-between space-y-2.5 transition-all"
+                    :class="[
+                      cli.es_master_sugerido ? 'bg-emerald-50/30 border-emerald-300 ring-1 ring-emerald-200' : 'bg-slate-50/50 border-slate-200',
+                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-sky-500 shadow-sm' : ''
+                    ]"
                   >
                     <!-- Header Cliente -->
                     <div class="space-y-1 pb-2 border-b border-slate-200/80">
@@ -448,7 +452,22 @@
                         >
                           {{ cli.es_master_sugerido ? 'Master Sugerido (Conservar)' : `Duplicado #${idx + 1}` }}
                         </span>
-                        <span class="font-mono text-xs font-bold text-slate-500">ID: {{ cli.cliente_id }}</span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-mono text-xs font-bold text-slate-500">ID: {{ cli.cliente_id }}</span>
+                          <button
+                            v-if="cli.latitud && cli.longitud"
+                            type="button"
+                            @click="enfocarClienteEnMapa(cli)"
+                            title="Hacer zoom al cliente en el mapa"
+                            class="px-2 py-0.5 rounded bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          >
+                            <svg class="w-3 h-3 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                            </svg>
+                            <span>Zoom</span>
+                          </button>
+                        </div>
                       </div>
 
                       <h3 class="text-sm font-bold text-slate-900 leading-tight">{{ cli.cliente }}</h3>
@@ -723,6 +742,7 @@ const busquedaTexto = ref('')
 const clusters = ref([])
 const propuestasPendientes = ref([])
 const grupoSeleccionadoId = ref(null)
+const clienteFocoId = ref(null)
 
 const modalFotosVisible = ref(false)
 const clienteSeleccionadoFotos = ref(null)
@@ -819,6 +839,7 @@ const grupoActivo = computed(() => {
 
 function seleccionarGrupo(grupo) {
   grupoSeleccionadoId.value = grupo.cluster_id
+  clienteFocoId.value = null
 
   // En movil cambiar automaticamente a la vista de comparador
   if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -919,8 +940,22 @@ function initMap() {
   }, 100)
 }
 
+function enfocarClienteEnMapa(cli) {
+  if (!cli || !cli.latitud || !cli.longitud) return
+  clienteFocoId.value = cli.cliente_id
+  if (!map) initMap()
+  if (map) {
+    map.flyTo([Number(cli.latitud), Number(cli.longitud)], 19, {
+      animate: true,
+      duration: 0.8,
+    })
+  }
+}
+
 function enfocarGrupoEnMapa(grupo) {
   if (!grupo || !grupo.clientes || grupo.clientes.length === 0) return
+
+  clienteFocoId.value = null
 
   if (!map) {
     initMap()
@@ -937,7 +972,7 @@ function enfocarGrupoEnMapa(grupo) {
 
   const latLngs = []
 
-  grupo.clientes.forEach((cli, idx) => {
+  grupo.clientes.forEach((cli) => {
     if (cli.latitud && cli.longitud) {
       const latlng = [Number(cli.latitud), Number(cli.longitud)]
       latLngs.push(latlng)
@@ -945,27 +980,28 @@ function enfocarGrupoEnMapa(grupo) {
       const markerColor = cli.es_master_sugerido ? '#059669' : '#DC2626'
 
       const marker = L.circleMarker(latlng, {
-        radius: cli.es_master_sugerido ? 8 : 7,
+        radius: cli.es_master_sugerido ? 10 : 9,
         fillColor: markerColor,
         color: '#FFFFFF',
-        weight: 2,
+        weight: 2.5,
         fillOpacity: 1,
       }).addTo(collisionLayerGroup)
 
-      marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 220px;">
-          <div style="font-weight: bold; margin-bottom: 2px;">
-            ${cli.es_master_sugerido ? '<span style="color: #059669; font-weight: bold;">[MASTER SUGERIDO]</span> ' : '<span style="color: #DC2626; font-weight: bold;">[DUPLICADO]</span> '}${cli.cliente}
-          </div>
-          <div style="color: #64748B;">ID: <b>${cli.cliente_id}</b> · Ruta: <b>${cli.ruta}</b></div>
-          <div style="color: #059669; font-weight: bold; font-family: monospace;">Venta MTD: Bs. ${cli.venta_mtd}</div>
-          <div style="color: #64748B; font-size: 10px; border-top: 1px solid #E2E8F0; margin-top: 4px; padding-top: 3px;">
-            Ingreso: <b>${cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Sin fecha'}</b>
-          </div>
-        </div>
-      `)
+      // Identificador permanente sin popups intrusivos
+      marker.bindTooltip(
+        `<span style="font-weight: 700; font-family: monospace; font-size: 10px;">${cli.es_master_sugerido ? 'MASTER' : 'DUP'} #${cli.cliente_id}</span>`,
+        {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -10],
+          className: 'font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs bg-slate-900 text-white border-0',
+        }
+      )
 
-      if (idx === 0) marker.openPopup()
+      // Clic directo en el cliente: hace zoom y muestra su ubicacion exacta
+      marker.on('click', () => {
+        enfocarClienteEnMapa(cli)
+      })
     }
   })
 
