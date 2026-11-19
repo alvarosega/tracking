@@ -447,6 +447,19 @@ class AuditarDuplicadosAction
                 ];
             }
 
+            // Ordenar clientes dentro del grupo: mayor venta MTD primero como master sugerido
+            usort($items, function ($a, $b) {
+                if ($b['venta_mtd'] !== $a['venta_mtd']) {
+                    return $b['venta_mtd'] <=> $a['venta_mtd'];
+                }
+                return $a['cliente_id'] <=> $b['cliente_id'];
+            });
+
+            foreach ($items as $idx => &$cliItem) {
+                $cliItem['es_master_sugerido'] = ($idx === 0);
+            }
+            unset($cliItem);
+
             $criteriosFinales = [];
             foreach ($cl['criterios_raw'] as $campo => $valsMap) {
                 $vals = array_keys($valsMap);
@@ -496,9 +509,9 @@ class AuditarDuplicadosAction
             $tipoUpper = strtoupper(trim($tipoGrupo));
             $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($tipoUpper) {
                 return match ($tipoUpper) {
-                    'MISMA_UBICACION' => $cl['tiene_misma_ubicacion'] === true,
-                    'MISMOS_DATOS' => $cl['tiene_mismos_datos'] === true,
-                    'MISMA_UBICACION_Y_DATOS' => $cl['clasificacion'] === 'MISMA_UBICACION_Y_DATOS',
+                    'UBICACION', 'MISMA_UBICACION' => $cl['tiene_misma_ubicacion'] === true,
+                    'DATOS', 'MISMOS_DATOS' => $cl['tiene_mismos_datos'] === true,
+                    'CRITICOS', 'MISMA_UBICACION_Y_DATOS' => $cl['clasificacion'] === 'MISMA_UBICACION_Y_DATOS',
                     'MISMOS_DATOS_DISTANTE' => $cl['clasificacion'] === 'MISMOS_DATOS',
                     'MISMA_UBICACION_SOLO' => $cl['clasificacion'] === 'MISMA_UBICACION',
                     default => true,

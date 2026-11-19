@@ -563,11 +563,18 @@ class SupervisorSaneamientoController extends Controller
         $radio = (float) $request->input('radio_metros', 20.0);
         $tipoGrupo = $request->input('tipo_grupo');
 
+        if (is_string($rutas) && trim($rutas) !== '') {
+            $rutas = array_filter(array_map('trim', explode(',', $rutas)));
+        }
+        if (is_string($canales) && trim($canales) !== '') {
+            $canales = array_filter(array_map('trim', explode(',', $canales)));
+        }
+
         return response()->json($action->execute(
-            rutas: is_array($rutas) ? $rutas : null,
+            rutas: !empty($rutas) ? (array) $rutas : null,
             radioMetros: $radio,
             tipoGrupo: is_string($tipoGrupo) ? $tipoGrupo : null,
-            canales: is_array($canales) ? $canales : null
+            canales: !empty($canales) ? (array) $canales : null
         ));
     }
 
