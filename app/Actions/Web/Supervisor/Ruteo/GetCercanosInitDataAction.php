@@ -81,12 +81,22 @@ class GetCercanosInitDataAction
             ->select(['ruta', 'canal', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
             ->get();
 
+        // Mapa ruta -> canal desde el catálogo como fallback si canal en frontera es null
+        $canalPorRuta = [];
+        foreach ($catalogo as $r) {
+            if (!empty($r->ruta) && !empty($r->canal)) {
+                $canalPorRuta[strtoupper(trim((string) $r->ruta))] = strtoupper(trim((string) $r->canal));
+            }
+        }
+
         $fronterasRutas = [];
         foreach ($poligonosRutas as $fr) {
             if (!empty($fr->geojson)) {
+                $rutaKey = strtoupper(trim((string) $fr->ruta));
+                $canal = !empty($fr->canal) ? strtoupper(trim((string) $fr->canal)) : ($canalPorRuta[$rutaKey] ?? null);
                 $fronterasRutas[] = [
                     'ruta' => $fr->ruta,
-                    'canal' => $fr->canal,
+                    'canal' => $canal,
                     'geojson' => json_decode($fr->geojson, true),
                 ];
             }

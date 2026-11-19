@@ -119,8 +119,8 @@
           >
             <span class="w-1.5 h-1.5 rounded-full" :class="verFronterasRutas ? 'bg-indigo-600' : 'bg-slate-400'"></span>
             <span>F. Rutas</span>
-            <span v-if="verFronterasRutas && filtroRutasFronterasRutas.length > 0" class="text-[9px] px-1 rounded bg-indigo-200/80 text-indigo-900 font-bold">
-              {{ filtroRutasFronterasRutas.length }}
+            <span v-if="verFronterasRutas && filtroRutasFronterasRutas.length > 0" class="text-[9px] px-1.5 py-0.2 rounded bg-indigo-200/80 text-indigo-900 font-bold font-mono">
+              {{ labelFronterasRutas }}
             </span>
           </button>
 
@@ -288,11 +288,11 @@
               <button
                 type="button"
                 @click="dropdownRutasFronterasRutasAbierto = !dropdownRutasFronterasRutasAbierto; dropdownRutasFronteraAbierto = false"
-                class="px-1.5 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
-                :class="filtroRutasFronterasRutas.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
-                title="Filtrar que rutas de fronteras mostrar"
+                class="px-2 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
+                :class="filtroRutasFronterasRutas.length > 0 ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+                title="Filtrar qué rutas de fronteras mostrar"
               >
-                <span>{{ filtroRutasFronterasRutas.length === 0 ? 'Todas' : `${filtroRutasFronterasRutas.length} rutas` }}</span>
+                <span>{{ labelFronterasRutas }}</span>
                 <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
@@ -301,48 +301,84 @@
               <!-- Popover de Rutas (Fronteras Rutas) -->
               <div
                 v-if="dropdownRutasFronterasRutasAbierto"
-                class="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 text-xs flex flex-col gap-1.5"
+                class="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
               >
-                <div class="flex items-center justify-between pb-1 border-b border-slate-100">
-                  <span class="font-bold text-slate-800 text-[11px]">Rutas (Frontera Ruta)</span>
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                    <span class="font-bold text-slate-800 text-xs">Fronteras por Ruta</span>
+                  </div>
                   <button
                     type="button"
                     @click="dropdownRutasFronterasRutasAbierto = false"
-                    class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                    class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
                   >
                     &times;
+                  </button>
+                </div>
+
+                <!-- Botones de Acción Rápida: Solo TDB | Todas | Limpiar -->
+                <div class="flex items-center gap-1 text-[10.5px] flex-wrap">
+                  <button
+                    type="button"
+                    @click="seleccionarRutasTDB"
+                    class="px-2 py-1 rounded-md text-[10.5px] font-bold border transition-colors cursor-pointer flex items-center gap-1"
+                    :class="labelFronterasRutas.startsWith('TDB') ? 'bg-amber-500 text-white border-amber-600 shadow-2xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'"
+                    title="Seleccionar únicamente las rutas del canal TDB"
+                  >
+                    <span>Solo TDB</span>
+                    <span class="text-[9px] opacity-90 font-mono">({{ obtenerRutasTDB().length }})</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click="seleccionarTodasFronterasRutas"
+                    class="px-2 py-1 rounded-md text-[10.5px] font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
+                  >
+                    Todas
+                  </button>
+                  <button
+                    type="button"
+                    @click="limpiarFronterasRutas"
+                    class="px-2 py-1 rounded-md text-[10.5px] font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-auto"
+                  >
+                    Limpiar
                   </button>
                 </div>
 
                 <input
                   v-model="busquedaRutaFronterasRutas"
                   type="text"
-                  placeholder="Buscar ruta..."
-                  class="h-7 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
+                  placeholder="Buscar ruta o canal..."
+                  class="h-7 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-slate-400 font-mono"
                 />
 
-                <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
-                  <button type="button" @click="filtroRutasFronterasRutas = []" class="text-sky-600 hover:underline cursor-pointer">
-                    Ver Todas
-                  </button>
-                  <button v-if="filtroRutasFronterasRutas.length > 0" type="button" @click="filtroRutasFronterasRutas = []" class="text-rose-600 hover:underline cursor-pointer">
-                    Limpiar
-                  </button>
-                </div>
-
-                <div class="max-h-40 overflow-y-auto custom-scroll space-y-0.5 pr-1">
+                <div class="max-h-48 overflow-y-auto custom-scroll space-y-0.5 pr-0.5">
+                  <div v-if="rutasFronterasRutasFiltradasBusqueda.length === 0" class="py-2 text-center text-slate-400 text-xs">
+                    No hay rutas disponibles
+                  </div>
                   <label
                     v-for="r in rutasFronterasRutasFiltradasBusqueda"
                     :key="r"
-                    class="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-mono text-[11px]"
+                    class="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                    :class="esRutaFronteraRutaActiva(r) ? 'bg-indigo-50/50 font-semibold text-slate-900' : 'text-slate-600'"
                   >
-                    <input
-                      type="checkbox"
-                      :checked="esRutaFronteraRutaActiva(r)"
-                      @change="toggleRutaFronterasRutas(r)"
-                      class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                    />
-                    <span class="text-slate-700">{{ formatRuta(r) }}</span>
+                    <div class="flex items-center gap-2 truncate min-w-0">
+                      <input
+                        type="checkbox"
+                        :checked="esRutaFronteraRutaActiva(r)"
+                        @change="toggleRutaFronterasRutas(r)"
+                        class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                      <span class="truncate">{{ formatRuta(r) }}</span>
+                    </div>
+                    <span
+                      v-if="getCanalDeRuta(r)"
+                      class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
+                      :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
+                    >
+                      {{ getCanalDeRuta(r) }}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -894,38 +930,65 @@
 
               <!-- Filtro de Rutas en Fronteras Rutas -->
               <div v-if="verFronterasRutas" class="space-y-1.5">
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                  <span>Seleccionar rutas visibles:</span>
-                  <button
-                    v-if="filtroRutasFronterasRutas.length > 0"
-                    type="button"
-                    @click="filtroRutasFronterasRutas = []"
-                    class="text-sky-600 hover:underline font-semibold cursor-pointer"
-                  >
-                    Ver todas ({{ rutasDisponiblesFronterasRutas.length }})
-                  </button>
+                <div class="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-1">
+                  <span class="font-bold text-slate-700 font-mono text-[11px]">{{ labelFronterasRutas }}</span>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      @click="seleccionarRutasTDB"
+                      class="px-2 py-0.5 rounded text-[10.5px] font-bold border transition-colors cursor-pointer"
+                      :class="labelFronterasRutas.startsWith('TDB') ? 'bg-amber-500 text-white border-amber-600' : 'bg-amber-50 text-amber-900 border-amber-200'"
+                    >
+                      Solo TDB
+                    </button>
+                    <button
+                      type="button"
+                      @click="seleccionarTodasFronterasRutas"
+                      class="text-sky-600 hover:underline font-semibold text-[11px] cursor-pointer"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      type="button"
+                      @click="limpiarFronterasRutas"
+                      class="text-rose-600 hover:underline font-medium text-[11px] cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
                 </div>
 
                 <input
                   v-model="busquedaRutaFronterasRutas"
                   type="text"
-                  placeholder="Buscar ruta de frontera..."
-                  class="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
+                  placeholder="Buscar ruta o canal..."
+                  class="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white font-mono"
                 />
 
-                <div class="max-h-36 overflow-y-auto custom-scroll border border-slate-200 rounded-lg divide-y divide-slate-100">
+                <div class="max-h-40 overflow-y-auto custom-scroll border border-slate-200 rounded-lg divide-y divide-slate-100">
                   <label
                     v-for="r in rutasFronterasRutasFiltradasBusqueda"
                     :key="r"
-                    class="flex items-center justify-between p-2 hover:bg-slate-50 cursor-pointer text-xs font-mono"
+                    class="flex items-center justify-between p-2 hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                    :class="esRutaFronteraRutaActiva(r) ? 'bg-indigo-50/50 font-semibold' : ''"
                   >
-                    <span class="text-slate-800">{{ formatRuta(r) }}</span>
-                    <input
-                      type="checkbox"
-                      :checked="esRutaFronteraRutaActiva(r)"
-                      @change="toggleRutaFronterasRutas(r)"
-                      class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                    />
+                    <div class="flex items-center gap-2 truncate min-w-0">
+                      <input
+                        type="checkbox"
+                        :checked="esRutaFronteraRutaActiva(r)"
+                        @change="toggleRutaFronterasRutas(r)"
+                        class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                      <span class="text-slate-800 truncate">{{ formatRuta(r) }}</span>
+                    </div>
+                    <span
+                      v-if="getCanalDeRuta(r)"
+                      class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
+                      :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
+                    >
+                      {{ getCanalDeRuta(r) }}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -1141,9 +1204,47 @@ const mensajeEnlace = ref(null);
 // ESTADO DE FRONTERAS RUTAS
 // ==========================================
 const verFronterasRutas = ref(true);
-const filtroRutasFronterasRutas = ref([]); // [] = todas
 const dropdownRutasFronterasRutasAbierto = ref(false);
 const busquedaRutaFronterasRutas = ref('');
+
+function getCanalDeRuta(ruta) {
+  if (!ruta) return '';
+  const norm = String(ruta).trim().toUpperCase();
+  const fr = (props.fronteras_rutas || []).find(f => String(f.ruta || '').trim().toUpperCase() === norm);
+  if (fr && fr.canal) return String(fr.canal).trim().toUpperCase();
+  const cr = (props.catalogo_rutas || []).find(r => String(r.ruta || '').trim().toUpperCase() === norm);
+  if (cr && cr.canal) return String(cr.canal).trim().toUpperCase();
+  return '';
+}
+
+function obtenerRutasTDB() {
+  const set = new Set();
+  (props.fronteras_rutas || []).forEach(f => {
+    const canal = getCanalDeRuta(f.ruta);
+    if (canal === 'TDB' && f.ruta) {
+      set.add(String(f.ruta).trim());
+    }
+  });
+  if (set.size === 0) {
+    (props.catalogo_rutas || []).forEach(r => {
+      const canal = String(r.canal || '').trim().toUpperCase();
+      if (canal === 'TDB' && r.ruta) {
+        const tieneFrontera = (props.fronteras_rutas || []).some(
+          f => String(f.ruta || '').trim().toUpperCase() === String(r.ruta || '').trim().toUpperCase()
+        );
+        if (tieneFrontera) set.add(String(r.ruta).trim());
+      }
+    });
+  }
+  return Array.from(set);
+}
+
+// Por defecto se marcan las fronteras ruta del canal TDB
+const filtroRutasFronterasRutas = ref((() => {
+  const tdb = obtenerRutasTDB();
+  if (tdb.length > 0) return [...tdb];
+  return (props.fronteras_rutas || []).map(f => String(f.ruta).trim());
+})());
 
 const rutasDisponiblesFronterasRutas = computed(() => {
   const set = new Set();
@@ -1156,33 +1257,55 @@ const rutasDisponiblesFronterasRutas = computed(() => {
 const rutasFronterasRutasFiltradasBusqueda = computed(() => {
   const q = busquedaRutaFronterasRutas.value.trim().toLowerCase();
   if (!q) return rutasDisponiblesFronterasRutas.value;
-  return rutasDisponiblesFronterasRutas.value.filter(r => r.toLowerCase().includes(q));
+  return rutasDisponiblesFronterasRutas.value.filter(r => {
+    const canal = getCanalDeRuta(r).toLowerCase();
+    return r.toLowerCase().includes(q) || canal.includes(q);
+  });
 });
 
 function toggleRutaFronterasRutas(ruta) {
-  const idx = filtroRutasFronterasRutas.value.indexOf(ruta);
+  const r = String(ruta).trim();
+  const idx = filtroRutasFronterasRutas.value.indexOf(r);
   if (idx > -1) {
     filtroRutasFronterasRutas.value.splice(idx, 1);
   } else {
-    filtroRutasFronterasRutas.value.push(ruta);
+    filtroRutasFronterasRutas.value.push(r);
   }
 }
 
 function esRutaFronteraRutaActiva(ruta) {
-  if (filtroRutasFronterasRutas.value.length === 0) return true;
-  return filtroRutasFronterasRutas.value.includes(ruta);
+  return filtroRutasFronterasRutas.value.includes(String(ruta).trim());
 }
+
+function seleccionarRutasTDB() {
+  filtroRutasFronterasRutas.value = [...obtenerRutasTDB()];
+}
+
+function seleccionarTodasFronterasRutas() {
+  filtroRutasFronterasRutas.value = [...rutasDisponiblesFronterasRutas.value];
+}
+
+function limpiarFronterasRutas() {
+  filtroRutasFronterasRutas.value = [];
+}
+
+const labelFronterasRutas = computed(() => {
+  const total = rutasDisponiblesFronterasRutas.value.length;
+  const sel = filtroRutasFronterasRutas.value.length;
+  if (!verFronterasRutas.value || sel === 0) return 'Ocultas (0)';
+  if (sel === total) return `Todas (${total})`;
+  const rutasTDB = obtenerRutasTDB();
+  const esExactoTDB = rutasTDB.length > 0 && sel === rutasTDB.length && rutasTDB.every(r => filtroRutasFronterasRutas.value.includes(r));
+  if (esExactoTDB) return `TDB (${sel})`;
+  if (sel === 1) return formatRuta(filtroRutasFronterasRutas.value[0]);
+  return `${sel}/${total} rutas`;
+});
 
 const fronterasRutasFiltradas = computed(() => {
   if (!verFronterasRutas.value || !props.fronteras_rutas || props.fronteras_rutas.length === 0) {
     return [];
   }
-  return props.fronteras_rutas.filter(f => {
-    if (filtroRutasFronterasRutas.value.length > 0 && !filtroRutasFronterasRutas.value.includes(f.ruta)) {
-      return false;
-    }
-    return true;
-  });
+  return props.fronteras_rutas.filter(f => filtroRutasFronterasRutas.value.includes(String(f.ruta).trim()));
 });
 
 // ==========================================
