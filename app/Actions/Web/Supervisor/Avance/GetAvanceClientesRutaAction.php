@@ -810,10 +810,10 @@ class GetAvanceClientesRutaAction
             $m3Val = round($mesesBsCli[$mesesCerrados[2]['ym'] ?? ''] ?? 0.0, 2);
             $totalCli3m = round(array_sum($mesesBsCli), 2);
             $pesoCli3m = ($totalRutaAcum3m > 0) ? round(($totalCli3m / $totalRutaAcum3m) * 100.0, 2) : 0.0;
-            $cuotaObjetivo = $cuotaObjetivoMap[$cid] ?? (($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
+            $cuotaObjetivo = ($kpiClave === 'cob_general') ? 0.0 : ($cuotaObjetivoMap[$cid] ?? (($totalRutaAcum3m > 0 && $objetivoMensualRuta > 0)
                 ? round(($totalCli3m / $totalRutaAcum3m) * $objetivoMensualRuta, 2)
-                : ($kpiClave === 'cob_core' ? 150.0 : 0.0));
-            $totalSugeridoCli = round($sugeridoClienteMap[$cid] ?? 0.0, 2);
+                : ($kpiClave === 'cob_core' ? 150.0 : 0.0)));
+            $totalSugeridoCli = ($kpiClave === 'cob_general') ? 0.0 : round($sugeridoClienteMap[$cid] ?? 0.0, 2);
 
             $clientesLista[] = [
                 'cliente_id' => $cid,

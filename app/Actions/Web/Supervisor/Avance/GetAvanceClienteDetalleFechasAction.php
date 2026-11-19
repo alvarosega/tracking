@@ -357,6 +357,10 @@ class GetAvanceClienteDetalleFechasAction
                     $p['total_bs_3m'] = round($cant3m * $pUlt, 2);
                 }
                 $cantSugerida = 0;
+            } elseif ($kpiClave === 'cob_general') {
+                // Cobertura 100%: 100% sin compra sugerida (si compra suma, si no compra no suma)
+                $cantSugerida = 0;
+                $esHabitual = false;
             } else {
                 $cumpleCantidad = ($cant3m >= $cantidadMinima);
                 $cumpleFrecuencia = ($frecuenciaCompra >= $frecuenciaMinima);
@@ -364,7 +368,7 @@ class GetAvanceClienteDetalleFechasAction
                 $esHabitual = ($cantSugerida > 0);
             }
 
-            $montoSugerido = round($cantSugerida * $p['precio_ultima_compra'], 2);
+            $montoSugerido = ($kpiClave === 'cob_general') ? 0.0 : round($cantSugerida * $p['precio_ultima_compra'], 2);
 
             $p['es_habitual'] = $esHabitual;
             $p['q_teorica'] = round($qTeorica, 2);
@@ -678,11 +682,20 @@ class GetAvanceClienteDetalleFechasAction
             $totalUnidades3m = array_sum(array_column($productosResultado, 'total_cantidad_3m'));
         }
 
-        $habitoTotalBs = round($totalSugeridoBs, 2);
-        $cuotaObjBs = ($kpiClave === 'cob_core') ? round($cuotaCliente, 2) : (($cuotaObjetivo !== null && $cuotaObjetivo > 0) ? round($cuotaObjetivo, 2) : 0.0);
-        $brechaFinalBs = ($kpiClave === 'cob_core') ? round($brechaFinal, 2) : (($cuotaObjBs > 0) ? round(max(0.0, $cuotaObjBs - $habitoTotalBs), 2) : 0.0);
-        $excesoFinalBs = ($kpiClave === 'cob_core') ? round($excesoBs, 2) : round(max(0.0, $habitoTotalBs - $cuotaObjBs), 2);
-        $pctExcesoFinal = ($kpiClave === 'cob_core') ? $pctExceso : ($cuotaObjBs > 0 ? round(($excesoFinalBs / $cuotaObjBs) * 100, 1) : 0.0);
+        if ($kpiClave === 'cob_general') {
+            $habitoTotalBs = 0.0;
+            $cuotaObjBs = 0.0;
+            $brechaFinalBs = 0.0;
+            $excesoFinalBs = 0.0;
+            $pctExcesoFinal = 0.0;
+            $estadoDesarrollo = 'cobertura_directa';
+        } else {
+            $habitoTotalBs = round($totalSugeridoBs, 2);
+            $cuotaObjBs = ($kpiClave === 'cob_core') ? round($cuotaCliente, 2) : (($cuotaObjetivo !== null && $cuotaObjetivo > 0) ? round($cuotaObjetivo, 2) : 0.0);
+            $brechaFinalBs = ($kpiClave === 'cob_core') ? round($brechaFinal, 2) : (($cuotaObjBs > 0) ? round(max(0.0, $cuotaObjBs - $habitoTotalBs), 2) : 0.0);
+            $excesoFinalBs = ($kpiClave === 'cob_core') ? round($excesoBs, 2) : round(max(0.0, $habitoTotalBs - $cuotaObjBs), 2);
+            $pctExcesoFinal = ($kpiClave === 'cob_core') ? $pctExceso : ($cuotaObjBs > 0 ? round(($excesoFinalBs / $cuotaObjBs) * 100, 1) : 0.0);
+        }
 
         $totalMontoMesActualMatch = array_sum(array_column($productosResultado, 'monto_match_mtd'));
         $totalUnidadesMesActualMatch = array_sum(array_column($productosResultado, 'cant_match_mtd'));

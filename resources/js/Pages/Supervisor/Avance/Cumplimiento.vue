@@ -626,6 +626,13 @@
                                 Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong> ·
                                 Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes, 2) }}</strong>
                               </template>
+                              <template v-else-if="esCobertura">
+                                {{ carteraClientes.length }} clientes en cartera · 
+                                <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores (cubiertos)</strong> · 
+                                <strong class="text-amber-600 font-bold">{{ clientesSinCompra.length }} sin compra (pendientes)</strong> · 
+                                Cobertura: <strong class="text-[#0071E3] font-bold">{{ carteraClientes.length > 0 ? formatPct((clientesConCompra.length / carteraClientes.length) * 100) : '0.0%' }}</strong> · 
+                                Total Facturado: <strong class="text-[#1D1D1F] font-bold">Bs {{ formatNum(totalVentaCartera, 2) }}</strong>
+                              </template>
                               <template v-else>
                                 {{ carteraClientes.length }} clientes registrados · 
                                 <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores únicos</strong>
@@ -635,8 +642,8 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">
-                          <!-- Switch Principal: Por Día (Acumulado) vs Por Clientes -->
-                          <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
+                          <!-- Switch Principal: Por Día (Acumulado) vs Por Clientes (Oculto en Cobertura: niveles Ruta -> Cliente -> Detalle de compra) -->
+                          <div v-if="!esCobertura" class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
                             <button
                               type="button"
                               @click="modoDetalleRuta = 'dias'"
@@ -661,13 +668,12 @@
                           <template v-if="modoDetalleRuta === 'clientes'">
                             <div class="inline-flex apple-control-pill p-0.5 rounded-[8px] text-[10px]">
                               <button
-                                v-if="modoActivo === 'cob_core'"
                                 type="button"
-                                @click="filtroClientesTab = 'con_historico'"
+                                @click="filtroClientesTab = 'todos'"
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
-                                :class="filtroClientesTab === 'con_historico' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
+                                :class="filtroClientesTab === 'todos' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
                               >
-                                Con Histórico ({{ clientesConHistorico.length }})
+                                Todos ({{ carteraClientes.length }})
                               </button>
                               <button
                                 type="button"
@@ -675,15 +681,25 @@
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
                                 :class="filtroClientesTab === 'compradores' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
                               >
-                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : 'Compradores' }} ({{ clientesConCompra.length }})
+                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : 'Compraron' }} ({{ clientesConCompra.length }})
                               </button>
                               <button
+                                v-if="esCobertura"
                                 type="button"
-                                @click="filtroClientesTab = 'todos'"
+                                @click="filtroClientesTab = 'sin_compra'"
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
-                                :class="filtroClientesTab === 'todos' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
+                                :class="filtroClientesTab === 'sin_compra' ? 'glass-active-pill text-amber-700' : 'text-[#6E6E73]'"
                               >
-                                Todos ({{ carteraClientes.length }})
+                                Sin Compra ({{ clientesSinCompra.length }})
+                              </button>
+                              <button
+                                v-if="modoActivo === 'cob_core'"
+                                type="button"
+                                @click="filtroClientesTab = 'con_historico'"
+                                class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
+                                :class="filtroClientesTab === 'con_historico' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
+                              >
+                                Con Histórico ({{ clientesConHistorico.length }})
                               </button>
                             </div>
 
@@ -989,6 +1005,52 @@
                                   </div>
                                 </th>
                               </template>
+                              <template v-else-if="esCobertura">
+                                <th
+                                  class="py-1.5 px-2.5 text-center w-28 cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'tiene_logro' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('tiene_logro')"
+                                  title="Ordenar por Cobertura (¿Compró en el período?)"
+                                >
+                                  <div class="flex items-center justify-center gap-1">
+                                    <span>Cobertura</span>
+                                    <span v-if="sortClientesCol === 'tiene_logro'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-28 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'monto_bs' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('monto_bs')"
+                                  title="Ordenar por Total Comprado (Bs)"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Comprado (Bs)</span>
+                                    <span v-if="sortClientesCol === 'monto_bs'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-20 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'cantidad' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('cantidad')"
+                                  title="Ordenar por Unidades Compradas"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>Cant (u)</span>
+                                    <span v-if="sortClientesCol === 'cantidad'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                                <th
+                                  class="py-1.5 px-2.5 text-right w-20 font-mono cursor-pointer hover:bg-black/[0.04] transition-colors"
+                                  :class="sortClientesCol === 'pct_ruta' ? 'text-[#0071E3]' : ''"
+                                  @click="ordenarClientes('pct_ruta')"
+                                  title="Ordenar por % Aporte a la Ruta"
+                                >
+                                  <div class="flex items-center justify-end gap-1">
+                                    <span>% Aporte</span>
+                                    <span v-if="sortClientesCol === 'pct_ruta'" class="text-[10px]">{{ sortClientesDir === 'asc' ? '▲' : '▼' }}</span>
+                                  </div>
+                                </th>
+                              </template>
                               <template v-else>
                                 <th
                                   class="py-1.5 px-2.5 text-center w-24 cursor-pointer hover:bg-black/[0.04] transition-colors"
@@ -1031,12 +1093,12 @@
                               <tr class="hover:bg-blue-50/30 transition-colors">
                                 <td class="py-1.5 px-2.5 text-center text-[#86868B] whitespace-nowrap">
                                   <button
-                                    v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0 || (cli.total_sugerido || 0) > 0"
+                                    v-if="modoActivo === 'cob_core' ? (cli.tiene_logro || (cli.monto_bs || 0) > 0 || (cli.total_monto_3m || 0) > 0 || (cli.total_sugerido || 0) > 0) : (cli.tiene_logro || (cli.monto_bs || 0) > 0)"
                                     type="button"
                                     @click="toggleClienteAccordion(cli, r.ruta)"
                                     class="inline-flex items-center justify-center w-4 h-4 mr-1 rounded hover:bg-black/10 transition-transform duration-200 cursor-pointer text-[#6E6E73] hover:text-[#0071E3]"
                                     :class="clienteExpandidoId === cli.cliente_id ? 'rotate-90 text-[#0071E3]' : ''"
-                                    title="Desglosar historial de compras"
+                                    :title="modoActivo === 'cob_core' ? 'Desglosar historial de compras' : 'Ver productos y compras facturadas'"
                                   >
                                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                       <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -1138,6 +1200,34 @@
                                     </span>
                                   </td>
                                 </template>
+                                <template v-else-if="esCobertura">
+                                  <td class="py-1.5 px-2.5 text-center">
+                                    <span
+                                      v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0"
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    >
+                                      <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      <span>COMPRÓ</span>
+                                    </span>
+                                    <span
+                                      v-else
+                                      class="inline-block px-2 py-0.5 rounded font-medium text-[9px] bg-black/[0.04] text-[#86868B]"
+                                    >
+                                      SIN COMPRA
+                                    </span>
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-bold" :class="cli.monto_bs > 0 ? 'text-[#1D1D1F]' : 'text-[#86868B]'">
+                                    {{ (cli.monto_bs || 0) > 0 ? `Bs ${formatNum(cli.monto_bs, 2)}` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right font-mono" :class="cli.cantidad > 0 ? 'text-[#1D1D1F]' : 'text-[#86868B]'">
+                                    {{ (cli.cantidad || 0) > 0 ? `${cli.cantidad} u` : '-' }}
+                                  </td>
+                                  <td class="py-1.5 px-2.5 text-right text-[#6E6E73]">
+                                    {{ (cli.monto_bs || 0) > 0 ? formatPct(cli.pct_ruta) : '-' }}
+                                  </td>
+                                </template>
                                 <template v-else>
                                   <td class="py-1.5 px-2.5 text-center">
                                     <span
@@ -1163,7 +1253,7 @@
                               </tr>
                               <!-- Detalle acordeón de productos, sugeridos y compras del cliente -->
                               <tr v-if="clienteExpandidoId === cli.cliente_id" class="bg-blue-50/20">
-                                <td :colspan="modoActivo === 'cob_core' ? 15 : 8" class="p-3 border-y border-black/[0.05]">
+                                <td :colspan="modoActivo === 'cob_core' ? 15 : (esCobertura ? 9 : 8)" class="p-3 border-y border-black/[0.05]">
                                   <div class="apple-glass-card rounded-[12px] p-3 space-y-3 bg-white/95 border border-black/[0.06] shadow-sm">
                                     <!-- Indicador de carga -->
                                     <div v-if="cargandoAccordionCliente && !detalleClienteFechasMap[cli.cliente_id]" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-sans font-medium">
@@ -1182,7 +1272,7 @@
                                         </div>
 
                                         <!-- Métricas Clave Sobrias en línea -->
-                                        <div class="flex flex-wrap items-center gap-4 text-[10px] font-mono">
+                                        <div v-if="modoActivo === 'cob_core'" class="flex flex-wrap items-center gap-4 text-[10px] font-mono">
                                           <div>
                                             <span class="text-[#86868B] font-sans">Cuota Objetivo: </span>
                                             <strong class="text-[#6B21A8] font-bold">{{ cli.cuota_objetivo > 0 ? `Bs ${formatNum(cli.cuota_objetivo, 2)}` : '-' }}</strong>
@@ -1220,6 +1310,46 @@
                                           </div>
                                         </div>
 
+                                        <!-- Métricas Clave Reales para Cobertura (100% sin compra sugerida) -->
+                                        <div v-else class="flex flex-wrap items-center gap-3 text-[10px] font-mono">
+                                          <div class="flex items-center gap-1.5">
+                                            <span class="text-[#86868B] font-sans">Cobertura:</span>
+                                            <span
+                                              v-if="cli.tiene_logro || totalClienteMtdBs(cli.cliente_id) > 0"
+                                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold font-sans text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                            >
+                                              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              <span>CUBIERTO (COMPRÓ)</span>
+                                            </span>
+                                            <span
+                                              v-else
+                                              class="px-2 py-0.5 rounded font-medium font-sans text-[10px] bg-black/[0.04] text-[#86868B]"
+                                            >
+                                              SIN COMPRA (PENDIENTE)
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">Comprado MTD: </span>
+                                            <strong :class="totalClienteMtdBs(cli.cliente_id) > 0 ? 'text-emerald-700 font-bold' : 'text-[#86868B]'">
+                                              Bs {{ formatNum(totalClienteMtdBs(cli.cliente_id), 2) }}
+                                            </strong>
+                                          </div>
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">Unidades: </span>
+                                            <strong :class="totalClienteMtdCant(cli.cliente_id) > 0 ? 'text-[#1D1D1F] font-bold' : 'text-[#86868B]'">
+                                              {{ totalClienteMtdCant(cli.cliente_id) }} u
+                                            </strong>
+                                          </div>
+                                          <div>
+                                            <span class="text-[#86868B] font-sans">SKUs: </span>
+                                            <strong class="text-[#1D1D1F] font-bold">
+                                              {{ productosHistorialFiltrados(cli.cliente_id).length }}
+                                            </strong>
+                                          </div>
+                                        </div>
+
                                         <!-- Buscador interno de productos -->
                                         <div class="relative">
                                           <input
@@ -1234,11 +1364,12 @@
                                         </div>
                                       </div>
 
-                                      <!-- TABLA PRINCIPAL DEL CLIENTE: PRODUCTO, TOTAL 3M, SUGERIDO, COMPRA MTD -->
+                                      <!-- TABLA PRINCIPAL DEL CLIENTE: DETALLE DE PRODUCTOS COMPRADOS -->
                                       <div class="overflow-x-auto custom-scroll border border-black/[0.06] rounded-[10px]">
                                         <table class="w-full text-left border-collapse text-[10px] font-mono whitespace-nowrap">
                                           <thead class="bg-[#F8F8FA] text-[#86868B] uppercase text-[9px] tracking-wider sticky top-0 z-10 border-b border-black/[0.06] select-none">
-                                            <tr>
+                                            <!-- Headers Cobertura Core -->
+                                            <tr v-if="modoActivo === 'cob_core'">
                                               <!-- Columna 1: Producto -->
                                               <th class="py-2 px-3 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
                                                 <div class="flex items-center gap-1.5">
@@ -1268,6 +1399,34 @@
                                               <th class="py-2 px-3 text-right bg-emerald-50/40 font-sans cursor-pointer hover:bg-emerald-100/40" @click="ordenarProductos('total_bs_mes_actual')" title="Compra acumulada del mes en curso">
                                                 <div class="flex items-center justify-end gap-1">
                                                   <span class="text-emerald-900 font-bold">Compra MTD</span>
+                                                  <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                            </tr>
+                                            <!-- Headers Cobertura Pura (100% SIN compra sugerida) -->
+                                            <tr v-else>
+                                              <th class="py-2 px-3 text-left font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('producto')">
+                                                <div class="flex items-center gap-1.5">
+                                                  <span class="text-[#1D1D1F] font-bold">Producto Comprado</span>
+                                                  <span v-if="sortProdCol === 'producto'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                  <span class="text-[8px] text-[#86868B] lowercase font-normal">(clic en fila para ver facturas y fechas)</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-2 px-3 text-right font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('total_cantidad_mes_actual')">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span class="text-[#1D1D1F] font-bold">Cantidad (u)</span>
+                                                  <span v-if="sortProdCol === 'total_cantidad_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-2 px-3 text-right font-sans cursor-pointer hover:bg-black/[0.04]" @click="ordenarProductos('precio_ultima_compra')">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span class="text-[#1D1D1F] font-bold">Precio Unitario</span>
+                                                  <span v-if="sortProdCol === 'precio_ultima_compra'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
+                                                </div>
+                                              </th>
+                                              <th class="py-2 px-3 text-right font-sans cursor-pointer hover:bg-black/[0.04] bg-emerald-50/40" @click="ordenarProductos('total_bs_mes_actual')">
+                                                <div class="flex items-center justify-end gap-1">
+                                                  <span class="text-emerald-900 font-bold">Total Facturado (Bs)</span>
                                                   <span v-if="sortProdCol === 'total_bs_mes_actual'" class="text-[8px]">{{ sortProdDir === 'asc' ? '▲' : '▼' }}</span>
                                                 </div>
                                               </th>
@@ -1306,45 +1465,45 @@
                                                   </div>
                                                 </td>
 
-                                                <!-- 2. Total Compra 3M -->
-                                                <td class="py-2 px-3 text-right">
-                                                  <div class="font-bold text-[#1D1D1F]">
-                                                    {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
-                                                  </div>
-                                                  <div class="text-[9px] text-[#86868B] flex items-center justify-end gap-1">
-                                                    <span>{{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}</span>
-                                                    <span v-if="(prod.meses_distintos_3m || 0) > 0" class="text-amber-700 font-semibold" title="Meses distintos con compras">
-                                                      · {{ prod.meses_distintos_3m }} {{ prod.meses_distintos_3m === 1 ? 'mes' : 'meses' }}
-                                                    </span>
-                                                    <span v-else-if="(prod.frecuencia_compra || 0) > 0" class="text-amber-700 font-semibold">
-                                                      · {{ prod.frecuencia_compra }} {{ prod.frecuencia_compra === 1 ? 'compra' : 'compras' }}
-                                                    </span>
-                                                  </div>
-                                                </td>
+                                                <template v-if="modoActivo === 'cob_core'">
+                                                  <!-- 2. Total Compra 3M -->
+                                                  <td class="py-2 px-3 text-right">
+                                                    <div class="font-bold text-[#1D1D1F]">
+                                                      {{ (prod.total_bs_3m || 0) > 0 ? `Bs ${formatNum(prod.total_bs_3m, 2)}` : '-' }}
+                                                    </div>
+                                                    <div class="text-[9px] text-[#86868B] flex items-center justify-end gap-1">
+                                                      <span>{{ (prod.total_cantidad_3m || 0) > 0 ? `${prod.total_cantidad_3m} u` : '0 u' }}</span>
+                                                      <span v-if="(prod.meses_distintos_3m || 0) > 0" class="text-amber-700 font-semibold" title="Meses distintos con compras">
+                                                        · {{ prod.meses_distintos_3m }} {{ prod.meses_distintos_3m === 1 ? 'mes' : 'meses' }}
+                                                      </span>
+                                                      <span v-else-if="(prod.frecuencia_compra || 0) > 0" class="text-amber-700 font-semibold">
+                                                        · {{ prod.frecuencia_compra }} {{ prod.frecuencia_compra === 1 ? 'compra' : 'compras' }}
+                                                      </span>
+                                                    </div>
+                                                  </td>
 
-                                                <!-- 3. Sugerido a Comprar -->
-                                                <td class="py-2 px-3 text-right bg-purple-50/20">
-                                                  <div class="font-bold text-purple-900">
-                                                    {{ (prod.monto_sugerido || 0) > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
-                                                  </div>
-                                                  <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
-                                                    <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
-                                                    <span v-else-if="prod.cant_sugerida === 0" class="text-[8px] text-[#86868B] italic">No califica</span>
-                                                    <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
-                                                  </div>
-                                                </td>
+                                                  <!-- 3. Sugerido a Comprar -->
+                                                  <td class="py-2 px-3 text-right bg-purple-50/20">
+                                                    <div class="font-bold text-purple-900">
+                                                      {{ (prod.monto_sugerido || 0) > 0 ? `Bs ${formatNum(prod.monto_sugerido, 2)}` : '-' }}
+                                                    </div>
+                                                    <div class="text-[9px] text-purple-700 flex items-center justify-end gap-1.5">
+                                                      <span v-if="prod.cant_sugerida > 0" class="font-bold">{{ prod.cant_sugerida }} u</span>
+                                                      <span v-else-if="prod.cant_sugerida === 0" class="text-[8px] text-[#86868B] italic">No califica</span>
+                                                      <span v-if="prod.precio_ultima_compra > 0" class="text-[#86868B]">(P. Últ: Bs {{ formatNum(prod.precio_ultima_compra, 2) }})</span>
+                                                    </div>
+                                                  </td>
 
-                                                <!-- 4. Compra MTD (Match Sugerido para Cobertura Core) -->
-                                                <td class="py-2 px-3 text-right bg-emerald-50/20">
-                                                  <div class="flex items-center justify-end gap-2">
-                                                    <span 
-                                                      class="text-[8px] px-1.5 py-0.2 rounded font-sans font-bold"
-                                                      :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-[#86868B]'"
-                                                    >
-                                                      {{ (prod.total_cantidad_mes_actual || 0) > 0 ? 'Compró' : 'Sin compra' }}
-                                                    </span>
-                                                    <div class="text-right">
-                                                      <template v-if="modoActivo === 'cob_core'">
+                                                  <!-- 4. Compra MTD (Match Sugerido para Cobertura Core) -->
+                                                  <td class="py-2 px-3 text-right bg-emerald-50/20">
+                                                    <div class="flex items-center justify-end gap-2">
+                                                      <span 
+                                                        class="text-[8px] px-1.5 py-0.2 rounded font-sans font-bold"
+                                                        :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-[#86868B]'"
+                                                      >
+                                                        {{ (prod.total_cantidad_mes_actual || 0) > 0 ? 'Compró' : 'Sin compra' }}
+                                                      </span>
+                                                      <div class="text-right">
                                                         <template v-if="(prod.monto_sugerido || 0) > 0">
                                                           <div class="font-bold" :class="(prod.monto_match_mtd !== undefined ? prod.monto_match_mtd : Math.min(prod.total_bs_mes_actual || 0, prod.monto_sugerido || 0)) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
                                                             {{ (prod.monto_match_mtd !== undefined ? prod.monto_match_mtd : Math.min(prod.total_bs_mes_actual || 0, prod.monto_sugerido || 0)) > 0 
@@ -1366,18 +1525,26 @@
                                                             (No computa / Real: {{ prod.total_cantidad_mes_actual }} u)
                                                           </div>
                                                         </template>
-                                                      </template>
-                                                      <template v-else>
-                                                        <div class="font-bold" :class="(prod.total_cantidad_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
-                                                          {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
-                                                        </div>
-                                                        <div v-if="(prod.total_cantidad_mes_actual || 0) > 0" class="text-[9px] text-emerald-600">
-                                                          {{ prod.total_cantidad_mes_actual }} u
-                                                        </div>
-                                                      </template>
+                                                      </div>
                                                     </div>
-                                                  </div>
-                                                </td>
+                                                  </td>
+                                                </template>
+                                                <template v-else>
+                                                  <!-- 2. Cantidad Comprada -->
+                                                  <td class="py-2 px-3 text-right font-mono font-bold text-[#1D1D1F]">
+                                                    {{ (prod.total_cantidad_mes_actual || 0) > 0 ? `${prod.total_cantidad_mes_actual} u` : '0 u' }}
+                                                  </td>
+
+                                                  <!-- 3. Precio Unitario -->
+                                                  <td class="py-2 px-3 text-right font-mono text-[#6E6E73]">
+                                                    {{ (prod.precio_ultima_compra || 0) > 0 ? `Bs ${formatNum(prod.precio_ultima_compra, 2)}` : '-' }}
+                                                  </td>
+
+                                                  <!-- 4. Total Facturado (Bs) -->
+                                                  <td class="py-2 px-3 text-right font-mono font-bold bg-emerald-50/20" :class="(prod.total_bs_mes_actual || 0) > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                                    {{ (prod.total_bs_mes_actual || 0) > 0 ? `Bs ${formatNum(prod.total_bs_mes_actual, 2)}` : '-' }}
+                                                  </td>
+                                                </template>
                                               </tr>
 
                                               <!-- Sub-fila de Detalle de Fechas: 2 Tablas Paralelas (3M vs MTD) -->
@@ -1466,7 +1633,7 @@
                                           </tbody>
                                           <!-- Pie de Tabla: TOTALES DEL CLIENTE -->
                                           <tfoot class="bg-[#F8F8FA] border-t-2 border-black/[0.08] text-[10px] font-mono font-bold">
-                                            <tr>
+                                            <tr v-if="modoActivo === 'cob_core'">
                                               <td class="py-2 px-3 font-sans text-[#1D1D1F]">
                                                 TOTAL CLIENTE ({{ productosHistorialFiltrados(cli.cliente_id).length }} productos)
                                               </td>
@@ -1485,10 +1652,24 @@
                                                 <div class="text-[9px] text-emerald-600 font-normal">{{ totalClienteMtdCant(cli.cliente_id) }} u</div>
                                               </td>
                                             </tr>
+                                            <tr v-else>
+                                              <td class="py-2 px-3 font-sans text-[#1D1D1F]">
+                                                TOTAL COMPRADO ({{ productosHistorialFiltrados(cli.cliente_id).length }} SKUs)
+                                              </td>
+                                              <td class="py-2 px-3 text-right font-mono font-bold text-[#1D1D1F]">
+                                                {{ totalClienteMtdCant(cli.cliente_id) }} u
+                                              </td>
+                                              <td class="py-2 px-3 text-right font-mono text-[#86868B]">
+                                                -
+                                              </td>
+                                              <td class="py-2 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/30">
+                                                Bs {{ formatNum(totalClienteMtdBs(cli.cliente_id), 2) }}
+                                              </td>
+                                            </tr>
                                           </tfoot>
                                         </table>
                                         <div v-if="productosHistorialFiltrados(cli.cliente_id).length === 0" class="text-center py-6 text-[11px] text-[#86868B] font-sans">
-                                          No se encontraron productos registrados para este cliente.
+                                          {{ modoActivo === 'cob_core' ? 'No se encontraron productos registrados para este cliente.' : 'El cliente no registra compras facturadas en el período seleccionado.' }}
                                         </div>
                                       </div>
                                     </template>
@@ -1526,6 +1707,43 @@
                               </td>
                               <td class="py-1.5 px-2.5 text-center text-[10px] text-emerald-800 font-sans">
                                 {{ clientesConCompra.length }} comp.
+                              </td>
+                            </tr>
+                          </tfoot>
+                          <tfoot v-else-if="esCobertura" class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
+                            <tr>
+                              <td colspan="5" class="py-2 px-2.5 text-left text-[10px] text-[#6E6E73] font-sans">
+                                TOTAL CARTERA RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
+                              </td>
+                              <td class="py-2 px-2.5 text-center">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  {{ clientesConCompra.length }} CUBIERTOS ({{ carteraClientes.length > 0 ? Math.round((clientesConCompra.length / carteraClientes.length) * 100) : 0 }}%)
+                                </span>
+                              </td>
+                              <td class="py-2 px-2.5 text-right font-mono font-bold text-emerald-700 bg-emerald-50/30">
+                                Bs {{ formatNum(totalVentaCartera, 2) }}
+                              </td>
+                              <td class="py-2 px-2.5 text-right font-mono font-bold text-[#1D1D1F]">
+                                {{ totalCantidadCartera }} u
+                              </td>
+                              <td class="py-2 px-2.5 text-right font-mono font-bold text-[#0071E3]">
+                                100.0%
+                              </td>
+                            </tr>
+                          </tfoot>
+                          <tfoot v-else class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
+                            <tr>
+                              <td colspan="5" class="py-2 px-2.5 text-left text-[10px] text-[#6E6E73] font-sans">
+                                TOTAL CARTERA RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
+                              </td>
+                              <td class="py-2 px-2.5 text-center text-[10px] text-emerald-800 font-sans">
+                                {{ clientesConCompra.length }} comp.
+                              </td>
+                              <td class="py-2 px-2.5 text-right font-mono font-bold text-emerald-700">
+                                Bs {{ formatNum(totalVentaCartera, 2) }}
+                              </td>
+                              <td class="py-2 px-2.5 text-right font-mono font-bold text-[#0071E3]">
+                                100.0%
                               </td>
                             </tr>
                           </tfoot>
@@ -2346,6 +2564,9 @@ function productosHistorialFiltrados(clienteId) {
       const frec = Number(p.meses_distintos_3m ?? p.frecuencia_compra) || 0
       return (cHist >= minCant && frec >= minFrec)
     })
+  } else if (esCobertura.value) {
+    // Cobertura 100%: solo productos efectivamente facturados en el período
+    lista = lista.filter(p => (Number(p.total_cantidad_mes_actual) || 0) > 0 || (Number(p.total_bs_mes_actual) || 0) > 0)
   }
 
   if (busquedaHistorialCliente.value.trim()) {
@@ -2433,6 +2654,14 @@ const clientesConCompra = computed(() => {
   return carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
 })
 
+const clientesSinCompra = computed(() => {
+  return carteraClientes.value.filter(c => !c.tiene_logro && (c.monto_bs || 0) <= 0 && (c.cantidad || 0) <= 0)
+})
+
+const totalCantidadCartera = computed(() => {
+  return carteraClientes.value.reduce((acc, c) => acc + Number(c.cantidad || 0), 0)
+})
+
 const clientesConHistorico = computed(() => {
   return carteraClientes.value.filter(c => (c.total_monto_3m || 0) > 0)
 })
@@ -2441,6 +2670,8 @@ const clientesRutaFiltrados = computed(() => {
   let lista = carteraClientes.value
   if (filtroClientesTab.value === 'compradores') {
     lista = clientesConCompra.value
+  } else if (filtroClientesTab.value === 'sin_compra') {
+    lista = clientesSinCompra.value
   } else if (filtroClientesTab.value === 'con_historico') {
     lista = clientesConHistorico.value
   }
@@ -2480,6 +2711,9 @@ const clientesRutaFiltrados = computed(() => {
     }
     if (col === 'monto_bs') {
       return dir * (Number(a.monto_bs || 0) - Number(b.monto_bs || 0))
+    }
+    if (col === 'cantidad') {
+      return dir * (Number(a.cantidad || 0) - Number(b.cantidad || 0))
     }
     if (col === 'pct_ruta') {
       return dir * (Number(a.pct_ruta || 0) - Number(b.pct_ruta || 0))
@@ -2809,6 +3043,11 @@ function cambiarModo(modo) {
     sortKpiDir.value = 'desc'
   }
 
+  if (modo === 'cob_general' || modo === 'cob_core') {
+    modoDetalleRuta.value = 'clientes'
+    sortProdCol.value = modo === 'cob_core' ? 'monto_sugerido' : 'total_bs_mes_actual'
+  }
+
   if (modo === 'resumen') {
     store.vistaCumplimiento = 'resumen'
   } else {
@@ -2946,6 +3185,12 @@ async function toggleDetalleRuta(ruta) {
       filtroClientesTab.value = 'todos'
       sortClientesCol.value = 'peso_3m'
       sortClientesDir.value = 'desc'
+    } else if (esCobertura.value) {
+      modoDetalleRuta.value = 'clientes'
+      filtroClientesTab.value = 'todos'
+      sortClientesCol.value = 'tiene_logro'
+      sortClientesDir.value = 'desc'
+      sortProdCol.value = 'total_bs_mes_actual'
     } else {
       if (diasRuta.value.length === 0 && carteraClientes.value.length > 0) {
         modoDetalleRuta.value = 'clientes'
@@ -3051,6 +3296,9 @@ function colorScore(score) {
 
 onMounted(async () => {
   store.inicializarDesdeStorage(props)
+  if (esCobertura.value) {
+    modoDetalleRuta.value = 'clientes'
+  }
   if (modoActivo.value === 'resumen') {
     store.vistaCumplimiento = 'resumen'
   } else {
