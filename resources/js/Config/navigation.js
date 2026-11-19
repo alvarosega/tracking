@@ -87,14 +87,6 @@ export const navigationConfig = {
           icon: 'ShieldCheckIcon'
         },
         {
-          id: 'historico',
-          module: 'auditoria',
-          name: 'Histórico Resoluciones',
-          route: 'supervisor.auditoria.historico',
-          component: 'Supervisor/Auditoria/Historico',
-          icon: 'ClockIcon'
-        },
-        {
           id: 'clientes',
           module: 'auditoria',
           name: 'Matriz de Cambios',
@@ -516,7 +508,6 @@ export const preventasSubTabs = [
 
 export const auditoriaSubTabs = [
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
-  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
   { id: 'clientes', module: 'auditoria', name: 'Matriz de Cambios', route: 'supervisor.auditoria.clientes' }
 ];
 
@@ -528,7 +519,6 @@ export const saneamientoSubTabs = [
   { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
   { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
-  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
   { id: 'clientes', module: 'auditoria', name: 'Matriz de Cambios', route: 'supervisor.auditoria.clientes' },
   { id: 'propuestas', module: 'saneamiento', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
 ];

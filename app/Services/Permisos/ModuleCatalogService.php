@@ -28,13 +28,14 @@ class ModuleCatalogService
                 'permission_modules' => ['auditoria', 'saneamiento'],
                 'submodules' => [
                     // Grupo 1: Auditoría de Ruteo
+                    ['id' => 'pendientes', 'module_key' => 'auditoria', 'name' => 'Cambios Pendientes', 'group' => 'Auditoría de Ruteo'],
+                    ['id' => 'clientes', 'module_key' => 'auditoria', 'name' => 'Matriz de Cambios', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'preventas', 'module_key' => 'auditoria', 'name' => 'Preventas Intra-día', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'inactivados', 'module_key' => 'auditoria', 'name' => 'Bajas e Inactivados', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'cambios-ruta', 'module_key' => 'auditoria', 'name' => 'Cambios de Ruta', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'modificacion-datos', 'module_key' => 'auditoria', 'name' => 'Modificación de Datos', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'cambios-dia', 'module_key' => 'auditoria', 'name' => 'Cambios de Día', 'group' => 'Auditoría de Ruteo'],
                     ['id' => 'altas', 'module_key' => 'auditoria', 'name' => 'Altas y Reactivaciones', 'group' => 'Auditoría de Ruteo'],
-                    ['id' => 'historico', 'module_key' => 'auditoria', 'name' => 'Histórico Resoluciones', 'group' => 'Auditoría de Ruteo'],
 
                     // Grupo 2: Saneamiento Padrón
                     ['id' => 'visor', 'module_key' => 'saneamiento', 'name' => 'Visor y Fronteras', 'group' => 'Saneamiento Padrón'],

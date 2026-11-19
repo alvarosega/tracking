@@ -88,18 +88,10 @@ class SupervisorAuditoriaController extends Controller
         }
     }
 
-    // ── 2. HISTÓRICO DE AUDITORÍA Y RESOLUCIONES ────────────────────────────
-
-    public function historico(Request $request, GetAuditoriaCatalogoAction $catalogoAction): Response
+    // ── 2. HISTÓRICO DE AUDITORÍA Y RESOLUCIONES (REDIRECCIÓN A MATRIZ) ──
+    public function historico(Request $request): RedirectResponse
     {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Auditoria/Historico', [
-            'canales' => $catalogo['canales'],
-            'rutas' => $catalogo['rutas'],
-            'archivos_base' => $catalogo['archivos_base'],
-            'initial_categoria' => $request->query('categoria', 'TODOS'),
-        ]);
+        return redirect()->route('supervisor.auditoria.clientes');
     }
 
     public function historicoConsultar(Request $request, GetAuditoriaRuteoAction $action): JsonResponse
