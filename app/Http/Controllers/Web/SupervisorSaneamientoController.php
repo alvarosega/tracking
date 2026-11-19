@@ -317,6 +317,7 @@ class SupervisorSaneamientoController extends Controller
             'anios_disponibles' => $initData['anios_disponibles'] ?? [2026],
             'anio_default' => $initData['anio_default'] ?? 2026,
             'meses_default' => $initData['meses_default'] ?? [1, 2, 3],
+            'fronteras_dias' => $initData['fronteras_dias'] ?? [],
             'submoduloActivo' => 'cercanos',
         ]);
     }

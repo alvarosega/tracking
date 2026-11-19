@@ -1,23 +1,23 @@
 <template>
   <SupervisorLayout full-bleed title="Saneamiento | Clientes Cercanos">
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900 font-sans text-slate-900">
-      <!-- Navegación de Submódulos Saneamiento Padrón -->
+      <!-- Navegacion de Submodulos Saneamiento Padron -->
       <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-2 shrink-0 relative z-30">
         <AuditoriaSaneamientoSubTabs active-tab="cercanos" :compact="true" />
       </div>
 
       <!-- ========================================== -->
-      <!-- MOBILE HEADER (< md): 2 FILAS RESPONSIVAS -->
+      <!-- MOBILE HEADER (< md): 3 FILAS COMPACTAS   -->
       <!-- ========================================== -->
-      <div class="flex md:hidden flex-col gap-2 p-2.5 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shrink-0 relative z-30">
-        <!-- Fila 1: [ Mapa | Lista (N) ] a la izquierda y [ En radio: N pts ] a la derecha -->
-        <div class="flex items-center justify-between gap-2">
-          <!-- Bloque 1: Selector Vista Mapa / Lista -->
+      <div class="flex md:hidden flex-col gap-2 p-2 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shrink-0 relative z-30 shadow-2xs">
+        <!-- Fila 1: [ Mapa | Lista (N) ] a la izquierda y Boton Filtros/Fronteras + Puntos en radio -->
+        <div class="flex items-center justify-between gap-1.5">
+          <!-- Selector Vista Mapa / Lista -->
           <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
             <button
               type="button"
               @click="vistaMovil = 'mapa'"
-              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
               :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -28,7 +28,7 @@
             <button
               type="button"
               @click="vistaMovil = 'lista'"
-              class="px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
               :class="vistaMovil === 'lista' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -38,77 +38,122 @@
             </button>
           </div>
 
-          <!-- Bloque 2: Total en Radio & Estado -->
-          <div class="flex items-center gap-1.5 text-xs font-mono">
-            <span v-if="cargando" class="flex items-center gap-1 text-[11px] text-sky-600 animate-pulse font-medium">
-              <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-              Rastreando...
-            </span>
-            <div class="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs font-bold text-slate-900">
-              <span class="text-slate-400 font-normal text-[11px]">En radio:</span>
-              <span class="tabular-nums text-xs">{{ clientesCercanos.length }} pts</span>
+          <!-- Acciones Derecha: Boton Drawer Filtros/Fronteras y Puntos en radio -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              @click="drawerFiltrosMovil = true"
+              class="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+              title="Ajustar radio, color y fronteras dias"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              <span>Filtros</span>
+              <span v-if="verFronterasDias" class="w-2 h-2 rounded-full bg-sky-500"></span>
+            </button>
+
+            <div class="h-7 px-2 bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 text-xs font-mono font-bold text-slate-900 shadow-2xs">
+              <span class="text-slate-400 font-normal text-[10px]">Radio:</span>
+              <span class="tabular-nums text-xs">{{ clientesCercanos.length }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Fila 2: Mi Ubicación, Buscador Maps / Coordenadas, Selector de Radio -->
-        <div class="flex items-center gap-2 flex-wrap pt-0.5">
-          <!-- Botón de GPS Actual -->
+        <!-- Fila 2: GPS, Buscador Maps / Coordenadas y Selector Radio -->
+        <div class="flex items-center gap-1.5">
+          <!-- Boton GPS -->
           <button
             type="button"
             @click="obtenerUbicacionActual"
             :disabled="obteniendoGps"
-            class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200/90 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-2xs"
-            title="Usar ubicación GPS del dispositivo"
+            class="h-8 w-8 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 rounded-lg flex items-center justify-center transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-2xs"
+            title="Usar mi ubicacion GPS"
           >
-            <span class="w-2 h-2 rounded-full" :class="obteniendoGps ? 'bg-amber-500 animate-ping' : 'bg-sky-500'"></span>
-            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
+            <span v-if="obteniendoGps" class="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
+            <svg v-else class="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
           </button>
 
-          <!-- Buscador / Pegar Enlace de Google Maps o Coordenadas -->
-          <div class="relative flex items-center h-8 shrink-0 flex-1 min-w-[190px]">
-            <div class="absolute left-2.5 text-slate-400 pointer-events-none flex items-center">
-              <svg class="w-3.5 h-3.5 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            </div>
+          <!-- Input Buscador Maps -->
+          <div class="relative flex items-center h-8 flex-1 min-w-0">
             <input
               type="text"
               v-model="inputEnlaceMaps"
               @keydown.enter.prevent="resolverEnlaceMaps"
-              placeholder="Pegar enlace Maps o coords..."
-              class="w-full h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
-              title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-16.505, -68.165)"
+              placeholder="Enlace Maps o coords..."
+              class="w-full h-8 pl-2.5 pr-10 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
             />
             <button
               type="button"
               @click="resolverEnlaceMaps"
               :disabled="resolviendoEnlace || !inputEnlaceMaps.trim()"
-              class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
-              title="Traducir enlace e inspeccionar clientes cercanos"
+              class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center"
             >
               <span v-if="resolviendoEnlace" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>{{ resolviendoEnlace ? '' : 'Ir' }}</span>
+              <span v-else>Ir</span>
             </button>
           </div>
 
-          <!-- Selector Radio -->
-          <div class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
-            <span class="text-slate-400 mr-1.5 font-mono">Radio:</span>
-            <select
-              v-model="radioSeleccionado"
-              @change="seleccionarRadio(Number(radioSeleccionado))"
-              class="bg-transparent font-bold font-mono text-xs border-0 p-0 pr-4 focus:ring-0 cursor-pointer text-slate-900"
+          <!-- Selector Radio Compacto -->
+          <select
+            v-model="radioSeleccionado"
+            @change="seleccionarRadio(Number(radioSeleccionado))"
+            class="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 cursor-pointer shrink-0"
+          >
+            <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
+          </select>
+        </div>
+
+        <!-- Fila 3: Quick Bar Tactil de Fronteras Dias (L | M | M | J | V | S | D) -->
+        <div class="flex items-center gap-1 overflow-x-auto pb-0.5 pt-0.5 custom-scroll text-xs">
+          <!-- Toggle General On/Off -->
+          <button
+            type="button"
+            @click="verFronterasDias = !verFronterasDias"
+            class="h-6 px-2 rounded-md font-mono text-[10.5px] font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer border"
+            :class="verFronterasDias ? 'bg-sky-50 text-sky-700 border-sky-300 shadow-2xs' : 'bg-slate-100 text-slate-400 border-slate-200'"
+            title="Activar o desactivar poligonos de fronteras dias"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="verFronterasDias ? 'bg-sky-600' : 'bg-slate-400'"></span>
+            <span>F. Dias</span>
+          </button>
+
+          <!-- Chips de Dias de la Semana -->
+          <div v-if="verFronterasDias" class="flex items-center gap-1 shrink-0">
+            <button
+              v-for="dia in DIAS_SEMANA_CONFIG"
+              :key="dia.key"
+              type="button"
+              @click="toggleDiaFrontera(dia.key)"
+              class="h-6 w-6 rounded-md font-mono text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer border"
+              :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0', color: '#94A3B8' }"
+              :title="`Alternar visualizacion de frontera dia ${dia.label}`"
             >
-              <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
-            </select>
+              {{ dia.corto.charAt(0) }}
+            </button>
+
+            <!-- Reset / Todos -->
+            <button
+              type="button"
+              @click="toggleTodosDiasFrontera"
+              class="h-6 px-1.5 rounded-md font-mono text-[9.5px] font-bold text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all cursor-pointer"
+              title="Seleccionar todos o ningun dia"
+            >
+              {{ filtroDiasFrontera.length === DIAS_SEMANA_CONFIG.length ? 'Ninguno' : 'Todos' }}
+            </button>
+          </div>
+          <div v-else class="text-[10.5px] text-slate-400 italic px-1">
+            Poligonos de fronteras dias desactivados
           </div>
         </div>
 
-        <!-- Toast / Feedback del Enlace de Maps en Móvil -->
+        <!-- Toast Feedback Maps -->
         <div
           v-if="mensajeEnlace"
-          class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center justify-between gap-1.5 transition-all shadow-xs"
+          class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center justify-between gap-1.5 shadow-xs"
           :class="mensajeEnlace.tipo === 'exito' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'"
         >
           <span class="truncate">{{ mensajeEnlace.texto }}</span>
@@ -121,16 +166,16 @@
       <!-- ========================================== -->
       <div class="hidden md:flex bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2 items-center justify-between gap-2.5 shrink-0 relative z-30">
         <div class="flex items-center gap-2.5 flex-wrap py-0.5 flex-1 min-w-0">
-          <!-- Botón de GPS Actual -->
+          <!-- Boton de GPS Actual -->
           <button
             type="button"
             @click="obtenerUbicacionActual"
             :disabled="obteniendoGps"
             class="h-8 px-3 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200/90 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-2xs"
-            title="Usar ubicación GPS del dispositivo"
+            title="Usar ubicacion GPS del dispositivo"
           >
             <span class="w-2 h-2 rounded-full" :class="obteniendoGps ? 'bg-amber-500 animate-ping' : 'bg-sky-500'"></span>
-            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicación' }}</span>
+            <span class="whitespace-nowrap">{{ obteniendoGps ? 'Localizando...' : 'Mi Ubicacion' }}</span>
           </button>
 
           <!-- Buscador / Pegar Enlace de Google Maps o Coordenadas -->
@@ -145,22 +190,21 @@
               v-model="inputEnlaceMaps"
               @keydown.enter.prevent="resolverEnlaceMaps"
               placeholder="Pegar enlace Google Maps o coords..."
-              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-64 lg:w-72 transition-all"
-              title="Pega enlaces cortos de Google Maps (ej: maps.app.goo.gl/...), URLs completas o coordenadas (-16.505, -68.165)"
+              class="h-8 pl-8 pr-12 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200/90 rounded-lg text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 w-60 lg:w-68 transition-all"
+              title="Pega enlaces cortos de Google Maps, URLs completas o coordenadas (-16.505, -68.165)"
             />
             <button
               type="button"
               @click="resolverEnlaceMaps"
               :disabled="resolviendoEnlace || !inputEnlaceMaps.trim()"
               class="absolute right-1 h-6 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
-              title="Traducir enlace e inspeccionar clientes cercanos"
             >
               <span v-if="resolviendoEnlace" class="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
               <span>{{ resolviendoEnlace ? '' : 'Ir' }}</span>
             </button>
           </div>
 
-          <!-- Toast / Feedback del Enlace de Maps -->
+          <!-- Toast Feedback Maps -->
           <div
             v-if="mensajeEnlace"
             class="px-2.5 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-all shadow-xs shrink-0"
@@ -182,7 +226,7 @@
             </select>
           </div>
 
-          <!-- Selector de Modo de Coloración (Ruta | Canal | Día) -->
+          <!-- Selector de Modo de Coloracion (Ruta | Canal | Dia) -->
           <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <span class="text-[10px] font-mono text-slate-400 px-1.5">Color:</span>
             <button
@@ -207,8 +251,105 @@
               class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
               :class="modoColor === 'dia' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
             >
-              Día
+              Dia
             </button>
+          </div>
+
+          <!-- SELECCIONADOR DE FRONTERAS DIAS EN DESKTOP -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
+            <button
+              type="button"
+              @click="verFronterasDias = !verFronterasDias"
+              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer flex items-center gap-1.5"
+              :class="verFronterasDias ? 'bg-white text-sky-800 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              title="Activar o desactivar visualizacion de Fronteras Dias"
+            >
+              <span class="w-2 h-2 rounded-full" :class="verFronterasDias ? 'bg-sky-500' : 'bg-slate-300'"></span>
+              <span>Fronteras Dias</span>
+              <span v-if="verFronterasDias" class="text-[9.5px] px-1 py-0.2 rounded bg-sky-100 text-sky-800 font-mono font-bold">
+                {{ filtroDiasFrontera.length }}/{{ DIAS_SEMANA_CONFIG.length }}
+              </span>
+            </button>
+
+            <!-- Chips de Dias Inline si estan activas -->
+            <div v-if="verFronterasDias" class="flex items-center gap-0.5 ml-1 pl-1 border-l border-slate-200">
+              <button
+                v-for="dia in DIAS_SEMANA_CONFIG"
+                :key="dia.key"
+                type="button"
+                @click="toggleDiaFrontera(dia.key)"
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer border"
+                :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F1F5F9', borderColor: 'transparent', color: '#94A3B8' }"
+                :title="`Alternar ${dia.label}`"
+              >
+                {{ dia.corto }}
+              </button>
+
+              <!-- Dropdown Selector de Rutas de Fronteras -->
+              <div class="relative ml-0.5">
+                <button
+                  type="button"
+                  @click="dropdownRutasFronteraAbierto = !dropdownRutasFronteraAbierto"
+                  class="px-1.5 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
+                  :class="filtroRutasFrontera.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+                  title="Filtrar que rutas de fronteras dias mostrar"
+                >
+                  <span>{{ filtroRutasFrontera.length === 0 ? 'Todas Rutas' : `${filtroRutasFrontera.length} rutas` }}</span>
+                  <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+
+                <!-- Popover de Rutas -->
+                <div
+                  v-if="dropdownRutasFronteraAbierto"
+                  class="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 text-xs flex flex-col gap-1.5"
+                >
+                  <div class="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <span class="font-bold text-slate-800 text-[11px]">Rutas Fronteras</span>
+                    <button
+                      type="button"
+                      @click="dropdownRutasFronteraAbierto = false"
+                      class="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  <input
+                    v-model="busquedaRutaFrontera"
+                    type="text"
+                    placeholder="Buscar ruta..."
+                    class="h-7 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
+                  />
+
+                  <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
+                    <button type="button" @click="seleccionarTodasRutasFronteras" class="text-sky-600 hover:underline cursor-pointer">
+                      Ver Todas (Sin filtro)
+                    </button>
+                    <button v-if="filtroRutasFrontera.length > 0" type="button" @click="filtroRutasFrontera = []" class="text-rose-600 hover:underline cursor-pointer">
+                      Limpiar
+                    </button>
+                  </div>
+
+                  <div class="max-h-40 overflow-y-auto custom-scroll space-y-0.5 pr-1">
+                    <label
+                      v-for="r in rutasFronterasFiltradasBusqueda"
+                      :key="r"
+                      class="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-mono text-[11px]"
+                    >
+                      <input
+                        type="checkbox"
+                        :checked="filtroRutasFrontera.includes(r)"
+                        @change="toggleRutaFrontera(r)"
+                        class="rounded border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span class="text-slate-700">{{ formatRuta(r) }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -226,17 +367,19 @@
         </div>
       </div>
 
-      <!-- Split Screen Principal -->
+      <!-- ========================================== -->
+      <!-- SPLIT SCREEN PRINCIPAL                     -->
+      <!-- ========================================== -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative z-10">
         
         <!-- Panel Izquierdo: Lista o Expediente del Cliente -->
         <aside
           class="w-full md:w-[380px] bg-white border-r border-slate-200 flex flex-col shrink-0 relative z-20 overflow-hidden transition-all"
-          :class="vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex-1 md:flex-initial flex'"
+          :class="vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex-1 md:flex-initial flex h-full'"
         >
           <!-- Vista 1: Listado de Clientes en Radio -->
           <template v-if="!clienteSeleccionado">
-            <!-- Barra de Búsqueda y Coordenadas -->
+            <!-- Barra de Busqueda y Coordenadas -->
             <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center space-x-2">
               <div class="relative flex-1">
                 <input
@@ -249,103 +392,124 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
               </div>
+
+              <!-- Boton en movil para volver rapido al mapa -->
+              <button
+                type="button"
+                @click="vistaMovil = 'mapa'"
+                class="md:hidden h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 border border-slate-200"
+              >
+                <span>Mapa</span>
+              </button>
             </div>
 
-            <!-- Listado Scrollable -->
-            <div class="flex-1 overflow-y-auto divide-y divide-slate-100">
-              <div v-if="!origenConsulta" class="p-8 text-center text-xs text-slate-400 space-y-2">
-                <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                  </svg>
-                </div>
-                <p class="font-semibold text-slate-700">Explorador de Radio</p>
-                <p class="text-[11px] text-slate-400">Toca cualquier punto en el mapa de El Alto o pulsa <strong>"Mi Ubicación"</strong> para rastrear clientes cercanos.</p>
+            <!-- Listado con Scroll -->
+            <div class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scroll">
+              <div v-if="clientesCercanos.length === 0" class="p-8 text-center text-slate-400 text-xs">
+                <p class="font-medium text-slate-600 mb-1">Sin clientes en el radar</p>
+                <p>Haz clic en el mapa, usa tu ubicacion GPS o pega un enlace de Google Maps para inspeccionar clientes cercanos.</p>
               </div>
 
-              <div v-else-if="clientesFiltrados.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400">
-                No se encontraron clientes dentro del radio de {{ radioSeleccionado }}m.
-              </div>
-
-              <button
+              <div
                 v-for="c in clientesFiltrados"
                 :key="c.id"
-                type="button"
                 @click="abrirExpedienteCliente(c)"
-                class="w-full text-left p-3 hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer group"
-                :class="clienteActivoId === c.id ? 'bg-sky-50/70 border-l-2 border-sky-600' : ''"
+                class="p-3 hover:bg-slate-50/80 cursor-pointer transition-all flex items-start space-x-3 group relative"
+                :class="clienteActivoId === c.id ? 'bg-sky-50/60 border-l-4 border-sky-500' : ''"
               >
-                <div class="flex items-start justify-between gap-2">
-                  <span class="text-xs font-semibold text-slate-900 group-hover:text-sky-600 transition-colors line-clamp-1">
-                    {{ c.cliente }}
-                  </span>
-                  <div class="flex items-center gap-1.5 shrink-0">
+                <!-- Indicador de Color Segun Modo -->
+                <div
+                  class="w-3 h-3 rounded-full mt-1 shrink-0 shadow-2xs"
+                  :style="{ backgroundColor: getMarkerColor(c) }"
+                ></div>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-1 mb-0.5">
+                    <span class="text-xs font-bold text-slate-900 truncate group-hover:text-sky-600 transition-colors">
+                      {{ c.cliente }}
+                    </span>
+                    <span class="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0 font-bold">
+                      {{ c.distancia_metros }} m
+                    </span>
+                  </div>
+
+                  <p class="text-[11px] text-slate-500 truncate mb-1">
+                    {{ c.direccion || 'Sin direccion registrada' }}
+                  </p>
+
+                  <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-mono">
+                    <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-semibold">
+                      {{ formatRuta(c.ruta) }}
+                    </span>
                     <span
-                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white shadow-2xs"
+                      class="px-1.5 py-0.2 rounded text-white font-bold"
                       :style="{ backgroundColor: getCanalColor(c.canal_calculado) }"
                     >
                       {{ c.canal_calculado }}
                     </span>
+                    <span v-if="c.dia_norm" class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
+                      {{ c.dia_norm }}
+                    </span>
                     <span
-                      class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
+                      class="px-1 py-0.2 rounded font-bold"
                       :class="c.estado && c.estado.toLowerCase() !== 'activo' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
                     >
                       {{ c.estado && c.estado.toLowerCase() !== 'activo' ? 'Inactivo' : 'Activo' }}
                     </span>
-                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 tabular-nums">
-                      {{ c.distancia_metros }} m
-                    </span>
                   </div>
                 </div>
-
-                <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{{ c.direccion || 'Sin dirección registrada' }}</p>
-
-                <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono">
-                  <div class="flex items-center gap-1.5 text-slate-500">
-                    <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: getRutaColor(c.ruta) }"></span>
-                    <span class="font-semibold text-slate-800">{{ formatRuta(c.ruta) }}</span>
-                    <span>•</span>
-                    <span class="text-slate-400">ID: {{ c.cliente_id }}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-slate-400 text-[10px]">{{ c.total_pedidos }} ped.</span>
-                    <span class="font-bold text-slate-900 tabular-nums">Bs. {{ c.total_compras.toFixed(2) }}</span>
-                  </div>
-                </div>
-              </button>
+              </div>
             </div>
           </template>
 
-          <!-- Vista 2: Expediente 360° del Cliente -->
+          <!-- Vista 2: Expediente Detallado del Cliente -->
           <template v-else>
-            <!-- Header de Retorno -->
-            <div class="p-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
-              <button
-                type="button"
-                @click="cerrarExpediente"
-                class="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                <span>&larr;</span> Volver al listado
-              </button>
-              
-              <button
-                type="button"
-                @click="vistaMovil = 'mapa'"
-                class="md:hidden text-xs text-slate-800 font-semibold bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs"
-              >
-                Ver en mapa
-              </button>
-            </div>
+            <!-- Cabecera del Expediente -->
+            <div class="p-3 border-b border-slate-200 bg-white space-y-2.5">
+              <div class="flex items-center justify-between">
+                <button
+                  type="button"
+                  @click="cerrarExpediente"
+                  class="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                  </svg>
+                  <span>Volver al listado</span>
+                </button>
 
-            <!-- Ficha Resumen del Cliente -->
-            <div class="p-3.5 bg-white border-b border-slate-100 shrink-0 space-y-2.5">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.cliente }}</h3>
-                  <p class="text-[11px] text-slate-500 mt-0.5">{{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}</p>
+                <div class="flex items-center gap-2">
+                  <!-- Boton para ver en mapa en movil -->
+                  <button
+                    type="button"
+                    @click="vistaMovil = 'mapa'"
+                    class="md:hidden text-xs font-semibold text-sky-600 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Ver en mapa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="cerrarExpediente"
+                    class="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
+                  >
+                    &times;
+                  </button>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
+              </div>
+
+              <div>
+                <span class="text-[10px] font-mono text-slate-400">ID: {{ clienteSeleccionado.cliente_id }}</span>
+                <h3 class="text-sm font-bold text-slate-900 leading-tight">
+                  {{ clienteSeleccionado.cliente }}
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  {{ clienteSeleccionado.direccion || 'Sin direccion registrada' }}
+                </p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-white shadow-2xs">
+                    {{ formatRuta(clienteSeleccionado.ruta) }}
+                  </span>
                   <span
                     class="text-[9px] font-mono font-bold px-2 py-0.5 rounded text-white shadow-2xs"
                     :style="{ backgroundColor: getCanalColor(clienteSeleccionado.canal_calculado) }"
@@ -376,7 +540,7 @@
                 </a>
               </div>
 
-              <!-- Pestañas de Expediente -->
+              <!-- Pestanas de Expediente -->
               <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
                 <button
                   type="button"
@@ -397,7 +561,7 @@
               </div>
             </div>
 
-            <!-- Contenido Pestaña: Ventas -->
+            <!-- Contenido Pestana: Ventas -->
             <div v-show="tabExpediente === 'ventas'" class="flex-1 overflow-y-auto p-3 space-y-2.5">
               <div v-if="cargandoVentas" class="py-8 text-center text-xs text-slate-400 animate-pulse">
                 Cargando historial de compras...
@@ -422,7 +586,7 @@
               </div>
             </div>
 
-            <!-- Contenido Pestaña: Visitas -->
+            <!-- Contenido Pestana: Visitas -->
             <div v-show="tabExpediente === 'visitas'" class="flex-1 overflow-y-auto p-3 space-y-2.5">
               <div v-if="cargandoVisitas" class="py-8 text-center text-xs text-slate-400 animate-pulse">
                 Cargando historial de visitas...
@@ -469,12 +633,12 @@
 
         <!-- Panel del Mapa Leaflet Interactivo -->
         <div
-          class="flex-1 relative min-h-[350px] md:min-h-0 bg-slate-950"
+          class="flex-1 relative min-h-[350px] md:min-h-0 bg-slate-950 h-full w-full"
           :class="vistaMovil === 'mapa' ? 'block' : 'hidden md:block'"
         >
           <div id="map-cercanos" class="absolute inset-0 w-full h-full z-10"></div>
 
-          <!-- Selector de Capas de Mapa (Idéntico a Visor y Fronteras) -->
+          <!-- Selector de Capas de Mapa -->
           <div class="absolute top-3 left-3 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-md flex items-center space-x-1 text-xs">
             <button
               v-for="(layer, key) in mapsConfig.tileLayers"
@@ -488,7 +652,7 @@
             </button>
           </div>
 
-          <!-- Botón Flotante para Abrir Leyenda cuando está Colapsada -->
+          <!-- Boton Flotante para Abrir Leyenda cuando esta Colapsada -->
           <button
             v-if="clientesCercanos.length > 0 && leyendaColapsada"
             type="button"
@@ -505,7 +669,7 @@
             <span class="text-[9.5px] px-1 py-0.2 rounded bg-slate-100 text-slate-500 font-mono font-semibold">{{ elementosLeyenda.length }}</span>
           </button>
 
-          <!-- Leyenda Dinámica en Tiempo Real (Expandida) -->
+          <!-- Leyenda Dinamica en Tiempo Real (Expandida) -->
           <div
             v-if="clientesCercanos.length > 0 && !leyendaColapsada"
             class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-xl z-30 text-xs w-[220px] sm:w-72 max-h-44 sm:max-h-64 flex flex-col"
@@ -513,7 +677,7 @@
             <div class="flex items-center justify-between pb-1 mb-1.5 border-b border-slate-100 shrink-0 gap-1.5">
               <div class="min-w-0 flex-1">
                 <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono truncate">
-                  Codificación: {{ modoColor.toUpperCase() }}
+                  Codificacion: {{ modoColor.toUpperCase() }}
                 </p>
                 <span class="text-[9px] font-mono text-slate-500">{{ elementosLeyenda.length }} tipos</span>
               </div>
@@ -547,7 +711,176 @@
 
       </div>
 
-      <!-- VISOR LIGHTBOX MODAL CON ROTACIÓN -->
+      <!-- ==================================================== -->
+      <!-- DRAWER / BOTTOM SHEET MOVIL: FILTROS & FRONTERAS     -->
+      <!-- ==================================================== -->
+      <Teleport to="body">
+        <div
+          v-if="drawerFiltrosMovil"
+          class="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-xs transition-opacity md:hidden"
+          @click.self="drawerFiltrosMovil = false"
+        >
+          <div class="bg-white rounded-t-2xl shadow-2xl border-t border-slate-200 p-4 max-h-[85vh] overflow-y-auto custom-scroll space-y-4">
+            <!-- Header Drawer -->
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm">Filtros & Fronteras Dias</h4>
+                <p class="text-[11px] text-slate-500">Configura parametros espaciales y visualizacion de territorios</p>
+              </div>
+              <button
+                type="button"
+                @click="drawerFiltrosMovil = false"
+                class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <!-- Seccion 1: Radio de Busqueda -->
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Radio de Busqueda</label>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button
+                  v-for="r in opcionesRadio"
+                  :key="r.valor"
+                  type="button"
+                  @click="seleccionarRadio(r.valor)"
+                  class="py-1.5 px-2 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer text-center"
+                  :class="radioSeleccionado === r.valor ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+                >
+                  {{ r.etiqueta }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Seccion 2: Modo de Coloracion -->
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Color de Clientes</label>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  @click="setModoColor('ruta')"
+                  class="py-1.5 px-2 rounded-lg text-xs font-medium transition-all border cursor-pointer text-center"
+                  :class="modoColor === 'ruta' ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+                >
+                  Ruta
+                </button>
+                <button
+                  type="button"
+                  @click="setModoColor('canal')"
+                  class="py-1.5 px-2 rounded-lg text-xs font-medium transition-all border cursor-pointer text-center"
+                  :class="modoColor === 'canal' ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+                >
+                  Canal
+                </button>
+                <button
+                  type="button"
+                  @click="setModoColor('dia')"
+                  class="py-1.5 px-2 rounded-lg text-xs font-medium transition-all border cursor-pointer text-center"
+                  :class="modoColor === 'dia' ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+                >
+                  Dia
+                </button>
+              </div>
+            </div>
+
+            <!-- Seccion 3: Fronteras Dias -->
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Fronteras Dias (Poligonos)</label>
+                <button
+                  type="button"
+                  @click="verFronterasDias = !verFronterasDias"
+                  class="text-xs font-bold px-2 py-0.5 rounded cursor-pointer transition-all"
+                  :class="verFronterasDias ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'"
+                >
+                  {{ verFronterasDias ? 'Activado' : 'Desactivado' }}
+                </button>
+              </div>
+
+              <!-- Selector de Dias Detallado -->
+              <div v-if="verFronterasDias" class="space-y-2">
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                  <span>Seleccionar dias visibles:</span>
+                  <button
+                    type="button"
+                    @click="toggleTodosDiasFrontera"
+                    class="text-sky-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    {{ filtroDiasFrontera.length === DIAS_SEMANA_CONFIG.length ? 'Desmarcar todos' : 'Marcar todos' }}
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-1.5">
+                  <button
+                    v-for="dia in DIAS_SEMANA_CONFIG"
+                    :key="dia.key"
+                    type="button"
+                    @click="toggleDiaFrontera(dia.key)"
+                    class="py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all border cursor-pointer"
+                    :style="esDiaFronteraActivo(dia.key) ? { backgroundColor: dia.bg, borderColor: dia.color, color: dia.text } : { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', color: '#94A3B8' }"
+                  >
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: dia.color }"></span>
+                      <span>{{ dia.label }}</span>
+                    </div>
+                    <span class="font-mono text-[10px]">{{ esDiaFronteraActivo(dia.key) ? 'Visible' : 'Oculto' }}</span>
+                  </button>
+                </div>
+
+                <!-- Filtro de Rutas en Fronteras Dias -->
+                <div class="pt-2 border-t border-slate-100 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-700">Filtrar por Ruta:</span>
+                    <button
+                      v-if="filtroRutasFrontera.length > 0"
+                      type="button"
+                      @click="filtroRutasFrontera = []"
+                      class="text-rose-600 text-[11px] font-semibold hover:underline cursor-pointer"
+                    >
+                      Ver todas las rutas
+                    </button>
+                  </div>
+
+                  <input
+                    v-model="busquedaRutaFrontera"
+                    type="text"
+                    placeholder="Buscar ruta de frontera..."
+                    class="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white"
+                  />
+
+                  <div class="max-h-36 overflow-y-auto custom-scroll border border-slate-200 rounded-lg divide-y divide-slate-100">
+                    <label
+                      v-for="r in rutasFronterasFiltradasBusqueda"
+                      :key="r"
+                      class="flex items-center justify-between p-2 hover:bg-slate-50 cursor-pointer text-xs font-mono"
+                    >
+                      <span class="text-slate-800">{{ formatRuta(r) }}</span>
+                      <input
+                        type="checkbox"
+                        :checked="filtroRutasFrontera.includes(r)"
+                        @change="toggleRutaFrontera(r)"
+                        class="rounded border-slate-300 text-sky-600 focus:ring-0 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Boton de Cierre -->
+            <button
+              type="button"
+              @click="drawerFiltrosMovil = false"
+              class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md text-center"
+            >
+              Listo / Aplicar
+            </button>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- VISOR LIGHTBOX MODAL CON ROTACION -->
       <PhotoLightboxModal
         :show="fotoLightbox.show"
         :photo-url="fotoLightbox.url"
@@ -561,13 +894,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue';
 import { PhotoLightboxModal } from '@/Components/UI';
 import { mapsConfig } from '@/Config/maps';
-import { getCanalColor, getRutaColor, formatRuta, getDiaColor } from '@/Config/colors';
+import { getCanalColor, getRutaColor, formatRuta, getDiaColor, DIAS_SEMANA_CONFIG } from '@/Config/colors';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -591,9 +924,13 @@ const props = defineProps({
     type: Array,
     default: () => [1, 2, 3],
   },
+  fronteras_dias: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-// Estado de Lightbox con Rotación
+// Estado de Lightbox con Rotacion
 const fotoLightbox = ref({
   show: false,
   url: '',
@@ -621,22 +958,7 @@ const opcionesRadio = [
   { valor: 3000, etiqueta: '3 km' },
 ];
 
-const mesesLista = [
-  { numero: 1, corto: 'ENE', nombre: 'Enero' },
-  { numero: 2, corto: 'FEB', nombre: 'Febrero' },
-  { numero: 3, corto: 'MAR', nombre: 'Marzo' },
-  { numero: 4, corto: 'ABR', nombre: 'Abril' },
-  { numero: 5, corto: 'MAY', nombre: 'Mayo' },
-  { numero: 6, corto: 'JUN', nombre: 'Junio' },
-  { numero: 7, corto: 'JUL', nombre: 'Julio' },
-  { numero: 8, corto: 'AGO', nombre: 'Agosto' },
-  { numero: 9, corto: 'SEP', nombre: 'Septiembre' },
-  { numero: 10, corto: 'OCT', nombre: 'Octubre' },
-  { numero: 11, corto: 'NOV', nombre: 'Noviembre' },
-  { numero: 12, corto: 'DIC', nombre: 'Diciembre' },
-];
-
-// Estados reactivos
+// Estados reactivos generales
 const radioSeleccionado = ref(500);
 const anioSeleccionado = ref(props.anio_default || new Date().getFullYear());
 const filtroMeses = ref([...props.meses_default]);
@@ -664,12 +986,87 @@ const inputEnlaceMaps = ref('');
 const resolviendoEnlace = ref(false);
 const mensajeEnlace = ref(null);
 
+// ESTADO DE FRONTERAS DIAS
+const verFronterasDias = ref(true);
+const filtroDiasFrontera = ref(DIAS_SEMANA_CONFIG.map(d => d.key));
+const filtroRutasFrontera = ref([]);
+const drawerFiltrosMovil = ref(false);
+const dropdownRutasFronteraAbierto = ref(false);
+const busquedaRutaFrontera = ref('');
+
 let map = null;
 let currentTileLayer = null;
 let centerMarker = null;
 let radiusCircle = null;
 let clientsLayer = null;
+let fronterasDiasLayer = null;
 const clientMarkersMap = new Map();
+
+function normalizarDiaKey(dia) {
+  if (!dia) return '';
+  return String(dia).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+}
+
+function esDiaFronteraActivo(diaKey) {
+  return filtroDiasFrontera.value.includes(normalizarDiaKey(diaKey));
+}
+
+function toggleDiaFrontera(diaKey) {
+  const norm = normalizarDiaKey(diaKey);
+  const idx = filtroDiasFrontera.value.indexOf(norm);
+  if (idx > -1) {
+    filtroDiasFrontera.value.splice(idx, 1);
+  } else {
+    filtroDiasFrontera.value.push(norm);
+  }
+}
+
+function toggleTodosDiasFrontera() {
+  if (filtroDiasFrontera.value.length === DIAS_SEMANA_CONFIG.length) {
+    filtroDiasFrontera.value = [];
+  } else {
+    filtroDiasFrontera.value = DIAS_SEMANA_CONFIG.map(d => d.key);
+  }
+}
+
+const rutasDisponiblesFronteras = computed(() => {
+  const set = new Set();
+  (props.fronteras_dias || []).forEach(f => {
+    if (f.ruta) set.add(String(f.ruta).trim());
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+});
+
+const rutasFronterasFiltradasBusqueda = computed(() => {
+  const q = busquedaRutaFrontera.value.trim().toLowerCase();
+  if (!q) return rutasDisponiblesFronteras.value;
+  return rutasDisponiblesFronteras.value.filter(r => r.toLowerCase().includes(q));
+});
+
+function toggleRutaFrontera(ruta) {
+  const idx = filtroRutasFrontera.value.indexOf(ruta);
+  if (idx > -1) {
+    filtroRutasFrontera.value.splice(idx, 1);
+  } else {
+    filtroRutasFrontera.value.push(ruta);
+  }
+}
+
+function seleccionarTodasRutasFronteras() {
+  filtroRutasFrontera.value = [];
+}
+
+const fronterasFiltradas = computed(() => {
+  if (!verFronterasDias.value || !props.fronteras_dias || props.fronteras_dias.length === 0) {
+    return [];
+  }
+  return props.fronteras_dias.filter(f => {
+    const diaNorm = normalizarDiaKey(f.dia);
+    if (!filtroDiasFrontera.value.includes(diaNorm)) return false;
+    if (filtroRutasFrontera.value.length > 0 && !filtroRutasFrontera.value.includes(f.ruta)) return false;
+    return true;
+  });
+});
 
 const clientesFiltrados = computed(() => {
   if (!busquedaTexto.value.trim()) return clientesCercanos.value;
@@ -681,7 +1078,7 @@ const clientesFiltrados = computed(() => {
   );
 });
 
-// Elementos dinámicos para la leyenda del mapa
+// Elementos dinamicos para la leyenda del mapa
 const elementosLeyenda = computed(() => {
   if (clientesCercanos.value.length === 0) return [];
   const mapCounts = new Map();
@@ -694,8 +1091,8 @@ const elementosLeyenda = computed(() => {
       nombre = formatRuta(c.ruta);
       color = getRutaColor(c.ruta);
     } else if (modoColor.value === 'dia') {
-      key = c.dia_norm || 'Sin Día';
-      nombre = c.dia_norm || 'Sin Día';
+      key = c.dia_norm || 'Sin Dia';
+      nombre = c.dia_norm || 'Sin Dia';
       color = getDiaColor(c.dia_norm);
     } else {
       key = c.canal_calculado || 'General';
@@ -726,7 +1123,7 @@ function seleccionarRadio(r) {
 
 function obtenerUbicacionActual() {
   if (!navigator.geolocation) {
-    alert('Tu dispositivo o navegador no soporta geolocalización');
+    alert('Tu dispositivo o navegador no soporta geolocalizacion');
     return;
   }
   obteniendoGps.value = true;
@@ -742,16 +1139,10 @@ function obtenerUbicacionActual() {
     },
     (err) => {
       obteniendoGps.value = false;
-      alert('No se pudo obtener tu ubicación GPS: ' + err.message);
+      alert('No se pudo obtener tu ubicacion GPS: ' + err.message);
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
-}
-
-function reconsultar() {
-  if (origenConsulta.value) {
-    consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
-  }
 }
 
 async function resolverEnlaceMaps() {
@@ -776,14 +1167,14 @@ async function resolverEnlaceMaps() {
 
       mensajeEnlace.value = {
         tipo: 'exito',
-        texto: `Ubicación traducida: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        texto: `Ubicacion traducida: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
       };
 
       if (map) {
         map.flyTo([lat, lng], 16, { duration: 0.8 });
       }
 
-      // Ejecutar la consulta espacial de clientes cercanos alrededor de esa ubicación
+      // Ejecutar la consulta espacial de clientes cercanos alrededor de esa ubicacion
       consultarCercanos(lat, lng);
 
       setTimeout(() => {
@@ -792,14 +1183,14 @@ async function resolverEnlaceMaps() {
     } else {
       mensajeEnlace.value = {
         tipo: 'error',
-        texto: res.data?.message || 'No se pudo extraer la ubicación del enlace.',
+        texto: res.data?.message || 'No se pudo extraer la ubicacion del enlace.',
       };
     }
   } catch (error) {
     console.error('Error al resolver enlace de Maps:', error);
     mensajeEnlace.value = {
       tipo: 'error',
-      texto: error.response?.data?.message || 'Error de comunicación al traducir enlace.',
+      texto: error.response?.data?.message || 'Error de comunicacion al traducir enlace.',
     };
   } finally {
     resolviendoEnlace.value = false;
@@ -869,10 +1260,54 @@ function initMap() {
   L.control.zoom({ position: 'topright' }).addTo(map);
   cambiarCapaMapa(capaActual.value);
 
+  fronterasDiasLayer = L.featureGroup().addTo(map);
   clientsLayer = L.featureGroup().addTo(map);
+
+  renderizarFronterasDias();
 
   map.on('click', (e) => {
     consultarCercanos(e.latlng.lat, e.latlng.lng);
+  });
+}
+
+function renderizarFronterasDias() {
+  if (!map) return;
+  if (!fronterasDiasLayer) {
+    fronterasDiasLayer = L.featureGroup().addTo(map);
+  } else {
+    fronterasDiasLayer.clearLayers();
+  }
+
+  if (!verFronterasDias.value) return;
+
+  fronterasFiltradas.value.forEach(fd => {
+    if (!fd.geojson) return;
+    const color = getDiaColor(fd.dia);
+    const layer = L.geoJSON(fd.geojson, {
+      style: {
+        color: color,
+        weight: 2,
+        dashArray: '5, 5',
+        fillColor: color,
+        fillOpacity: 0.12,
+      },
+      onEachFeature: (feature, l) => {
+        l.bindTooltip(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.3;">
+            <div style="font-weight: bold; color: ${color};">Frontera: ${fd.dia}</div>
+            <div style="font-size: 10px; color: #475569;">Ruta: ${formatRuta(fd.ruta)}</div>
+          </div>
+        `, { sticky: true, opacity: 0.95 });
+
+        l.on('mouseover', () => {
+          l.setStyle({ fillOpacity: 0.28, weight: 3 });
+        });
+        l.on('mouseout', () => {
+          l.setStyle({ fillOpacity: 0.12, weight: 2 });
+        });
+      }
+    });
+    layer.addTo(fronterasDiasLayer);
   });
 }
 
@@ -940,7 +1375,7 @@ function renderizarEnMapa() {
           <span style="font-weight: 700; font-size: 12px;" class="truncate">${c.cliente}</span>
           ${estadoBadge}
         </div>
-        <div style="color: #64748B; margin-bottom: 5px;">${c.direccion || 'Sin dirección registrada'}</div>
+        <div style="color: #64748B; margin-bottom: 5px;">${c.direccion || 'Sin direccion registrada'}</div>
         <div style="display: flex; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; justify-content: space-between; align-items: center;">
           <span>Ruta: <b style="color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</b></span>
           <span>•</span>
@@ -964,6 +1399,11 @@ async function abrirExpedienteCliente(c) {
   tabExpediente.value = 'ventas';
   ventasCliente.value = [];
   visitasCliente.value = [];
+
+  // En movil cambiar a pestana de lista/expediente para inspeccionar la informacion
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    vistaMovil.value = 'lista';
+  }
 
   if (map && c.latitud && c.longitud) {
     map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
@@ -1002,6 +1442,18 @@ function cerrarExpediente() {
   clienteActivoId.value = null;
 }
 
+watch([verFronterasDias, filtroDiasFrontera, filtroRutasFrontera], () => {
+  renderizarFronterasDias();
+}, { deep: true });
+
+watch(vistaMovil, (newVal) => {
+  if (newVal === 'mapa' && map) {
+    nextTick(() => {
+      map.invalidateSize();
+    });
+  }
+});
+
 onMounted(async () => {
   await nextTick();
   initMap();
@@ -1017,4 +1469,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
