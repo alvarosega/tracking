@@ -19,55 +19,24 @@ export const navigationConfig = {
       description: 'Métricas clave y estado general'
     },
     {
-      id: 'auditoria',
-      name: 'Auditoría & Saneamiento',
-      shortName: 'Auditoría & Saneamiento',
-      route: 'supervisor.auditoria.pendientes',
-      permissionModules: ['auditoria', 'saneamiento'],
-      componentPrefix: ['Supervisor/Auditoria', 'Supervisor/Saneamiento'],
+      id: 'saneamiento',
+      name: 'Saneamiento Padrón',
+      shortName: 'Saneamiento',
+      route: 'supervisor.saneamiento.visor',
+      permissionModules: ['saneamiento', 'auditoria'],
+      componentPrefix: ['Supervisor/Saneamiento', 'Supervisor/Auditoria'],
       icon: 'ShieldCheckIcon',
-      badge: 'AUDIT/GIS',
+      badge: 'GIS/AUDIT',
       badgeColor: 'amber',
-      description: 'Auditoría de ruteo, saneamiento del padrón y visor territorial',
+      description: 'Saneamiento del padrón, visor territorial y auditoría de ruteo',
       submodules: [
-        // 1. Auditoría de Ruteo
-        {
-          id: 'pendientes',
-          module: 'auditoria',
-          name: 'Cambios Pendientes',
-          route: 'supervisor.auditoria.pendientes',
-          component: 'Supervisor/Auditoria/Pendientes',
-          icon: 'ShieldCheckIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'historico',
-          module: 'auditoria',
-          name: 'Histórico Resoluciones',
-          route: 'supervisor.auditoria.historico',
-          component: 'Supervisor/Auditoria/Historico',
-          icon: 'ClockIcon',
-          group: 'Auditoría de Ruteo'
-        },
-        {
-          id: 'clientes',
-          module: 'auditoria',
-          name: 'Cambios por Cliente',
-          route: 'supervisor.auditoria.clientes',
-          component: 'Supervisor/Auditoria/Clientes',
-          icon: 'UserGroupIcon',
-          group: 'Auditoría de Ruteo'
-        },
-
-        // 2. Saneamiento Padrón
         {
           id: 'visor',
           module: 'saneamiento',
           name: 'Visor y Fronteras',
           route: 'supervisor.saneamiento.visor',
           component: 'Supervisor/Saneamiento/Visor',
-          icon: 'MapPinIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'MapPinIcon'
         },
         {
           id: 'cercanos',
@@ -75,8 +44,7 @@ export const navigationConfig = {
           name: 'Clientes Cercanos',
           route: 'supervisor.saneamiento.cercanos',
           component: 'Supervisor/Saneamiento/Cercanos',
-          icon: 'RadarIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'RadarIcon'
         },
         {
           id: 'duplicados',
@@ -84,8 +52,7 @@ export const navigationConfig = {
           name: 'Clientes Duplicados',
           route: 'supervisor.saneamiento.duplicados',
           component: 'Supervisor/Saneamiento/Duplicados',
-          icon: 'UsersIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'UsersIcon'
         },
         {
           id: 'dias',
@@ -93,8 +60,7 @@ export const navigationConfig = {
           name: 'Días Desalineados',
           route: 'supervisor.saneamiento.dias',
           component: 'Supervisor/Saneamiento/Dias',
-          icon: 'CalendarIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'CalendarIcon'
         },
         {
           id: 'calidad',
@@ -102,8 +68,7 @@ export const navigationConfig = {
           name: 'Calidad de Datos',
           route: 'supervisor.saneamiento.calidad',
           component: 'Supervisor/Saneamiento/Calidad',
-          icon: 'CheckBadgeIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'CheckBadgeIcon'
         },
         {
           id: 'bd',
@@ -111,8 +76,31 @@ export const navigationConfig = {
           name: 'Matriz Saneamiento BD',
           route: 'supervisor.saneamiento.bd',
           component: 'Supervisor/Saneamiento/Bd',
-          icon: 'CircleStackIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'CircleStackIcon'
+        },
+        {
+          id: 'pendientes',
+          module: 'auditoria',
+          name: 'Cambios Pendientes',
+          route: 'supervisor.auditoria.pendientes',
+          component: 'Supervisor/Auditoria/Pendientes',
+          icon: 'ShieldCheckIcon'
+        },
+        {
+          id: 'historico',
+          module: 'auditoria',
+          name: 'Histórico Resoluciones',
+          route: 'supervisor.auditoria.historico',
+          component: 'Supervisor/Auditoria/Historico',
+          icon: 'ClockIcon'
+        },
+        {
+          id: 'clientes',
+          module: 'auditoria',
+          name: 'Cambios por Cliente',
+          route: 'supervisor.auditoria.clientes',
+          component: 'Supervisor/Auditoria/Clientes',
+          icon: 'UserGroupIcon'
         },
         {
           id: 'propuestas',
@@ -120,8 +108,7 @@ export const navigationConfig = {
           name: 'Historial de Propuestas',
           route: 'supervisor.saneamiento.propuestas',
           component: 'Supervisor/Saneamiento/Propuestas',
-          icon: 'ClipboardDocumentCheckIcon',
-          group: 'Saneamiento Padrón'
+          icon: 'ClipboardDocumentCheckIcon'
         }
       ]
     },
@@ -540,6 +527,9 @@ export const saneamientoSubTabs = [
   { id: 'dias', module: 'saneamiento', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
   { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
   { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
+  { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
+  { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
+  { id: 'clientes', module: 'auditoria', name: 'Cambios por Cliente', route: 'supervisor.auditoria.clientes' },
   { id: 'propuestas', module: 'saneamiento', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
 ];
 
@@ -550,10 +540,7 @@ export const altasEdicionesSubTabs = [
   { id: 'modificaciones', module: 'altas-ediciones', name: 'Modificaciones', route: 'supervisor.altas-ediciones.modificaciones' }
 ];
 
-export const auditoriaSaneamientoSubTabs = [
-  ...auditoriaSubTabs,
-  ...saneamientoSubTabs
-];
+export const auditoriaSaneamientoSubTabs = saneamientoSubTabs;
 
 export const trackingSubTabs = [
   { id: 'vivo', module: 'tracking', name: 'Monitoreo en el Día', route: 'supervisor.tracking.index' },
