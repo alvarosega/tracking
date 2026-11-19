@@ -700,9 +700,20 @@ class GetAvanceClienteDetalleFechasAction
         $totalMontoMesActualMatch = array_sum(array_column($productosResultado, 'monto_match_mtd'));
         $totalUnidadesMesActualMatch = array_sum(array_column($productosResultado, 'cant_match_mtd'));
 
+        $dimRuta = DB::connection('supervisor')->table('dim_rutas')
+            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+            ->first();
+        $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
+            ? strtoupper(trim((string) $dimRuta->canal))
+            : 'SC';
+        $reglaCob = $this->cumplimientoAction->obtenerUmbralCoberturaCanal($canalRuta);
+        $cumpleUmbral = $this->cumplimientoAction->clienteCumpleCoberturaCanal((float) $totalMontoMesActual, $canalRuta);
+
         return [
             'cliente_id' => $clienteId,
             'ruta' => $rutaClean,
+            'canal' => $canalRuta,
+            'regla_cobertura' => $reglaCob,
             'kpi' => $kpiClave,
             'kpi_nombre' => self::KPIS_NOMBRES[$kpiClave] ?? $kpiClave,
             'fecha_corte' => $fechaCorte,
@@ -725,6 +736,10 @@ class GetAvanceClienteDetalleFechasAction
             'total_productos_unicos' => count($prodMap),
             'total_fechas_unicas' => count($diasMap),
             'resumen_cobertura' => [
+                'canal' => $canalRuta,
+                'umbral_minimo' => (float) ($reglaCob['min'] ?? 0.0),
+                'umbral_operador' => (string) ($reglaCob['operador'] ?? '>='),
+                'cumple_umbral' => $cumpleUmbral,
                 'total_skus_3m' => $totalSkus3m,
                 'total_skus_cubiertos_mtd' => $totalSkusCubiertosMtd,
                 'total_unidades_sugeridas' => $totalSugeridoUnidades,

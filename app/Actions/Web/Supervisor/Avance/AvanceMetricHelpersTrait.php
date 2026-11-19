@@ -9,6 +9,84 @@ use Illuminate\Support\Facades\DB;
 
 trait AvanceMetricHelpersTrait
 {
+    /**
+     * Reglas de umbral mínimo facturado en el período para que un cliente cuente como Cobertura según su Canal.
+     * Centralizado y editable directamente en el código para su rápida modificación y mantenimiento:
+     * - MAY:  monto >= 500.0 (Mayoristas)
+     * - MZO:  monto >= 350.0 (Mercados / Macrozonas)
+     * - PROV: monto >= 350.0 (Provincias)
+     * - PRT:  monto > 50.0   (Porteo / Preventa)
+     * - TDB:  monto > 0.0    (Tiendas de Barrio)
+     * - SC:   monto > 0.0    (Sin Canal / General)
+     *
+     * @var array<string, array{min: float, operador: string, descripcion: string}>
+     */
+    public static array $reglasCoberturaCanal = [
+        'MAY'  => ['min' => 500.0, 'operador' => '>=', 'descripcion' => 'Mayoristas (>= 500 Bs)'],
+        'MZO'  => ['min' => 350.0, 'operador' => '>=', 'descripcion' => 'Mercados / Macrozonas (>= 350 Bs)'],
+        'PROV' => ['min' => 350.0, 'operador' => '>=', 'descripcion' => 'Provincias (>= 350 Bs)'],
+        'PRT'  => ['min' => 50.0,  'operador' => '>',  'descripcion' => 'Porteo (> 50 Bs)'],
+        'TDB'  => ['min' => 0.0,   'operador' => '>',  'descripcion' => 'Tiendas de Barrio (> 0 Bs)'],
+        'SC'   => ['min' => 0.0,   'operador' => '>',  'descripcion' => 'Sin Canal / General (> 0 Bs)'],
+    ];
+
+    /**
+     * Mapa de alias o sinónimos comunes de canales para asegurar coincidencia exacta con dim_rutas.
+     *
+     * @var array<string, string>
+     */
+    public static array $aliasCanales = [
+        'MAYORISTA'  => 'MAY',
+        'MAYORISTAS' => 'MAY',
+        'MERCADO'    => 'MZO',
+        'MERCADOS'   => 'MZO',
+        'MACROZONA'  => 'MZO',
+        'MACROZONAS' => 'MZO',
+        'PROVINCIA'  => 'PROV',
+        'PROVINCIAS' => 'PROV',
+        'PORTEO'     => 'PRT',
+        'TIENDA'     => 'TDB',
+        'TIENDAS'    => 'TDB',
+        'SIN CANAL'  => 'SC',
+    ];
+
+    /**
+     * Obtiene la regla de umbral de cobertura configurada para un canal.
+     *
+     * @return array{min: float, operador: string, descripcion: string}
+     */
+    public function obtenerUmbralCoberturaCanal(?string $canal): array
+    {
+        $c = strtoupper(trim((string) $canal));
+        if (isset(self::$reglasCoberturaCanal[$c])) {
+            return self::$reglasCoberturaCanal[$c];
+        }
+        if (isset(self::$aliasCanales[$c]) && isset(self::$reglasCoberturaCanal[self::$aliasCanales[$c]])) {
+            return self::$reglasCoberturaCanal[self::$aliasCanales[$c]];
+        }
+        return self::$reglasCoberturaCanal['SC'] ?? ['min' => 0.0, 'operador' => '>', 'descripcion' => 'General (> 0 Bs)'];
+    }
+
+    /**
+     * Evalúa si un monto facturado acumulado cumple con el umbral de Cobertura para un canal específico.
+     */
+    public function clienteCumpleCoberturaCanal(float $monto, ?string $canal): bool
+    {
+        if ($monto <= 0.0001) {
+            return false;
+        }
+
+        $regla = $this->obtenerUmbralCoberturaCanal($canal);
+        $min = (float) ($regla['min'] ?? 0.0);
+        $op = (string) ($regla['operador'] ?? '>=');
+
+        return match ($op) {
+            '>' => $monto > $min,
+            '>=' => $monto >= $min,
+            default => $monto >= $min,
+        };
+    }
+
     protected static array $codigosClinical = [
         '64880313',
         '64819237',

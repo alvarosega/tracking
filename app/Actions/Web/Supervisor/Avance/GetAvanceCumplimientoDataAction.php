@@ -290,6 +290,10 @@ class GetAvanceCumplimientoDataAction
 
         $necesitaComprasCob = ($vista === 'kpi' && in_array($kpiClave, ['cob_general', 'cob_seda', 'cob_clinical', 'cob_core'], true));
 
+        // Acumuladores de montos por cliente para validar cobertura según umbrales de canal
+        $montoClienteCob = [];
+        $montoClienteCobDia = [];
+
         foreach ($ventasRaw as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
             $rc = (string) $v->ruta_clean;
@@ -331,18 +335,46 @@ class GetAvanceCumplimientoDataAction
                             }
                         }
                     } elseif ($cid > 0) {
-                        $acumCob[$targetRuta][$kId][$cid] = true;
+                        $montoClienteCob[$targetRuta][$kId][$cid] = ($montoClienteCob[$targetRuta][$kId][$cid] ?? 0.0) + $monto;
                         if ($necesitaComprasCob && $kId === $kpiClave) {
                             $comprasCob[$targetRuta][$kId][$cid][] = [$fVStr, $monto];
                         }
                         if ($esDiaCorte) {
-                            $acumCobDia[$targetRuta][$kId][$cid] = true;
+                            $montoClienteCobDia[$targetRuta][$kId][$cid] = ($montoClienteCobDia[$targetRuta][$kId][$cid] ?? 0.0) + $monto;
                         }
                     }
                 }
             }
         }
         unset($ventasRaw);
+
+        // Calificación final de clientes cubiertos por KPI según el Canal de la Ruta
+        foreach ($universoRutas as $r) {
+            $canalRuta = $rutasCatalogo[$r]['canal'] ?? 'SC';
+            foreach ($kpisOrden as $kId) {
+                if ($kpisMap[$kId]['tipo'] === 'COBERTURA') {
+                    $cliMontos = $montoClienteCob[$r][$kId] ?? [];
+                    foreach ($cliMontos as $cid => $mTot) {
+                        $cumple = ($kId === 'cob_general')
+                            ? $this->clienteCumpleCoberturaCanal((float) $mTot, $canalRuta)
+                            : ($mTot > 0);
+                        if ($cumple) {
+                            $acumCob[$r][$kId][$cid] = true;
+                        }
+                    }
+
+                    $cliMontosDia = $montoClienteCobDia[$r][$kId] ?? [];
+                    foreach ($cliMontosDia as $cid => $mDia) {
+                        $cumpleDia = ($kId === 'cob_general')
+                            ? $this->clienteCumpleCoberturaCanal((float) $mDia, $canalRuta)
+                            : ($mDia > 0);
+                        if ($cumpleDia) {
+                            $acumCobDia[$r][$kId][$cid] = true;
+                        }
+                    }
+                }
+            }
+        }
 
         // Canales oficiales disponibles limpios (sin números)
         $canalesValidosDisponibles = array_keys($canalesValidosSet);
@@ -454,6 +486,7 @@ class GetAvanceCumplimientoDataAction
                 'rutas' => $matrizRutas,
                 'meses_cerrados' => $mesesCerrados,
                 'metadata_kpis' => $this->obtenerMetadataKpis(),
+                'reglas_cobertura_canal' => self::$reglasCoberturaCanal,
             ];
         }
 
@@ -574,6 +607,9 @@ class GetAvanceCumplimientoDataAction
                 $cobDict = $comprasCob[$ruta][$clave] ?? [];
                 foreach ($cobDict as $cid => $cList) {
                     if (empty($cList)) {
+                        continue;
+                    }
+                    if ($clave === 'cob_general' && !isset($acumCob[$ruta][$clave][$cid])) {
                         continue;
                     }
                     usort($cList, fn ($a, $b) => strcmp($a[0], $b[0]));
@@ -832,6 +868,7 @@ class GetAvanceCumplimientoDataAction
             'cantidad_minima' => $cantidadMinima,
             'meses_cerrados' => $mesesCerrados,
             'metadata_kpis' => $this->obtenerMetadataKpis(),
+            'reglas_cobertura_canal' => self::$reglasCoberturaCanal,
         ];
     }
 

@@ -628,10 +628,18 @@
                               </template>
                               <template v-else-if="esCobertura">
                                 {{ carteraClientes.length }} clientes en cartera · 
-                                <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores (cubiertos)</strong> · 
-                                <strong class="text-amber-600 font-bold">{{ clientesSinCompra.length }} sin compra (pendientes)</strong> · 
-                                Cobertura: <strong class="text-[#0071E3] font-bold">{{ carteraClientes.length > 0 ? formatPct((clientesConCompra.length / carteraClientes.length) * 100) : '0.0%' }}</strong> · 
+                                <strong class="text-emerald-600 font-bold">{{ clientesCubiertos.length }} cubiertos</strong>
+                                <template v-if="clientesBajoUmbral.length > 0">
+                                  · <strong class="text-amber-600 font-bold">{{ clientesBajoUmbral.length }} bajo umbral</strong>
+                                </template>
+                                · <strong class="text-[#86868B] font-bold">{{ clientesSinCompra.length }} sin compra</strong> · 
+                                Cobertura: <strong class="text-[#0071E3] font-bold">{{ carteraClientes.length > 0 ? formatPct((clientesCubiertos.length / carteraClientes.length) * 100) : '0.0%' }}</strong> · 
                                 Total Facturado: <strong class="text-[#1D1D1F] font-bold">Bs {{ formatNum(totalVentaCartera, 2) }}</strong>
+                                <template v-if="reglaCoberturaRuta && reglaCoberturaRuta.min > 0">
+                                  <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200" :title="reglaCoberturaRuta.descripcion">
+                                    Canal {{ canalRutaActual }}: Umbral {{ reglaCoberturaRuta.operador }} Bs {{ reglaCoberturaRuta.min }}
+                                  </span>
+                                </template>
                               </template>
                               <template v-else>
                                 {{ carteraClientes.length }} clientes registrados · 
@@ -681,14 +689,24 @@
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
                                 :class="filtroClientesTab === 'compradores' ? 'glass-active-pill text-[#0071E3]' : 'text-[#6E6E73]'"
                               >
-                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : 'Compraron' }} ({{ clientesConCompra.length }})
+                                {{ modoActivo === 'cob_core' ? 'Compraron MTD' : (esCobertura ? 'Cubiertos' : 'Compraron') }} ({{ esCobertura ? clientesCubiertos.length : clientesConCompra.length }})
+                              </button>
+                              <button
+                                v-if="esCobertura && clientesBajoUmbral.length > 0"
+                                type="button"
+                                @click="filtroClientesTab = 'bajo_umbral'"
+                                class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
+                                :class="filtroClientesTab === 'bajo_umbral' ? 'glass-active-pill text-amber-700' : 'text-[#6E6E73]'"
+                                :title="`Clientes con compra que no alcanzaron el umbral mínimo del canal (${reglaCoberturaRuta?.operador || '>='} Bs ${reglaCoberturaRuta?.min || 0})`"
+                              >
+                                Bajo Umbral ({{ clientesBajoUmbral.length }})
                               </button>
                               <button
                                 v-if="esCobertura"
                                 type="button"
                                 @click="filtroClientesTab = 'sin_compra'"
                                 class="px-2 py-0.5 rounded-[6px] transition-all cursor-pointer font-bold"
-                                :class="filtroClientesTab === 'sin_compra' ? 'glass-active-pill text-amber-700' : 'text-[#6E6E73]'"
+                                :class="filtroClientesTab === 'sin_compra' ? 'glass-active-pill text-red-700' : 'text-[#6E6E73]'"
                               >
                                 Sin Compra ({{ clientesSinCompra.length }})
                               </button>
@@ -1203,13 +1221,21 @@
                                 <template v-else-if="esCobertura">
                                   <td class="py-1.5 px-2.5 text-center">
                                     <span
-                                      v-if="cli.tiene_logro || (cli.monto_bs || 0) > 0"
+                                      v-if="cli.tiene_logro"
                                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                      title="Cliente cubierto: cumple el umbral mínimo de compra para su canal"
                                     >
                                       <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                       </svg>
                                       <span>COMPRÓ</span>
+                                    </span>
+                                    <span
+                                      v-else-if="(cli.monto_bs || 0) > 0"
+                                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold text-[8.5px] bg-amber-50 text-amber-800 border border-amber-200"
+                                      :title="`Compró Bs ${formatNum(cli.monto_bs, 2)}, pero no alcanza el umbral de ${cli.umbral_operador || reglaCoberturaRuta?.operador || '>='} Bs ${cli.umbral_minimo ?? reglaCoberturaRuta?.min ?? 0} para el canal ${cli.canal || canalRutaActual}`"
+                                    >
+                                      <span>BAJO UMBRAL</span>
                                     </span>
                                     <span
                                       v-else
@@ -1315,13 +1341,19 @@
                                           <div class="flex items-center gap-1.5">
                                             <span class="text-[#86868B] font-sans">Cobertura:</span>
                                             <span
-                                              v-if="cli.tiene_logro || totalClienteMtdBs(cli.cliente_id) > 0"
+                                              v-if="cli.tiene_logro"
                                               class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold font-sans text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200"
                                             >
                                               <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                               </svg>
                                               <span>CUBIERTO (COMPRÓ)</span>
+                                            </span>
+                                            <span
+                                              v-else-if="(cli.monto_bs || 0) > 0"
+                                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold font-sans text-[10px] bg-amber-100 text-amber-800 border border-amber-200"
+                                            >
+                                              <span>BAJO UMBRAL (No computa cobertura: exige {{ cli.umbral_operador || reglaCoberturaRuta?.operador || '>=' }} Bs {{ cli.umbral_minimo ?? reglaCoberturaRuta?.min ?? 0 }})</span>
                                             </span>
                                             <span
                                               v-else
@@ -1717,7 +1749,10 @@
                               </td>
                               <td class="py-2 px-2.5 text-center">
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                  {{ clientesConCompra.length }} CUBIERTOS ({{ carteraClientes.length > 0 ? Math.round((clientesConCompra.length / carteraClientes.length) * 100) : 0 }}%)
+                                  {{ clientesCubiertos.length }} CUBIERTOS ({{ carteraClientes.length > 0 ? Math.round((clientesCubiertos.length / carteraClientes.length) * 100) : 0 }}%)
+                                </span>
+                                <span v-if="clientesBajoUmbral.length > 0" class="ml-1 text-[9px] text-amber-700 font-semibold" :title="`${clientesBajoUmbral.length} clientes compraron pero no alcanzaron el umbral mínimo del canal`">
+                                  ({{ clientesBajoUmbral.length }} bajo umbral)
                                 </span>
                               </td>
                               <td class="py-2 px-2.5 text-right font-mono font-bold text-emerald-700 bg-emerald-50/30">
@@ -2377,6 +2412,8 @@ const carteraClientes = ref([])
 const diasRuta = ref([])
 const modoDetalleRuta = ref('dias') // 'dias' | 'clientes'
 const diaSeleccionadoInline = ref(null)
+const canalRutaActual = ref('')
+const reglaCoberturaRuta = ref(null)
 
 const mesesCerradosGlobal = computed(() => {
   return store.datosCumplimiento?.meses_cerrados || []
@@ -2650,6 +2687,14 @@ async function toggleClienteAccordion(cliente, ruta) {
   }
 }
 
+const clientesCubiertos = computed(() => {
+  return carteraClientes.value.filter(c => c.tiene_logro)
+})
+
+const clientesBajoUmbral = computed(() => {
+  return carteraClientes.value.filter(c => !c.tiene_logro && ((c.monto_bs || 0) > 0 || (c.cantidad || 0) > 0))
+})
+
 const clientesConCompra = computed(() => {
   return carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
 })
@@ -2669,7 +2714,9 @@ const clientesConHistorico = computed(() => {
 const clientesRutaFiltrados = computed(() => {
   let lista = carteraClientes.value
   if (filtroClientesTab.value === 'compradores') {
-    lista = clientesConCompra.value
+    lista = esCobertura.value ? clientesCubiertos.value : clientesConCompra.value
+  } else if (filtroClientesTab.value === 'bajo_umbral') {
+    lista = clientesBajoUmbral.value
   } else if (filtroClientesTab.value === 'sin_compra') {
     lista = clientesSinCompra.value
   } else if (filtroClientesTab.value === 'con_historico') {
@@ -3138,12 +3185,16 @@ async function toggleDetalleRuta(ruta) {
     diaSeleccionadoInline.value = null
     clienteExpandidoId.value = null
     errorCargaClientes.value = null
+    canalRutaActual.value = ''
+    reglaCoberturaRuta.value = null
     return
   }
   rutaExpandida.value = ruta
   diaSeleccionadoInline.value = null
   clienteExpandidoId.value = null
   errorCargaClientes.value = null
+  canalRutaActual.value = ''
+  reglaCoberturaRuta.value = null
 
   if (modoActivo.value === 'pizarra_unilever') {
     // Para la pizarra Unilever, el desglose cronológico día a día ya reside en la propiedad dias de la fila
@@ -3174,6 +3225,8 @@ async function toggleDetalleRuta(ruta) {
       cantidad_minima: Number(store.cantidadMinima) || 1
     })
     carteraClientes.value = res.data?.clientes || []
+    canalRutaActual.value = res.data?.canal || ''
+    reglaCoberturaRuta.value = res.data?.regla_cobertura || null
     diasRuta.value = res.data?.por_dia || []
     mesesCerradosRuta.value = res.data?.meses_cerrados || mesesCerradosGlobal.value || []
     totales3mRuta.value = res.data?.totales_3m_ruta || {}

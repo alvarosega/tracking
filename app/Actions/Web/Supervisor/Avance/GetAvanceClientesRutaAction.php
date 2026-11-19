@@ -59,6 +59,15 @@ class GetAvanceClientesRutaAction
         $mesesCerrados = $this->obtenerMesesCerrados($carbonCorte, $mesesHistorico);
         $cantMesesEval = max(1, count($mesesCerrados));
 
+        // Obtener canal oficial de la ruta desde dim_rutas para aplicar umbrales de cobertura
+        $dimRuta = DB::connection('supervisor')->table('dim_rutas')
+            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+            ->first();
+        $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
+            ? strtoupper(trim((string) $dimRuta->canal))
+            : 'SC';
+        $reglaCoberturaRuta = $this->obtenerUmbralCoberturaCanal($canalRuta);
+
         // 1. Cartera Oficial desde pan_ruteo
         $filasCartera = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
@@ -767,10 +776,15 @@ class GetAvanceClientesRutaAction
                 }
             } else {
                 $esCobertura = str_starts_with($kpiClave, 'cob_');
-                $tieneLogro = $esCobertura ? ($item['monto'] > 0 || $item['cantidad'] > 0) : ($item['monto'] > 0);
-                $valLogro = $esCobertura ? ($tieneLogro ? 1 : 0) : round($item['monto'], 2);
                 $montoBsCli = round($item['monto'], 2);
                 $cantMtdCli = $item['cantidad'];
+
+                if ($kpiClave === 'cob_general') {
+                    $tieneLogro = $this->clienteCumpleCoberturaCanal($montoBsCli, $canalRuta);
+                } else {
+                    $tieneLogro = $esCobertura ? ($montoBsCli > 0 || $cantMtdCli > 0) : ($montoBsCli > 0);
+                }
+                $valLogro = $esCobertura ? ($tieneLogro ? 1 : 0) : $montoBsCli;
             }
 
             $vends = !empty($item['vendedores_factura'])
@@ -819,6 +833,10 @@ class GetAvanceClientesRutaAction
                 'cliente_id' => $cid,
                 'cliente' => $item['cliente'],
                 'vendedor' => $vends,
+                'canal' => $canalRuta,
+                'umbral_minimo' => (float) ($reglaCoberturaRuta['min'] ?? 0.0),
+                'umbral_operador' => (string) ($reglaCoberturaRuta['operador'] ?? '>='),
+                'cumple_umbral' => $tieneLogro,
                 'dia' => $item['dia'],
                 'dia_visita' => $item['dia_visita'],
                 'foto_pdv' => $fotosClientesMap[$cid]['photo_url'] ?? null,
@@ -915,6 +933,8 @@ class GetAvanceClientesRutaAction
 
         return [
             'ruta' => $rutaClean,
+            'canal' => $canalRuta,
+            'regla_cobertura' => $reglaCoberturaRuta,
             'kpi' => $kpiClave,
             'fecha_inicio' => $fechaInicio,
             'fecha_corte' => $fechaCorte,
