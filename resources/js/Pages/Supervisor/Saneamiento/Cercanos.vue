@@ -443,47 +443,43 @@
             </button>
           </div>
 
-          <!-- SELECCIONADOR DE FRONTERAS RUTAS EN DESKTOP -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
+          <!-- FILTRO FRONTERAS RUTAS EN DESKTOP -->
+          <div class="relative shrink-0">
             <button
               type="button"
-              @click="verFronterasRutas = !verFronterasRutas"
-              class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer flex items-center gap-1.5"
-              :class="verFronterasRutas ? 'bg-white text-indigo-800 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
-              title="Activar o desactivar visualizacion de Fronteras Rutas"
+              @click="toggleMenu('fronteras_rutas')"
+              class="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer shadow-2xs"
+              :class="verFronterasRutas && filtroRutasFronterasRutas.length > 0 ? 'bg-purple-50 text-purple-900 border-purple-300 font-bold' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+              title="Filtrar qué rutas de fronteras mostrar en el mapa"
             >
-              <span class="w-2 h-2 rounded-full" :class="verFronterasRutas ? 'bg-indigo-600' : 'bg-slate-300'"></span>
-              <span>F. Rutas</span>
-              <span v-if="verFronterasRutas && filtroRutasFronterasRutas.length > 0" class="text-[9.5px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-800 font-mono font-bold">
-                {{ filtroRutasFronterasRutas.length }}
-              </span>
+              <span class="w-2 h-2 rounded-full" :class="verFronterasRutas && filtroRutasFronterasRutas.length > 0 ? 'bg-purple-600' : 'bg-slate-300'"></span>
+              <span class="text-slate-500 font-normal">F. Rutas:</span>
+              <span class="font-mono">{{ labelFronterasRutas }}</span>
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
             </button>
 
-            <!-- Dropdown Selector de Rutas para Fronteras Rutas -->
-            <div v-if="verFronterasRutas" class="relative ml-0.5">
-              <button
-                type="button"
-                @click="toggleMenu('fronteras_rutas')"
-                class="px-2 py-0.5 rounded text-[10.5px] font-mono font-medium transition-all cursor-pointer flex items-center gap-1 border"
-                :class="filtroRutasFronterasRutas.length > 0 ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
-                title="Filtrar qué rutas de fronteras mostrar"
-              >
-                <span>{{ labelFronterasRutas }}</span>
-                <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </button>
-
-              <!-- Popover de Rutas (Fronteras Rutas) -->
-              <div
-                v-if="menuAbierto === 'fronteras_rutas'"
-                class="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
-              >
-                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
-                    <span class="font-bold text-slate-800 text-xs">Fronteras por Ruta</span>
-                  </div>
+            <!-- Popover de Rutas (Fronteras Rutas) -->
+            <div
+              v-if="menuAbierto === 'fronteras_rutas'"
+              class="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 text-xs flex flex-col gap-2 font-sans"
+            >
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                  <span class="font-bold text-slate-800 text-xs">Fronteras por Ruta</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    @click="verFronterasRutas = !verFronterasRutas"
+                    class="text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all"
+                    :class="verFronterasRutas ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'"
+                    :title="verFronterasRutas ? 'Ocultar polígonos' : 'Mostrar polígonos'"
+                  >
+                    {{ verFronterasRutas ? 'Visible' : 'Oculto' }}
+                  </button>
                   <button
                     type="button"
                     @click="menuAbierto = null"
@@ -492,71 +488,71 @@
                     &times;
                   </button>
                 </div>
+              </div>
 
-                <!-- Botones de Acción Rápida: Solo TDB | Todas | Limpiar -->
-                <div class="flex items-center gap-1 text-[10.5px] flex-wrap">
-                  <button
-                    type="button"
-                    @click="seleccionarRutasTDB"
-                    class="px-2 py-1 rounded-md text-[10.5px] font-bold border transition-colors cursor-pointer flex items-center gap-1"
-                    :class="labelFronterasRutas.startsWith('TDB') ? 'bg-amber-500 text-white border-amber-600 shadow-2xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'"
-                    title="Seleccionar únicamente las rutas del canal TDB"
-                  >
-                    <span>Solo TDB</span>
-                    <span class="text-[9px] opacity-90 font-mono">({{ obtenerRutasTDB().length }})</span>
-                  </button>
-                  <button
-                    type="button"
-                    @click="seleccionarTodasFronterasRutas"
-                    class="px-2 py-1 rounded-md text-[10.5px] font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
-                  >
-                    Todas
-                  </button>
-                  <button
-                    type="button"
-                    @click="limpiarFronterasRutas"
-                    class="px-2 py-1 rounded-md text-[10.5px] font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-auto"
-                  >
-                    Limpiar
-                  </button>
+              <!-- Botones de Acción Rápida: Solo TDB | Todas | Limpiar -->
+              <div class="flex items-center gap-1 text-[10.5px] flex-wrap">
+                <button
+                  type="button"
+                  @click="seleccionarRutasTDB"
+                  class="px-2 py-0.5 rounded-md text-[10.5px] font-bold border transition-colors cursor-pointer flex items-center gap-1"
+                  :class="labelFronterasRutas.startsWith('TDB') ? 'bg-amber-500 text-white border-amber-600 shadow-2xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'"
+                  title="Seleccionar únicamente las rutas del canal TDB"
+                >
+                  <span>Solo TDB</span>
+                  <span class="text-[9px] opacity-90 font-mono">({{ obtenerRutasTDB().length }})</span>
+                </button>
+                <button
+                  type="button"
+                  @click="seleccionarTodasFronterasRutas"
+                  class="px-2 py-0.5 rounded-md text-[10.5px] font-medium border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 transition-colors cursor-pointer"
+                >
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  @click="limpiarFronterasRutas"
+                  class="px-2 py-0.5 rounded-md text-[10.5px] font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-auto"
+                >
+                  Limpiar
+                </button>
+              </div>
+
+              <input
+                v-model="busquedaRutaFronterasRutas"
+                type="text"
+                placeholder="Buscar ruta o canal..."
+                class="h-7 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-slate-400 font-mono"
+              />
+
+              <div class="max-h-48 overflow-y-auto custom-scroll space-y-0.5 pr-0.5">
+                <div v-if="rutasFronterasRutasFiltradasBusqueda.length === 0" class="py-2 text-center text-slate-400 text-xs">
+                  No hay rutas disponibles
                 </div>
-
-                <input
-                  v-model="busquedaRutaFronterasRutas"
-                  type="text"
-                  placeholder="Buscar ruta o canal..."
-                  class="h-7 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-slate-400 font-mono"
-                />
-
-                <div class="max-h-48 overflow-y-auto custom-scroll space-y-0.5 pr-0.5">
-                  <div v-if="rutasFronterasRutasFiltradasBusqueda.length === 0" class="py-2 text-center text-slate-400 text-xs">
-                    No hay rutas disponibles
+                <label
+                  v-for="r in rutasFronterasRutasFiltradasBusqueda"
+                  :key="r"
+                  class="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
+                  :class="esRutaFronteraRutaActiva(r) ? 'bg-purple-50/60 font-semibold text-slate-900' : 'text-slate-600'"
+                >
+                  <div class="flex items-center gap-2 truncate min-w-0">
+                    <input
+                      type="checkbox"
+                      :checked="esRutaFronteraRutaActiva(r)"
+                      @change="toggleRutaFronterasRutas(r)"
+                      class="rounded border-slate-300 text-purple-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
+                    <span class="truncate">{{ formatRuta(r) }}</span>
                   </div>
-                  <label
-                    v-for="r in rutasFronterasRutasFiltradasBusqueda"
-                    :key="r"
-                    class="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md hover:bg-slate-50 cursor-pointer text-xs font-mono transition-colors"
-                    :class="esRutaFronteraRutaActiva(r) ? 'bg-indigo-50/50 font-semibold text-slate-900' : 'text-slate-600'"
+                  <span
+                    v-if="getCanalDeRuta(r)"
+                    class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
+                    :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
                   >
-                    <div class="flex items-center gap-2 truncate min-w-0">
-                      <input
-                        type="checkbox"
-                        :checked="esRutaFronteraRutaActiva(r)"
-                        @change="toggleRutaFronterasRutas(r)"
-                        class="rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                      />
-                      <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(r) }"></span>
-                      <span class="truncate">{{ formatRuta(r) }}</span>
-                    </div>
-                    <span
-                      v-if="getCanalDeRuta(r)"
-                      class="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0"
-                      :class="getCanalDeRuta(r) === 'TDB' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-600'"
-                    >
-                      {{ getCanalDeRuta(r) }}
-                    </span>
-                  </label>
-                </div>
+                    {{ getCanalDeRuta(r) }}
+                  </span>
+                </label>
               </div>
             </div>
           </div>
@@ -628,9 +624,12 @@
                 :key="c.id"
                 @click="abrirExpedienteCliente(c)"
                 class="p-3 hover:bg-slate-50/80 cursor-pointer transition-all flex items-start space-x-3 group relative"
-                :class="clienteActivoId === c.id ? 'bg-sky-50/60 border-l-4 border-sky-500' : ''"
+                :class="[
+                  clienteActivoId === c.id ? 'bg-sky-50/60 border-l-4 border-sky-500' : '',
+                  (!c.estado || c.estado.toLowerCase() === 'activo') ? '' : 'bg-slate-50/70 opacity-75'
+                ]"
               >
-                <!-- Indicador de Color Segun Modo -->
+                <!-- Indicador de Color Segun Modo (gris en inactivos) -->
                 <div
                   class="w-3 h-3 rounded-full mt-1 shrink-0 shadow-2xs"
                   :style="{ backgroundColor: getMarkerColor(c) }"
@@ -638,36 +637,52 @@
 
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between gap-1 mb-0.5">
-                    <span class="text-xs font-bold text-slate-900 truncate group-hover:text-sky-600 transition-colors">
+                    <span
+                      class="text-xs font-bold truncate transition-colors"
+                      :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'text-slate-900 group-hover:text-sky-600' : 'text-slate-500 group-hover:text-slate-700'"
+                    >
                       {{ c.cliente }}
                     </span>
-                    <span class="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0 font-bold">
+                    <span
+                      class="text-[10px] font-mono px-1.5 py-0.2 rounded shrink-0 font-bold border"
+                      :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-500 bg-slate-100 border-slate-200'"
+                    >
                       {{ c.distancia_metros }} m
                     </span>
                   </div>
 
-                  <p class="text-[11px] text-slate-500 truncate mb-1">
+                  <p
+                    class="text-[11px] truncate mb-1"
+                    :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'text-slate-500' : 'text-slate-400'"
+                  >
                     {{ c.direccion || 'Sin direccion registrada' }}
                   </p>
 
                   <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-mono">
-                    <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-semibold">
+                    <span
+                      class="px-1.5 py-0.2 rounded font-semibold"
+                      :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-400'"
+                    >
                       {{ formatRuta(c.ruta) }}
                     </span>
                     <span
                       class="px-1.5 py-0.2 rounded text-white font-bold"
-                      :style="{ backgroundColor: getCanalColor(c.canal_calculado) }"
+                      :style="{ backgroundColor: (!c.estado || c.estado.toLowerCase() === 'activo') ? getCanalColor(c.canal_calculado) : '#94A3B8' }"
                     >
                       {{ c.canal_calculado }}
                     </span>
-                    <span v-if="c.dia_norm" class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
+                    <span
+                      v-if="c.dia_norm"
+                      class="px-1.5 py-0.2 rounded font-semibold"
+                      :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'bg-slate-100 text-slate-600' : 'bg-slate-100 text-slate-400'"
+                    >
                       {{ c.dia_norm }}
                     </span>
                     <span
                       class="px-1 py-0.2 rounded font-bold"
-                      :class="c.estado && c.estado.toLowerCase() !== 'activo' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                      :class="(!c.estado || c.estado.toLowerCase() === 'activo') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200/80 text-slate-500 border border-slate-300'"
                     >
-                      {{ c.estado && c.estado.toLowerCase() !== 'activo' ? 'Inactivo' : 'Activo' }}
+                      {{ (!c.estado || c.estado.toLowerCase() === 'activo') ? 'Activo' : 'Inactivo' }}
                     </span>
                   </div>
                 </div>
@@ -731,7 +746,7 @@
                   </span>
                   <span
                     class="text-[9px] font-mono font-bold px-2 py-0.5 rounded shadow-2xs"
-                    :class="clienteSeleccionado.estado && clienteSeleccionado.estado.toLowerCase() !== 'activo' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                    :class="clienteSeleccionado.estado && clienteSeleccionado.estado.toLowerCase() !== 'activo' ? 'bg-slate-200/80 text-slate-600 border border-slate-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
                   >
                     {{ clienteSeleccionado.estado && clienteSeleccionado.estado.toLowerCase() !== 'activo' ? 'Inactivo' : 'Activo' }}
                   </span>
@@ -1120,21 +1135,21 @@
             <!-- Seccion 5: Fronteras Rutas -->
             <div class="space-y-2 pt-2 border-t border-slate-100">
               <div class="flex items-center justify-between">
-                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Fronteras Rutas (Poligonos)</label>
+                <label class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wider">Fronteras Rutas (Polígonos)</label>
                 <button
                   type="button"
                   @click="verFronterasRutas = !verFronterasRutas"
                   class="text-xs font-bold px-2 py-0.5 rounded cursor-pointer transition-all"
-                  :class="verFronterasRutas ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-600'"
+                  :class="verFronterasRutas ? 'bg-purple-100 text-purple-800' : 'bg-slate-200 text-slate-600'"
                 >
-                  {{ verFronterasRutas ? 'Activado' : 'Desactivado' }}
+                  {{ verFronterasRutas ? 'Visible' : 'Oculto' }}
                 </button>
               </div>
 
               <!-- Filtro de Rutas en Fronteras Rutas -->
               <div v-if="verFronterasRutas" class="space-y-1.5">
                 <div class="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-1">
-                  <span class="font-bold text-slate-700 font-mono text-[11px]">{{ labelFronterasRutas }}</span>
+                  <span class="font-bold text-purple-700 font-mono text-[11px]">{{ labelFronterasRutas }}</span>
                   <div class="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -1561,6 +1576,7 @@ function toggleRutaFronterasRutas(ruta) {
     filtroRutasFronterasRutas.value.splice(idx, 1);
   } else {
     filtroRutasFronterasRutas.value.push(r);
+    verFronterasRutas.value = true;
   }
 }
 
@@ -1569,10 +1585,12 @@ function esRutaFronteraRutaActiva(ruta) {
 }
 
 function seleccionarRutasTDB() {
+  verFronterasRutas.value = true;
   filtroRutasFronterasRutas.value = [...obtenerRutasTDB()];
 }
 
 function seleccionarTodasFronterasRutas() {
+  verFronterasRutas.value = true;
   filtroRutasFronterasRutas.value = [...rutasDisponiblesFronterasRutas.value];
 }
 
@@ -1584,12 +1602,15 @@ const labelFronterasRutas = computed(() => {
   const total = rutasDisponiblesFronterasRutas.value.length;
   const sel = filtroRutasFronterasRutas.value.length;
   if (!verFronterasRutas.value || sel === 0) return 'Ocultas (0)';
-  if (total > 0 && sel === total) return `Todas (${total})`;
+  if (total > 0 && sel === total) {
+    const soloTDB = filtroCanales.value.length === 1 && filtroCanales.value[0] === 'TDB';
+    return soloTDB ? `TDB (${total})` : `Todas (${total})`;
+  }
   const rutasTDB = obtenerRutasTDB();
   const esExactoTDB = rutasTDB.length > 0 && sel === rutasTDB.length && rutasTDB.every(r => filtroRutasFronterasRutas.value.includes(r));
   if (esExactoTDB) return `TDB (${sel})`;
   if (sel === 1) return formatRuta(filtroRutasFronterasRutas.value[0]);
-  return `${sel}/${total} rutas`;
+  return `${sel}/${total} rts`;
 });
 
 const fronterasRutasFiltradas = computed(() => {
@@ -1646,8 +1667,13 @@ const elementosLeyenda = computed(() => {
 
   clientesFiltrados.value.forEach(c => {
     let key, nombre, color;
+    const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
 
-    if (modoColor.value === 'ruta') {
+    if (!esActivo) {
+      key = '__INACTIVO__';
+      nombre = 'Inactivos';
+      color = '#94A3B8';
+    } else if (modoColor.value === 'ruta') {
       key = c.ruta || 'Sin Ruta';
       nombre = formatRuta(c.ruta);
       color = getRutaColor(c.ruta);
@@ -1662,12 +1688,16 @@ const elementosLeyenda = computed(() => {
     }
 
     if (!mapCounts.has(key)) {
-      mapCounts.set(key, { id: key, nombre, color, conteo: 0 });
+      mapCounts.set(key, { id: key, nombre, color, conteo: 0, esInactivo: !esActivo });
     }
     mapCounts.get(key).conteo++;
   });
 
-  return Array.from(mapCounts.values()).sort((a, b) => b.conteo - a.conteo);
+  return Array.from(mapCounts.values()).sort((a, b) => {
+    if (a.esInactivo) return 1;
+    if (b.esInactivo) return -1;
+    return b.conteo - a.conteo;
+  });
 });
 
 function setModoColor(modo) {
@@ -1851,8 +1881,8 @@ function renderizarFronterasRutas() {
       style: {
         color: color,
         weight: 2.5,
-        fillColor: color,
-        fillOpacity: 0.08,
+        fill: false,        // NO pintar el interior de la frontera, solo el polígono (contorno)
+        fillOpacity: 0,     // Totalmente transparente el interior
       },
       onEachFeature: (feature, l) => {
         l.bindTooltip(`
@@ -1863,10 +1893,10 @@ function renderizarFronterasRutas() {
         `, { sticky: true, opacity: 0.95 });
 
         l.on('mouseover', () => {
-          l.setStyle({ fillOpacity: 0.22, weight: 3.5 });
+          l.setStyle({ weight: 4 }); // Resalta solo el contorno
         });
         l.on('mouseout', () => {
-          l.setStyle({ fillOpacity: 0.08, weight: 2.5 });
+          l.setStyle({ weight: 2.5 });
         });
       }
     });
@@ -1875,6 +1905,10 @@ function renderizarFronterasRutas() {
 }
 
 function getMarkerColor(c) {
+  const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
+  if (!esActivo) {
+    return '#94A3B8'; // Clientes inactivos en gris slate-400
+  }
   if (modoColor.value === 'ruta') {
     return getRutaColor(c.ruta);
   }
@@ -1916,21 +1950,21 @@ function renderizarEnMapa() {
   }).addTo(map);
 
   clientesFiltrados.value.forEach(c => {
+    const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
     const markerColor = getMarkerColor(c);
 
     const marker = L.circleMarker([c.latitud, c.longitud], {
-      radius: 5.5,
+      radius: esActivo ? 5.5 : 4.5,
       fillColor: markerColor,
-      color: '#FFFFFF',
-      weight: 1.5,
+      color: esActivo ? '#FFFFFF' : '#CBD5E1',
+      weight: esActivo ? 1.5 : 1,
       opacity: 1,
-      fillOpacity: 0.95,
+      fillOpacity: esActivo ? 0.95 : 0.65,
     });
 
-    const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
     const estadoBadge = esActivo
       ? '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #ECFDF5; color: #047857;">Activo</span>'
-      : '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #FFF1F2; color: #BE123C;">Inactivo</span>';
+      : '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1;">Inactivo</span>';
 
     marker.bindPopup(`
       <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 230px;">
