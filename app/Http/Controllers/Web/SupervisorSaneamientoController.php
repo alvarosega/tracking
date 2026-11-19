@@ -557,11 +557,15 @@ class SupervisorSaneamientoController extends Controller
     public function auditarDuplicados(Request $request, AuditarDuplicadosAction $action): JsonResponse
     {
         $rutas = $request->input('rutas');
+        $canales = $request->input('canales');
         $radio = (float) $request->input('radio_metros', 20.0);
+        $tipoGrupo = $request->input('tipo_grupo');
 
         return response()->json($action->execute(
             rutas: is_array($rutas) ? $rutas : null,
-            radioMetros: $radio
+            radioMetros: $radio,
+            tipoGrupo: is_string($tipoGrupo) ? $tipoGrupo : null,
+            canales: is_array($canales) ? $canales : null
         ));
     }
 

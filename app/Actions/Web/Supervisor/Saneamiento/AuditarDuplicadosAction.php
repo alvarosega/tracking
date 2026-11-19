@@ -9,17 +9,38 @@ use Illuminate\Support\Facades\DB;
 class AuditarDuplicadosAction
 {
     /**
-     * Audita clientes duplicados mediante 7 criterios espaciales y de datos.
+     * Audita clientes duplicados evaluando:
+     * 1. Misma ubicación (colisión espacial <= radioMetros)
+     * 2. Mismos datos (mismo nombre, NIT, CI, teléfono o factura)
+     * 3. Misma ubicación y mismos datos
      *
      * @param array<string>|null $rutas
      * @param float $radioMetros
+     * @param string|null $tipoGrupo 'TODOS', 'MISMA_UBICACION', 'MISMOS_DATOS', 'MISMA_UBICACION_Y_DATOS', 'MISMOS_DATOS_DISTANTE', 'MISMA_UBICACION_SOLO'
+     * @param array<string>|null $canales
      * @return array<string, mixed>
      */
-    public function execute(?array $rutas = null, float $radioMetros = 20.0): array
-    {
+    public function execute(
+        ?array $rutas = null,
+        float $radioMetros = 20.0,
+        ?string $tipoGrupo = null,
+        ?array $canales = null
+    ): array {
         $conn = DB::connection('supervisor');
 
-        // 1. Obtener candidatos con coordenadas válidas
+        // 1. Catálogo de canales por ruta
+        $rutasDim = $conn->table('dim_rutas')
+            ->select(['ruta', 'canal'])
+            ->get();
+        $mapaCanalRuta = [];
+        foreach ($rutasDim as $rd) {
+            $rKey = strtoupper(trim((string) $rd->ruta));
+            if ($rKey !== '') {
+                $mapaCanalRuta[$rKey] = trim((string) $rd->canal);
+            }
+        }
+
+        // 2. Obtener candidatos con coordenadas válidas de pan_ruteo
         $puntosRaw = $conn->table('pan_ruteo as p')
             ->where(function ($w) {
                 $w->whereRaw("LOWER(TRIM(p.estado)) = 'activo'")
@@ -51,14 +72,19 @@ class AuditarDuplicadosAction
         if ($puntosRaw->isEmpty()) {
             return [
                 'rutas_auditadas' => $rutas ?: [],
+                'canales_auditados' => $canales ?: [],
                 'radio_metros_evaluado' => $radioMetros,
+                'tipo_grupo_evaluado' => $tipoGrupo ?: 'TODOS',
                 'total_puntos_evaluados' => 0,
                 'total_clusters' => 0,
+                'conteo_misma_ubicacion' => 0,
+                'conteo_mismos_datos' => 0,
+                'conteo_misma_ubicacion_y_datos' => 0,
                 'clusters' => [],
             ];
         }
 
-        // 2. Pre-normalizar
+        // 3. Pre-normalización y limpieza
         $puntos = [];
         $puntosMap = [];
         foreach ($puntosRaw as $row) {
@@ -68,57 +94,144 @@ class AuditarDuplicadosAction
             $fact = (string) $row->nombre_factura;
             $nit = trim((string) $row->nit);
             $ci = preg_replace('/\D/', '', (string) $row->ci);
+            $rutaStr = (string) $row->ruta;
+            $canalStr = $mapaCanalRuta[$rutaStr] ?? 'SIN CANAL';
+
+            $cNorm = $this->normalizarTexto((string) $row->cliente_norm ?: (string) $row->cliente);
+            $nitClean = (!in_array($nit, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($nit) >= 5) ? $nit : '';
+            $ciClean = (!in_array($ci, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($ci) >= 5) ? $ci : '';
+            $telNorm = $this->normalizarTelefono($tel);
+            $celNorm = $this->normalizarTelefono($cel);
+            $factNorm = $this->normalizarTexto($fact);
 
             $p = [
                 'cliente_id' => $cid,
                 'cliente' => trim((string) $row->cliente),
-                'cliente_norm' => strtolower(trim((string) $row->cliente_norm)),
+                'cliente_norm' => $cNorm,
                 'nombre_factura' => trim($fact),
-                'nit' => $nit,
-                'ci' => (string) $row->ci,
+                'nit' => $nitClean,
+                'ci' => $ciClean,
                 'telefono' => $tel,
                 'celular' => $cel,
                 'direccion' => (string) $row->direccion,
                 'latitud' => (float) $row->latitud,
                 'longitud' => (float) $row->longitud,
-                'ruta' => (string) $row->ruta,
+                'ruta' => $rutaStr,
+                'canal' => $canalStr,
                 'dia' => (string) $row->dia,
                 'tipo_negocio' => (string) $row->tipo_negocio,
-                '_tel_norm' => $this->normalizarTelefono($tel),
-                '_cel_norm' => $this->normalizarTelefono($cel),
-                '_factura_norm' => $this->normalizarTexto($fact),
-                '_nit_clean' => (!in_array($nit, ['', '0', '00', '000'], true)) ? $nit : '',
-                '_ci_clean' => strlen($ci) >= 4 ? $ci : '',
+                '_tel_norm' => $telNorm,
+                '_cel_norm' => $celNorm,
+                '_factura_norm' => $factNorm,
+                '_nit_clean' => $nitClean,
+                '_ci_clean' => $ciClean,
             ];
 
             $puntos[] = $p;
             $puntosMap[$cid] = $p;
         }
 
-        // 3. Grid espacial (~50m por celda)
-        $tamanoCelda = 0.0005;
+        // 4. Índices para "MISMOS DATOS" (Nombre, NIT, CI, Teléfono/Celular, Factura)
+        $nombresGenericos = [
+            '', 'tienda', 'almacen', 'venta', 'ventas', 'sin nombre', 'sn', 's n', 's/n',
+            'cliente', 'pension', 'micromercado', 'kiosko', 'sn nombre', 'comercial',
+            'restaurante', 'farmacia', 'ferreteria', 'panaderia', 'pasteleria', 'snack',
+            'variedades', 'bazar', 'licoreria', 'minimarket', 'abarrotes', 'doña', 'don',
+        ];
+        $genericosMap = array_fill_keys($nombresGenericos, true);
+
+        $indexNombre = [];
+        $indexNit = [];
+        $indexCi = [];
+        $indexTel = [];
+        $indexFactura = [];
+
+        foreach ($puntos as $p) {
+            $cid = $p['cliente_id'];
+
+            if ($p['cliente_norm'] !== '' && mb_strlen($p['cliente_norm']) >= 4 && !isset($genericosMap[$p['cliente_norm']])) {
+                $indexNombre[$p['cliente_norm']][] = $cid;
+            }
+            if ($p['_nit_clean'] !== '') {
+                $indexNit[$p['_nit_clean']][] = $cid;
+            }
+            if ($p['_ci_clean'] !== '') {
+                $indexCi[$p['_ci_clean']][] = $cid;
+            }
+            if ($p['_tel_norm'] !== '') {
+                $indexTel[$p['_tel_norm']][] = $cid;
+            }
+            if ($p['_cel_norm'] !== '') {
+                $indexTel[$p['_cel_norm']][] = $cid;
+            }
+            if ($p['_factura_norm'] !== '' && mb_strlen($p['_factura_norm']) >= 4 && !isset($genericosMap[$p['_factura_norm']])) {
+                $indexFactura[$p['_factura_norm']][] = $cid;
+            }
+        }
+
+        // Matriz de adyacencia de MISMOS DATOS
+        $adjDatos = [];
+        $distanciasDatos = [];
+        $criteriosDatos = [];
+
+        $agregarCoincidenciaDato = function (int $id1, int $id2, string $campo, string $valor) use (
+            &$adjDatos, &$distanciasDatos, &$criteriosDatos, $puntosMap
+        ): void {
+            if ($id1 === $id2) {
+                return;
+            }
+            $minId = min($id1, $id2);
+            $maxId = max($id1, $id2);
+            $par = "{$minId}_{$maxId}";
+
+            if (!isset($criteriosDatos[$par])) {
+                $criteriosDatos[$par] = [];
+                $adjDatos[$minId][] = $maxId;
+                $adjDatos[$maxId][] = $minId;
+
+                $p1 = $puntosMap[$minId];
+                $p2 = $puntosMap[$maxId];
+                $dM = GeometryHelper::haversineDistance($p1['latitud'], $p1['longitud'], $p2['latitud'], $p2['longitud']);
+                $distanciasDatos[$par] = round($dM, 1);
+            }
+
+            $criteriosDatos[$par][] = ['campo' => $campo, 'valor' => $valor];
+        };
+
+        // Procesar coincidencias de datos con límite defensivo por bucket para evitar explosiones
+        $procesarBucket = function (array $index, string $campo, int $maxBucket = 20) use ($agregarCoincidenciaDato, $puntosMap) {
+            foreach ($index as $valor => $cids) {
+                $cnt = count($cids);
+                if ($cnt >= 2 && $cnt <= $maxBucket) {
+                    for ($i = 0; $i < $cnt; $i++) {
+                        for ($j = $i + 1; $j < $cnt; $j++) {
+                            $valMostrado = $campo === 'Nombre' ? $puntosMap[$cids[$i]]['cliente'] : (string) $valor;
+                            $agregarCoincidenciaDato($cids[$i], $cids[$j], $campo, $valMostrado);
+                        }
+                    }
+                }
+            }
+        };
+
+        $procesarBucket($indexNombre, 'Nombre');
+        $procesarBucket($indexNit, 'NIT');
+        $procesarBucket($indexCi, 'CI');
+        $procesarBucket($indexTel, 'Teléfono');
+        $procesarBucket($indexFactura, 'Factura');
+
+        // 5. Grid espacial para "MISMA UBICACIÓN" (proximidad <= radioMetros)
+        $tamanoCelda = max(0.0003, $radioMetros / 100000.0);
         $grid = [];
         foreach ($puntos as $p) {
             $kLat = (int) floor($p['latitud'] / $tamanoCelda);
             $kLon = (int) floor($p['longitud'] / $tamanoCelda);
-            $key = "{$kLat}_{$kLon}";
-            $grid[$key][] = $p;
+            $grid["{$kLat}_{$kLon}"][] = $p;
         }
 
-        $adjDatos = [];
         $adjProx = [];
-        foreach ($puntos as $p) {
-            $cid = $p['cliente_id'];
-            $adjDatos[$cid] = [];
-            $adjProx[$cid] = [];
-        }
-
-        $distanciasDatos = [];
         $distanciasProx = [];
-        $criteriosDatos = [];
         $criteriosProx = [];
 
-        // 4. Comparar pares en celdas vecinas
         foreach ($grid as $key => $celdas) {
             [$kLat, $kLon] = explode('_', $key);
             $kLat = (int) $kLat;
@@ -144,59 +257,23 @@ class AuditarDuplicadosAction
                         continue;
                     }
 
-                    $dM = GeometryHelper::haversineDistance(
-                        $p1['latitud'],
-                        $p1['longitud'],
-                        $p2['latitud'],
-                        $p2['longitud']
-                    );
-
-                    $criteriosMatch = [];
-
-                    if (!empty($p1['_nit_clean']) && $p1['_nit_clean'] === $p2['_nit_clean']) {
-                        $criteriosMatch[] = ['campo' => 'NIT', 'valor' => $p1['_nit_clean']];
-                    }
-                    if (!empty($p1['_ci_clean']) && $p1['_ci_clean'] === $p2['_ci_clean']) {
-                        $criteriosMatch[] = ['campo' => 'CI', 'valor' => $p1['_ci_clean']];
-                    }
-                    if (!empty($p1['cliente_norm']) && strlen($p1['cliente_norm']) > 4 && $p1['cliente_norm'] === $p2['cliente_norm']) {
-                        $criteriosMatch[] = ['campo' => 'Nombre', 'valor' => $p1['cliente']];
-                    }
-
-                    if ($dM <= 100.0) {
-                        if (!empty($p1['_tel_norm']) && strlen($p1['_tel_norm']) === 8 && $p1['_tel_norm'] === $p2['_tel_norm']) {
-                            $criteriosMatch[] = ['campo' => 'Teléfono', 'valor' => $p1['telefono']];
-                        }
-                        if (!empty($p1['_cel_norm']) && strlen($p1['_cel_norm']) === 8 && $p1['_cel_norm'] === $p2['_cel_norm']) {
-                            $criteriosMatch[] = ['campo' => 'Celular', 'valor' => $p1['celular']];
-                        }
-                        if (!empty($p1['_factura_norm']) && strlen($p1['_factura_norm']) > 4 && $p1['_factura_norm'] === $p2['_factura_norm']) {
-                            $criteriosMatch[] = ['campo' => 'Nombre factura', 'valor' => $p1['nombre_factura']];
-                        }
-                    }
-
-                    $pares = min($id1, $id2) . '_' . max($id1, $id2);
-
-                    if (!empty($criteriosMatch)) {
-                        $adjDatos[$id1][] = $id2;
-                        $adjDatos[$id2][] = $id1;
-                        $distanciasDatos[$pares] = round($dM, 1);
-                        $criteriosDatos[$pares] = $criteriosMatch;
-                    } elseif ($dM <= $radioMetros) {
+                    $dM = GeometryHelper::haversineDistance($p1['latitud'], $p1['longitud'], $p2['latitud'], $p2['longitud']);
+                    if ($dM <= $radioMetros) {
+                        $par = "{$id1}_{$id2}";
                         $adjProx[$id1][] = $id2;
                         $adjProx[$id2][] = $id1;
-                        $distanciasProx[$pares] = round($dM, 1);
-                        $criteriosProx[$pares] = [['campo' => 'Proximidad', 'valor' => round($dM) . ' m']];
+                        $distanciasProx[$par] = round($dM, 1);
+                        $criteriosProx[$par] = [['campo' => 'Proximidad', 'valor' => round($dM, 1) . ' m']];
                     }
                 }
             }
         }
 
-        // 5. Componentes conexos
-        $detectarClusters = function (array $adj) use ($puntosMap): array {
+        // 6. Detección de Componentes Conexos
+        $detectarClusters = function (array $adj): array {
             $visitados = [];
             $clusters = [];
-            foreach (array_keys($puntosMap) as $cid) {
+            foreach (array_keys($adj) as $cid) {
                 if (!isset($visitados[$cid]) && !empty($adj[$cid])) {
                     $clusterIds = [];
                     $cola = [$cid];
@@ -219,21 +296,101 @@ class AuditarDuplicadosAction
             return $clusters;
         };
 
+        // Componentes conexos de datos
         $clustersDatosRaw = $detectarClusters($adjDatos);
-        $clustersProxRaw = $detectarClusters($adjProx);
 
-        $clustersRaw = [];
-        foreach ($clustersDatosRaw as $cl) {
-            $clustersRaw[] = ['DOBLE_CODIGO', $cl, $distanciasDatos, $criteriosDatos];
-        }
-        foreach ($clustersProxRaw as $cl) {
-            $clustersRaw[] = ['MISMA_UBICACION', $cl, $distanciasProx, $criteriosProx];
+        // Mapear qué clientes ya están cubiertos en clusters de datos
+        $mapaClienteAClusterDato = [];
+        foreach ($clustersDatosRaw as $idxDato => $clIds) {
+            foreach ($clIds as $cId) {
+                $mapaClienteAClusterDato[$cId] = $idxDato;
+            }
         }
 
-        // 6. Ventas MTD y propuestas pendientes
+        // Filtrar adjProx para extraer colisiones espaciales PURAS (donde no pertenecen al mismo cluster de datos)
+        $adjProxPuro = [];
+        foreach ($adjProx as $id1 => $vecinos) {
+            foreach ($vecinos as $id2) {
+                $cd1 = $mapaClienteAClusterDato[$id1] ?? null;
+                $cd2 = $mapaClienteAClusterDato[$id2] ?? null;
+                // Si ambos no están en el mismo cluster de datos, es una colisión de ubicación independiente
+                if ($cd1 === null || $cd2 === null || $cd1 !== $cd2) {
+                    $adjProxPuro[$id1][] = $id2;
+                }
+            }
+        }
+        $clustersProxRaw = $detectarClusters($adjProxPuro);
+
+        // 7. Estructurar clusters sin duplicación
+        // A) Clusters de datos (pueden tener o no misma ubicación)
+        $clustersConsolidados = [];
+
+        foreach ($clustersDatosRaw as $clIds) {
+            $minDist = 999999.0;
+            $countIds = count($clIds);
+            $criteriosAgrupados = [];
+
+            for ($i = 0; $i < $countIds; $i++) {
+                for ($j = $i + 1; $j < $countIds; $j++) {
+                    $par = min($clIds[$i], $clIds[$j]) . '_' . max($clIds[$i], $clIds[$j]);
+                    if (isset($distanciasDatos[$par]) && $distanciasDatos[$par] < $minDist) {
+                        $minDist = $distanciasDatos[$par];
+                    }
+                    if (isset($criteriosDatos[$par])) {
+                        foreach ($criteriosDatos[$par] as $crit) {
+                            $criteriosAgrupados[$crit['campo']][(string) $crit['valor']] = true;
+                        }
+                    }
+                }
+            }
+
+            $tieneMismaUbicacion = ($minDist <= $radioMetros);
+            $tipo = $tieneMismaUbicacion ? 'MISMA_UBICACION_Y_DATOS' : 'MISMOS_DATOS';
+
+            $clustersConsolidados[] = [
+                'clasificacion' => $tipo,
+                'tiene_misma_ubicacion' => $tieneMismaUbicacion,
+                'tiene_mismos_datos' => true,
+                'clientes_ids' => $clIds,
+                'distancia_minima_m' => $minDist !== 999999.0 ? $minDist : 0.0,
+                'criterios_raw' => $criteriosAgrupados,
+            ];
+        }
+
+        // B) Clusters de ubicación pura (misma ubicación, diferentes datos)
+        foreach ($clustersProxRaw as $clIds) {
+            $minDist = 999999.0;
+            $countIds = count($clIds);
+            $criteriosAgrupados = [];
+
+            for ($i = 0; $i < $countIds; $i++) {
+                for ($j = $i + 1; $j < $countIds; $j++) {
+                    $par = min($clIds[$i], $clIds[$j]) . '_' . max($clIds[$i], $clIds[$j]);
+                    if (isset($distanciasProx[$par]) && $distanciasProx[$par] < $minDist) {
+                        $minDist = $distanciasProx[$par];
+                    }
+                    if (isset($criteriosProx[$par])) {
+                        foreach ($criteriosProx[$par] as $crit) {
+                            $criteriosAgrupados[$crit['campo']][(string) $crit['valor']] = true;
+                        }
+                    }
+                }
+            }
+
+            $clustersConsolidados[] = [
+                'clasificacion' => 'MISMA_UBICACION',
+                'tiene_misma_ubicacion' => true,
+                'tiene_mismos_datos' => false,
+                'clientes_ids' => $clIds,
+                'distancia_minima_m' => $minDist !== 999999.0 ? $minDist : 0.0,
+                'criterios_raw' => $criteriosAgrupados,
+            ];
+        }
+
+        // 8. Ventas MTD y Propuestas Pendientes
         $todosCids = [];
-        foreach ($clustersRaw as $item) {
-            foreach ($item[1] as $cid) {
+        foreach ($clustersConsolidados as $item) {
+            foreach ($item['clientes_ids'] as $cid) {
                 $todosCids[] = $cid;
             }
         }
@@ -248,23 +405,24 @@ class AuditarDuplicadosAction
             estado: 'PENDIENTE'
         );
         $mapaPendientes = [];
-        foreach ($propuestasPendientes as $p) {
-            $mapaPendientes[(int) $p['cliente_id_origen']] = $p;
+        foreach ($propuestasPendientes as $pr) {
+            $mapaPendientes[(int) $pr['cliente_id_origen']] = $pr;
         }
 
-        // 7. Construir respuesta por cluster
+        // 9. Construir respuesta final enriquecida
         $resultadoClusters = [];
-        foreach ($clustersRaw as $idx => [$tipoCluster, $clIds, $distMap, $critMap]) {
+        foreach ($clustersConsolidados as $cl) {
             $items = [];
-            $minDist = 999999.0;
             $rutasSet = [];
+            $canalesSet = [];
             $totMtd = 0.0;
 
-            foreach ($clIds as $cId) {
+            foreach ($cl['clientes_ids'] as $cId) {
                 $pt = $puntosMap[$cId];
                 $vMtd = $mapaVentas[$cId] ?? 0.0;
                 $totMtd += $vMtd;
                 $rutasSet[] = $pt['ruta'];
+                $canalesSet[] = $pt['canal'];
 
                 $prop = $mapaPendientes[$cId] ?? null;
                 $items[] = [
@@ -279,6 +437,7 @@ class AuditarDuplicadosAction
                     'latitud' => $pt['latitud'],
                     'longitud' => $pt['longitud'],
                     'ruta' => $pt['ruta'],
+                    'canal' => $pt['canal'],
                     'dia' => $pt['dia'],
                     'tipo_negocio' => $pt['tipo_negocio'],
                     'venta_mtd' => round($vMtd, 2),
@@ -288,24 +447,8 @@ class AuditarDuplicadosAction
                 ];
             }
 
-            $criteriosAgrupados = [];
-            $countIds = count($clIds);
-            for ($i = 0; $i < $countIds; $i++) {
-                for ($j = $i + 1; $j < $countIds; $j++) {
-                    $par = min($clIds[$i], $clIds[$j]) . '_' . max($clIds[$i], $clIds[$j]);
-                    if (isset($distMap[$par]) && $distMap[$par] < $minDist) {
-                        $minDist = $distMap[$par];
-                    }
-                    if (isset($critMap[$par])) {
-                        foreach ($critMap[$par] as $crit) {
-                            $criteriosAgrupados[$crit['campo']][(string) $crit['valor']] = true;
-                        }
-                    }
-                }
-            }
-
             $criteriosFinales = [];
-            foreach ($criteriosAgrupados as $campo => $valsMap) {
+            foreach ($cl['criterios_raw'] as $campo => $valsMap) {
                 $vals = array_keys($valsMap);
                 sort($vals);
                 $criteriosFinales[] = [
@@ -314,36 +457,70 @@ class AuditarDuplicadosAction
                 ];
             }
 
-            $rutasUnicas = array_values(array_unique($rutasSet));
+            $rutasUnicas = array_values(array_unique(array_filter($rutasSet)));
             sort($rutasUnicas);
 
+            $canalesUnicos = array_values(array_unique(array_filter($canalesSet)));
+            sort($canalesUnicos);
+
             $resultadoClusters[] = [
-                'cluster_id' => $idx + 1,
-                'clasificacion' => $tipoCluster,
+                'cluster_id' => 0, // Se reasigna tras filtrar y ordenar
+                'clasificacion' => $cl['clasificacion'],
+                'tiene_misma_ubicacion' => $cl['tiene_misma_ubicacion'],
+                'tiene_mismos_datos' => $cl['tiene_mismos_datos'],
                 'criterios' => $criteriosFinales,
                 'cantidad_clientes' => count($items),
-                'distancia_minima_m' => $minDist !== 999999.0 ? $minDist : $radioMetros,
+                'distancia_minima_m' => round($cl['distancia_minima_m'], 1),
                 'rutas' => $rutasUnicas,
+                'canales' => $canalesUnicos,
                 'venta_mtd_total' => round($totMtd, 2),
                 'clientes' => $items,
             ];
         }
 
-        // 8. Filtrar por rutas activas si se especificó
+        // 10. Filtrar por rutas o canales si se especificaron
         if (!empty($rutas)) {
             $rutasNorm = array_map(fn($r) => strtoupper(trim((string) $r)), array_filter($rutas));
             $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($rutasNorm) {
                 return count(array_intersect($cl['rutas'], $rutasNorm)) > 0;
             }));
+        } elseif (!empty($canales)) {
+            $canalesNorm = array_map(fn($c) => strtoupper(trim((string) $c)), array_filter($canales));
+            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($canalesNorm) {
+                return count(array_intersect($cl['canales'], $canalesNorm)) > 0;
+            }));
         }
 
-        // 9. Ordenar: Doble código primero, luego por distancia
+        // 11. Filtrar por tipo de grupo si se solicitó en el backend
+        if (!empty($tipoGrupo) && strtoupper(trim($tipoGrupo)) !== 'TODOS') {
+            $tipoUpper = strtoupper(trim($tipoGrupo));
+            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($tipoUpper) {
+                return match ($tipoUpper) {
+                    'MISMA_UBICACION' => $cl['tiene_misma_ubicacion'] === true,
+                    'MISMOS_DATOS' => $cl['tiene_mismos_datos'] === true,
+                    'MISMA_UBICACION_Y_DATOS' => $cl['clasificacion'] === 'MISMA_UBICACION_Y_DATOS',
+                    'MISMOS_DATOS_DISTANTE' => $cl['clasificacion'] === 'MISMOS_DATOS',
+                    'MISMA_UBICACION_SOLO' => $cl['clasificacion'] === 'MISMA_UBICACION',
+                    default => true,
+                };
+            }));
+        }
+
+        // 12. Ordenar: 1° Misma Ubicación y Mismos Datos, 2° Mismos Datos, 3° Misma Ubicación
         usort($resultadoClusters, function ($a, $b) {
-            $tipoOrderA = $a['clasificacion'] === 'DOBLE_CODIGO' ? 0 : 1;
-            $tipoOrderB = $b['clasificacion'] === 'DOBLE_CODIGO' ? 0 : 1;
-            if ($tipoOrderA !== $tipoOrderB) {
-                return $tipoOrderA <=> $tipoOrderB;
+            $ordenTipo = [
+                'MISMA_UBICACION_Y_DATOS' => 1,
+                'MISMOS_DATOS' => 2,
+                'MISMA_UBICACION' => 3,
+            ];
+
+            $pesoA = $ordenTipo[$a['clasificacion']] ?? 9;
+            $pesoB = $ordenTipo[$b['clasificacion']] ?? 9;
+
+            if ($pesoA !== $pesoB) {
+                return $pesoA <=> $pesoB;
             }
+
             return $a['distancia_minima_m'] <=> $b['distancia_minima_m'];
         });
 
@@ -352,11 +529,20 @@ class AuditarDuplicadosAction
         }
         unset($cl);
 
+        $conteoMismaUbicacion = count(array_filter($resultadoClusters, fn($c) => $c['tiene_misma_ubicacion']));
+        $conteoMismosDatos = count(array_filter($resultadoClusters, fn($c) => $c['tiene_mismos_datos']));
+        $conteoMismaUbicacionYDatos = count(array_filter($resultadoClusters, fn($c) => $c['clasificacion'] === 'MISMA_UBICACION_Y_DATOS'));
+
         return [
             'rutas_auditadas' => $rutas ?: [],
+            'canales_auditados' => $canales ?: [],
             'radio_metros_evaluado' => $radioMetros,
+            'tipo_grupo_evaluado' => $tipoGrupo ?: 'TODOS',
             'total_puntos_evaluados' => count($puntos),
             'total_clusters' => count($resultadoClusters),
+            'conteo_misma_ubicacion' => $conteoMismaUbicacion,
+            'conteo_mismos_datos' => $conteoMismosDatos,
+            'conteo_misma_ubicacion_y_datos' => $conteoMismaUbicacionYDatos,
             'clusters' => $resultadoClusters,
         ];
     }
@@ -367,7 +553,13 @@ class AuditarDuplicadosAction
             return '';
         }
         $digitos = preg_replace('/\D/', '', (string) $t);
-        return strlen($digitos) >= 8 ? substr($digitos, -8) : '';
+        if (strlen($digitos) >= 8) {
+            $sub = substr($digitos, -8);
+            if (!in_array($sub, ['00000000', '11111111', '12345678', '77777777'], true)) {
+                return $sub;
+            }
+        }
+        return '';
     }
 
     protected function normalizarTexto(?string $t): string
@@ -375,11 +567,13 @@ class AuditarDuplicadosAction
         if (empty($t)) {
             return '';
         }
-        $txt = trim(strtolower((string) $t));
-        if ($txt === '') {
-            return '';
-        }
-        $txt = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt) ?: $txt;
+        $txt = mb_strtolower(trim((string) $t), 'UTF-8');
+        $txt = str_replace(
+            ['á', 'é', 'í', 'ó', 'ú', 'ñ', 'Á', 'É', 'Í', 'Ó', 'Ú', 'Ñ', 'ü', 'Ü'],
+            ['a', 'e', 'i', 'o', 'u', 'n', 'a', 'e', 'i', 'o', 'u', 'n', 'u', 'u'],
+            $txt
+        );
+        $txt = preg_replace('/[^a-z0-9\s]/', ' ', $txt);
         $txt = preg_replace('/\s+/', ' ', $txt);
         return trim($txt);
     }
@@ -435,4 +629,3 @@ class AuditarDuplicadosAction
         return $mapa;
     }
 }
-
