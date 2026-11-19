@@ -781,12 +781,14 @@ class GetAvanceCumplimientoDataAction
 
             $canalesStr = implode(', ', array_keys($vData['canales'])) ?: 'SC';
             $rutasStr = implode(', ', $vData['rutas']);
+            $rutasDetalle = array_values(array_filter($filas, fn ($f) => in_array($f['ruta'], $vData['rutas'], true)));
 
             $matrizVendedores[] = [
                 'clave_id' => $vData['nombre'],
                 'vendedor' => $vData['nombre'],
                 'ruta' => $rutasStr,
                 'rutas' => $vData['rutas'],
+                'rutas_detalle' => $rutasDetalle,
                 'canal' => $canalesStr,
                 'meta' => $meta,
                 'meta_dia' => $metaDia,

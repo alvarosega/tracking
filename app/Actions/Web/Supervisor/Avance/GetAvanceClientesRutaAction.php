@@ -331,8 +331,9 @@ class GetAvanceClientesRutaAction
                 }
             }
 
-            // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente y Pareto
-            $prodsRutaRaw = DB::connection('supervisor')->table('fact_ventas')
+            // Extracción de productos de los meses cerrados para calcular el Total Sugerido por Cliente y Pareto (solo cob_core)
+            if ($kpiClave === 'cob_core') {
+                $prodsRutaRaw = DB::connection('supervisor')->table('fact_ventas')
                 ->whereIn('cliente_id', $carteraClientIds)
                 ->where('fecha_norm', '>=', $histInicio)
                 ->where('fecha_norm', '<=', $fechaCorte)
@@ -521,16 +522,15 @@ class GetAvanceClientesRutaAction
                 return ($b['clientes_count'] ?? 0) <=> ($a['clientes_count'] ?? 0);
             });
 
-            // MOTOR DE COMPRA SUGERIDA NIVELADA PARA COBERTURA CORE
-            if ($kpiClave === 'cob_core') {
+                // MOTOR DE COMPRA SUGERIDA NIVELADA PARA COBERTURA CORE
                 $estadoDesarrolloClienteMap = [];
                 $brechaClienteMap = [];
                 $excesoClienteMap = [];
                 $sugeridosPorClienteMap = [];
 
-            foreach ($cartera as $cId => $itemCart) {
-                $pList = $clienteProdsMap[$cId] ?? [];
-                $cuotaObj = $cuotaObjetivoMap[$cId] ?? 150.0;
+                foreach ($cartera as $cId => $itemCart) {
+                    $pList = $clienteProdsMap[$cId] ?? [];
+                    $cuotaObj = $cuotaObjetivoMap[$cId] ?? 150.0;
 
                 // 1. Identificar SKUs habituales del cliente según filtros superiores
                 $habitualesCli = [];
@@ -683,32 +683,13 @@ class GetAvanceClientesRutaAction
                 $sugeridosPorClienteMap[$cId] = $habitualesCli;
             }
         } else {
-            $totalRutaAcum3m = 0.0;
-            $mesYm = $carbonCorte->format('Y-m');
-            $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
-            $cuotaObjetivoMap = [];
+            $sugeridoClienteMap = [];
             $estadoDesarrolloClienteMap = [];
             $brechaClienteMap = [];
             $excesoClienteMap = [];
-
+            $sugeridosPorClienteMap = [];
             foreach ($cartera as $cId => $itemCart) {
-                $pList = $clienteProdsMap[$cId] ?? [];
-                $totalSug = 0.0;
-                foreach ($pList as $pKey => $pData) {
-                    $frec = max(count($pData['fechas'] ?? []), count($pData['facturas'] ?? []));
-                    if ($frec < $frecuenciaMinima) {
-                        continue;
-                    }
-                    $c3m = (int) ($pData['cantidad_3m'] ?? 0);
-                    if ($c3m >= $cantidadMinima) {
-                        $cantSug = (int) ceil($c3m / (float) max(1, $cantMesesEval));
-                        $pUlt = (float) ($pData['precio_ultima_compra'] ?? 0.0);
-                        if ($cantSug > 0 && $pUlt > 0.0) {
-                            $totalSug += round($cantSug * $pUlt, 2);
-                        }
-                    }
-                }
-                $sugeridoClienteMap[$cId] = round($totalSug, 2);
+                $sugeridoClienteMap[$cId] = 0.0;
                 $estadoDesarrolloClienteMap[$cId] = 'consolidado';
                 $brechaClienteMap[$cId] = 0.0;
                 $excesoClienteMap[$cId] = 0.0;

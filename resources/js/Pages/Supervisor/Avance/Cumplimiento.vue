@@ -773,6 +773,18 @@
                         Cargando desglose de la ruta {{ r.ruta }}...
                       </div>
 
+                      <!-- Error al Cargar -->
+                      <div v-else-if="errorCargaClientes" class="py-4 px-3 text-center text-[11px] text-red-600 bg-red-50/60 rounded-[8px] border border-red-200 font-medium">
+                        <span>{{ errorCargaClientes }}</span>
+                        <button
+                          type="button"
+                          @click="toggleDetalleRuta(r.ruta)"
+                          class="underline ml-2 text-[#0071E3] font-bold cursor-pointer hover:text-blue-800"
+                        >
+                          Reintentar
+                        </button>
+                      </div>
+
                       <!-- TABLA A: VENTAS POR DÍA Y ACUMULADO PROGRESIVO -->
                       <div
                         v-else-if="modoDetalleRuta === 'dias' && diasRuta.length > 0"
@@ -896,6 +908,14 @@
                             </template>
                           </tbody>
                         </table>
+                      </div>
+
+                      <!-- Estado vacío para días -->
+                      <div
+                        v-else-if="modoDetalleRuta === 'dias' && diasRuta.length === 0"
+                        class="py-8 text-center text-[11px] text-[#86868B] bg-white rounded-[8px] border border-black/[0.06] font-medium"
+                      >
+                        No se registraron ventas en los días del periodo para la ruta {{ r.ruta }}.
                       </div>
 
                       <!-- TABLA B: DESGLOSE POR CLIENTES INDIVIDUALES -->
@@ -1581,6 +1601,14 @@
                           </tfoot>
                         </table>
                       </div>
+
+                      <!-- Estado vacío para clientes -->
+                      <div
+                        v-else-if="modoDetalleRuta === 'clientes' && clientesRutaFiltrados.length === 0"
+                        class="py-8 text-center text-[11px] text-[#86868B] bg-white rounded-[8px] border border-black/[0.06] font-medium"
+                      >
+                        No se encontraron clientes para los filtros aplicados en la ruta {{ r.ruta }}.
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -2077,7 +2105,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import axios from 'axios'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
@@ -2192,6 +2220,7 @@ const kpisListaVisible = computed(() => {
 const rutaExpandida = ref(null)
 const vendedorExpandido = ref(null)
 const cargandoClientes = ref(false)
+const errorCargaClientes = ref(null)
 const carteraClientes = ref([])
 const diasRuta = ref([])
 const modoDetalleRuta = ref('dias') // 'dias' | 'clientes'
@@ -2657,6 +2686,18 @@ const vendedoresFiltrados = computed(() => {
       arr = [...listaBackend]
     }
 
+    const rutasMap = new Map((rutasFiltradas.value || []).map(r => [String(r.ruta || '').trim().toUpperCase(), r]))
+    arr = arr.map(v => {
+      const vRutas = (v.rutas || []).map(r => String(r || '').trim().toUpperCase())
+      const subRutas = (Array.isArray(v.rutas_detalle) && v.rutas_detalle.length > 0)
+        ? v.rutas_detalle
+        : vRutas.map(rKey => rutasMap.get(rKey)).filter(Boolean)
+      return {
+        ...v,
+        rutas_detalle: subRutas
+      }
+    })
+
     const col = sortKpiCol.value || 'pct'
     const dir = sortKpiDir.value === 'asc' ? 1 : -1
 
@@ -2776,9 +2817,10 @@ function toggleDetalleItem(r) {
   }
 }
 
-function abrirRutaEnModoRuta(ruta) {
+async function abrirRutaEnModoRuta(ruta) {
   store.evaluarPorVendedor = false
-  toggleDetalleRuta(ruta)
+  await nextTick()
+  await toggleDetalleRuta(ruta)
 }
 
 watch(() => store.evaluarPorVendedor, () => {
@@ -2911,11 +2953,13 @@ async function toggleDetalleRuta(ruta) {
     rutaExpandida.value = null
     diaSeleccionadoInline.value = null
     clienteExpandidoId.value = null
+    errorCargaClientes.value = null
     return
   }
   rutaExpandida.value = ruta
   diaSeleccionadoInline.value = null
   clienteExpandidoId.value = null
+  errorCargaClientes.value = null
 
   if (modoActivo.value === 'pizarra_unilever') {
     // Para la pizarra Unilever, el desglose cronológico día a día ya reside en la propiedad dias de la fila
@@ -2929,20 +2973,26 @@ async function toggleDetalleRuta(ruta) {
 
   try {
     const kpiParaDetalle = modoActivo.value !== 'resumen' ? modoActivo.value : (store.kpiActivo || 'vol_general')
+    const fCorte = store.filtrosAplicados?.fechaCorte || store.fechaCorte
+    let fInicio = store.filtrosAplicados?.fechaInicio || store.fechaInicio
+    if (fCorte && (!fInicio || fInicio.slice(0, 7) !== fCorte.slice(0, 7))) {
+      fInicio = `${fCorte.slice(0, 7)}-01`
+    }
+
     const res = await axios.post('/supervisor/avance/cumplimiento/clientes-ruta', {
       ruta,
       kpi: kpiParaDetalle,
-      fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
-      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
+      fecha_inicio: fInicio,
+      fecha_corte: fCorte,
       omitir_unitarios_3m: Boolean(store.omitirUnitarios3m),
       meses_historico: Number(store.mesesHistorico) || 3,
       frecuencia_minima: Number(store.frecuenciaMinima) || 1,
       cantidad_minima: Number(store.cantidadMinima) || 1
     })
-    carteraClientes.value = res.data.clientes || []
-    diasRuta.value = res.data.por_dia || []
-    mesesCerradosRuta.value = res.data.meses_cerrados || mesesCerradosGlobal.value || []
-    totales3mRuta.value = res.data.totales_3m_ruta || {}
+    carteraClientes.value = res.data?.clientes || []
+    diasRuta.value = res.data?.por_dia || []
+    mesesCerradosRuta.value = res.data?.meses_cerrados || mesesCerradosGlobal.value || []
+    totales3mRuta.value = res.data?.totales_3m_ruta || {}
     diaSeleccionadoInline.value = null
     clienteExpandidoId.value = null
 
@@ -2952,11 +3002,17 @@ async function toggleDetalleRuta(ruta) {
       sortClientesCol.value = 'peso_3m'
       sortClientesDir.value = 'desc'
     } else {
+      if (diasRuta.value.length === 0 && carteraClientes.value.length > 0) {
+        modoDetalleRuta.value = 'clientes'
+      } else if (!modoDetalleRuta.value) {
+        modoDetalleRuta.value = 'dias'
+      }
       const tienenCompra = carteraClientes.value.filter(c => c.tiene_logro || (c.cantidad || 0) > 0 || (c.monto_bs || 0) > 0)
       filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
     }
   } catch (err) {
     console.error('Error al cargar clientes de la ruta:', err)
+    errorCargaClientes.value = err?.response?.data?.message || err?.message || 'Error al conectar con el servidor'
   } finally {
     cargandoClientes.value = false
   }
