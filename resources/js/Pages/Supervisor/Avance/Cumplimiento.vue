@@ -9,28 +9,31 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta">
         <template #after-rutas>
+          <!-- Selector Único para evaluar por Ruta o por Vendedor (Volumen General) al lado de los filtros -->
           <div
             v-if="modoActivo === 'vol_general'"
-            class="flex items-center gap-2 apple-control-pill rounded-[10px] px-2.5 py-1 select-none"
-            title="Alternar entre evaluación por Ruta o por Vendedor para Volumen General"
+            class="flex items-center gap-1.5 apple-control-pill rounded-[10px] p-0.5 select-none"
+            title="Alternar reporte de Volumen General entre Ruta individual o consolidada por Vendedor"
           >
-            <span class="text-[11px] font-bold text-[#1D1D1F]">
-              {{ store.evaluarPorVendedor ? 'Por Vendedor' : 'Por Ruta' }}
-            </span>
-            <button
-              type="button"
-              role="switch"
-              :aria-checked="store.evaluarPorVendedor"
-              @click="store.evaluarPorVendedor = !store.evaluarPorVendedor"
-              class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="store.evaluarPorVendedor ? 'bg-[#0071E3]' : 'bg-[#D2D2D7]'"
-            >
-              <span
-                aria-hidden="true"
-                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="store.evaluarPorVendedor ? 'translate-x-4' : 'translate-x-0'"
-              />
-            </button>
+            <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider pl-2">Ver:</span>
+            <div class="inline-flex items-center rounded-[8px] bg-black/[0.04] p-0.5 text-[10.5px] font-bold">
+              <button
+                type="button"
+                @click="store.evaluarPorVendedor = false"
+                :class="!store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer select-none"
+              >
+                Por Ruta
+              </button>
+              <button
+                type="button"
+                @click="store.evaluarPorVendedor = true"
+                :class="store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer select-none"
+              >
+                Por Vendedor
+              </button>
+            </div>
           </div>
         </template>
       </AvanceFiltrosBar>
@@ -290,46 +293,6 @@
               <span class="text-xs font-bold text-[#1D1D1F] tracking-tight uppercase">
                 {{ kpiActualObj?.nombre }} · Detalle Monográfico
               </span>
-            </div>
-
-            <!-- Selector Apple Switch para evaluar por Ruta o por Vendedor (Volumen General) -->
-            <div
-              v-if="modoActivo === 'vol_general'"
-              class="ml-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-[10px] bg-white/90 border border-black/[0.08] shadow-2xs select-none"
-              title="Alternar entre evaluación por Ruta individual o consolidada por Vendedor"
-            >
-              <button
-                type="button"
-                role="switch"
-                :aria-checked="store.evaluarPorVendedor"
-                @click="store.evaluarPorVendedor = !store.evaluarPorVendedor"
-                class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                :class="store.evaluarPorVendedor ? 'bg-[#0071E3]' : 'bg-[#D2D2D7]'"
-              >
-                <span
-                  aria-hidden="true"
-                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                  :class="store.evaluarPorVendedor ? 'translate-x-4' : 'translate-x-0'"
-                />
-              </button>
-              <div class="inline-flex items-center rounded-[6px] bg-black/[0.05] p-0.5 text-[10px] font-semibold">
-                <button
-                  type="button"
-                  @click="store.evaluarPorVendedor = false"
-                  :class="!store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                  class="px-2 py-0.5 rounded-[5px] transition-all cursor-pointer"
-                >
-                  Por Ruta
-                </button>
-                <button
-                  type="button"
-                  @click="store.evaluarPorVendedor = true"
-                  :class="store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                  class="px-2 py-0.5 rounded-[5px] transition-all cursor-pointer"
-                >
-                  Por Vendedor
-                </button>
-              </div>
             </div>
 
             <!-- Selector para elegir la cantidad mínima acumulada en el histórico -->
