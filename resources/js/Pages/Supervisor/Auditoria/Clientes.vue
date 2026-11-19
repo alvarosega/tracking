@@ -381,6 +381,16 @@
                                   <span class="px-2 py-0.5 rounded bg-sky-50 text-[#0071E3] font-bold border border-sky-200 break-words max-w-full">
                                     {{ ev.valor_nuevo }}
                                   </span>
+
+                                  <!-- Desplegable con mapa comparativo para cambios de coordenadas -->
+                                  <AuditoriaCoordenadasMapa
+                                    v-if="esCambioCoordenadas(ev)"
+                                    :id="ev.id"
+                                    :valor-anterior="ev.valor_anterior"
+                                    :valor-nuevo="ev.valor_nuevo"
+                                    :cliente="cli.cliente"
+                                    :cliente-id="cli.cliente_id"
+                                  />
                                 </div>
 
                                 <div v-if="ev.observaciones || ev.auditado_por" class="text-[10px] text-[#86868B] italic">
@@ -543,6 +553,7 @@ import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from '@/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from '@/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue';
+import AuditoriaCoordenadasMapa from '@/Pages/Supervisor/Auditoria/Components/AuditoriaCoordenadasMapa.vue';
 
 const props = defineProps({
   canales: { type: Array, default: () => [] },
@@ -752,6 +763,13 @@ async function ejecutarResolucion() {
   } finally {
     modalResolucion.procesando = false;
   }
+}
+
+function esCambioCoordenadas(ev) {
+  if (!ev) return false;
+  const tipo = (ev.tipo_evento || '').toUpperCase();
+  const campo = (ev.campo_afectado || '').toLowerCase();
+  return tipo === 'MODIFICADO_COORDENADAS' || campo === 'coordenadas' || campo === 'latitud' || campo === 'longitud' || campo === 'ubicacion';
 }
 
 function formatearTipoEvento(tipo) {

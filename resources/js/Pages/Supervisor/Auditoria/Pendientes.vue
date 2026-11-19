@@ -367,6 +367,16 @@
                     >
                       {{ reg.despues_fmt }}
                     </span>
+
+                    <!-- Desplegable con mapa comparativo para cambios de coordenadas -->
+                    <AuditoriaCoordenadasMapa
+                      v-if="esCambioCoordenadas(reg)"
+                      :id="reg.id"
+                      :valor-anterior="reg.antes_fmt"
+                      :valor-nuevo="reg.despues_fmt"
+                      :cliente="reg.cliente"
+                      :cliente-id="reg.cliente_id"
+                    />
                   </div>
                 </td>
 
@@ -538,6 +548,7 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from '@/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from '@/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue';
 import AuditoriaPaginacion from '@/Pages/Supervisor/Auditoria/Components/AuditoriaPaginacion.vue';
+import AuditoriaCoordenadasMapa from '@/Pages/Supervisor/Auditoria/Components/AuditoriaCoordenadasMapa.vue';
 
 const props = defineProps({
   canales: { type: Array, default: () => [] },
@@ -751,6 +762,14 @@ async function ejecutarResolucion() {
   } finally {
     modalResolucion.procesando = false;
   }
+}
+
+function esCambioCoordenadas(reg) {
+  if (!reg) return false;
+  const tipo = (reg.tipo_evento || '').toUpperCase();
+  const cat = (reg.categoria_clave || '').toUpperCase();
+  const campo = (reg.campo_afectado || '').toLowerCase();
+  return tipo === 'MODIFICADO_COORDENADAS' || cat === 'MODIFICADO_COORDENADAS' || campo === 'coordenadas' || campo === 'latitud' || campo === 'longitud' || campo === 'ubicacion';
 }
 
 function obtenerBadgeClase(catClave) {
