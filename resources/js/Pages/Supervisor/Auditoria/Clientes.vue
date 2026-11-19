@@ -22,58 +22,38 @@
               </select>
             </div>
 
-            <!-- Ruta -->
-            <div class="flex items-center gap-1 apple-control-pill rounded-[8px] px-2 py-1 text-[11px]">
-              <span class="text-[9px] font-bold text-[#86868B] uppercase">Ruta:</span>
-              <select
-                v-model="filtros.ruta"
-                @change="consultar()"
-                class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todas</option>
-                <option v-for="r in rutasOpciones" :key="r.ruta" :value="r.ruta">{{ r.ruta }}</option>
-              </select>
-            </div>
+            <!-- Ruta (Multiselección) -->
+            <AuditoriaMultiSelect
+              label="Ruta"
+              v-model="filtros.rutas"
+              :options="opcionesRutas"
+              all-selected-label="Todas"
+              :searchable="true"
+              search-placeholder="Buscar ruta..."
+              @change="consultar()"
+            />
 
-            <!-- Estado -->
-            <div class="flex items-center gap-1 apple-control-pill rounded-[8px] px-2 py-1 text-[11px]">
-              <span class="text-[9px] font-bold text-[#86868B] uppercase">Estado:</span>
-              <select
-                v-model="filtros.estado_filtro"
-                @change="consultar()"
-                class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos</option>
-                <option value="CON_PENDIENTES">Con Pendientes</option>
-                <option value="100_RESUELTOS">100% Resueltos</option>
-                <option value="SOLO_PENDIENTES">Solo Pendientes</option>
-              </select>
-            </div>
+            <!-- Estado (Multiselección) -->
+            <AuditoriaMultiSelect
+              label="Estado"
+              v-model="filtros.estados"
+              :options="opcionesEstados"
+              all-selected-label="Todos"
+              @change="consultar()"
+            />
 
-            <!-- Tipo de Cambio -->
-            <div class="flex items-center gap-1 apple-control-pill rounded-[8px] px-2 py-1 text-[11px]">
-              <span class="text-[9px] font-bold text-[#86868B] uppercase">Tipo:</span>
-              <select
-                v-model="filtros.categoria"
-                @change="consultar()"
-                class="bg-transparent text-[11px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer max-w-[140px] truncate"
-              >
-                <option value="TODOS">Todos los tipos</option>
-                <option value="CAMBIOS_RUTA">Cambios de Ruta</option>
-                <option value="CAMBIOS_DIA">Cambios de Día</option>
-                <option value="MODIFICADO_COORDENADAS">Coordenadas GPS</option>
-                <option value="CAMBIO_DE_CLUSTER">Cluster / Negocio</option>
-                <option value="ALTAS_REACTIVACIONES">Altas / Reactivados</option>
-                <option value="BAJAS_INACTIVADOS">Bajas / Inactivados</option>
-                <option value="MODIFICADO_VENDEDOR">Vendedor</option>
-                <option value="FRECUENCIA_VISITA">Frecuencia Visita</option>
-                <option value="MODIFICACION_DATOS">Datos Generales</option>
-              </select>
-            </div>
+            <!-- Tipo de Cambio (Multiselección con los 11 tipos) -->
+            <AuditoriaMultiSelect
+              label="Tipo"
+              v-model="filtros.tipos"
+              :options="opcionesTipos"
+              all-selected-label="Todos los tipos"
+              @change="consultar()"
+            />
 
             <!-- Limpiar -->
             <button
-              v-if="filtros.canal !== 'TODOS' || filtros.ruta !== 'TODOS' || filtros.estado_filtro !== 'TODOS' || filtros.categoria !== 'TODOS' || filtros.busqueda"
+              v-if="filtros.canal !== 'TODOS' || filtros.rutas.length > 0 || filtros.estados.length > 0 || filtros.tipos.length > 0 || filtros.busqueda"
               type="button"
               @click="restablecerFiltros"
               class="apple-control-pill text-[#6E6E73] hover:text-[#FF3B30] text-[10px] font-semibold px-2 py-1 rounded-[8px] cursor-pointer"
@@ -554,6 +534,7 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
 import AuditoriaSubTabs from '@/Pages/Supervisor/Auditoria/Components/AuditoriaSubTabs.vue';
 import AuditoriaFotosModal from '@/Pages/Supervisor/Auditoria/Components/AuditoriaFotosModal.vue';
 import AuditoriaCoordenadasMapa from '@/Pages/Supervisor/Auditoria/Components/AuditoriaCoordenadasMapa.vue';
+import AuditoriaMultiSelect from '@/Pages/Supervisor/Auditoria/Components/AuditoriaMultiSelect.vue';
 
 const props = defineProps({
   canales: { type: Array, default: () => [] },
@@ -581,10 +562,10 @@ const metricas = reactive({
 
 const filtros = reactive({
   canal: 'TODOS',
-  ruta: 'TODOS',
+  rutas: [],
+  estados: [],
+  tipos: [],
   archivo_origen: 'TODOS',
-  estado_filtro: props.initial_estado || 'TODOS',
-  categoria: props.initial_categoria || 'TODOS',
   fecha_inicio: '',
   fecha_fin: '',
   busqueda: '',
@@ -601,9 +582,46 @@ const modalResolucion = reactive({
 
 let searchDebounceTimer = null;
 
-const rutasOpciones = computed(() => {
-  if (filtros.canal === 'TODOS') return props.rutas;
-  return props.rutas.filter(r => r.canal === filtros.canal);
+// Catálogo de opciones de Estados (uno, varios o todos)
+const opcionesEstados = [
+  { value: 'PENDIENTE', label: 'Pendientes', color: '#B7791F', badge: 'Por auditar' },
+  { value: 'APROBADO', label: 'Aprobados', color: '#1E6B37', badge: 'Resuelto' },
+  { value: 'RECHAZADO', label: 'Rechazados', color: '#C9342C', badge: 'Rechazado' },
+  { value: 'DESCARTADO', label: 'Descartados', color: '#6E6E73', badge: 'Descartado' },
+];
+
+// Catálogo de opciones de Tipos de Cambio (los 11 tipos completos del sistema)
+const opcionesTipos = [
+  { value: 'NUEVO', label: 'Altas Nuevas' },
+  { value: 'REACTIVADO', label: 'Reactivaciones' },
+  { value: 'ELIMINADO', label: 'Bajas del Padrón' },
+  { value: 'INACTIVADO', label: 'Inactivaciones' },
+  { value: 'MODIFICADO_RUTA', label: 'Cambios de Ruta' },
+  { value: 'MODIFICADO_DIA', label: 'Cambios de Día' },
+  { value: 'MODIFICADO_COORDENADAS', label: 'Coordenadas GPS' },
+  { value: 'CAMBIO_DE_CLUSTER', label: 'Clúster / Negocio' },
+  { value: 'MODIFICADO_VENDEDOR', label: 'Vendedor / Preventista' },
+  { value: 'FRECUENCIA_VISITA', label: 'Frecuencia de Visita' },
+  { value: 'MODIFICACION_DATOS', label: 'Datos Generales' },
+];
+
+// Opciones de Rutas reactivas según Canal seleccionado
+const opcionesRutas = computed(() => {
+  const base = filtros.canal === 'TODOS'
+    ? props.rutas
+    : props.rutas.filter(r => r.canal === filtros.canal);
+
+  const lista = base.map(r => ({
+    value: r.ruta,
+    label: r.ruta,
+    badge: r.canal,
+  }));
+
+  if (!lista.some(r => r.value === 'SIN RUTA')) {
+    lista.push({ value: 'SIN RUTA', label: 'SIN RUTA', badge: 'Padrón' });
+  }
+
+  return lista;
 });
 
 onMounted(() => {
@@ -611,7 +629,7 @@ onMounted(() => {
 });
 
 function onCanalChange() {
-  filtros.ruta = 'TODOS';
+  filtros.rutas = [];
   consultar();
 }
 
@@ -624,10 +642,10 @@ function onBusquedaInput() {
 
 function restablecerFiltros() {
   filtros.canal = 'TODOS';
-  filtros.ruta = 'TODOS';
+  filtros.rutas = [];
+  filtros.estados = [];
+  filtros.tipos = [];
   filtros.archivo_origen = 'TODOS';
-  filtros.estado_filtro = 'TODOS';
-  filtros.categoria = 'TODOS';
   filtros.fecha_inicio = '';
   filtros.fecha_fin = '';
   filtros.busqueda = '';
@@ -671,10 +689,10 @@ async function consultar() {
   try {
     const params = {
       canal: filtros.canal !== 'TODOS' ? filtros.canal : '',
-      rutas: filtros.ruta !== 'TODOS' ? [filtros.ruta] : [],
+      rutas: filtros.rutas,
+      estados: filtros.estados,
+      tipos: filtros.tipos,
       archivo_origen: filtros.archivo_origen !== 'TODOS' ? filtros.archivo_origen : '',
-      estado_filtro: filtros.estado_filtro,
-      categoria: filtros.categoria !== 'TODOS' ? filtros.categoria : '',
       fecha_inicio: filtros.fecha_inicio,
       fecha_fin: filtros.fecha_fin,
       busqueda: filtros.busqueda.trim(),
@@ -783,6 +801,9 @@ function formatearTipoEvento(tipo) {
     case 'MODIFICADO_COORDENADAS': return 'GPS';
     case 'CAMBIO_DE_CLUSTER': return 'Cluster';
     case 'MODIFICADO_VENDEDOR': return 'Vendedor';
+    case 'FRECUENCIA_VISITA': return 'Frecuencia';
+    case 'MODIFICACION_DATOS':
+    case 'MODIFICADO': return 'Datos';
     default: return tipo || 'Modificado';
   }
 }
@@ -805,6 +826,11 @@ function obtenerBadgeEventoClase(tipo) {
       return 'bg-[#F5EEF8] text-[#8E44AD] border-[#E8DAEF]';
     case 'MODIFICADO_VENDEDOR':
       return 'bg-[#E8F8F5] text-[#16A085] border-[#D1F2EB]';
+    case 'FRECUENCIA_VISITA':
+      return 'bg-[#EBF5FB] text-[#2980B9] border-[#D4E6F1]';
+    case 'MODIFICACION_DATOS':
+    case 'MODIFICADO':
+      return 'bg-[#F0F2F5] text-[#475569] border-[#CBD5E1]';
     default:
       return 'bg-black/[0.05] text-[#1D1D1F] border-black/10';
   }

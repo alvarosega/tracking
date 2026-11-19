@@ -19,10 +19,43 @@ class GetAuditoriaClientesAction
         $conn = DB::connection('supervisor');
 
         $canal = trim((string) ($params['canal'] ?? ''));
-        $rutas = (array) ($params['rutas'] ?? []);
+
+        // 1. Normalización de Rutas (uno, varios o todos)
+        $rutasRaw = $params['rutas'] ?? $params['ruta'] ?? [];
+        if (is_string($rutasRaw)) {
+            $rutasRaw = ($rutasRaw === 'TODOS' || $rutasRaw === '') ? [] : explode(',', $rutasRaw);
+        }
+        $rutasValidas = array_values(array_filter(array_map('trim', (array) $rutasRaw), fn($r) => $r !== '' && strtoupper($r) !== 'TODOS'));
+
+        // 2. Normalización de Estados (uno, varios o todos)
+        $estadosRaw = $params['estados'] ?? $params['estado'] ?? $params['estado_filtro'] ?? [];
+        if (is_string($estadosRaw)) {
+            if ($estadosRaw === 'CON_PENDIENTES' || $estadosRaw === 'SOLO_PENDIENTES') {
+                $estadosRaw = ['PENDIENTE'];
+            } elseif ($estadosRaw === '100_RESUELTOS') {
+                $estadosRaw = ['APROBADO', 'RECHAZADO', 'DESCARTADO'];
+            } elseif ($estadosRaw === 'TODOS' || $estadosRaw === '') {
+                $estadosRaw = [];
+            } else {
+                $estadosRaw = explode(',', $estadosRaw);
+            }
+        }
+        $estadosValidos = array_values(array_filter(
+            array_map(fn($e) => strtoupper(trim((string) $e)), (array) $estadosRaw),
+            fn($e) => in_array($e, ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'DESCARTADO'], true)
+        ));
+
+        // 3. Normalización de Tipos de Cambio (uno, varios o todos)
+        $tiposRaw = $params['tipos'] ?? $params['tipo'] ?? $params['categoria'] ?? [];
+        if (is_string($tiposRaw)) {
+            $tiposRaw = ($tiposRaw === 'TODOS' || $tiposRaw === '') ? [] : explode(',', $tiposRaw);
+        }
+        $tiposValidos = array_values(array_filter(
+            array_map(fn($t) => strtoupper(trim((string) $t)), (array) $tiposRaw),
+            fn($t) => $t !== '' && $t !== 'TODOS'
+        ));
+
         $archivoOrigen = trim((string) ($params['archivo_origen'] ?? ''));
-        $estadoFiltro = strtoupper(trim((string) ($params['estado_filtro'] ?? 'TODOS'))); // TODOS | CON_PENDIENTES | 100_RESUELTOS | SOLO_PENDIENTES
-        $categoria = strtoupper(trim((string) ($params['categoria'] ?? 'TODOS')));
         $fechaInicio = trim((string) ($params['fecha_inicio'] ?? ''));
         $fechaFin = trim((string) ($params['fecha_fin'] ?? ''));
         $busqueda = trim((string) ($params['busqueda'] ?? ''));
@@ -51,19 +84,34 @@ class GetAuditoriaClientesAction
             $baseQuery->whereRaw('TRIM(r_pan.canal) = ?', [$canal]);
         }
 
-        // 2. Filtro de Rutas (estrictamente según pan_ruteo actual)
-        $rutasValidas = array_filter(array_map('trim', $rutas));
+        // 2. Filtro de Rutas (uno, varios o todos)
         if (!empty($rutasValidas)) {
             $rutasUpper = array_map('strtoupper', $rutasValidas);
             $baseQuery->whereIn(DB::raw("COALESCE(NULLIF(TRIM(UPPER(p.ruta)), ''), 'SIN RUTA')"), $rutasUpper);
         }
 
-        // 3. Archivo Origen
+        // 3. Filtro de Estados de Auditoría (uno, varios o todos)
+        if (!empty($estadosValidos) && count($estadosValidos) < 4) {
+            $baseQuery->whereIn('a.estado_auditoria', $estadosValidos);
+        }
+
+        // 4. Filtro de Tipos de Cambio (uno, varios o todos los 11 tipos)
+        if (!empty($tiposValidos) && count($tiposValidos) < 11) {
+            $baseQuery->where(function ($q) use ($tiposValidos) {
+                foreach ($tiposValidos as $tipo) {
+                    $q->orWhere(function ($sub) use ($tipo) {
+                        $this->aplicarFiltroTipo($sub, $tipo);
+                    });
+                }
+            });
+        }
+
+        // 5. Archivo Origen
         if ($archivoOrigen !== '' && strtoupper($archivoOrigen) !== 'TODOS') {
             $baseQuery->where('a.archivo_origen', $archivoOrigen);
         }
 
-        // 4. Rango de Fechas
+        // 6. Rango de Fechas
         if ($fechaInicio !== '') {
             $baseQuery->whereRaw('DATE(COALESCE(a.fecha_resolucion, a.fecha_auditoria)) >= ?', [$fechaInicio]);
         }
@@ -71,64 +119,7 @@ class GetAuditoriaClientesAction
             $baseQuery->whereRaw('DATE(COALESCE(a.fecha_resolucion, a.fecha_auditoria)) <= ?', [$fechaFin]);
         }
 
-        // 5. Categoría de Cambio
-        if ($categoria !== '' && $categoria !== 'TODOS') {
-            switch ($categoria) {
-                case 'ALTAS_REACTIVACIONES':
-                    $baseQuery->where('a.campo_afectado', '!=', 'frecuencia_visita')
-                              ->where(function ($q) {
-                                  $q->whereIn('a.tipo_evento', ['NUEVO', 'REACTIVADO'])
-                                    ->orWhere('a.campo_afectado', 'cliente_alta_total');
-                              });
-                    break;
-                case 'BAJAS_INACTIVADOS':
-                    $baseQuery->where('a.campo_afectado', '!=', 'frecuencia_visita')
-                              ->where(function ($q) {
-                                  $q->whereIn('a.tipo_evento', ['ELIMINADO', 'INACTIVADO'])
-                                    ->orWhere('a.campo_afectado', 'cliente_baja_total');
-                              });
-                    break;
-                case 'CAMBIOS_RUTA':
-                    $baseQuery->where(function ($q) {
-                        $q->where('a.tipo_evento', 'MODIFICADO_RUTA')
-                          ->orWhere('a.campo_afectado', 'ruta');
-                    });
-                    break;
-                case 'CAMBIOS_DIA':
-                    $baseQuery->where(function ($q) {
-                        $q->where('a.tipo_evento', 'MODIFICADO_DIA')
-                          ->orWhere('a.campo_afectado', 'dia');
-                    });
-                    break;
-                case 'CAMBIO_DE_CLUSTER':
-                    $baseQuery->where(function ($q) {
-                        $q->where('a.tipo_evento', 'CAMBIO_DE_CLUSTER')
-                          ->orWhereIn('a.campo_afectado', ['cluster', 'cluster_t', 'tipo_negocio']);
-                    });
-                    break;
-                case 'MODIFICADO_VENDEDOR':
-                    $baseQuery->where(function ($q) {
-                        $q->where('a.tipo_evento', 'MODIFICADO_VENDEDOR')
-                          ->orWhere('a.campo_afectado', 'vendedor');
-                    });
-                    break;
-                case 'MODIFICADO_COORDENADAS':
-                    $baseQuery->where(function ($q) {
-                        $q->where('a.tipo_evento', 'MODIFICADO_COORDENADAS')
-                          ->orWhere('a.campo_afectado', 'coordenadas');
-                    });
-                    break;
-                case 'FRECUENCIA_VISITA':
-                    $baseQuery->where('a.campo_afectado', 'frecuencia_visita');
-                    break;
-                case 'MODIFICACION_DATOS':
-                    $baseQuery->where('a.tipo_evento', 'MODIFICADO')
-                              ->whereNotIn('a.campo_afectado', ['frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas']);
-                    break;
-            }
-        }
-
-        // 6. Buscador General
+        // 7. Buscador General
         if ($busqueda !== '') {
             $baseQuery->where(function ($q) use ($busqueda) {
                 if (is_numeric($busqueda)) {
@@ -201,7 +192,34 @@ class GetAuditoriaClientesAction
 
         // Obtener historial completo de cambios individuales de estos clientes
         $cambiosQuery = $conn->table('auditoria_ruteo_cambios as a')
-            ->whereIn('a.cliente_id', $clienteIds)
+            ->whereIn('a.cliente_id', $clienteIds);
+
+        if (!empty($estadosValidos) && count($estadosValidos) < 4) {
+            $cambiosQuery->whereIn('a.estado_auditoria', $estadosValidos);
+        }
+
+        if (!empty($tiposValidos) && count($tiposValidos) < 11) {
+            $cambiosQuery->where(function ($q) use ($tiposValidos) {
+                foreach ($tiposValidos as $tipo) {
+                    $q->orWhere(function ($sub) use ($tipo) {
+                        $this->aplicarFiltroTipo($sub, $tipo);
+                    });
+                }
+            });
+        }
+
+        if ($archivoOrigen !== '' && strtoupper($archivoOrigen) !== 'TODOS') {
+            $cambiosQuery->where('a.archivo_origen', $archivoOrigen);
+        }
+
+        if ($fechaInicio !== '') {
+            $cambiosQuery->whereRaw('DATE(COALESCE(a.fecha_resolucion, a.fecha_auditoria)) >= ?', [$fechaInicio]);
+        }
+        if ($fechaFin !== '') {
+            $cambiosQuery->whereRaw('DATE(COALESCE(a.fecha_resolucion, a.fecha_auditoria)) <= ?', [$fechaFin]);
+        }
+
+        $cambiosData = $cambiosQuery
             ->select([
                 'a.id',
                 'a.cliente_id',
@@ -222,7 +240,7 @@ class GetAuditoriaClientesAction
             ->get();
 
         $cambiosPorCliente = [];
-        foreach ($cambiosQuery as $cambio) {
+        foreach ($cambiosData as $cambio) {
             $cambiosPorCliente[$cambio->cliente_id][] = [
                 'id' => (int) $cambio->id,
                 'cliente_id' => (int) $cambio->cliente_id,
@@ -372,5 +390,87 @@ class GetAuditoriaClientesAction
                 'clientes_resueltos' => $clientesResueltos,
             ],
         ];
+    }
+
+    /**
+     * Aplica la condición WHERE para un tipo específico de cambio de auditoría.
+     */
+    private function aplicarFiltroTipo($q, string $tipo): void
+    {
+        switch ($tipo) {
+            case 'NUEVO':
+                $q->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                  ->where(function ($sub) {
+                      $sub->where('a.tipo_evento', 'NUEVO')
+                          ->orWhere('a.campo_afectado', 'cliente_alta_total');
+                  });
+                break;
+            case 'REACTIVADO':
+                $q->where('a.tipo_evento', 'REACTIVADO');
+                break;
+            case 'ALTAS_REACTIVACIONES':
+                $q->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                  ->where(function ($sub) {
+                      $sub->whereIn('a.tipo_evento', ['NUEVO', 'REACTIVADO'])
+                          ->orWhere('a.campo_afectado', 'cliente_alta_total');
+                  });
+                break;
+            case 'ELIMINADO':
+                $q->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                  ->where(function ($sub) {
+                      $sub->where('a.tipo_evento', 'ELIMINADO')
+                          ->orWhere('a.campo_afectado', 'cliente_baja_total');
+                  });
+                break;
+            case 'INACTIVADO':
+                $q->where('a.tipo_evento', 'INACTIVADO');
+                break;
+            case 'BAJAS_INACTIVADOS':
+                $q->where('a.campo_afectado', '!=', 'frecuencia_visita')
+                  ->where(function ($sub) {
+                      $sub->whereIn('a.tipo_evento', ['ELIMINADO', 'INACTIVADO'])
+                          ->orWhere('a.campo_afectado', 'cliente_baja_total');
+                  });
+                break;
+            case 'MODIFICADO_RUTA':
+            case 'CAMBIOS_RUTA':
+                $q->where(function ($sub) {
+                    $sub->where('a.tipo_evento', 'MODIFICADO_RUTA')
+                        ->orWhere('a.campo_afectado', 'ruta');
+                });
+                break;
+            case 'MODIFICADO_DIA':
+            case 'CAMBIOS_DIA':
+                $q->where(function ($sub) {
+                    $sub->where('a.tipo_evento', 'MODIFICADO_DIA')
+                        ->orWhere('a.campo_afectado', 'dia');
+                });
+                break;
+            case 'CAMBIO_DE_CLUSTER':
+                $q->where(function ($sub) {
+                    $sub->where('a.tipo_evento', 'CAMBIO_DE_CLUSTER')
+                        ->orWhereIn('a.campo_afectado', ['cluster', 'cluster_t', 'tipo_negocio']);
+                });
+                break;
+            case 'MODIFICADO_VENDEDOR':
+                $q->where(function ($sub) {
+                    $sub->where('a.tipo_evento', 'MODIFICADO_VENDEDOR')
+                        ->orWhere('a.campo_afectado', 'vendedor');
+                });
+                break;
+            case 'MODIFICADO_COORDENADAS':
+                $q->where(function ($sub) {
+                    $sub->where('a.tipo_evento', 'MODIFICADO_COORDENADAS')
+                        ->orWhere('a.campo_afectado', 'coordenadas');
+                });
+                break;
+            case 'FRECUENCIA_VISITA':
+                $q->where('a.campo_afectado', 'frecuencia_visita');
+                break;
+            case 'MODIFICACION_DATOS':
+                $q->where('a.tipo_evento', 'MODIFICADO')
+                  ->whereNotIn('a.campo_afectado', ['frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas']);
+                break;
+        }
     }
 }
