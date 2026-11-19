@@ -1372,6 +1372,13 @@ function toggleCanal(canal) {
       return filtroCanales.value.includes(cr);
     });
   }
+  // Limpiar rutas de fronteras seleccionadas que ya no correspondan a los canales activos
+  if (filtroCanales.value.length > 0 && filtroRutasFronterasRutas.value.length > 0) {
+    filtroRutasFronterasRutas.value = filtroRutasFronterasRutas.value.filter(r => {
+      const cr = getCanalDeRuta(r);
+      return filtroCanales.value.includes(cr);
+    });
+  }
   if (origenConsulta.value) {
     consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
   }
@@ -1382,6 +1389,7 @@ function seleccionarSoloCanalTDB() {
   if (filtroRutas.value.length > 0) {
     filtroRutas.value = filtroRutas.value.filter(r => getCanalDeRuta(r) === 'TDB');
   }
+  filtroRutasFronterasRutas.value = [...obtenerRutasTDB()];
   if (origenConsulta.value) {
     consultarCercanos(origenConsulta.value.lat, origenConsulta.value.lng);
   }
@@ -1489,10 +1497,11 @@ const drawerFiltrosMovil = ref(false);
 function getCanalDeRuta(ruta) {
   if (!ruta) return '';
   const norm = String(ruta).trim().toUpperCase();
-  const fr = (props.fronteras_rutas || []).find(f => String(f.ruta || '').trim().toUpperCase() === norm);
-  if (fr && fr.canal) return String(fr.canal).trim().toUpperCase();
+  // El catálogo de rutas dim_rutas es la autoridad canónica para el canal
   const cr = (props.catalogo_rutas || []).find(r => String(r.ruta || '').trim().toUpperCase() === norm);
   if (cr && cr.canal) return String(cr.canal).trim().toUpperCase();
+  const fr = (props.fronteras_rutas || []).find(f => String(f.ruta || '').trim().toUpperCase() === norm);
+  if (fr && fr.canal) return String(fr.canal).trim().toUpperCase();
   return '';
 }
 
@@ -1515,7 +1524,7 @@ function obtenerRutasTDB() {
       }
     });
   }
-  return Array.from(set);
+  return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
 // Por defecto se marcan las fronteras ruta del canal TDB
@@ -1528,7 +1537,10 @@ const filtroRutasFronterasRutas = ref((() => {
 const rutasDisponiblesFronterasRutas = computed(() => {
   const set = new Set();
   (props.fronteras_rutas || []).forEach(f => {
-    if (f.ruta) set.add(String(f.ruta).trim());
+    const canal = getCanalDeRuta(f.ruta);
+    if (filtroCanales.value.length === 0 || filtroCanales.value.includes(canal)) {
+      if (f.ruta) set.add(String(f.ruta).trim());
+    }
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 });
@@ -1572,7 +1584,7 @@ const labelFronterasRutas = computed(() => {
   const total = rutasDisponiblesFronterasRutas.value.length;
   const sel = filtroRutasFronterasRutas.value.length;
   if (!verFronterasRutas.value || sel === 0) return 'Ocultas (0)';
-  if (sel === total) return `Todas (${total})`;
+  if (total > 0 && sel === total) return `Todas (${total})`;
   const rutasTDB = obtenerRutasTDB();
   const esExactoTDB = rutasTDB.length > 0 && sel === rutasTDB.length && rutasTDB.every(r => filtroRutasFronterasRutas.value.includes(r));
   if (esExactoTDB) return `TDB (${sel})`;
@@ -1584,7 +1596,13 @@ const fronterasRutasFiltradas = computed(() => {
   if (!verFronterasRutas.value || !props.fronteras_rutas || props.fronteras_rutas.length === 0) {
     return [];
   }
-  return props.fronteras_rutas.filter(f => filtroRutasFronterasRutas.value.includes(String(f.ruta).trim()));
+  return props.fronteras_rutas.filter(f => {
+    const canal = getCanalDeRuta(f.ruta);
+    if (filtroCanales.value.length > 0 && !filtroCanales.value.includes(canal)) {
+      return false;
+    }
+    return filtroRutasFronterasRutas.value.includes(String(f.ruta).trim());
+  });
 });
 
 let map = null;
@@ -1987,7 +2005,7 @@ function cerrarExpediente() {
   clienteActivoId.value = null;
 }
 
-watch([verFronterasRutas, filtroRutasFronterasRutas], () => {
+watch([verFronterasRutas, filtroRutasFronterasRutas, filtroCanales], () => {
   renderizarFronterasRutas();
 }, { deep: true });
 

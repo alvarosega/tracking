@@ -67,7 +67,7 @@ class GetCercanosInitDataAction
             ->select(['ruta', 'canal', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
             ->get();
 
-        // Mapa ruta -> canal desde el catálogo como fallback si canal en frontera es null
+        // Mapa ruta -> canal desde dim_rutas (catálogo oficial maestro con prioridad absoluta)
         $canalPorRuta = [];
         foreach ($catalogo as $r) {
             if (!empty($r->ruta) && !empty($r->canal)) {
@@ -79,7 +79,8 @@ class GetCercanosInitDataAction
         foreach ($poligonosRutas as $fr) {
             if (!empty($fr->geojson)) {
                 $rutaKey = strtoupper(trim((string) $fr->ruta));
-                $canal = !empty($fr->canal) ? strtoupper(trim((string) $fr->canal)) : ($canalPorRuta[$rutaKey] ?? null);
+                // dim_rutas es la única fuente de verdad para el canal; dim_fronteras_rutas.canal es sólo fallback
+                $canal = $canalPorRuta[$rutaKey] ?? (!empty($fr->canal) ? strtoupper(trim((string) $fr->canal)) : 'SIN CANAL');
                 $fronterasRutas[] = [
                     'ruta' => $fr->ruta,
                     'canal' => $canal,
