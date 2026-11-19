@@ -63,6 +63,9 @@ class AuditarDuplicadosAction
                 DB::raw("COALESCE(p.direccion, 'Sin Dirección') as direccion"),
                 'p.latitud',
                 'p.longitud',
+                'p.fecha_servidor',
+                'p.fecha_dispositivo',
+                'p.vendedor',
                 DB::raw("TRIM(UPPER(p.ruta)) as ruta"),
                 DB::raw("COALESCE(TRIM(p.dia_norm), TRIM(p.dia), 'SIN DIA') as dia"),
                 DB::raw("COALESCE(TRIM(p.tipo_negocio), '-') as tipo_negocio"),
@@ -119,6 +122,9 @@ class AuditarDuplicadosAction
                 'ruta' => $rutaStr,
                 'canal' => $canalStr,
                 'dia' => (string) $row->dia,
+                'vendedor' => (string) ($row->vendedor ?? ''),
+                'fecha_servidor' => (string) ($row->fecha_servidor ?? ''),
+                'fecha_dispositivo' => (string) ($row->fecha_dispositivo ?? ''),
                 'tipo_negocio' => (string) $row->tipo_negocio,
                 '_tel_norm' => $telNorm,
                 '_cel_norm' => $celNorm,
@@ -398,6 +404,46 @@ class AuditarDuplicadosAction
 
         $mapaVentas = $this->obtenerVentasMtd($todosCids);
 
+        // Consultar historial de alta/creación e ingreso al padrón en auditoria_ruteo_cambios
+        $mapaAltasRuteo = [];
+        if (!empty($todosCids)) {
+            $altasDb = $conn->table('auditoria_ruteo_cambios')
+                ->whereIn('cliente_id', $todosCids)
+                ->where(function ($w) {
+                    $w->where('tipo_evento', 'NUEVO')
+                      ->orWhere('campo_afectado', 'cliente_alta_total');
+                })
+                ->selectRaw('cliente_id, MIN(fecha_auditoria) as fecha_alta, MIN(archivo_origen) as archivo_origen')
+                ->groupBy('cliente_id')
+                ->get();
+
+            foreach ($altasDb as $a) {
+                $mapaAltasRuteo[(int) $a->cliente_id] = [
+                    'fecha' => (string) $a->fecha_alta,
+                    'origen' => 'Alta en ' . (string) ($a->archivo_origen ?? 'Ruteo'),
+                ];
+            }
+
+            // Para los clientes que no tuvieron evento explícito 'NUEVO', buscar el primer evento registrado
+            $cidsRestantes = array_diff($todosCids, array_keys($mapaAltasRuteo));
+            if (!empty($cidsRestantes)) {
+                $primerEventoDb = $conn->table('auditoria_ruteo_cambios')
+                    ->whereIn('cliente_id', $cidsRestantes)
+                    ->selectRaw('cliente_id, MIN(fecha_auditoria) as primera_fecha, MIN(archivo_origen) as primer_archivo')
+                    ->groupBy('cliente_id')
+                    ->get();
+
+                foreach ($primerEventoDb as $pe) {
+                    if (!empty($pe->primera_fecha)) {
+                        $mapaAltasRuteo[(int) $pe->cliente_id] = [
+                            'fecha' => (string) $pe->primera_fecha,
+                            'origen' => 'Histórico en ' . (string) ($pe->primer_archivo ?? 'Ruteo'),
+                        ];
+                    }
+                }
+            }
+        }
+
         $listAction = new ListPropuestasAction();
         $propuestasPendientes = $listAction->execute(
             tipoHallazgo: 'DUPLICADO',
@@ -425,6 +471,21 @@ class AuditarDuplicadosAction
                 $canalesSet[] = $pt['canal'];
 
                 $prop = $mapaPendientes[$cId] ?? null;
+                $infoAlta = $mapaAltasRuteo[$cId] ?? null;
+                $fechaIngreso = null;
+                $origenIngreso = null;
+
+                if ($infoAlta && !empty($infoAlta['fecha'])) {
+                    $fechaIngreso = $infoAlta['fecha'];
+                    $origenIngreso = $infoAlta['origen'];
+                } elseif (!empty($pt['fecha_servidor'])) {
+                    $fechaIngreso = (string) $pt['fecha_servidor'];
+                    $origenIngreso = 'Servidor Ruteo';
+                } elseif (!empty($pt['fecha_dispositivo'])) {
+                    $fechaIngreso = (string) $pt['fecha_dispositivo'];
+                    $origenIngreso = 'Dispositivo';
+                }
+
                 $items[] = [
                     'cliente_id' => $pt['cliente_id'],
                     'cliente' => $pt['cliente'],
@@ -439,18 +500,25 @@ class AuditarDuplicadosAction
                     'ruta' => $pt['ruta'],
                     'canal' => $pt['canal'],
                     'dia' => $pt['dia'],
+                    'vendedor' => $pt['vendedor'] ?? '',
                     'tipo_negocio' => $pt['tipo_negocio'],
                     'venta_mtd' => round($vMtd, 2),
+                    'fecha_ingreso' => $fechaIngreso,
+                    'origen_ingreso' => $origenIngreso,
                     'tiene_propuesta_pendiente' => $prop !== null,
                     'propuesta_id' => $prop ? (int) $prop['id'] : null,
                     'accion_propuesta_pendiente' => $prop ? $prop['accion_propuesta'] : null,
                 ];
             }
 
-            // Ordenar clientes dentro del grupo: mayor venta MTD primero como master sugerido
+            // Ordenar clientes dentro del grupo: 1° mayor venta MTD, 2° más antiguo en ruteo si hay fecha, 3° menor ID
             usort($items, function ($a, $b) {
                 if ($b['venta_mtd'] !== $a['venta_mtd']) {
                     return $b['venta_mtd'] <=> $a['venta_mtd'];
+                }
+                if (!empty($a['fecha_ingreso']) && !empty($b['fecha_ingreso'])) {
+                    $cmp = strcmp($a['fecha_ingreso'], $b['fecha_ingreso']);
+                    if ($cmp !== 0) return $cmp;
                 }
                 return $a['cliente_id'] <=> $b['cliente_id'];
             });

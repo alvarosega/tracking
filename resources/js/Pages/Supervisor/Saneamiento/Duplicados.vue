@@ -293,7 +293,7 @@
               <!-- Clientes del Grupo (Mini Comparativa) -->
               <div class="space-y-1 text-xs">
                 <div
-                  v-for="(cli, idx) in grupo.clientes"
+                  v-for="cli in grupo.clientes"
                   :key="cli.cliente_id"
                   class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1"
                   :class="cli.es_master_sugerido ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50/60 border-slate-200/80'"
@@ -335,82 +335,95 @@
           class="lg:col-span-7 xl:col-span-8 flex flex-col gap-3 min-h-[580px]"
           :class="vistaMovil === 'comparador' ? 'flex' : 'hidden lg:flex'"
         >
-          <!-- Estado Si No Hay Grupo Seleccionado -->
-          <div
-            v-if="!grupoActivo"
-            class="flex-1 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center p-8 text-center"
-          >
-            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-              <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-              </svg>
-            </div>
-            <h4 class="text-sm font-bold text-slate-800 mb-1">Inspección de Clientes Duplicados</h4>
-            <p class="text-xs text-slate-500 max-w-md">
-              Selecciona un grupo de la lista izquierda para comparar los clientes frente a frente, analizar ventas históricas, geolocalización y aplicar resoluciones en 1 clic.
-            </p>
-          </div>
-
-          <!-- Contenedor del Grupo Seleccionado -->
-          <template v-else>
-            <!-- 1. Mapa de Colision Focalizado (Compacto y Preciso) -->
-            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
-              <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs shrink-0">
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    @click="setVistaMovil('grupos')"
-                    class="lg:hidden text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                  >
-                    &larr; Volver a grupos
-                  </button>
-                  <span class="font-bold text-slate-900 font-mono">
-                    Colision Espacial: Grupo #{{ grupoActivo.cluster_id }}
-                  </span>
-                  <span class="text-[10px] font-mono font-bold px-2 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                    Distancia: {{ formatearDistancia(grupoActivo.distancia_minima_m) }}
-                  </span>
-                </div>
-
-                <div class="flex items-center gap-1.5 text-xs">
-                  <!-- Capa Calles / Satelite -->
-                  <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      @click="cambiarCapaMapa('openStreetMap')"
-                      class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
-                      :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
-                    >
-                      Calles
-                    </button>
-                    <button
-                      type="button"
-                      @click="cambiarCapaMapa('satellite')"
-                      class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
-                      :class="capaActual === 'satellite' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
-                    >
-                      Satelite
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    @click="enfocarGrupoEnMapa(grupoActivo)"
-                    class="h-6 px-2 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer shadow-2xs"
-                  >
-                    Recentrar
-                  </button>
-                </div>
+          <!-- 1. Mapa de Colision Espacial Siempre Presente (Sin destruirse por Vue) -->
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
+            <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs shrink-0">
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="setVistaMovil('grupos')"
+                  class="lg:hidden text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                >
+                  &larr; Grupos
+                </button>
+                <span class="font-bold text-slate-900 font-mono">
+                  {{ grupoActivo ? `Colision Espacial: Grupo #${grupoActivo.cluster_id}` : 'Mapa de Colision Territorial' }}
+                </span>
+                <span
+                  v-if="grupoActivo"
+                  class="text-[10px] font-mono font-bold px-2 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200"
+                >
+                  Distancia: {{ formatearDistancia(grupoActivo.distancia_minima_m) }}
+                </span>
               </div>
 
-              <div id="mapaDuplicados" class="w-full h-52 sm:h-64 relative z-10 bg-slate-950"></div>
+              <div class="flex items-center gap-1.5 text-xs">
+                <!-- Capa Calles / Satelite -->
+                <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    @click="cambiarCapaMapa('openStreetMap')"
+                    class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
+                    :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                  >
+                    Calles
+                  </button>
+                  <button
+                    type="button"
+                    @click="cambiarCapaMapa('satellite')"
+                    class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
+                    :class="capaActual === 'satellite' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                  >
+                    Satelite
+                  </button>
+                </div>
+
+                <button
+                  v-if="grupoActivo"
+                  type="button"
+                  @click="enfocarGrupoEnMapa(grupoActivo)"
+                  class="h-6 px-2 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer shadow-2xs"
+                >
+                  Recentrar
+                </button>
+              </div>
             </div>
 
-            <!-- 2. Comparador Lado a Lado (Master vs Duplicado) -->
-            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden">
-              <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
+            <!-- Contenedor del Mapa -->
+            <div class="relative w-full h-52 sm:h-60 bg-slate-950">
+              <div id="mapaDuplicados" class="absolute inset-0 w-full h-full z-10"></div>
+              <div
+                v-if="!grupoActivo"
+                class="absolute inset-0 z-20 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center text-white text-xs font-medium p-4 text-center pointer-events-none"
+              >
+                <span>Selecciona un grupo para enfocar y analizar la colision en el mapa</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Comparador Lado a Lado (Master vs Duplicado) -->
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden">
+            <!-- Si no hay grupo activo, mostrar placeholder -->
+            <div
+              v-if="!grupoActivo"
+              class="flex-1 flex flex-col items-center justify-center p-8 text-center"
+            >
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </svg>
+              </div>
+              <h4 class="text-sm font-bold text-slate-800 mb-0.5">Inspeccion de Conflicto</h4>
+              <p class="text-xs text-slate-500 max-w-sm">
+                Selecciona un grupo para ver la comparativa detallada de historial de creacion, ventas y ruta.
+              </p>
+            </div>
+
+            <!-- Si hay grupo activo, mostrar el comparador lado a lado -->
+            <template v-else>
+              <div class="px-4 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
                 <span class="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">
-                  Comparativa de Datos y Rendimiento
+                  Comparativa de Datos, Creacion y Rendimiento
                 </span>
                 <span class="text-[11px] font-mono text-slate-500">
                   {{ grupoActivo.clientes.length }} clientes en conflicto
@@ -423,15 +436,15 @@
                   <div
                     v-for="(cli, idx) in grupoActivo.clientes"
                     :key="cli.cliente_id"
-                    class="p-3 rounded-xl border flex flex-col justify-between space-y-3"
+                    class="p-3 rounded-xl border flex flex-col justify-between space-y-2.5"
                     :class="cli.es_master_sugerido ? 'bg-emerald-50/30 border-emerald-300 ring-1 ring-emerald-200' : 'bg-slate-50/50 border-slate-200'"
                   >
                     <!-- Header Cliente -->
-                    <div class="space-y-1.5 pb-2 border-b border-slate-200/80">
+                    <div class="space-y-1 pb-2 border-b border-slate-200/80">
                       <div class="flex items-center justify-between">
                         <span
                           class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold tracking-wider uppercase"
-                          :class="cli.es_master_sugerido ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'"
+                          :class="cli.es_master_sugerido ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-700'"
                         >
                           {{ cli.es_master_sugerido ? 'Master Sugerido (Conservar)' : `Duplicado #${idx + 1}` }}
                         </span>
@@ -442,7 +455,35 @@
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin direccion' }}</p>
                     </div>
 
-                    <!-- Metricas y Atributos -->
+                    <!-- Datos Cruce: Fecha de Creacion / Ingreso al Padron -->
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/90 text-xs font-mono space-y-1 shadow-2xs">
+                      <div class="flex items-center justify-between text-[10px]">
+                        <span class="text-slate-400 font-sans uppercase font-bold tracking-wider">Ingreso al Padron:</span>
+                        <span
+                          v-if="cli.es_master_sugerido"
+                          class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9px]"
+                        >
+                          Padron Mas Antiguo
+                        </span>
+                        <span
+                          v-else
+                          class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9px]"
+                        >
+                          Ingreso Posterior
+                        </span>
+                      </div>
+                      <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                        </svg>
+                        <span>{{ cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Sin fecha registrada' }}</span>
+                      </div>
+                      <div v-if="cli.origen_ingreso" class="text-[9.5px] text-slate-500 font-sans truncate">
+                        Origen: {{ cli.origen_ingreso }}
+                      </div>
+                    </div>
+
+                    <!-- Metricas y Atributos Comerciales -->
                     <div class="space-y-1.5 text-xs font-mono">
                       <div class="flex items-center justify-between p-1.5 rounded bg-white border border-slate-200/80">
                         <span class="text-slate-500">Venta MTD:</span>
@@ -459,12 +500,12 @@
                           <span class="font-bold text-slate-800">{{ cli.canal }}</span>
                         </div>
                         <div class="p-1.5 rounded bg-white border border-slate-200/80">
-                          <span class="text-slate-400 block text-[9.5px]">Dia de Visita:</span>
+                          <span class="text-slate-400 block text-[9.5px]">Dia:</span>
                           <span class="font-bold text-slate-800">{{ cli.dia }}</span>
                         </div>
                         <div class="p-1.5 rounded bg-white border border-slate-200/80">
-                          <span class="text-slate-400 block text-[9.5px]">Negocio:</span>
-                          <span class="font-medium text-slate-800 truncate block">{{ cli.tipo_negocio }}</span>
+                          <span class="text-slate-400 block text-[9.5px]">Vendedor:</span>
+                          <span class="font-medium text-slate-800 truncate block">{{ cli.vendedor || 'S/N' }}</span>
                         </div>
                       </div>
 
@@ -496,7 +537,7 @@
               <!-- Barra de Acciones de Resolucion Directa en 1 Clic -->
               <div class="p-3 border-t border-slate-100 bg-slate-50/80 flex flex-wrap items-center justify-between gap-2 shrink-0">
                 <div class="text-xs text-slate-500 font-mono">
-                  Resolucion sugerida: <strong class="text-slate-800">Inactivar duplicado de menor venta</strong>
+                  Sugerencia: <strong class="text-slate-800">Inactivar duplicado de menor venta/ingreso posterior</strong>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -519,8 +560,8 @@
                   </button>
                 </div>
               </div>
-            </div>
-          </template>
+            </template>
+          </div>
         </div>
 
       </div>
@@ -717,8 +758,13 @@ function setVistaMovil(v) {
   vistaMovil.value = v
   if (v === 'comparador') {
     nextTick(() => {
-      if (map) map.invalidateSize()
-      if (grupoActivo.value) enfocarGrupoEnMapa(grupoActivo.value)
+      if (map) {
+        map.invalidateSize()
+        if (grupoActivo.value) enfocarGrupoEnMapa(grupoActivo.value)
+      } else {
+        initMap()
+        if (grupoActivo.value) enfocarGrupoEnMapa(grupoActivo.value)
+      }
     })
   }
 }
@@ -780,6 +826,9 @@ function seleccionarGrupo(grupo) {
   }
 
   nextTick(() => {
+    if (!map) {
+      initMap()
+    }
     if (map) {
       map.invalidateSize()
       enfocarGrupoEnMapa(grupo)
@@ -803,6 +852,17 @@ function formatearDistancia(metros) {
   if (metros === undefined || metros === null) return '-'
   if (metros < 1000) return `${Math.round(metros)} m`
   return `${(metros / 1000).toFixed(2)} km`
+}
+
+function formatearFecha(f) {
+  if (!f) return '-'
+  try {
+    const d = new Date(f)
+    if (isNaN(d.getTime())) return String(f).substring(0, 10)
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return String(f)
+  }
 }
 
 function tienePropuestaPendiente(grupo) {
@@ -835,7 +895,12 @@ function cambiarCapaMapa(nombreCapa) {
 
 function initMap() {
   const container = document.getElementById('mapaDuplicados')
-  if (!container || map) return
+  if (!container) return
+
+  if (map) {
+    map.remove()
+    map = null
+  }
 
   const defaultLoc = mapsConfig.defaultLocation
 
@@ -848,10 +913,21 @@ function initMap() {
   cambiarCapaMapa(capaActual.value)
 
   collisionLayerGroup = L.featureGroup().addTo(map)
+
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 100)
 }
 
 function enfocarGrupoEnMapa(grupo) {
-  if (!map || !grupo.clientes || grupo.clientes.length === 0) return
+  if (!grupo || !grupo.clientes || grupo.clientes.length === 0) return
+
+  if (!map) {
+    initMap()
+  }
+  if (!map) return
+
+  map.invalidateSize()
 
   if (!collisionLayerGroup) {
     collisionLayerGroup = L.featureGroup().addTo(map)
@@ -863,7 +939,7 @@ function enfocarGrupoEnMapa(grupo) {
 
   grupo.clientes.forEach((cli, idx) => {
     if (cli.latitud && cli.longitud) {
-      const latlng = [cli.latitud, cli.longitud]
+      const latlng = [Number(cli.latitud), Number(cli.longitud)]
       latLngs.push(latlng)
 
       const markerColor = cli.es_master_sugerido ? '#059669' : '#DC2626'
@@ -877,12 +953,15 @@ function enfocarGrupoEnMapa(grupo) {
       }).addTo(collisionLayerGroup)
 
       marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A;">
+        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 220px;">
           <div style="font-weight: bold; margin-bottom: 2px;">
-            ${cli.es_master_sugerido ? '<span style="color: #059669;">[MASTER]</span> ' : ''}${cli.cliente}
+            ${cli.es_master_sugerido ? '<span style="color: #059669; font-weight: bold;">[MASTER SUGERIDO]</span> ' : '<span style="color: #DC2626; font-weight: bold;">[DUPLICADO]</span> '}${cli.cliente}
           </div>
-          <div>ID: <b>${cli.cliente_id}</b> · Ruta: <b>${cli.ruta}</b></div>
-          <div style="color: #059669; font-weight: bold;">Venta MTD: Bs. ${cli.venta_mtd}</div>
+          <div style="color: #64748B;">ID: <b>${cli.cliente_id}</b> · Ruta: <b>${cli.ruta}</b></div>
+          <div style="color: #059669; font-weight: bold; font-family: monospace;">Venta MTD: Bs. ${cli.venta_mtd}</div>
+          <div style="color: #64748B; font-size: 10px; border-top: 1px solid #E2E8F0; margin-top: 4px; padding-top: 3px;">
+            Ingreso: <b>${cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Sin fecha'}</b>
+          </div>
         </div>
       `)
 
@@ -892,7 +971,7 @@ function enfocarGrupoEnMapa(grupo) {
 
   // Si hay al menos 2 puntos, trazar linea conectora de colision con distancia en metros
   if (latLngs.length >= 2) {
-    const polyline = L.polyline(latLngs, {
+    L.polyline(latLngs, {
       color: '#DC2626',
       weight: 2.5,
       dashArray: '5, 5',
@@ -906,17 +985,20 @@ function enfocarGrupoEnMapa(grupo) {
       .setContent(`${formatearDistancia(grupo.distancia_minima_m)}`)
       .addTo(collisionLayerGroup)
 
-    // Circulo de tolerancia de radio
+    // Circulo de tolerancia de radio alrededor del primer punto
     L.circle(latLngs[0], {
       radius: radioMetros.value,
       color: '#0284C7',
       fillColor: '#0284C7',
-      fillOpacity: 0.06,
+      fillOpacity: 0.08,
       weight: 1.5,
       dashArray: '4, 4',
     }).addTo(collisionLayerGroup)
 
-    map.fitBounds(collisionLayerGroup.getBounds(), { padding: [50, 50], maxZoom: 18 })
+    const bounds = collisionLayerGroup.getBounds()
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 })
+    }
   } else if (latLngs.length === 1) {
     map.flyTo(latLngs[0], 17)
   }
