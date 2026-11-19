@@ -95,7 +95,7 @@ class GetAvanceClientesRutaAction
 
         $carteraClientIds = array_values(array_filter(array_keys($cartera), fn ($id) => is_numeric($id) && (int) $id > 0));
 
-        // 2. Ventas registradas de la cartera oficial en el rango (consultado por cliente_id, no por vendedor ni ruta)
+        // 2. Ventas registradas en la ruta en el rango de fechas (agrupadas estrictamente por la ruta facturada)
         $ventasRutaQuery = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
             ->where('fecha_norm', '<=', $fechaCorte)
@@ -105,21 +105,13 @@ class GetAvanceClientesRutaAction
             });
 
         if ($rutaClean === 'SIN RUTA') {
-            if (!empty($carteraClientIds)) {
-                $ventasRutaQuery->whereIn('cliente_id', $carteraClientIds);
-            } else {
-                $ventasRutaQuery->where(function ($q): void {
-                    $q->whereNull('ruta')
-                      ->orWhere(DB::raw("TRIM(ruta)"), '')
-                      ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
-                });
-            }
+            $ventasRutaQuery->where(function ($q): void {
+                $q->whereNull('ruta')
+                  ->orWhere(DB::raw("TRIM(ruta)"), '')
+                  ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
+            });
         } else {
-            if (!empty($carteraClientIds)) {
-                $ventasRutaQuery->whereIn('cliente_id', $carteraClientIds);
-            } else {
-                $ventasRutaQuery->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean);
-            }
+            $ventasRutaQuery->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean);
         }
 
         $ventasRuta = $ventasRutaQuery
@@ -166,8 +158,8 @@ class GetAvanceClientesRutaAction
                         'cliente_id' => $cid,
                         'cliente' => $v->cliente_factura ?: "Cliente #{$cid}",
                         'vendedor_ruteo' => $v->vendedor_factura ?: 'Sin Asignar',
-                        'dia' => 'Histórico',
-                        'dia_visita' => 'Histórico',
+                        'dia' => 'Sin Día',
+                        'dia_visita' => 'Sin Día',
                         'monto' => 0.0,
                         'cantidad' => 0,
                         'vendedores_factura' => [],

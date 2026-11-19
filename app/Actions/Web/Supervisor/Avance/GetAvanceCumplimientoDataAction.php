@@ -107,9 +107,7 @@ class GetAvanceCumplimientoDataAction
         // 2. Metas de las Rutas (Cartera pan_ruteo, fact_metas, fact_metas_kpi)
         $metasTodas = $this->obtenerMetasKpis($mesYm);
 
-        // Cartera Oficial Actual desde pan_ruteo
-        // Se mapea cada cliente_id a su ruta actual oficial para que toda evaluación
-        // en fact_ventas se realice por cliente_id y no por vendedor ni por ruta de la factura.
+        // Cartera Oficial Actual desde pan_ruteo (para conteo de cartera y mapeo de preventistas)
         $panRuteoRaw = DB::connection('supervisor')->table('pan_ruteo')
             ->where('cliente_id', '>', 0)
             ->whereNotNull('ruta')
@@ -125,17 +123,13 @@ class GetAvanceCumplimientoDataAction
             ])
             ->get();
 
-        $clienteRutaOficialMap = [];
         $carteraOficialRutaCount = [];
         $vendedorRuteoMap = [];
-        $carteraClientesPorRuta = [];
         foreach ($panRuteoRaw as $pr) {
             $cid = (int) $pr->cliente_id;
             $rClean = (string) $pr->ruta_clean;
             if ($cid > 0 && $rClean !== '') {
-                $clienteRutaOficialMap[$cid] = $rClean;
                 $carteraOficialRutaCount[$rClean] = ($carteraOficialRutaCount[$rClean] ?? 0) + 1;
-                $carteraClientesPorRuta[$rClean][$cid] = true;
                 if (!isset($vendedorRuteoMap[$rClean]) && $pr->vendedor_ruteo !== 'No Asignado') {
                     $vendedorRuteoMap[$rClean] = $pr->vendedor_ruteo;
                 }
@@ -222,6 +216,8 @@ class GetAvanceCumplimientoDataAction
                     'canal' => 'SC',
                     'vendedor' => $vendedorRuteoMap[$rName] ?? 'No Asignado',
                 ];
+            } elseif ($rutasCatalogo[$rName]['vendedor'] === 'No Asignado' && isset($vendedorRuteoMap[$rName])) {
+                $rutasCatalogo[$rName]['vendedor'] = $vendedorRuteoMap[$rName];
             }
         }
 
@@ -297,15 +293,10 @@ class GetAvanceCumplimientoDataAction
         foreach ($ventasRaw as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
             $rc = (string) $v->ruta_clean;
-            if ($cid > 0 && $rc !== '') {
-                $carteraClientesPorRuta[$rc][$cid] = true;
-            }
 
-            // La ruta oficial se determina por el cliente (según su asignación actual en pan_ruteo).
-            // Si el cliente no existe en pan_ruteo, se usa la ruta de la factura como fallback.
-            $targetRuta = ($cid > 0 && isset($clienteRutaOficialMap[$cid]))
-                ? $clienteRutaOficialMap[$cid]
-                : $rc;
+            // Agrupación directa por la ruta correspondiente registrada en la factura (fact_ventas)
+            // pan_ruteo define la cartera y meta, pero no altera la ruta de la transacción facturada
+            $targetRuta = $rc;
 
             if (!isset($universo[$targetRuta])) {
                 continue;
@@ -755,6 +746,18 @@ class GetAvanceCumplimientoDataAction
             $metaRuta = (float) ($metasR[$clave] ?? ($metasR['vol_general'] ?? 0.0));
             $rutasPorVendedor[$vKey]['meta_mes'] += $metaRuta;
             $rutasPorVendedor[$vKey]['meta_dia'] += ($dTot > 0) ? round($metaRuta / $dTot, 2) : 0.0;
+        }
+
+        foreach ($acumVolVendedor as $vKey => $_) {
+            if (!isset($rutasPorVendedor[$vKey])) {
+                $rutasPorVendedor[$vKey] = [
+                    'nombre' => ucwords($vKey),
+                    'rutas' => [],
+                    'canales' => ['SC' => true],
+                    'meta_mes' => 0.0,
+                    'meta_dia' => 0.0,
+                ];
+            }
         }
 
         $matrizVendedores = [];
