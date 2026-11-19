@@ -109,18 +109,21 @@
             <span class="text-slate-400">Días:</span>
             <span class="font-bold text-slate-800">{{ labelDias }}</span>
           </div>
-          <div class="flex items-center gap-1 shrink-0 ml-auto pl-1">
-            <button
+          <div class="flex items-center gap-1.5 shrink-0 ml-auto pl-1">
+            <label
               v-if="kpis.total_multidia > 0"
-              type="button"
-              @click="toggleFiltroMultidia"
-              class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 shrink-0 border cursor-pointer"
-              :class="filtroSoloMultidia ? 'bg-purple-600 text-white border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200'"
+              class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 shrink-0 border cursor-pointer select-none transition-colors"
+              :class="filtroSoloMultidia ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-purple-50 text-purple-700 border-purple-200'"
               title="Filtrar clientes con múltiples días de visita"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="filtroSoloMultidia ? 'bg-white' : 'bg-purple-500'"></span>
+              <input
+                type="checkbox"
+                v-model="filtroSoloMultidia"
+                @change="onMultidiaCheckboxChange"
+                class="w-3 h-3 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+              />
               <span>{{ kpis.total_multidia }} Varios Días</span>
-            </button>
+            </label>
             <span class="font-bold text-slate-900">{{ kpis.total }} clis</span>
             <span v-if="kpis.inactivos > 0" class="text-rose-700 font-semibold">• {{ kpis.inactivos }} inac</span>
           </div>
@@ -253,13 +256,15 @@
           </div>
         </div>
 
-        <!-- FILA 2: Todos los Filtros de Segmentación, Capas GIS, Modo de Color y Estado (SIN SCROLL HORIZONTAL, TODO VISIBLE) -->
-        <div class="flex items-center gap-2 flex-wrap text-xs pt-1 border-t border-slate-100">
-          <!-- Filtro Dropdown: Canales (Teleport al Body) -->
+        <!-- FILA 2: BARRA DE FILTROS (CANAL, RUTAS, FRONTERAS RUTA/DÍA, DÍAS + VARIOS DÍAS CHECKBOX, COLOR, ESTADO, MESES) -->
+        <div class="flex items-center gap-2 flex-wrap text-xs pt-1.5 border-t border-slate-100">
+          <!-- 1. CANAL (Dropdown) -->
           <button
             type="button"
             @click.stop="toggleMenu('canales', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 hover:border-slate-300 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="{ 'bg-sky-50/80 border-sky-300 font-semibold text-sky-950 shadow-xs': menuAbierto === 'canales' }"
+            title="Seleccionar canal comercial"
           >
             <span class="text-slate-400 font-normal">Canal:</span>
             <span class="font-bold text-slate-900">{{ labelCanales }}</span>
@@ -268,8 +273,55 @@
             </svg>
           </button>
 
-          <!-- Filtro Segmentado: Días de Visita -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0 shadow-2xs">
+          <!-- 2. RUTAS (Puntos - Dropdown) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('puntos_rutas', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 hover:border-slate-300 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="{ 'bg-sky-50/80 border-sky-300 font-semibold text-sky-950 shadow-xs': menuAbierto === 'puntos_rutas' || filtroRutas.length > 0 }"
+            title="Mostrar u ocultar puntos de clientes por ruta"
+          >
+            <span class="text-slate-400 font-normal">Rutas:</span>
+            <span class="font-bold text-slate-900">{{ labelRutasPuntos }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- 3. FRONTERA RUTA (Polígonos - Dropdown) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('fronteras_rutas', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 hover:border-slate-300 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="{ 'bg-sky-50/80 border-sky-300 font-semibold text-sky-950 shadow-xs': menuAbierto === 'fronteras_rutas' || filtroFronterasRutas.length > 0 }"
+            title="Filtrar polígonos de frontera de ruta"
+          >
+            <span class="text-slate-400 font-normal">Frontera Ruta:</span>
+            <span class="font-bold text-slate-900">{{ labelFronterasRutas }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- 4. FRONTERA DÍA (Polígonos - Dropdown) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('fronteras_dias', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 hover:border-slate-300 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="{ 'bg-sky-50/80 border-sky-300 font-semibold text-sky-950 shadow-xs': menuAbierto === 'fronteras_dias' || filtroFronterasDias.length > 0 }"
+            title="Filtrar polígonos de frontera de día por ruta"
+          >
+            <span class="text-slate-400 font-normal">Frontera Día:</span>
+            <span class="font-bold text-slate-900">{{ labelFronterasDias }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <div class="h-5 w-px bg-slate-200 shrink-0 hidden sm:block"></div>
+
+          <!-- 5. DÍAS DE VISITA (Segmented Buttons) -->
+          <div class="flex items-center bg-slate-100/90 p-0.5 rounded-lg border border-slate-200/80 shrink-0 shadow-2xs">
             <button
               v-for="d in diasSemana"
               :key="d.key"
@@ -280,90 +332,50 @@
               :title="d.label"
             >
               <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: d.color }"></span>
-              {{ d.corto }}
+              <span>{{ d.corto }}</span>
             </button>
-            <button type="button" @click="toggleTodosDias" class="px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-900 font-mono border-l border-slate-200 ml-0.5 cursor-pointer">
+            <button
+              type="button"
+              @click="toggleTodosDias"
+              class="px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-900 font-mono border-l border-slate-200 ml-0.5 cursor-pointer font-semibold"
+            >
               {{ filtroDias.length === diasSemana.length ? 'Reset' : 'Todos' }}
             </button>
           </div>
 
-          <!-- Botón Toggle Varios Días (Clientes Multidía) -->
-          <button
-            type="button"
-            @click="toggleFiltroMultidia"
-            class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs border"
-            :class="filtroSoloMultidia ? 'bg-purple-600 text-white border-purple-700 font-bold' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90'"
-            title="Filtrar clientes con más de un día de visita asignado en el padrón"
+          <!-- 6. VARIOS DÍAS (CHECKBOX EXPLÍCITO) -->
+          <label
+            class="h-8 px-2.5 rounded-lg border flex items-center gap-2 cursor-pointer select-none transition-all shrink-0 shadow-2xs"
+            :class="filtroSoloMultidia ? 'bg-purple-50/90 border-purple-300 text-purple-950 shadow-xs' : 'bg-slate-50 hover:bg-slate-100/90 border-slate-200/90 hover:border-slate-300 text-slate-700'"
+            title="Filtrar clientes con más de un día de visita asignado"
           >
-            <span class="w-2 h-2 rounded-full" :class="filtroSoloMultidia ? 'bg-white' : 'bg-purple-600'"></span>
-            <span>Varios Días</span>
+            <input
+              type="checkbox"
+              v-model="filtroSoloMultidia"
+              @change="onMultidiaCheckboxChange"
+              class="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+            />
+            <span class="text-xs font-semibold">Varios Días</span>
             <span
               v-if="kpis.total_multidia > 0"
-              class="px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold"
-              :class="filtroSoloMultidia ? 'bg-purple-800 text-purple-100' : 'bg-purple-100 text-purple-700'"
+              class="px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold transition-colors"
+              :class="filtroSoloMultidia ? 'bg-purple-200 text-purple-900' : 'bg-purple-100 text-purple-700'"
             >
               {{ kpis.total_multidia }}
             </span>
-          </button>
+          </label>
 
-          <div class="h-5 w-px bg-slate-200 shrink-0"></div>
+          <div class="h-5 w-px bg-slate-200 shrink-0 hidden md:block"></div>
 
-          <!-- Filtros Dinámicos GIS: Puntos (Rutas), Frontera Ruta y Frontera Día -->
-          <!-- Botón Dropdown Dinámico: Rutas (Puntos) -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('puntos_rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="{ 'bg-slate-200/80 border-slate-300 font-semibold': filtroRutas.length > 0 }"
-            title="Mostrar u ocultar puntos de clientes por ruta en tiempo real"
-          >
-            <span class="text-slate-400 font-normal">Rutas:</span>
-            <span class="font-bold text-slate-900">{{ labelRutasPuntos }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <!-- Botón Dropdown Frontera Rutas -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('fronteras_rutas', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="{ 'bg-slate-200/80 border-slate-300 font-semibold': filtroFronterasRutas.length > 0 }"
-            title="Filtrar polígonos de frontera de ruta por ruta"
-          >
-            <span class="text-slate-400 font-normal">Frontera Ruta:</span>
-            <span class="font-bold text-slate-900">{{ labelFronterasRutas }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <!-- Botón Dropdown Frontera Días -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('fronteras_dias', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="{ 'bg-slate-200/80 border-slate-300 font-semibold': filtroFronterasDias.length > 0 }"
-            title="Filtrar polígonos de frontera de día por ruta"
-          >
-            <span class="text-slate-400 font-normal">Frontera Día:</span>
-            <span class="font-bold text-slate-900">{{ labelFronterasDias }}</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          <div class="h-5 w-px bg-slate-200 shrink-0"></div>
-
-          <!-- Selector de Modo de Coloración -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0 shadow-2xs">
-            <span class="text-[10px] font-mono text-slate-400 px-1.5">Color por:</span>
+          <!-- 7. COLOR POR: [ Ruta | Día | Canal ] -->
+          <div class="flex items-center bg-slate-100/90 p-0.5 rounded-lg border border-slate-200/80 shrink-0 shadow-2xs">
+            <span class="text-[10px] font-mono text-slate-400 px-1.5 font-medium">Color:</span>
             <button
               type="button"
               @click="setModoColor('ruta')"
               class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
               :class="modoColor === 'ruta' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              title="Colorear puntos y marcadores por Ruta"
             >
               Ruta
             </button>
@@ -372,6 +384,7 @@
               @click="setModoColor('dia')"
               class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
               :class="modoColor === 'dia' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              title="Colorear puntos y marcadores por Día de visita"
             >
               Día
             </button>
@@ -380,13 +393,14 @@
               @click="setModoColor('canal')"
               class="px-2 py-0.5 text-[11px] font-medium rounded-md transition-all cursor-pointer"
               :class="modoColor === 'canal' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900'"
+              title="Colorear puntos y marcadores por Canal comercial"
             >
               Canal
             </button>
           </div>
 
-          <!-- Filtro de Estado: [ Activos | Inactivos | Todos ] -->
-          <div class="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg shrink-0 text-xs font-semibold select-none shadow-2xs">
+          <!-- 8. ESTADO: [ Activos | Inactivos | Todos ] -->
+          <div class="inline-flex p-0.5 bg-slate-100/90 border border-slate-200/80 rounded-lg shrink-0 text-xs font-semibold select-none shadow-2xs">
             <button
               type="button"
               @click="setFiltroEstadoCliente('activos')"
@@ -419,13 +433,13 @@
             </button>
           </div>
 
-          <!-- Filtro Dropdown: Meses Históricos (Desktop) -->
+          <!-- 9. CANTIDAD DE MESES EVALUADOS (Dropdown) -->
           <button
             type="button"
             @click.stop="toggleMenu('meses_historicos', $event)"
-            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs"
-            :class="menuAbierto === 'meses_historicos' ? 'border-sky-500 bg-sky-50 text-sky-900 font-semibold' : 'border-slate-200/90'"
-            title="Seleccionar meses históricos a visualizar"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="menuAbierto === 'meses_historicos' ? 'border-sky-500 bg-sky-50 text-sky-900 font-semibold' : 'border-slate-200/90 hover:border-slate-300'"
+            title="Seleccionar cantidad de meses evaluados para el historial de ventas"
           >
             <span class="text-slate-400 font-normal">Meses:</span>
             <span class="font-bold text-slate-900 font-mono">{{ mesesHistoricosSeleccionados.length }}</span>
@@ -1046,28 +1060,41 @@
                 </div>
               </div>
 
-              <!-- 5B. Filtro Clientes Multidía (Varios Días) Móvil -->
-              <div v-if="kpis.total_multidia > 0" class="p-2.5 rounded-xl border transition-colors" :class="filtroSoloMultidia ? 'bg-purple-50 border-purple-300' : 'bg-slate-50 border-slate-200'">
-                <div class="flex items-center justify-between">
+              <!-- 5B. Filtro Clientes Multidía (Varios Días) Móvil como Checkbox -->
+              <label
+                v-if="kpis.total_multidia > 0"
+                class="p-3 rounded-xl border flex items-center justify-between cursor-pointer select-none transition-all shadow-2xs"
+                :class="filtroSoloMultidia ? 'bg-purple-50/90 border-purple-300 text-purple-950 shadow-xs' : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70 text-slate-700'"
+              >
+                <div class="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    v-model="filtroSoloMultidia"
+                    @change="onMultidiaCheckboxChange"
+                    class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+                  />
                   <div>
-                    <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                    <div class="text-xs font-bold flex items-center gap-1.5">
                       <span>Clientes con Varios Días</span>
+                      <span
+                        class="px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold"
+                        :class="filtroSoloMultidia ? 'bg-purple-200 text-purple-900' : 'bg-purple-100 text-purple-700'"
+                      >
+                        {{ kpis.total_multidia }}
+                      </span>
                     </div>
                     <div class="text-[10.5px] text-slate-500 mt-0.5">
-                      {{ kpis.total_multidia }} clientes visitados más de un día por semana
+                      Filtrar clientes visitados más de un día por semana
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    @click="toggleFiltroMultidia"
-                    class="px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                    :class="filtroSoloMultidia ? 'bg-purple-600 text-white shadow-2xs' : 'bg-white text-slate-700 border border-slate-300'"
-                  >
-                    {{ filtroSoloMultidia ? 'Activo' : 'Filtrar' }}
-                  </button>
                 </div>
-              </div>
+                <span
+                  class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full"
+                  :class="filtroSoloMultidia ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'"
+                >
+                  {{ filtroSoloMultidia ? 'Activo' : 'Inactivo' }}
+                </span>
+              </label>
 
               <!-- 6. Modo de Coloración y Estado de Clientes -->
               <div class="grid grid-cols-2 gap-2">
@@ -3471,6 +3498,11 @@ const verFronteraDias = ref(true);
 // Filtro especial para clientes multidía (más de un día de visita asignado en el padrón)
 const filtroSoloMultidia = ref(false);
 const filtroSubListaLateral = ref('todos'); // 'todos' | 'multidia' | 'cambios'
+
+function onMultidiaCheckboxChange() {
+  filtroSubListaLateral.value = filtroSoloMultidia.value ? 'multidia' : 'todos';
+  renderizarEnMapa(true);
+}
 
 function toggleFiltroMultidia() {
   filtroSoloMultidia.value = !filtroSoloMultidia.value;
