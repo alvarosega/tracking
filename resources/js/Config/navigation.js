@@ -97,7 +97,7 @@ export const navigationConfig = {
         {
           id: 'clientes',
           module: 'auditoria',
-          name: 'Cambios por Cliente',
+          name: 'Matriz de Cambios',
           route: 'supervisor.auditoria.clientes',
           component: 'Supervisor/Auditoria/Clientes',
           icon: 'UserGroupIcon'
@@ -517,7 +517,7 @@ export const preventasSubTabs = [
 export const auditoriaSubTabs = [
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
   { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
-  { id: 'clientes', module: 'auditoria', name: 'Cambios por Cliente', route: 'supervisor.auditoria.clientes' }
+  { id: 'clientes', module: 'auditoria', name: 'Matriz de Cambios', route: 'supervisor.auditoria.clientes' }
 ];
 
 export const saneamientoSubTabs = [
@@ -529,7 +529,7 @@ export const saneamientoSubTabs = [
   { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
   { id: 'historico', module: 'auditoria', name: 'Histórico Resoluciones', route: 'supervisor.auditoria.historico' },
-  { id: 'clientes', module: 'auditoria', name: 'Cambios por Cliente', route: 'supervisor.auditoria.clientes' },
+  { id: 'clientes', module: 'auditoria', name: 'Matriz de Cambios', route: 'supervisor.auditoria.clientes' },
   { id: 'propuestas', module: 'saneamiento', name: 'Historial de Propuestas', route: 'supervisor.saneamiento.propuestas' }
 ];
 

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class GetAuditoriaClientesAction
 {
     /**
-     * Consulta agrupada de auditoría de ruteo por código de cliente.
+     * Consulta agrupada de matriz de cambios por Ruta actual (pan_ruteo) y por Cliente.
      *
      * @param array<string, mixed> $params
      * @return array<string, mixed>
@@ -27,87 +27,35 @@ class GetAuditoriaClientesAction
         $fechaFin = trim((string) ($params['fecha_fin'] ?? ''));
         $busqueda = trim((string) ($params['busqueda'] ?? ''));
 
-        $page = isset($params['page']) && is_numeric($params['page']) && (int) $params['page'] > 0
-            ? (int) $params['page']
-            : 1;
-
-        $perPage = isset($params['per_page']) && is_numeric($params['per_page']) && (int) $params['per_page'] > 0
-            ? min((int) $params['per_page'], 200)
-            : 25;
-
-        $offset = ($page - 1) * $perPage;
-
         // Subquery de pan_ruteo para consolidar datos vivos actuales de clientes
         $subPan = $conn->table('pan_ruteo')
             ->selectRaw('cliente_id, MAX(cliente) AS cliente, MAX(ruta) AS ruta, MAX(dia_norm) AS dia_norm, MAX(dia) AS dia, MAX(direccion) AS direccion, MAX(vendedor) AS vendedor, MAX(latitud) AS latitud, MAX(longitud) AS longitud, MAX(tipo_negocio) AS tipo_negocio, MAX(cluster_t) AS cluster_t')
             ->groupBy('cliente_id');
 
-        // Subquery deduplicado de dim_rutas para evitar producto cartesiano
+        // Subquery deduplicado de dim_rutas para obtener canal de la ruta viva
         $subRutas = $conn->table('dim_rutas')
             ->selectRaw("TRIM(UPPER(ruta)) AS ruta_clean, MAX(TRIM(canal)) AS canal, MAX(TRIM(vendedor)) AS vendedor")
             ->whereNotNull('ruta')
             ->whereRaw("TRIM(ruta) != ''")
             ->groupBy(DB::raw("TRIM(UPPER(ruta))"));
 
-        // Query base para auditoria_ruteo_cambios
+        // Query base para auditoria_ruteo_cambios vinculado estrictamente a pan_ruteo actual
         $baseQuery = $conn->table('auditoria_ruteo_cambios as a')
             ->leftJoinSub($subPan, 'p', 'a.cliente_id', '=', 'p.cliente_id')
-            ->leftJoinSub($subRutas, 'r_ant', function ($join) {
-                $join->on(DB::raw("
-                    TRIM(UPPER(
-                        CASE 
-                            WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1)
-                            WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_anterior
-                            ELSE COALESCE(NULLIF(p.ruta, ''), a.valor_anterior, '')
-                        END
-                    ))
-                "), '=', 'r_ant.ruta_clean');
-            })
-            ->leftJoinSub($subRutas, 'r_nue', function ($join) {
-                $join->on(DB::raw("
-                    TRIM(UPPER(
-                        CASE 
-                            WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1)
-                            WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_nuevo
-                            ELSE COALESCE(NULLIF(a.valor_nuevo, ''), p.ruta, '')
-                        END
-                    ))
-                "), '=', 'r_nue.ruta_clean');
+            ->leftJoinSub($subRutas, 'r_pan', function ($join) {
+                $join->on(DB::raw("TRIM(UPPER(COALESCE(p.ruta, '')))"), '=', 'r_pan.ruta_clean');
             });
 
-        // 1. Filtro de Canal
+        // 1. Filtro de Canal (según la ruta viva actual del cliente)
         if ($canal !== '' && strtoupper($canal) !== 'TODOS') {
-            $baseQuery->where(function ($q) use ($canal) {
-                $q->whereRaw('TRIM(r_ant.canal) = ?', [$canal])
-                  ->orWhereRaw('TRIM(r_nue.canal) = ?', [$canal]);
-            });
+            $baseQuery->whereRaw('TRIM(r_pan.canal) = ?', [$canal]);
         }
 
-        // 2. Filtro de Rutas
+        // 2. Filtro de Rutas (estrictamente según pan_ruteo actual)
         $rutasValidas = array_filter(array_map('trim', $rutas));
         if (!empty($rutasValidas)) {
             $rutasUpper = array_map('strtoupper', $rutasValidas);
-            $baseQuery->where(function ($q) use ($rutasUpper) {
-                $q->whereIn(DB::raw("TRIM(UPPER(COALESCE(p.ruta, '')))"), $rutasUpper)
-                  ->orWhereIn(DB::raw("
-                      TRIM(UPPER(
-                          CASE 
-                              WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1)
-                              WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_anterior
-                              ELSE COALESCE(a.valor_anterior, '')
-                          END
-                      ))
-                  "), $rutasUpper)
-                  ->orWhereIn(DB::raw("
-                      TRIM(UPPER(
-                          CASE 
-                              WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1)
-                              WHEN a.tipo_evento = 'MODIFICADO_RUTA' THEN a.valor_nuevo
-                              ELSE COALESCE(a.valor_nuevo, '')
-                          END
-                      ))
-                  "), $rutasUpper);
-            });
+            $baseQuery->whereIn(DB::raw("COALESCE(NULLIF(TRIM(UPPER(p.ruta)), ''), 'SIN RUTA')"), $rutasUpper);
         }
 
         // 3. Archivo Origen
@@ -190,6 +138,7 @@ class GetAuditoriaClientesAction
                 $term = "%{$busqueda}%";
                 $q->orWhere('a.cliente', 'LIKE', $term)
                   ->orWhere('p.cliente', 'LIKE', $term)
+                  ->orWhere('p.ruta', 'LIKE', $term)
                   ->orWhere('p.vendedor', 'LIKE', $term)
                   ->orWhere('p.direccion', 'LIKE', $term)
                   ->orWhere('a.valor_anterior', 'LIKE', $term)
@@ -199,33 +148,16 @@ class GetAuditoriaClientesAction
             });
         }
 
-        // Agrupación por cliente_id para identificar los clientes y sus conteos
+        // Agrupación por cliente_id tomando como ruta estricta la de pan_ruteo
         $clientesGroupQuery = (clone $baseQuery)
             ->select([
                 'a.cliente_id',
                 DB::raw("COALESCE(NULLIF(TRIM(MAX(p.cliente)), ''), NULLIF(TRIM(MAX(a.cliente)), ''), 'Sin Nombre') AS cliente"),
-                DB::raw("
-                    COALESCE(
-                        NULLIF(TRIM(UPPER(MAX(p.ruta))), ''),
-                        NULLIF(TRIM(UPPER(MAX(CASE WHEN a.valor_nuevo LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Ruta: ', -1), ' |', 1) ELSE NULL END))), ''),
-                        NULLIF(TRIM(UPPER(MAX(CASE WHEN a.valor_anterior LIKE '%Ruta: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Ruta: ', -1), ' |', 1) ELSE NULL END))), ''),
-                        NULLIF(TRIM(UPPER(MAX(r_nue.ruta_clean))), ''),
-                        NULLIF(TRIM(UPPER(MAX(r_ant.ruta_clean))), ''),
-                        'SIN RUTA'
-                    ) AS ruta
-                "),
-                DB::raw("COALESCE(NULLIF(TRIM(MAX(r_nue.canal)), ''), NULLIF(TRIM(MAX(r_ant.canal)), ''), 'SIN CANAL') AS canal"),
-                DB::raw("
-                    COALESCE(
-                        NULLIF(TRIM(MAX(p.dia_norm)), ''),
-                        NULLIF(TRIM(MAX(p.dia)), ''),
-                        NULLIF(TRIM(MAX(CASE WHEN a.valor_nuevo LIKE '%Dia: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_nuevo, 'Dia: ', -1), ' |', 1) ELSE NULL END))), ''),
-                        NULLIF(TRIM(MAX(CASE WHEN a.valor_anterior LIKE '%Dia: %' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(a.valor_anterior, 'Dia: ', -1), ' |', 1) ELSE NULL END))), ''),
-                        'SIN DIA'
-                    ) AS dia
-                "),
+                DB::raw("COALESCE(NULLIF(TRIM(UPPER(MAX(p.ruta))), ''), 'SIN RUTA') AS ruta"),
+                DB::raw("COALESCE(NULLIF(TRIM(MAX(r_pan.canal)), ''), 'SIN CANAL') AS canal"),
+                DB::raw("COALESCE(NULLIF(TRIM(MAX(p.dia_norm)), ''), NULLIF(TRIM(MAX(p.dia)), ''), 'SIN DIA') AS dia"),
                 DB::raw("COALESCE(MAX(p.direccion), 'Sin Dirección') AS direccion"),
-                DB::raw("COALESCE(NULLIF(TRIM(MAX(p.vendedor)), ''), NULLIF(TRIM(MAX(r_nue.vendedor)), ''), NULLIF(TRIM(MAX(r_ant.vendedor)), ''), 'Sin Asignar') AS vendedor"),
+                DB::raw("COALESCE(NULLIF(TRIM(MAX(p.vendedor)), ''), NULLIF(TRIM(MAX(r_pan.vendedor)), ''), 'Sin Asignar') AS vendedor"),
                 DB::raw("MAX(p.latitud) AS lat_actual"),
                 DB::raw("MAX(p.longitud) AS lng_actual"),
                 DB::raw("COUNT(*) AS total_cambios"),
@@ -246,32 +178,17 @@ class GetAuditoriaClientesAction
             $clientesGroupQuery->havingRaw("SUM(CASE WHEN a.estado_auditoria = 'PENDIENTE' THEN 1 ELSE 0 END) = COUNT(*)");
         }
 
-        // Subquery para calcular métricas globales y paginación
-        $countQuery = $conn->table(DB::raw("({$clientesGroupQuery->toSql()}) AS c"))
-            ->mergeBindings($clientesGroupQuery);
+        $clientesData = $clientesGroupQuery->get();
 
-        $totalesRow = $countQuery->selectRaw("
-            COUNT(*) AS total_clientes,
-            COALESCE(SUM(c.total_cambios), 0) AS total_eventos,
-            COALESCE(SUM(CASE WHEN c.pendientes > 0 THEN 1 ELSE 0 END), 0) AS clientes_con_pendientes,
-            COALESCE(SUM(CASE WHEN c.pendientes = 0 THEN 1 ELSE 0 END), 0) AS clientes_resueltos
-        ")->first();
-
-        $totalClientes = (int) ($totalesRow->total_clientes ?? 0);
-        $totalEventos = (int) ($totalesRow->total_eventos ?? 0);
-        $clientesConPendientes = (int) ($totalesRow->clientes_con_pendientes ?? 0);
-        $clientesResueltos = (int) ($totalesRow->clientes_resueltos ?? 0);
-
-        if ($totalClientes === 0) {
+        if ($clientesData->isEmpty()) {
             return [
+                'rutas' => [],
                 'clientes' => [],
-                'total' => 0,
-                'page' => $page,
-                'per_page' => $perPage,
-                'last_page' => 1,
-                'from' => 0,
-                'to' => 0,
+                'total_rutas' => 0,
+                'total_clientes' => 0,
+                'total_eventos' => 0,
                 'metricas' => [
+                    'total_rutas' => 0,
                     'total_clientes' => 0,
                     'total_eventos' => 0,
                     'clientes_con_pendientes' => 0,
@@ -280,17 +197,9 @@ class GetAuditoriaClientesAction
             ];
         }
 
-        // Paginación de clientes
-        $clientesPaginados = $clientesGroupQuery
-            ->orderByRaw("SUM(CASE WHEN a.estado_auditoria = 'PENDIENTE' THEN 1 ELSE 0 END) DESC")
-            ->orderByDesc(DB::raw("MAX(COALESCE(a.fecha_resolucion, a.fecha_auditoria))"))
-            ->offset($offset)
-            ->limit($perPage)
-            ->get();
+        $clienteIds = $clientesData->pluck('cliente_id')->all();
 
-        $clienteIds = $clientesPaginados->pluck('cliente_id')->all();
-
-        // Obtener todos los cambios individuales de los clientes de la página actual
+        // Obtener historial completo de cambios individuales de estos clientes
         $cambiosQuery = $conn->table('auditoria_ruteo_cambios as a')
             ->whereIn('a.cliente_id', $clienteIds)
             ->select([
@@ -331,50 +240,132 @@ class GetAuditoriaClientesAction
             ];
         }
 
-        // Armar resultado consolidado
+        // Armar estructura jerárquica: Ruta (pan_ruteo) -> Cliente -> Cambios
+        $rutasMap = [];
         $clientesResultados = [];
-        foreach ($clientesPaginados as $c) {
+        $totalEventos = 0;
+        $clientesConPendientes = 0;
+        $clientesResueltos = 0;
+
+        foreach ($clientesData as $c) {
             $cid = (int) $c->cliente_id;
             $cambios = $cambiosPorCliente[$cid] ?? [];
 
-            // Extraer tipos de eventos únicos para badges
             $tiposSet = [];
             foreach ($cambios as $ev) {
                 $tiposSet[$ev['tipo_evento']] = true;
             }
 
-            $clientesResultados[] = [
+            $pendientes = (int) $c->pendientes;
+            $aprobados = (int) $c->aprobados;
+            $rechazados = (int) $c->rechazados;
+            $descartados = (int) $c->descartados;
+            $totalCambios = (int) $c->total_cambios;
+
+            $totalEventos += $totalCambios;
+            if ($pendientes > 0) {
+                $clientesConPendientes++;
+            } else {
+                $clientesResueltos++;
+            }
+
+            $rutaActual = trim((string) $c->ruta);
+            if ($rutaActual === '' || $rutaActual === 'SIN RUTA') {
+                $rutaKey = 'SIN RUTA';
+            } else {
+                $rutaKey = $rutaActual;
+            }
+
+            $clienteItem = [
                 'cliente_id' => $cid,
                 'cliente' => (string) $c->cliente,
-                'ruta' => (string) $c->ruta,
+                'ruta' => $rutaKey,
                 'canal' => (string) $c->canal,
                 'dia' => (string) $c->dia,
                 'direccion' => (string) $c->direccion,
                 'vendedor' => (string) $c->vendedor,
                 'lat_actual' => $c->lat_actual !== null ? (float) $c->lat_actual : null,
                 'lng_actual' => $c->lng_actual !== null ? (float) $c->lng_actual : null,
-                'total_cambios' => (int) $c->total_cambios,
-                'pendientes' => (int) $c->pendientes,
-                'aprobados' => (int) $c->aprobados,
-                'rechazados' => (int) $c->rechazados,
-                'descartados' => (int) $c->descartados,
+                'total_cambios' => $totalCambios,
+                'pendientes' => $pendientes,
+                'aprobados' => $aprobados,
+                'rechazados' => $rechazados,
+                'descartados' => $descartados,
                 'ultima_fecha' => (string) ($c->ultima_fecha ?? ''),
                 'tipos_eventos' => array_keys($tiposSet),
                 'cambios' => $cambios,
             ];
+
+            $clientesResultados[] = $clienteItem;
+
+            if (!isset($rutasMap[$rutaKey])) {
+                $rutasMap[$rutaKey] = [
+                    'ruta' => $rutaKey,
+                    'canal' => (string) $c->canal,
+                    'total_clientes' => 0,
+                    'total_cambios' => 0,
+                    'pendientes' => 0,
+                    'aprobados' => 0,
+                    'rechazados' => 0,
+                    'descartados' => 0,
+                    'clientes' => [],
+                ];
+            }
+
+            $rutasMap[$rutaKey]['total_clientes']++;
+            $rutasMap[$rutaKey]['total_cambios'] += $totalCambios;
+            $rutasMap[$rutaKey]['pendientes'] += $pendientes;
+            $rutasMap[$rutaKey]['aprobados'] += $aprobados;
+            $rutasMap[$rutaKey]['rechazados'] += $rechazados;
+            $rutasMap[$rutaKey]['descartados'] += $descartados;
+            $rutasMap[$rutaKey]['clientes'][] = $clienteItem;
         }
 
-        $lastPage = max(1, (int) ceil($totalClientes / $perPage));
+        // Ordenar clientes dentro de cada ruta: primero los con pendientes, luego por total de cambios descendente
+        foreach ($rutasMap as &$rData) {
+            usort($rData['clientes'], function ($a, $b) {
+                if ($a['pendientes'] > 0 && $b['pendientes'] === 0) return -1;
+                if ($a['pendientes'] === 0 && $b['pendientes'] > 0) return 1;
+                if ($a['pendientes'] !== $b['pendientes']) {
+                    return $b['pendientes'] <=> $a['pendientes'];
+                }
+                return $b['total_cambios'] <=> $a['total_cambios'];
+            });
+        }
+        unset($rData);
+
+        // Ordenar rutas:
+        // Rutas con pendientes primero, luego alfabéticamente.
+        // 'SIN RUTA' va estrictamente al final.
+        uasort($rutasMap, function ($a, $b) {
+            $rA = $a['ruta'];
+            $rB = $b['ruta'];
+
+            if ($rA === 'SIN RUTA' && $rB !== 'SIN RUTA') return 1;
+            if ($rB === 'SIN RUTA' && $rA !== 'SIN RUTA') return -1;
+
+            if ($a['pendientes'] > 0 && $b['pendientes'] === 0) return -1;
+            if ($a['pendientes'] === 0 && $b['pendientes'] > 0) return 1;
+
+            if ($a['pendientes'] !== $b['pendientes']) {
+                return $b['pendientes'] <=> $a['pendientes'];
+            }
+
+            return strnatcasecmp($rA, $rB);
+        });
+
+        $rutasLista = array_values($rutasMap);
+        $totalClientes = count($clientesResultados);
+        $totalRutas = count($rutasLista);
 
         return [
+            'rutas' => $rutasLista,
             'clientes' => $clientesResultados,
-            'total' => $totalClientes,
-            'page' => $page,
-            'per_page' => $perPage,
-            'last_page' => $lastPage,
-            'from' => $totalClientes > 0 ? $offset + 1 : 0,
-            'to' => min($offset + $perPage, $totalClientes),
+            'total_rutas' => $totalRutas,
+            'total_clientes' => $totalClientes,
+            'total_eventos' => $totalEventos,
             'metricas' => [
+                'total_rutas' => $totalRutas,
                 'total_clientes' => $totalClientes,
                 'total_eventos' => $totalEventos,
                 'clientes_con_pendientes' => $clientesConPendientes,
