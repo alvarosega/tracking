@@ -243,7 +243,7 @@
         </div>
       </div>
 
-      <!-- TABLA PRINCIPAL REDISEÑADA (COMPACTA, ESCANEABLE Y ELEGANTE) -->
+      <!-- TABLA PRINCIPAL MINIMALISTA (TODO EL TEXTO COMPLETO, SIN COLUMNAS INNECESARIAS) -->
       <div v-else class="apple-glass-card rounded-[16px] overflow-hidden border border-white/70 shadow-xs">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
@@ -257,27 +257,22 @@
                     class="rounded cursor-pointer accent-[#0071E3]"
                   />
                 </th>
-                <th class="py-2.5 px-3 min-w-[220px]">Cliente</th>
-                <th class="py-2.5 px-3 w-32">Territorio</th>
-                <th class="py-2.5 px-3 w-40">Tipo de Cambio</th>
-                <th class="py-2.5 px-3 min-w-[240px]">Transición (Antes &rarr; Después)</th>
-                <th class="py-2.5 px-3 min-w-[200px]">Causa / Diagnóstico</th>
-                <th class="py-2.5 px-3 text-right w-36">Acciones</th>
+                <th class="py-2.5 px-3 min-w-[260px]">Cliente</th>
+                <th class="py-2.5 px-3 w-40">Territorio</th>
+                <th class="py-2.5 px-3 w-44">Tipo de Cambio</th>
+                <th class="py-2.5 px-3 min-w-[320px]">Transición (Antes &rarr; Después)</th>
+                <th class="py-2.5 px-3 text-right w-44">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/[0.04]">
               <tr
                 v-for="reg in registros"
                 :key="reg.id"
-                @click="abrirDrawer(reg)"
-                class="hover:bg-[#0071E3]/[0.03] transition-colors duration-150 cursor-pointer group"
-                :class="[
-                  seleccionados.includes(reg.id) ? 'bg-[#0071E3]/[0.06]' : '',
-                  regDrawer?.id === reg.id ? 'bg-[#0071E3]/[0.08] ring-1 ring-inset ring-[#0071E3]/20' : ''
-                ]"
+                class="hover:bg-[#0071E3]/[0.03] transition-colors duration-150"
+                :class="seleccionados.includes(reg.id) ? 'bg-[#0071E3]/[0.06]' : ''"
               >
                 <!-- Checkbox Selección -->
-                <td class="py-2 px-3 text-center align-middle" @click.stop>
+                <td class="py-2 px-3 text-center align-middle">
                   <input
                     type="checkbox"
                     :value="reg.id"
@@ -286,11 +281,11 @@
                   />
                 </td>
 
-                <!-- 1. CLIENTE -->
+                <!-- 1. CLIENTE (TEXTO COMPLETO) -->
                 <td class="py-2.5 px-3 align-middle">
-                  <div class="space-y-0.5">
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-bold text-[#1D1D1F] text-xs leading-tight group-hover:text-[#0071E3] transition-colors">
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="font-bold text-[#1D1D1F] text-xs leading-snug break-words">
                         {{ reg.cliente }}
                       </span>
                       <span class="text-[10px] font-mono text-[#86868B] shrink-0">
@@ -298,146 +293,120 @@
                       </span>
                     </div>
 
-                    <div class="flex items-center gap-2 text-[10px] text-[#6E6E73]">
-                      <span class="truncate max-w-[210px]" :title="reg.direccion">
-                        {{ reg.direccion || 'Sin dirección' }}
-                      </span>
+                    <div class="text-[11px] text-[#6E6E73] leading-snug break-words">
+                      {{ reg.direccion || 'Sin dirección registrada' }}
+                    </div>
 
-                      <!-- Botón de fotos si tiene -->
+                    <!-- Botón de fotos si tiene fotos -->
+                    <div v-if="reg.cant_fotos > 0" class="pt-0.5">
                       <button
-                        v-if="reg.cant_fotos > 0"
                         type="button"
-                        @click.stop="abrirFotos(reg)"
-                        class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3]/20 font-bold text-[9px] cursor-pointer"
+                        @click="abrirFotos(reg)"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3]/20 font-bold text-[10px] cursor-pointer"
                         title="Ver fotografías de visita"
                       >
-                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                           <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
                         </svg>
-                        <span>{{ reg.cant_fotos }}</span>
+                        <span>{{ reg.cant_fotos }} foto(s)</span>
                       </button>
                     </div>
                   </div>
                 </td>
 
-                <!-- 2. TERRITORIO -->
-                <td class="py-2.5 px-3 align-middle whitespace-nowrap">
-                  <div class="flex flex-col gap-0.5">
-                    <div class="flex items-center gap-1 font-mono text-[10px]">
-                      <span class="px-1.5 py-0.2 rounded bg-black/[0.04] text-[#1D1D1F] font-bold">
+                <!-- 2. TERRITORIO (TEXTO COMPLETO) -->
+                <td class="py-2.5 px-3 align-middle">
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-1 font-mono text-[11px] flex-wrap">
+                      <span class="px-1.5 py-0.5 rounded bg-black/[0.05] text-[#1D1D1F] font-bold">
                         {{ reg.ruta }}
                       </span>
-                      <span class="px-1.5 py-0.2 rounded bg-black/[0.03] text-[#6E6E73] capitalize">
+                      <span class="px-1.5 py-0.5 rounded bg-black/[0.03] text-[#6E6E73] capitalize">
                         {{ reg.dia }}
                       </span>
                     </div>
-                    <span class="text-[9px] text-[#86868B] truncate max-w-[120px]">
+                    <span class="text-[10px] text-[#86868B] leading-tight break-words">
                       {{ reg.canal }}
                     </span>
                   </div>
                 </td>
 
                 <!-- 3. TIPO DE CAMBIO -->
-                <td class="py-2.5 px-3 align-middle whitespace-nowrap">
-                  <div class="space-y-0.5">
+                <td class="py-2.5 px-3 align-middle">
+                  <div class="space-y-1">
                     <span
-                      class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                      class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border break-words"
                       :class="obtenerBadgeClase(reg.categoria_clave)"
                     >
                       {{ reg.etiqueta_evento }}
                     </span>
-                    <div class="text-[9px] font-mono text-[#86868B] flex items-center gap-1">
+                    <div class="text-[10px] font-mono text-[#86868B] flex items-center gap-1">
                       <span>{{ reg.fecha_auditoria }}</span>
                     </div>
                   </div>
                 </td>
 
-                <!-- 4. TRANSICIÓN (ANTES ➔ DESPUÉS) -->
+                <!-- 4. TRANSICIÓN (ANTES ➔ DESPUÉS) - TEXTO COMPLETO SIN RECORTES -->
                 <td class="py-2.5 px-3 align-middle">
-                  <div class="flex items-center gap-1.5 font-mono text-[11px] flex-wrap">
-                    <!-- Antes -->
+                  <div class="flex items-center gap-2 font-mono text-xs flex-wrap">
+                    <!-- Antes (Completo) -->
                     <span
-                      class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/90 line-through opacity-85 truncate max-w-[140px]"
-                      :title="reg.antes_fmt"
+                      class="px-2.5 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200 line-through opacity-85 break-words max-w-full"
                     >
                       {{ reg.antes_fmt }}
                     </span>
 
-                    <svg class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <svg class="w-3.5 h-3.5 text-[#0071E3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
 
-                    <!-- Después -->
+                    <!-- Después (Completo) -->
                     <span
-                      class="px-2 py-0.5 rounded bg-sky-50 text-[#0071E3] font-bold border border-sky-200 truncate max-w-[140px]"
-                      :title="reg.despues_fmt"
+                      class="px-2.5 py-1 rounded bg-sky-50 text-[#0071E3] font-bold border border-sky-200 break-words max-w-full"
                     >
                       {{ reg.despues_fmt }}
                     </span>
                   </div>
                 </td>
 
-                <!-- 5. CAUSA / DIAGNÓSTICO -->
-                <td class="py-2.5 px-3 align-middle min-w-[200px]">
-                  <div class="space-y-0.5">
-                    <div
-                      class="text-[11px] text-[#1D1D1F] font-medium leading-snug line-clamp-1 group-hover:line-clamp-none transition-all"
-                      :title="reg.motivo_cambio?.motivo"
-                    >
-                      {{ reg.motivo_cambio?.motivo || 'Actualización registrada en padrón.' }}
-                    </div>
-
-                    <div v-if="reg.motivo_cambio?.impacto" class="flex items-center gap-1">
-                      <span
-                        class="px-1.5 py-0.2 rounded text-[9px] font-semibold border leading-tight truncate max-w-[220px]"
-                        :class="obtenerNivelClase(reg.motivo_cambio?.nivel)"
-                        :title="reg.motivo_cambio.impacto"
-                      >
-                        {{ reg.motivo_cambio.impacto }}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-
-                <!-- 6. ACCIONES -->
-                <td class="py-2.5 px-3 text-right align-middle whitespace-nowrap" @click.stop>
-                  <div class="inline-flex items-center gap-1">
+                <!-- 5. ACCIONES DIRECTAS MINIMALISTAS -->
+                <td class="py-2.5 px-3 text-right align-middle whitespace-nowrap">
+                  <div class="inline-flex items-center gap-1.5">
                     <!-- Botón Aprobar -->
                     <button
                       type="button"
                       @click="abrirModalResolucion([reg.id], 'APROBADO', reg)"
-                      class="p-1 rounded-[7px] bg-[#34C759]/15 text-[#248A3D] hover:bg-[#34C759] hover:text-white transition-all cursor-pointer"
+                      class="px-2.5 py-1 rounded-[8px] bg-[#34C759]/15 text-[#248A3D] hover:bg-[#34C759] hover:text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
                       title="Aprobar cambio"
                     >
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
+                      <span>Aprobar</span>
                     </button>
 
                     <!-- Botón Rechazar -->
                     <button
                       type="button"
                       @click="abrirModalResolucion([reg.id], 'RECHAZADO', reg)"
-                      class="p-1 rounded-[7px] bg-[#FF3B30]/15 text-[#C9342C] hover:bg-[#FF3B30] hover:text-white transition-all cursor-pointer"
+                      class="px-2.5 py-1 rounded-[8px] bg-[#FF3B30]/15 text-[#C9342C] hover:bg-[#FF3B30] hover:text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
                       title="Rechazar cambio"
                     >
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
+                      <span>Rechazar</span>
                     </button>
 
-                    <!-- Botón Ficha Técnica / Drawer -->
+                    <!-- Botón Descartar -->
                     <button
                       type="button"
-                      @click="abrirDrawer(reg)"
-                      class="px-2 py-1 rounded-[7px] bg-black/[0.04] text-[#0071E3] hover:bg-[#0071E3]/10 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-0.5 ml-0.5"
-                      title="Abrir ficha detallada"
+                      @click="abrirModalResolucion([reg.id], 'DESCARTADO', reg)"
+                      class="px-2 py-1 rounded-[8px] bg-black/[0.04] text-[#6E6E73] hover:bg-black/[0.08] hover:text-[#1D1D1F] text-xs font-semibold transition-all cursor-pointer"
+                      title="Descartar evento"
                     >
-                      <span>Ficha</span>
-                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
+                      <span>Descartar</span>
                     </button>
                   </div>
                 </td>
@@ -459,286 +428,6 @@
           @change="onPaginacionChange"
         />
       </div>
-
-      <!-- DRAWER LATERAL: FICHA TÉCNICA DE AUDITORÍA -->
-      <Teleport to="body">
-        <transition
-          enter-active-class="transition duration-300 ease-out"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          leave-active-class="transition duration-200 ease-in"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-        >
-          <div
-            v-if="drawerAbierto"
-            @click="cerrarDrawer"
-            class="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-xs"
-          ></div>
-        </transition>
-
-        <transition
-          enter-active-class="transition duration-300 ease-out transform"
-          enter-from-class="translate-x-full"
-          enter-to-class="translate-x-0"
-          leave-active-class="transition duration-200 ease-in transform"
-          leave-from-class="translate-x-0"
-          leave-to-class="translate-x-full"
-        >
-          <div
-            v-if="drawerAbierto && regDrawer"
-            class="fixed inset-y-0 right-0 z-[10001] w-full max-w-xl bg-white/95 backdrop-blur-xl shadow-2xl border-l border-white/80 flex flex-col font-sans select-none"
-          >
-            <!-- CABECERA DEL DRAWER -->
-            <div class="px-5 py-4 border-b border-black/[0.06] flex items-center justify-between gap-3 bg-white/60">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="px-2 py-0.5 rounded-full text-[10px] font-bold border"
-                    :class="obtenerBadgeClase(regDrawer.categoria_clave)"
-                  >
-                    {{ regDrawer.etiqueta_evento }}
-                  </span>
-                  <span class="text-[10px] font-mono text-[#86868B]">
-                    Evento #{{ regDrawer.id }}
-                  </span>
-                </div>
-                <h3 class="text-sm font-bold text-[#1D1D1F] truncate mt-1">
-                  {{ regDrawer.cliente }}
-                </h3>
-              </div>
-
-              <!-- Navegación entre registros y botón cerrar -->
-              <div class="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  @click="navegarDrawer(-1)"
-                  :disabled="indiceRegistroDrawer <= 0"
-                  class="p-1.5 rounded-[8px] apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F] disabled:opacity-30 cursor-pointer"
-                  title="Registro anterior"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                <button
-                  type="button"
-                  @click="navegarDrawer(1)"
-                  :disabled="indiceRegistroDrawer >= registros.length - 1"
-                  class="p-1.5 rounded-[8px] apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F] disabled:opacity-30 cursor-pointer"
-                  title="Registro siguiente"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-
-                <button
-                  type="button"
-                  @click="cerrarDrawer"
-                  class="p-1.5 rounded-[8px] apple-control-pill text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.05] ml-1 cursor-pointer"
-                  title="Cerrar ficha"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- CUERPO DEL DRAWER CON SCROLL -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
-              
-              <!-- BLOQUE 1: COMPARATIVA ANTES VS DESPUÉS -->
-              <div class="space-y-2">
-                <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider">
-                  Comparativa de Transición
-                </span>
-
-                <div class="grid grid-cols-2 gap-3">
-                  <!-- Situación Previa -->
-                  <div class="p-3 rounded-[12px] bg-slate-50 border border-slate-200/90 space-y-1.5">
-                    <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                      <span>Antes (Previo)</span>
-                    </div>
-                    <div class="text-xs font-mono font-bold text-slate-800 break-words bg-white p-2 rounded-[8px] border border-slate-200">
-                      {{ regDrawer.antes_fmt }}
-                    </div>
-                  </div>
-
-                  <!-- Propuesta Nueva -->
-                  <div class="p-3 rounded-[12px] bg-sky-50/80 border border-sky-200 space-y-1.5">
-                    <div class="text-[9px] font-bold text-[#0071E3] uppercase tracking-wider flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-[#0071E3]"></span>
-                      <span>Después (Propuesta)</span>
-                    </div>
-                    <div class="text-xs font-mono font-bold text-[#0071E3] break-words bg-white p-2 rounded-[8px] border border-sky-200">
-                      {{ regDrawer.despues_fmt }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- BLOQUE 2: DIAGNÓSTICO & CAUSA DE NEGOCIO -->
-              <div class="p-3.5 rounded-[12px] bg-white border border-black/[0.06] shadow-xs space-y-2">
-                <div class="flex items-center justify-between">
-                  <div class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-[#0071E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Causa y Diagnóstico</span>
-                  </div>
-                  <span class="text-[9px] font-mono text-[#86868B] truncate max-w-[200px]" :title="regDrawer.archivo_origen">
-                    {{ regDrawer.archivo_origen }}
-                  </span>
-                </div>
-
-                <div class="text-xs text-[#1D1D1F] leading-relaxed">
-                  {{ regDrawer.motivo_cambio?.motivo || 'Actualización registrada en el padrón de clientes.' }}
-                </div>
-
-                <div
-                  v-if="regDrawer.motivo_cambio?.impacto"
-                  class="p-2 rounded-[8px] text-[11px] leading-tight border"
-                  :class="obtenerNivelClase(regDrawer.motivo_cambio?.nivel)"
-                >
-                  {{ regDrawer.motivo_cambio.impacto }}
-                </div>
-
-                <div v-if="regDrawer.observaciones" class="text-[10px] text-[#86868B] italic pt-1 border-t border-black/[0.04]">
-                  Observación: {{ regDrawer.observaciones }}
-                </div>
-              </div>
-
-              <!-- BLOQUE 3: DETALLE DEL CLIENTE Y TERRITORIO -->
-              <div class="p-3.5 rounded-[12px] bg-white border border-black/[0.06] shadow-xs space-y-2.5">
-                <span class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider">
-                  Ficha Territorial del Punto de Venta
-                </span>
-
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span class="text-[10px] text-[#86868B] block">Código Cliente:</span>
-                    <span class="font-mono font-bold text-[#1D1D1F]">#{{ regDrawer.cliente_id }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[10px] text-[#86868B] block">Ruta Asignada:</span>
-                    <span class="font-mono font-bold text-[#1D1D1F]">{{ regDrawer.ruta }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[10px] text-[#86868B] block">Canal:</span>
-                    <span class="font-semibold text-[#1D1D1F]">{{ regDrawer.canal }}</span>
-                  </div>
-                  <div>
-                    <span class="text-[10px] text-[#86868B] block">Día de Visita:</span>
-                    <span class="font-semibold text-[#1D1D1F] capitalize">{{ regDrawer.dia }}</span>
-                  </div>
-                  <div class="col-span-2">
-                    <span class="text-[10px] text-[#86868B] block">Dirección:</span>
-                    <span class="text-[#1D1D1F]">{{ regDrawer.direccion || 'Sin dirección registrada' }}</span>
-                  </div>
-                  <div class="col-span-2" v-if="regDrawer.vendedor">
-                    <span class="text-[10px] text-[#86868B] block">Preventista Asignado:</span>
-                    <span class="font-medium text-[#1D1D1F]">{{ regDrawer.vendedor }}</span>
-                  </div>
-                </div>
-
-                <!-- Enlaces y Botones Complementarios (Fotos y Mapas) -->
-                <div class="flex items-center gap-2 pt-2 border-t border-black/[0.04]">
-                  <button
-                    v-if="regDrawer.cant_fotos > 0"
-                    type="button"
-                    @click="abrirFotos(regDrawer)"
-                    class="apple-control-pill px-2.5 py-1 rounded-[8px] text-[10px] font-bold text-[#0071E3] hover:bg-[#0071E3]/10 cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                    </svg>
-                    <span>Ver Fotos de Visita ({{ regDrawer.cant_fotos }})</span>
-                  </button>
-
-                  <a
-                    v-if="regDrawer.lat_actual && regDrawer.lng_actual"
-                    :href="`https://www.google.com/maps?q=${regDrawer.lat_actual},${regDrawer.lng_actual}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="apple-control-pill px-2.5 py-1 rounded-[8px] text-[10px] font-bold text-[#0071E3] hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Ver en Google Maps</span>
-                    <span>&rarr;</span>
-                  </a>
-                </div>
-              </div>
-
-              <!-- BLOQUE 4: HISTORIAL DE FACTURACIÓN (PARA BAJAS / INACTIVACIONES) -->
-              <div v-if="regDrawer.historico_ventas" class="p-3.5 rounded-[12px] bg-white border border-black/[0.06] shadow-xs space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold text-[#1D1D1F] uppercase tracking-wider">
-                    Facturación Histórica (Últimos 5 Meses)
-                  </span>
-                  <span class="text-[10px] font-mono font-bold text-[#0071E3]">
-                    Promedio: Bs {{ regDrawer.historico_ventas.promedio_mensual.toLocaleString('es-BO') }}/mes
-                  </span>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <div
-                    v-for="mes in regDrawer.historico_ventas.meses"
-                    :key="mes.periodo"
-                    class="p-2 rounded-[8px] bg-slate-50 border border-slate-200 text-center font-mono text-[10px]"
-                  >
-                    <span class="text-slate-500 block">{{ mes.periodo }}</span>
-                    <span class="font-bold text-slate-800 text-xs">Bs {{ mes.monto.toLocaleString('es-BO') }}</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            <!-- FOOTER DEL DRAWER: ACCIONES DIRECTAS DE DICTAMEN -->
-            <div class="p-4 border-t border-black/[0.06] bg-white/80 flex items-center justify-between gap-2">
-              <span class="text-[11px] font-bold text-[#86868B] uppercase tracking-wider">
-                Dictamen Rápido:
-              </span>
-
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  @click="abrirModalResolucion([regDrawer.id], 'APROBADO', regDrawer)"
-                  class="px-3.5 py-1.5 rounded-[9px] bg-[#34C759] text-white text-xs font-bold hover:bg-[#28A745] cursor-pointer transition-all shadow-xs flex items-center gap-1"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Aprobar</span>
-                </button>
-
-                <button
-                  type="button"
-                  @click="abrirModalResolucion([regDrawer.id], 'RECHAZADO', regDrawer)"
-                  class="px-3.5 py-1.5 rounded-[9px] bg-[#FF3B30] text-white text-xs font-bold hover:bg-[#D93025] cursor-pointer transition-all shadow-xs flex items-center gap-1"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  <span>Rechazar</span>
-                </button>
-
-                <button
-                  type="button"
-                  @click="abrirModalResolucion([regDrawer.id], 'DESCARTADO', regDrawer)"
-                  class="px-2.5 py-1.5 rounded-[9px] bg-black/[0.05] text-[#6E6E73] hover:bg-black/[0.1] text-xs font-semibold cursor-pointer transition-all"
-                >
-                  Descartar
-                </button>
-              </div>
-            </div>
-          </div>
-        </transition>
-      </Teleport>
 
       <!-- MODAL DE RESOLUCIÓN (APROBAR / RECHAZAR / DESCARTAR) -->
       <Teleport to="body">
@@ -879,10 +568,8 @@ const perPage = ref(50);
 const seleccionados = ref([]);
 const fotosModalRef = ref(null);
 
-// Estado de controles y drawer de detalle
+// Estado de controles
 const mostrarFiltrosAvanzados = ref(false);
-const drawerAbierto = ref(false);
-const regDrawer = ref(null);
 
 const conteos = reactive({
   total: 0,
@@ -949,35 +636,9 @@ function toggleSeleccionarTodos() {
   }
 }
 
-// Drawer de Detalle
-function abrirDrawer(reg) {
-  regDrawer.value = reg;
-  drawerAbierto.value = true;
-}
-
-function cerrarDrawer() {
-  drawerAbierto.value = false;
-  regDrawer.value = null;
-}
-
-const indiceRegistroDrawer = computed(() => {
-  if (!regDrawer.value) return -1;
-  return registros.value.findIndex(r => r.id === regDrawer.value.id);
-});
-
-function navegarDrawer(delta) {
-  const currentIndex = indiceRegistroDrawer.value;
-  if (currentIndex === -1) return;
-  const targetIndex = currentIndex + delta;
-  if (targetIndex >= 0 && targetIndex < registros.value.length) {
-    regDrawer.value = registros.value[targetIndex];
-  }
-}
-
 function seleccionarCategoria(catId) {
   categoriaActiva.value = catId;
   seleccionados.value = [];
-  cerrarDrawer();
   consultar(true, true);
 }
 
@@ -989,7 +650,6 @@ function restablecerFiltros() {
   filtros.fecha_fin = '';
   filtros.busqueda = '';
   categoriaActiva.value = 'TODOS';
-  cerrarDrawer();
   consultar(true, true);
 }
 
@@ -1040,18 +700,6 @@ async function consultar(resetSeleccion = false, resetPagina = false) {
       conteos.rechazados = res.data.conteos.rechazados || 0;
       conteos.descartados = res.data.conteos.descartados || 0;
       conteos.categorias = res.data.conteos.categorias || {};
-    }
-
-    // Si el drawer está abierto y el registro sigue presente, actualizarlo
-    if (regDrawer.value) {
-      const actual = registros.value.find(r => r.id === regDrawer.value.id);
-      if (actual) {
-        regDrawer.value = actual;
-      } else if (registros.value.length > 0) {
-        regDrawer.value = registros.value[0];
-      } else {
-        cerrarDrawer();
-      }
     }
   } catch (e) {
     console.error('Error consultando auditoría pendiente:', e);
@@ -1125,19 +773,6 @@ function obtenerBadgeClase(catClave) {
       return 'bg-[#EBF5FB] text-[#2980B9] border-[#D4E6F1]';
     default:
       return 'bg-black/[0.05] text-[#1D1D1F] border-black/10';
-  }
-}
-
-function obtenerNivelClase(nivel) {
-  switch (nivel) {
-    case 'DANGER':
-      return 'bg-[#FDF0EF] text-[#C9342C] border-[#FADCD5] font-semibold';
-    case 'WARNING':
-      return 'bg-[#FFF8E6] text-[#B7791F] border-[#FCE8B3] font-semibold';
-    case 'SUCCESS':
-      return 'bg-[#EBF9EF] text-[#1E6B37] border-[#D1F2D9]';
-    default:
-      return 'bg-black/[0.03] text-[#6E6E73] border-black/[0.06]';
   }
 }
 
