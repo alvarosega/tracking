@@ -4,6 +4,7 @@ namespace App\Actions\Web\Supervisor\Ruteo;
 
 use App\Models\Supervisor\FactVenta;
 use App\Models\Supervisor\FronteraDia;
+use App\Models\Supervisor\FronteraRuta;
 use App\Models\Supervisor\Ruta;
 use Illuminate\Support\Facades\DB;
 
@@ -74,12 +75,30 @@ class GetCercanosInitDataAction
             }
         }
 
+        // Polígonos de fronteras rutas para visualización territorial
+        $poligonosRutas = FronteraRuta::query()
+            ->activos()
+            ->select(['ruta', 'canal', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
+            ->get();
+
+        $fronterasRutas = [];
+        foreach ($poligonosRutas as $fr) {
+            if (!empty($fr->geojson)) {
+                $fronterasRutas[] = [
+                    'ruta' => $fr->ruta,
+                    'canal' => $fr->canal,
+                    'geojson' => json_decode($fr->geojson, true),
+                ];
+            }
+        }
+
         return [
             'catalogo_rutas' => $catalogo,
             'canales' => $canales,
             'anios_disponibles' => !empty($aniosDisponibles) ? $aniosDisponibles : [$anioPorDefecto],
             'anio_default' => $anioPorDefecto,
             'meses_default' => $mesesPorDefecto,
+            'fronteras_rutas' => $fronterasRutas,
             'fronteras_dias' => $fronterasDias,
         ];
     }
