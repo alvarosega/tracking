@@ -95,8 +95,8 @@ class GetAuditoriaClientesAction
             $baseQuery->whereIn('a.estado_auditoria', $estadosValidos);
         }
 
-        // 4. Filtro de Tipos de Cambio (uno, varios o todos los 11 tipos)
-        if (!empty($tiposValidos) && count($tiposValidos) < 11) {
+        // 4. Filtro de Tipos de Cambio (uno, varios o todos los 12 tipos)
+        if (!empty($tiposValidos) && count($tiposValidos) < 12) {
             $baseQuery->where(function ($q) use ($tiposValidos) {
                 foreach ($tiposValidos as $tipo) {
                     $q->orWhere(function ($sub) use ($tipo) {
@@ -160,15 +160,6 @@ class GetAuditoriaClientesAction
             ])
             ->groupBy('a.cliente_id');
 
-        // Filtro de estado sobre el grupo de clientes
-        if ($estadoFiltro === 'CON_PENDIENTES') {
-            $clientesGroupQuery->havingRaw("SUM(CASE WHEN a.estado_auditoria = 'PENDIENTE' THEN 1 ELSE 0 END) > 0");
-        } elseif ($estadoFiltro === '100_RESUELTOS') {
-            $clientesGroupQuery->havingRaw("SUM(CASE WHEN a.estado_auditoria = 'PENDIENTE' THEN 1 ELSE 0 END) = 0");
-        } elseif ($estadoFiltro === 'SOLO_PENDIENTES') {
-            $clientesGroupQuery->havingRaw("SUM(CASE WHEN a.estado_auditoria = 'PENDIENTE' THEN 1 ELSE 0 END) = COUNT(*)");
-        }
-
         $clientesData = $clientesGroupQuery->get();
 
         if ($clientesData->isEmpty()) {
@@ -198,7 +189,7 @@ class GetAuditoriaClientesAction
             $cambiosQuery->whereIn('a.estado_auditoria', $estadosValidos);
         }
 
-        if (!empty($tiposValidos) && count($tiposValidos) < 11) {
+        if (!empty($tiposValidos) && count($tiposValidos) < 12) {
             $cambiosQuery->where(function ($q) use ($tiposValidos) {
                 foreach ($tiposValidos as $tipo) {
                     $q->orWhere(function ($sub) use ($tipo) {
@@ -425,6 +416,12 @@ class GetAuditoriaClientesAction
             case 'INACTIVADO':
                 $q->where('a.tipo_evento', 'INACTIVADO');
                 break;
+            case 'CAMBIO_CLIENTE':
+                $q->where(function ($sub) {
+                    $sub->where('a.campo_afectado', 'cliente')
+                        ->orWhere('a.tipo_evento', 'MODIFICADO_CLIENTE');
+                });
+                break;
             case 'BAJAS_INACTIVADOS':
                 $q->where('a.campo_afectado', '!=', 'frecuencia_visita')
                   ->where(function ($sub) {
@@ -469,7 +466,7 @@ class GetAuditoriaClientesAction
                 break;
             case 'MODIFICACION_DATOS':
                 $q->where('a.tipo_evento', 'MODIFICADO')
-                  ->whereNotIn('a.campo_afectado', ['frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas']);
+                  ->whereNotIn('a.campo_afectado', ['cliente', 'frecuencia_visita', 'ruta', 'dia', 'cluster', 'cluster_t', 'tipo_negocio', 'vendedor', 'coordenadas']);
                 break;
         }
     }

@@ -330,9 +330,9 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                                   <span
                                     class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border"
-                                    :class="obtenerBadgeEventoClase(ev.tipo_evento)"
+                                    :class="obtenerBadgeEventoClase(ev.tipo_evento, ev.campo_afectado)"
                                   >
-                                    {{ formatearTipoEvento(ev.tipo_evento) }}
+                                    {{ formatearTipoEvento(ev.tipo_evento, ev.campo_afectado) }}
                                   </span>
 
                                   <span class="font-bold text-[#1D1D1F] text-xs">
@@ -590,12 +590,13 @@ const opcionesEstados = [
   { value: 'DESCARTADO', label: 'Descartados', color: '#6E6E73', badge: 'Descartado' },
 ];
 
-// Catálogo de opciones de Tipos de Cambio (los 11 tipos completos del sistema)
+// Catálogo de opciones de Tipos de Cambio (los 12 tipos completos del sistema)
 const opcionesTipos = [
   { value: 'NUEVO', label: 'Altas Nuevas' },
   { value: 'REACTIVADO', label: 'Reactivaciones' },
   { value: 'ELIMINADO', label: 'Bajas del Padrón' },
   { value: 'INACTIVADO', label: 'Inactivaciones' },
+  { value: 'CAMBIO_CLIENTE', label: 'Cambio de Cliente' },
   { value: 'MODIFICADO_RUTA', label: 'Cambios de Ruta' },
   { value: 'MODIFICADO_DIA', label: 'Cambios de Día' },
   { value: 'MODIFICADO_COORDENADAS', label: 'Coordenadas GPS' },
@@ -790,7 +791,10 @@ function esCambioCoordenadas(ev) {
   return tipo === 'MODIFICADO_COORDENADAS' || campo === 'coordenadas' || campo === 'latitud' || campo === 'longitud' || campo === 'ubicacion';
 }
 
-function formatearTipoEvento(tipo) {
+function formatearTipoEvento(tipo, campo = '') {
+  if (campo === 'cliente' || tipo === 'CAMBIO_CLIENTE' || tipo === 'MODIFICADO_CLIENTE') {
+    return 'Cliente';
+  }
   switch (tipo) {
     case 'NUEVO': return 'Alta';
     case 'REACTIVADO': return 'Reactivado';
@@ -808,7 +812,10 @@ function formatearTipoEvento(tipo) {
   }
 }
 
-function obtenerBadgeEventoClase(tipo) {
+function obtenerBadgeEventoClase(tipo, campo = '') {
+  if (campo === 'cliente' || tipo === 'CAMBIO_CLIENTE' || tipo === 'MODIFICADO_CLIENTE') {
+    return 'bg-[#F0F4FF] text-[#2563EB] border-[#BFDBFE]';
+  }
   switch (tipo) {
     case 'NUEVO':
     case 'REACTIVADO':
