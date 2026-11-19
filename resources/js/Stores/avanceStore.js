@@ -27,7 +27,8 @@ const filtrosAplicados = ref({
   canalSeleccionado: 'TODOS',
   canalesSeleccionados: [],
   rutasSeleccionadas: [],
-  busqueda: ''
+  busqueda: '',
+  evaluarPorVendedor: typeof window !== 'undefined' ? localStorage.getItem('avance_vol_general_por_vendedor') === 'true' : false
 })
 
 const cargandoCumplimiento = ref(false)
@@ -140,7 +141,8 @@ function aplicarFiltros() {
     canalSeleccionado: canalSeleccionado.value || 'TODOS',
     canalesSeleccionados: [...(canalesSeleccionados.value || [])],
     rutasSeleccionadas: [...(rutasSeleccionadas.value || [])],
-    busqueda: String(busqueda.value || '').trim()
+    busqueda: String(busqueda.value || '').trim(),
+    evaluarPorVendedor: Boolean(evaluarPorVendedor.value)
   }
   guardarEstado()
 }
@@ -364,8 +366,8 @@ async function cargarCumplimiento() {
       kpi: kpiActivo.value,
       fecha_inicio: fInicio,
       fecha_corte: fCorte,
-      canales: filtrosAplicados.value.canalesSeleccionados || canalesSeleccionados.value,
-      rutas: filtrosAplicados.value.rutasSeleccionadas || rutasSeleccionadas.value,
+      canales: Array.isArray(filtrosAplicados.value.canalesSeleccionados) ? filtrosAplicados.value.canalesSeleccionados : (canalesSeleccionados.value || []),
+      rutas: Array.isArray(filtrosAplicados.value.rutasSeleccionadas) ? filtrosAplicados.value.rutasSeleccionadas : (rutasSeleccionadas.value || []),
       modo_temporal: modoTemporalCumplimiento.value,
       omitir_unitarios_3m: Boolean(omitirUnitarios3m.value),
       meses_historico: Number(mesesHistorico.value) || 3,

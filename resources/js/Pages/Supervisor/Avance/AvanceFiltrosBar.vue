@@ -11,7 +11,6 @@
         <input
           v-model="store.fechaInicio"
           type="date"
-          @change="emit('cambio')"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-bold text-[#1D1D1F] focus:outline-none cursor-pointer font-mono"
         />
@@ -161,7 +160,6 @@
           v-model="store.busqueda"
           type="text"
           placeholder="Buscar ruta o vendedor..."
-          @input="emit('cambio')"
           @keyup.enter="onConsultarClick"
           class="bg-transparent text-[11px] font-medium text-[#1D1D1F] placeholder-[#86868B] focus:outline-none w-32 sm:w-44"
         />
@@ -265,18 +263,14 @@ function toggleCanal(canal) {
   } else {
     store.canalesSeleccionados = actuales
   }
-
-  emit('cambio')
 }
 
 function seleccionarTodosCanales() {
   store.canalesSeleccionados = []
-  emit('cambio')
 }
 
 function deseleccionarTodosCanales() {
   store.canalesSeleccionados = ['__NINGUNO__']
-  emit('cambio')
 }
 
 const rutasFiltradasPorCanal = computed(() => {
@@ -328,18 +322,14 @@ function toggleRuta(ruta) {
   } else {
     store.rutasSeleccionadas = actuales
   }
-
-  emit('cambio')
 }
 
 function seleccionarTodas() {
   store.rutasSeleccionadas = []
-  emit('cambio')
 }
 
 function deseleccionarTodas() {
   store.rutasSeleccionadas = ['__NINGUNA__']
-  emit('cambio')
 }
 
 const textoDiasHabiles = computed(() => {
@@ -357,7 +347,6 @@ function onFechaCorteChange() {
     store.mes = ym
     store.fechaInicio = `${ym}-01`
   }
-  emit('cambio')
 }
 
 function onConsultarClick() {
@@ -365,7 +354,6 @@ function onConsultarClick() {
   menuRutasAbierto.value = false
   store.aplicarFiltros()
   emit('consultar')
-  emit('cambio')
 }
 
 function handleClickOutside(event) {

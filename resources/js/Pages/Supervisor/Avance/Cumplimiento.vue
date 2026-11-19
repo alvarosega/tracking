@@ -380,7 +380,7 @@
               <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
             </span>
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              {{ (store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Vendedores:' : 'Rutas:' }} <strong class="text-[#1D1D1F] font-bold">{{ itemsMonograficoFiltrados.length }}</strong>
+              {{ (esModoVendedorActivo && modoActivo === 'vol_general') ? 'Vendedores:' : 'Rutas:' }} <strong class="text-[#1D1D1F] font-bold">{{ itemsMonograficoFiltrados.length }}</strong>
             </span>
           </div>
         </div>
@@ -391,13 +391,13 @@
               <tr>
                 <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
                 <th
-                  @click="toggleSortKpi(store.evaluarPorVendedor && modoActivo === 'vol_general' ? 'vendedor' : 'ruta')"
+                  @click="toggleSortKpi(esModoVendedorActivo && modoActivo === 'vol_general' ? 'vendedor' : 'ruta')"
                   class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
-                  :title="store.evaluarPorVendedor && modoActivo === 'vol_general' ? 'Ordenar por Vendedor' : 'Ordenar por Ruta'"
+                  :title="esModoVendedorActivo && modoActivo === 'vol_general' ? 'Ordenar por Vendedor' : 'Ordenar por Ruta'"
                 >
                   <div class="flex items-center gap-1.5">
                     <span :class="(sortKpiCol === 'ruta' || sortKpiCol === 'vendedor') ? 'text-[#0071E3] font-bold' : ''">
-                      {{ (store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Vendedor / Rutas' : 'Ruta / Preventista' }}
+                      {{ (esModoVendedorActivo && modoActivo === 'vol_general') ? 'Vendedor / Rutas' : 'Ruta / Preventista' }}
                     </span>
                     <svg v-if="sortKpiCol === 'ruta' || sortKpiCol === 'vendedor'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
@@ -510,14 +510,14 @@
                         @click="toggleDetalleItem(r)"
                         class="w-5 h-5 rounded hover:bg-black/[0.05] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] transition-transform cursor-pointer shrink-0"
                         :class="isItemExpandido(r) ? 'rotate-90 text-[#0071E3] font-bold' : ''"
-                        :title="(store.evaluarPorVendedor && modoActivo === 'vol_general') ? 'Ver rutas del vendedor' : 'Ver desglose de clientes y días'"
+                        :title="(esModoVendedorActivo && modoActivo === 'vol_general') ? 'Ver rutas del vendedor' : 'Ver desglose de clientes y días'"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                       <div class="min-w-0">
-                        <template v-if="store.evaluarPorVendedor && modoActivo === 'vol_general'">
+                        <template v-if="esModoVendedorActivo && modoActivo === 'vol_general'">
                           <div
                             class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
                             @click="toggleDetalleItem(r)"
@@ -589,7 +589,7 @@
                 </tr>
 
                 <!-- FILA EXPANDIBLE: Desglose de Rutas del Vendedor (cuando se evalúa por vendedor en vol_general) -->
-                <tr v-if="store.evaluarPorVendedor && modoActivo === 'vol_general' && vendedorExpandido === r.vendedor" class="bg-black/[0.02]">
+                <tr v-if="esModoVendedorActivo && modoActivo === 'vol_general' && vendedorExpandido === r.vendedor" class="bg-black/[0.02]">
                   <td colspan="8" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3.5 shadow-md space-y-3">
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -673,7 +673,7 @@
                 </tr>
 
                 <!-- FILA EXPANDIBLE: Desglose de la Ruta (Venta por Día vs Por Clientes) -->
-                <tr v-else-if="(!store.evaluarPorVendedor || modoActivo !== 'vol_general') && rutaExpandida === r.ruta" class="bg-black/[0.02]">
+                <tr v-else-if="(!esModoVendedorActivo || modoActivo !== 'vol_general') && rutaExpandida === r.ruta" class="bg-black/[0.02]">
                   <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
@@ -2138,6 +2138,10 @@ const modoInicial = (submodoGuardado && (kpisVisibleIds.includes(submodoGuardado
   : 'resumen'
 const modoActivo = ref(modoInicial)
 
+const esModoVendedorActivo = computed(() => {
+  return Boolean(store.filtrosAplicados?.evaluarPorVendedor)
+})
+
 // Estado de ordenamiento
 const sortResumenCol = ref('vol_general')
 const sortResumenDir = ref('desc')
@@ -2147,7 +2151,7 @@ const sortKpiDir = ref('desc')
 
 const sortLabelsKpi = computed(() => {
   const labels = {
-    ruta: (store.evaluarPorVendedor && modoActivo.value === 'vol_general') ? 'Vendedor' : 'Ruta',
+    ruta: (esModoVendedorActivo.value && modoActivo.value === 'vol_general') ? 'Vendedor' : 'Ruta',
     vendedor: 'Vendedor',
     meta: 'Meta Mes',
     logrado: 'Logrado / Compradores',
@@ -2796,21 +2800,21 @@ const vendedoresFiltrados = computed(() => {
 })
 
 const itemsMonograficoFiltrados = computed(() => {
-  if (modoActivo.value === 'vol_general' && store.evaluarPorVendedor) {
+  if (modoActivo.value === 'vol_general' && esModoVendedorActivo.value) {
     return vendedoresFiltrados.value
   }
   return rutasFiltradas.value
 })
 
 function isItemExpandido(r) {
-  if (store.evaluarPorVendedor && modoActivo.value === 'vol_general') {
+  if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
     return vendedorExpandido.value === r.vendedor
   }
   return rutaExpandida.value === r.ruta
 }
 
 function toggleDetalleItem(r) {
-  if (store.evaluarPorVendedor && modoActivo.value === 'vol_general') {
+  if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
     vendedorExpandido.value = vendedorExpandido.value === r.vendedor ? null : r.vendedor
   } else {
     toggleDetalleRuta(r.ruta)
@@ -2819,11 +2823,14 @@ function toggleDetalleItem(r) {
 
 async function abrirRutaEnModoRuta(ruta) {
   store.evaluarPorVendedor = false
+  if (store.filtrosAplicados) {
+    store.filtrosAplicados.evaluarPorVendedor = false
+  }
   await nextTick()
   await toggleDetalleRuta(ruta)
 }
 
-watch(() => store.evaluarPorVendedor, () => {
+watch(esModoVendedorActivo, () => {
   vendedorExpandido.value = null
   rutaExpandida.value = null
   diaSeleccionadoInline.value = null
@@ -2870,7 +2877,7 @@ function cambiarModo(modo) {
     store.vistaCumplimiento = 'kpi'
     store.kpiActivo = modo
   }
-  ejecutarConsulta()
+  return store.cargarCumplimiento()
 }
 
 function ejecutarConsulta() {
