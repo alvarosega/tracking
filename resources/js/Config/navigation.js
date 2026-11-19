@@ -55,14 +55,6 @@ export const navigationConfig = {
           icon: 'UsersIcon'
         },
         {
-          id: 'dias',
-          module: 'saneamiento',
-          name: 'Días Desalineados',
-          route: 'supervisor.saneamiento.dias',
-          component: 'Supervisor/Saneamiento/Dias',
-          icon: 'CalendarIcon'
-        },
-        {
           id: 'calidad',
           module: 'saneamiento',
           name: 'Calidad de Datos',
@@ -515,7 +507,6 @@ export const saneamientoSubTabs = [
   { id: 'visor', module: 'saneamiento', name: 'Visor y Fronteras', route: 'supervisor.saneamiento.visor' },
   { id: 'cercanos', module: 'saneamiento', name: 'Clientes Cercanos', route: 'supervisor.saneamiento.cercanos' },
   { id: 'duplicados', module: 'saneamiento', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
-  { id: 'dias', module: 'saneamiento', name: 'Días Desalineados', route: 'supervisor.saneamiento.dias' },
   { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
   { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },

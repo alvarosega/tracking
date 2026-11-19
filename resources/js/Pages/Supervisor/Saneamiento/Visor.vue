@@ -110,6 +110,17 @@
             <span class="font-bold text-slate-800">{{ labelDias }}</span>
           </div>
           <div class="flex items-center gap-1 shrink-0 ml-auto pl-1">
+            <button
+              v-if="kpis.total_multidia > 0"
+              type="button"
+              @click="toggleFiltroMultidia"
+              class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 shrink-0 border cursor-pointer"
+              :class="filtroSoloMultidia ? 'bg-purple-600 text-white border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200'"
+              title="Filtrar clientes con múltiples días de visita"
+            >
+              <span class="w-1.5 h-1.5 rounded-full" :class="filtroSoloMultidia ? 'bg-white' : 'bg-purple-500'"></span>
+              <span>{{ kpis.total_multidia }} Varios Días</span>
+            </button>
             <span class="font-bold text-slate-900">{{ kpis.total }} clis</span>
             <span v-if="kpis.inactivos > 0" class="text-rose-700 font-semibold">• {{ kpis.inactivos }} inac</span>
           </div>
@@ -217,6 +228,18 @@
               <span class="tabular-nums">{{ kpis.inactivos }} Inactivos</span>
             </div>
 
+            <!-- KPI Varios Días (Multidía) -->
+            <div
+              v-if="kpis.total_multidia > 0"
+              @click="toggleFiltroMultidia"
+              class="flex px-2 py-0.5 rounded-md items-center gap-1.5 font-bold cursor-pointer transition-colors shadow-2xs"
+              :class="filtroSoloMultidia ? 'bg-purple-600 text-white border border-purple-700' : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'"
+              :title="filtroSoloMultidia ? 'Clic para mostrar todos los clientes' : 'Clic para filtrar únicamente clientes con más de un día de visita'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full" :class="filtroSoloMultidia ? 'bg-white' : 'bg-purple-500'"></span>
+              <span class="tabular-nums">{{ kpis.total_multidia }} Varios Días</span>
+            </div>
+
             <div v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
               <span class="font-bold tabular-nums">
@@ -263,6 +286,25 @@
               {{ filtroDias.length === diasSemana.length ? 'Reset' : 'Todos' }}
             </button>
           </div>
+
+          <!-- Botón Toggle Varios Días (Clientes Multidía) -->
+          <button
+            type="button"
+            @click="toggleFiltroMultidia"
+            class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none shrink-0 shadow-2xs border"
+            :class="filtroSoloMultidia ? 'bg-purple-600 text-white border-purple-700 font-bold' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90'"
+            title="Filtrar clientes con más de un día de visita asignado en el padrón"
+          >
+            <span class="w-2 h-2 rounded-full" :class="filtroSoloMultidia ? 'bg-white' : 'bg-purple-600'"></span>
+            <span>Varios Días</span>
+            <span
+              v-if="kpis.total_multidia > 0"
+              class="px-1.5 py-0.2 text-[10px] rounded-full font-mono font-bold"
+              :class="filtroSoloMultidia ? 'bg-purple-800 text-purple-100' : 'bg-purple-100 text-purple-700'"
+            >
+              {{ kpis.total_multidia }}
+            </span>
+          </button>
 
           <div class="h-5 w-px bg-slate-200 shrink-0"></div>
 
@@ -1004,6 +1046,29 @@
                 </div>
               </div>
 
+              <!-- 5B. Filtro Clientes Multidía (Varios Días) Móvil -->
+              <div v-if="kpis.total_multidia > 0" class="p-2.5 rounded-xl border transition-colors" :class="filtroSoloMultidia ? 'bg-purple-50 border-purple-300' : 'bg-slate-50 border-slate-200'">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                      <span>Clientes con Varios Días</span>
+                    </div>
+                    <div class="text-[10.5px] text-slate-500 mt-0.5">
+                      {{ kpis.total_multidia }} clientes visitados más de un día por semana
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    @click="toggleFiltroMultidia"
+                    class="px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    :class="filtroSoloMultidia ? 'bg-purple-600 text-white shadow-2xs' : 'bg-white text-slate-700 border border-slate-300'"
+                  >
+                    {{ filtroSoloMultidia ? 'Activo' : 'Filtrar' }}
+                  </button>
+                </div>
+              </div>
+
               <!-- 6. Modo de Coloración y Estado de Clientes -->
               <div class="grid grid-cols-2 gap-2">
                 <!-- Modo Color -->
@@ -1515,6 +1580,42 @@
                   </div>
                 </div>
 
+                <!-- Sub-pestañas de filtrado en lista lateral: Todos | Varios Días | Con Cambios -->
+                <div class="px-2.5 py-1.5 bg-white border-b border-slate-100 flex items-center gap-1 text-[11px] select-none">
+                  <button
+                    type="button"
+                    @click="setSubListaLateral('todos')"
+                    class="px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                    :class="filtroSubListaLateral === 'todos' && !filtroSoloMultidia ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+                  >
+                    <span>Todos</span>
+                    <span class="text-[9.5px] opacity-80 font-mono">({{ kpis.total }})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    @click="setSubListaLateral('multidia')"
+                    class="px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                    :class="filtroSubListaLateral === 'multidia' || filtroSoloMultidia ? 'bg-purple-600 text-white shadow-2xs font-bold' : 'text-purple-700 hover:bg-purple-50'"
+                    :title="'Clientes con más de un día de visita (' + (kpis.total_multidia || 0) + ')'"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="filtroSubListaLateral === 'multidia' || filtroSoloMultidia ? 'bg-white' : 'bg-purple-600'"></span>
+                    <span>Varios Días</span>
+                    <span class="text-[9.5px] opacity-90 font-mono font-bold">({{ kpis.total_multidia || 0 }})</span>
+                  </button>
+
+                  <button
+                    v-if="(kpis.total_propuestas || kpis.con_cambios) > 0"
+                    type="button"
+                    @click="setSubListaLateral('cambios')"
+                    class="px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                    :class="filtroSubListaLateral === 'cambios' ? 'bg-slate-800 text-white shadow-2xs font-bold' : 'text-slate-600 hover:bg-slate-100'"
+                  >
+                    <span>Cambios</span>
+                    <span class="text-[9.5px] opacity-80 font-mono">({{ kpis.total_propuestas || kpis.con_cambios }})</span>
+                  </button>
+                </div>
+
                 <!-- Lista Scrollable de Clientes -->
                 <div class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scroll">
                   <div v-if="clientes.length === 0 && !cargando" class="p-8 text-center text-xs text-slate-400 space-y-2">
@@ -1592,6 +1693,17 @@
                       <span class="text-[9px] uppercase font-bold px-1 rounded bg-slate-200 text-slate-700 shrink-0">
                         {{ c.propuesta_estado || 'PENDIENTE' }}
                       </span>
+                    </div>
+
+                    <!-- Chip distintivo para clientes con múltiples días de visita -->
+                    <div
+                      v-if="c.es_multidia"
+                      class="mt-1 px-1.5 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-700 text-[9.5px] font-mono flex items-center gap-1"
+                      :title="'Días de visita: ' + (c.dias_asignados || []).join(', ')"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0"></span>
+                      <span class="font-bold">Varios Días:</span>
+                      <span class="truncate font-semibold">{{ (c.dias_asignados || []).join(', ') }}</span>
                     </div>
 
                     <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400 font-mono">
@@ -2904,6 +3016,35 @@
 
             <!-- CUERPO DEL MODAL (Scrollable) -->
             <div class="flex-1 overflow-y-auto p-3 sm:p-4 custom-scroll text-xs space-y-3">
+              <!-- Resumen de Múltiples Días de Visita / Multiasignación en Padrón -->
+              <div
+                v-if="modalAjusteRtm.cliente?.es_multidia || modalAjusteRtm.cliente?.es_multiruta"
+                class="p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-900 space-y-1.5"
+              >
+                <div class="flex items-center justify-between font-bold text-[11px] text-purple-800">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                    <span>Cliente con Múltiples Días de Visita</span>
+                  </div>
+                  <span class="text-[9.5px] font-mono bg-purple-100 px-1.5 py-0.2 rounded border border-purple-300 font-bold">
+                    {{ (modalAjusteRtm.cliente?.dias_asignados || []).length }} Días
+                  </span>
+                </div>
+                <div class="text-[10.5px] text-purple-700">
+                  Días asignados en pan_ruteo:
+                  <b class="text-purple-900">{{ (modalAjusteRtm.cliente?.dias_asignados || []).join(' • ') }}</b>
+                </div>
+                <div v-if="modalAjusteRtm.cliente?.asignaciones_pan && modalAjusteRtm.cliente?.asignaciones_pan.length > 1" class="pt-1.5 border-t border-purple-200/80 flex flex-wrap gap-1">
+                  <span
+                    v-for="(asig, aIdx) in modalAjusteRtm.cliente.asignaciones_pan"
+                    :key="aIdx"
+                    class="px-1.5 py-0.5 rounded bg-white border border-purple-200 text-[9.5px] font-mono text-purple-800"
+                  >
+                    {{ asig.ruta }} - {{ asig.dia }}
+                  </span>
+                </div>
+              </div>
+
               <!-- MÉTRICAS DE COMPRA FACT_VENTAS (Acordeón Plegable) -->
               <div class="rounded-xl bg-slate-50 border border-slate-200/90 overflow-hidden">
                 <button
@@ -3327,6 +3468,22 @@ const filtroDias = ref([]);
 const verFronteraRutas = ref(true);
 const verFronteraDias = ref(true);
 
+// Filtro especial para clientes multidía (más de un día de visita asignado en el padrón)
+const filtroSoloMultidia = ref(false);
+const filtroSubListaLateral = ref('todos'); // 'todos' | 'multidia' | 'cambios'
+
+function toggleFiltroMultidia() {
+  filtroSoloMultidia.value = !filtroSoloMultidia.value;
+  filtroSubListaLateral.value = filtroSoloMultidia.value ? 'multidia' : 'todos';
+  renderizarEnMapa(true);
+}
+
+function setSubListaLateral(tab) {
+  filtroSubListaLateral.value = tab;
+  filtroSoloMultidia.value = (tab === 'multidia');
+  renderizarEnMapa(true);
+}
+
 // Filtros granulares por ruta para polígonos de fronteras GIS
 const filtroFronterasRutas = ref([]);
 const filtroFronterasDias = ref([]);
@@ -3695,12 +3852,21 @@ const rutasFiltradasParaAjuste = computed(() => {
 });
 
 const clientesFiltradosLista = computed(() => {
-  if (!busquedaCliente.value.trim()) return clientes.value;
+  let list = clientes.value;
+
+  if (filtroSoloMultidia.value || filtroSubListaLateral.value === 'multidia') {
+    list = list.filter(c => Boolean(c.es_multidia));
+  } else if (filtroSubListaLateral.value === 'cambios') {
+    list = list.filter(c => Boolean(c.tiene_cambio));
+  }
+
+  if (!busquedaCliente.value.trim()) return list;
   const q = busquedaCliente.value.toLowerCase();
-  return clientes.value.filter(c =>
+  return list.filter(c =>
     (c.nombre && c.nombre.toLowerCase().includes(q)) ||
     (c.cliente_id && String(c.cliente_id).includes(q)) ||
-    (c.ruta && c.ruta.toLowerCase().includes(q))
+    (c.ruta && c.ruta.toLowerCase().includes(q)) ||
+    (c.dias_asignados && c.dias_asignados.some(d => d.toLowerCase().includes(q)))
   );
 });
 
@@ -6825,6 +6991,9 @@ function renderizarEnMapa(mantenerVista = false) {
 
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
+      if (filtroSoloMultidia.value && !c.es_multidia) {
+        return;
+      }
       const rutaCliente = normalizarRutaClave(c.ruta);
       if (!setRutasPuntosPermitidas.has(rutaCliente)) {
         return;
@@ -6883,7 +7052,12 @@ function renderizarEnMapa(mantenerVista = false) {
       } else {
         // EN MODO VISUALIZACIÓN:
         markerColor = getMarkerColor(c);
-        if (tieneCambio) {
+        if (c.es_multidia) {
+          markerBorder = '#7E22CE';
+          markerWeight = 3;
+          markerDashArray = null;
+          markerRadius = 7.5;
+        } else if (tieneCambio) {
           markerBorder = '#0F172A';
           markerWeight = 2.5;
           markerDashArray = '3, 3';
@@ -7126,6 +7300,12 @@ onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', onWindowResize, { passive: true });
     window.addEventListener('keydown', manejarKeydownGlobal);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('filtro') === 'multidia') {
+      filtroSoloMultidia.value = true;
+      filtroSubListaLateral.value = 'multidia';
+    }
   }
 
   if (typeof window !== 'undefined' && window.localStorage) {

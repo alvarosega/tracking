@@ -400,14 +400,9 @@ class SupervisorSaneamientoController extends Controller
     /**
      * Vista 3: Días Desalineados y Reasignación de Días.
      */
-    public function dias(GetSaneamientoCatalogoAction $catalogoAction): Response
+    public function dias(): \Illuminate\Http\RedirectResponse
     {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Saneamiento/Dias', [
-            'catalogo' => $catalogo,
-            'submoduloActivo' => 'dias',
-        ]);
+        return redirect()->route('supervisor.saneamiento.visor', ['filtro' => 'multidia']);
     }
 
     /**
