@@ -5,17 +5,17 @@
       <AuditoriaSaneamientoSubTabs active-tab="duplicados" :compact="true" />
 
       <!-- ============================================================== -->
-      <!-- CABECERA PRINCIPAL: SELECTOR DE MODO, FILTROS Y RESUMEN       -->
+      <!-- CABECERA PRINCIPAL: FILTROS, MODOS Y METRICAS                  -->
       <!-- ============================================================== -->
-      <div class="apple-glass-card rounded-[16px] p-3 border border-slate-200/90 shadow-2xs space-y-2.5 relative z-30">
-        <!-- Fila 1: Selector de Modo Segmentado (Todos | Por Ubicacion | Por Datos | Criticos) -->
+      <div class="apple-glass-card rounded-2xl p-3 border border-slate-200/90 shadow-2xs space-y-2.5 relative z-30">
+        <!-- Fila 1: Selector de Modo Segmentado + Metricas Resumen -->
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <!-- Segmented Tab de Modo -->
-          <div class="inline-flex p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs shrink-0">
+          <!-- Segmented Tab de Modo (Desktop y Scroll en Movil) -->
+          <div class="inline-flex p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs shrink-0 max-w-full overflow-x-auto custom-scroll">
             <button
               type="button"
               @click="cambiarModo('TODOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
               :class="filtroModo === 'TODOS' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
             >
               <span>Todos</span>
@@ -27,12 +27,12 @@
             <button
               type="button"
               @click="cambiarModo('CRITICOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
               :class="filtroModo === 'CRITICOS' ? 'bg-purple-600 text-white shadow-2xs font-bold' : 'text-purple-700 hover:text-purple-900'"
               title="Misma ubicacion fisica y mismo nombre comercial"
             >
               <span class="w-1.5 h-1.5 rounded-full" :class="filtroModo === 'CRITICOS' ? 'bg-white' : 'bg-purple-600'"></span>
-              <span>Criticos (Ubic + Datos)</span>
+              <span>Criticos</span>
               <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'CRITICOS' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'">
                 {{ conteoMismaUbicacionYDatos }}
               </span>
@@ -41,7 +41,7 @@
             <button
               type="button"
               @click="cambiarModo('DATOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
               :class="filtroModo === 'DATOS' ? 'bg-amber-600 text-white shadow-2xs font-bold' : 'text-amber-700 hover:text-amber-900'"
               title="Coincidencia de Nombre, NIT, CI, Telefono o Factura"
             >
@@ -55,7 +55,7 @@
             <button
               type="button"
               @click="cambiarModo('UBICACION')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
               :class="filtroModo === 'UBICACION' ? 'bg-blue-600 text-white shadow-2xs font-bold' : 'text-blue-700 hover:text-blue-900'"
               title="Colisiones de coordenadas en el radio establecido"
             >
@@ -70,19 +70,20 @@
           <!-- Metricas Resumen -->
           <div class="flex items-center gap-2 text-xs font-mono">
             <div class="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
-              <span class="text-slate-400">Clientes Implicados:</span>
+              <span class="text-slate-400">Clientes:</span>
               <span class="font-bold text-slate-900 tabular-nums">{{ totalClientesImplicados }}</span>
             </div>
             <div class="px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5 shadow-2xs text-emerald-800">
-              <span class="text-emerald-600">Venta MTD Grupo:</span>
+              <span class="text-emerald-600">Venta MTD:</span>
               <span class="font-bold tabular-nums">Bs. {{ ventaMtdTotalAuditada }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Fila 2: Parametros de Auditoria (Canales, Radio, Buscador y Boton Auditar) -->
+        <!-- Fila 2: Parametros de Auditoria (Desktop y Acceso Movil) -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
-          <div class="flex flex-wrap items-center gap-2">
+          <!-- Controles en Desktop -->
+          <div class="hidden sm:flex flex-wrap items-center gap-2">
             <!-- Selector Multicanal -->
             <div class="relative inline-block text-left" ref="canalDropdownRef">
               <button
@@ -128,7 +129,7 @@
                   <button
                     type="button"
                     @click="menuCanalAbierto = false; ejecutarAuditoriaDuplicados()"
-                    class="px-2 py-0.5 bg-slate-900 text-white rounded text-[10px] font-bold cursor-pointer"
+                    class="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold cursor-pointer"
                   >
                     Aplicar
                   </button>
@@ -144,11 +145,11 @@
                 @change="ejecutarAuditoriaDuplicados"
                 class="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer text-xs"
               >
-                <option :value="5">5 metros</option>
-                <option :value="10">10 metros</option>
-                <option :value="20">20 metros (Estandar)</option>
-                <option :value="50">50 metros</option>
-                <option :value="100">100 metros</option>
+                <option :value="5">5 m</option>
+                <option :value="10">10 m</option>
+                <option :value="20">20 m (Estandar)</option>
+                <option :value="50">50 m</option>
+                <option :value="100">100 m</option>
               </select>
             </div>
 
@@ -166,16 +167,63 @@
               <svg v-else class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
-              <span>{{ cargando ? 'Rastreando Duplicados...' : 'Auditar Duplicados' }}</span>
+              <span>{{ cargando ? 'Rastreando...' : 'Auditar' }}</span>
             </button>
           </div>
 
-          <!-- Buscador de Texto en Tiempo Real -->
-          <div class="relative w-full sm:w-64">
+          <!-- Controles en Movil (Boton Drawer Filtros) -->
+          <div class="flex sm:hidden items-center gap-1.5 w-full">
+            <button
+              type="button"
+              @click="drawerFiltrosMovil = true"
+              class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              <span>Filtros</span>
+              <span class="px-1.5 py-0.2 bg-sky-100 text-sky-800 font-bold font-mono rounded text-[9.5px]">
+                {{ radioMetros }}m
+              </span>
+            </button>
+
+            <!-- Buscador en Movil -->
+            <div class="relative flex-1 min-w-0">
+              <input
+                type="text"
+                v-model="busquedaTexto"
+                placeholder="Buscar cliente/ID..."
+                class="w-full h-8 pl-7 pr-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 font-mono"
+              />
+              <svg class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </div>
+
+            <!-- Boton Auditar Movil -->
+            <button
+              type="button"
+              @click="ejecutarAuditoriaDuplicados"
+              :disabled="cargando"
+              class="h-8 w-8 bg-slate-900 text-white rounded-lg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-50"
+              title="Auditar duplicados"
+            >
+              <svg v-if="cargando" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              <svg v-else class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Buscador de Texto en Desktop -->
+          <div class="hidden sm:block relative w-64">
             <input
               type="text"
               v-model="busquedaTexto"
-              placeholder="Buscar en grupos por cliente o ID..."
+              placeholder="Buscar por cliente o ID..."
               class="w-full h-8 pl-8 pr-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 font-mono transition-all"
             />
             <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -188,11 +236,11 @@
       <!-- ============================================================== -->
       <!-- SELECTOR DE VISTA MOVIL (< lg)                                  -->
       <!-- ============================================================== -->
-      <div class="flex lg:hidden items-center justify-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+      <div class="flex lg:hidden items-center justify-between p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs">
         <button
           type="button"
           @click="setVistaMovil('grupos')"
-          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
           :class="vistaMovil === 'grupos' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
         >
           <span>Grupos ({{ clustersFiltrados.length }})</span>
@@ -200,15 +248,23 @@
         <button
           type="button"
           @click="setVistaMovil('comparador')"
-          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
           :class="vistaMovil === 'comparador' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
         >
-          <span>Comparador & Mapa</span>
+          <span>Comparador</span>
+        </button>
+        <button
+          type="button"
+          @click="setVistaMovil('mapa')"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+          :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+        >
+          <span>Mapa</span>
         </button>
         <button
           type="button"
           @click="setVistaMovil('propuestas')"
-          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
           :class="vistaMovil === 'propuestas' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
         >
           <span>Propuestas ({{ propuestasPendientes.length }})</span>
@@ -216,17 +272,17 @@
       </div>
 
       <!-- ============================================================== -->
-      <!-- ESTRUCTURA PRINCIPAL: COLUMNA GRUPOS + COMPARADOR & MAPA       -->
+      <!-- ESTRUCTURA PRINCIPAL: COLUMNA GRUPOS + PANEL DE RESOLUCION      -->
       <!-- ============================================================== -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-[580px]">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-[620px]">
         
         <!-- Columna 1: Listado de Grupos Detectados (4 cols en desktop) -->
         <div
-          class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col overflow-hidden max-h-[720px]"
+          class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col overflow-hidden max-h-[760px]"
           :class="vistaMovil === 'grupos' ? 'flex' : 'hidden lg:flex'"
         >
           <!-- Encabezado de la Columna -->
-          <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
+          <div class="px-3 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-rose-500"></span>
               <span class="font-bold text-xs text-slate-800">Grupos Identificados</span>
@@ -238,15 +294,15 @@
 
           <!-- Listado de Grupos con Scroll -->
           <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-2">
-            <div v-if="cargando" class="text-center py-20 text-xs text-slate-400 animate-pulse font-mono">
+            <div v-if="cargando" class="text-center py-24 text-xs text-slate-400 animate-pulse font-mono">
               Analizando colisiones espaciales y coincidencia de datos...
             </div>
-            <div v-else-if="clustersFiltrados.length === 0" class="text-center py-20 text-xs text-slate-400 p-4">
-              <p class="font-bold text-slate-600 mb-1">No se detectaron duplicados</p>
+            <div v-else-if="clustersFiltrados.length === 0" class="text-center py-24 text-xs text-slate-400 p-4">
+              <p class="font-bold text-slate-700 mb-1 text-sm">No se detectaron duplicados</p>
               <p>No se encontraron clientes duplicados bajo el modo y los filtros seleccionados.</p>
             </div>
 
-            <!-- Tarjeta de Grupo -->
+            <!-- Tarjeta de Grupo Refinada y Compacta -->
             <div
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
@@ -254,8 +310,8 @@
               class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-2"
               :class="[
                 grupoSeleccionadoId === grupo.cluster_id
-                  ? 'bg-sky-50/50 border-sky-400 ring-2 ring-sky-200 shadow-sm'
-                  : 'bg-white hover:bg-slate-50/90 border-slate-200 shadow-2xs'
+                  ? 'bg-sky-50/60 border-sky-400 ring-2 ring-sky-200/80 shadow-sm'
+                  : 'bg-white hover:bg-slate-50/90 border-slate-200/90 shadow-2xs'
               ]"
             >
               <!-- Cabecera de la Tarjeta -->
@@ -279,132 +335,208 @@
                 </span>
               </div>
 
-              <!-- Criterios Compartidos -->
-              <div v-if="grupo.criterios && grupo.criterios.length > 0" class="flex flex-wrap gap-1">
-                <span
-                  v-for="crit in grupo.criterios"
-                  :key="crit.campo"
-                  class="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-slate-100 text-slate-700 border border-slate-200 font-semibold"
-                >
-                  {{ crit.campo }}: <strong class="text-slate-900">{{ crit.valores.join(', ') }}</strong>
-                </span>
-              </div>
-
-              <!-- Clientes del Grupo (Mini Comparativa) -->
+              <!-- Clientes del Grupo (Mini Comparativa Escaneable) -->
               <div class="space-y-1 text-xs">
                 <div
                   v-for="cli in grupo.clientes"
                   :key="cli.cliente_id"
-                  class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1"
-                  :class="cli.es_master_sugerido ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50/60 border-slate-200/80'"
+                  class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1.5"
+                  :class="cli.es_master_sugerido ? 'bg-emerald-50/60 border-emerald-200/90' : 'bg-slate-50/60 border-slate-200/80'"
                 >
                   <div class="min-w-0 flex-1 truncate">
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1.5">
                       <span
-                        v-if="cli.es_master_sugerido"
-                        class="px-1 py-0.1 bg-emerald-600 text-white rounded text-[8px] font-mono font-bold shrink-0"
-                      >
-                        MASTER
-                      </span>
+                        class="w-2 h-2 rounded-full shrink-0"
+                        :class="cli.es_master_sugerido ? 'bg-emerald-600' : 'bg-rose-500'"
+                      ></span>
                       <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
                     </div>
-                    <div class="text-[10px] font-mono text-slate-500 truncate mt-0.5">
+                    <div class="text-[10px] font-mono text-slate-500 truncate pl-3.5">
                       ID {{ cli.cliente_id }} &bull; {{ cli.ruta }} ({{ cli.canal }})
                     </div>
                   </div>
                   <div class="text-right font-mono text-[10px] shrink-0">
-                    <div class="font-bold text-emerald-700">Bs. {{ cli.venta_mtd }}</div>
+                    <div class="font-bold" :class="cli.es_master_sugerido ? 'text-emerald-700' : 'text-slate-700'">
+                      Bs. {{ cli.venta_mtd }}
+                    </div>
                     <div class="text-slate-400 text-[9px]">{{ cli.dia }}</div>
                   </div>
                 </div>
               </div>
 
-              <!-- Venta Total y Alerta si tiene propuesta -->
-              <div class="flex items-center justify-between pt-1 text-[10px] font-mono text-slate-500">
-                <span>Venta MTD Grupo: <strong class="text-slate-900">Bs. {{ grupo.venta_mtd_total }}</strong></span>
-                <span v-if="tienePropuestaPendiente(grupo)" class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded font-bold">
-                  Propuesta Creada
+              <!-- Criterios Compartidos y Propuesta -->
+              <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-100/80 text-[10px] font-mono">
+                <div class="flex flex-wrap gap-1 min-w-0 truncate">
+                  <span
+                    v-for="crit in grupo.criterios"
+                    :key="crit.campo"
+                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-semibold truncate"
+                  >
+                    {{ crit.campo }}: {{ crit.valores.join(', ') }}
+                  </span>
+                </div>
+                <span v-if="tienePropuestaPendiente(grupo)" class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded font-bold shrink-0">
+                  Propuesta
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Columna 2: Visor Comparativo Lado a Lado + Mapa Focalizado (8 cols en desktop) -->
+        <!-- Columna 2: Panel de Inspeccion, Comparador y Mapa (8 cols en desktop) -->
         <div
-          class="lg:col-span-7 xl:col-span-8 flex flex-col gap-3 min-h-[580px]"
-          :class="vistaMovil === 'comparador' ? 'flex' : 'hidden lg:flex'"
+          class="lg:col-span-7 xl:col-span-8 flex flex-col gap-3 min-h-[620px]"
+          :class="(vistaMovil === 'comparador' || vistaMovil === 'mapa') ? 'flex' : 'hidden lg:flex'"
         >
-          <!-- 1. Mapa de Colision Espacial Siempre Presente (Sin destruirse por Vue) -->
-          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0">
-            <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs shrink-0">
+          <!-- 1. Encabezado de la Inspeccion y Control de Modos de Vista -->
+          <div class="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="setVistaMovil('grupos')"
+                class="lg:hidden text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer bg-slate-100 px-2 py-1 rounded-lg"
+              >
+                &larr; Grupos
+              </button>
               <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  @click="setVistaMovil('grupos')"
-                  class="lg:hidden text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                >
-                  &larr; Grupos
-                </button>
-                <span class="font-bold text-slate-900 font-mono">
-                  {{ grupoActivo ? `Colision Espacial: Grupo #${grupoActivo.cluster_id}` : 'Mapa de Colision Territorial' }}
+                <span class="font-bold text-xs text-slate-900 font-mono">
+                  {{ grupoActivo ? `Conflicto Grupo #${grupoActivo.cluster_id}` : 'Inspeccion de Conflicto' }}
                 </span>
                 <span
                   v-if="grupoActivo"
-                  class="text-[10px] font-mono font-bold px-2 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200"
+                  class="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded"
+                  :class="getClasificacionBadge(grupoActivo.clasificacion)"
+                >
+                  {{ getClasificacionTexto(grupoActivo.clasificacion) }}
+                </span>
+                <span
+                  v-if="grupoActivo"
+                  class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200"
                 >
                   Distancia: {{ formatearDistancia(grupoActivo.distancia_minima_m) }}
                 </span>
               </div>
-
-              <div class="flex items-center gap-1.5 text-xs">
-                <!-- Capa Calles / Satelite -->
-                <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    @click="cambiarCapaMapa('openStreetMap')"
-                    class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
-                    :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
-                  >
-                    Calles
-                  </button>
-                  <button
-                    type="button"
-                    @click="cambiarCapaMapa('satellite')"
-                    class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
-                    :class="capaActual === 'satellite' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
-                  >
-                    Satelite
-                  </button>
-                </div>
-
-                <button
-                  v-if="grupoActivo"
-                  type="button"
-                  @click="enfocarGrupoEnMapa(grupoActivo)"
-                  class="h-6 px-2 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer shadow-2xs"
-                  title="Ajustar vista para ver ambos clientes en conflicto"
-                >
-                  Recentrar (Ver ambos)
-                </button>
-              </div>
             </div>
 
-            <!-- Contenedor del Mapa -->
-            <div class="relative w-full h-52 sm:h-60 bg-slate-950">
+            <!-- Modos de Vista en Desktop: Dividido | Comparador | Mapa -->
+            <div class="hidden lg:flex items-center gap-1.5 text-xs">
+              <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  @click="toggleModoVistaDetalle('split')"
+                  class="px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition-all"
+                  :class="modoVistaDetalle === 'split' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+                  title="Mostrar mapa territorial y comparador lado a lado"
+                >
+                  Dividido
+                </button>
+                <button
+                  type="button"
+                  @click="toggleModoVistaDetalle('comparador')"
+                  class="px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition-all"
+                  :class="modoVistaDetalle === 'comparador' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+                  title="Pantalla completa para comparativa detallada"
+                >
+                  Comparador
+                </button>
+                <button
+                  type="button"
+                  @click="toggleModoVistaDetalle('mapa')"
+                  class="px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition-all"
+                  :class="modoVistaDetalle === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+                  title="Mapa ampliado a pantalla completa"
+                >
+                  Mapa
+                </button>
+              </div>
+
+              <!-- Selector Calles / Satelite -->
+              <div class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('openStreetMap')"
+                  class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
+                  :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                >
+                  Calles
+                </button>
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('satellite')"
+                  class="px-2 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer"
+                  :class="capaActual === 'satellite' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                >
+                  Satelite
+                </button>
+              </div>
+
+              <button
+                v-if="grupoActivo"
+                type="button"
+                @click="enfocarGrupoEnMapa(grupoActivo)"
+                class="h-6 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer shadow-2xs"
+                title="Ajustar vista para encuadrar ambos clientes"
+              >
+                Recentrar
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Mapa Leaflet (Visible según modo en desktop y en pestaña mapa móvil) -->
+          <div
+            v-show="modoVistaDetalle === 'split' || modoVistaDetalle === 'mapa' || vistaMovil === 'mapa'"
+            class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col shrink-0 transition-all"
+            :class="[
+              modoVistaDetalle === 'mapa' || vistaMovil === 'mapa' ? 'flex-1 min-h-[500px]' : 'h-60 sm:h-64'
+            ]"
+          >
+            <!-- Controles Móviles sobre el mapa -->
+            <div class="sm:hidden px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('openStreetMap')"
+                  class="px-2 py-0.5 rounded text-[10px] font-medium"
+                  :class="capaActual === 'openStreetMap' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                >
+                  Calles
+                </button>
+                <button
+                  type="button"
+                  @click="cambiarCapaMapa('satellite')"
+                  class="px-2 py-0.5 rounded text-[10px] font-medium"
+                  :class="capaActual === 'satellite' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500'"
+                >
+                  Satelite
+                </button>
+              </div>
+              <button
+                v-if="grupoActivo"
+                type="button"
+                @click="enfocarGrupoEnMapa(grupoActivo)"
+                class="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-700"
+              >
+                Recentrar
+              </button>
+            </div>
+
+            <div class="relative w-full h-full bg-slate-950 flex-1">
               <div id="mapaDuplicados" class="absolute inset-0 w-full h-full z-10"></div>
               <div
                 v-if="!grupoActivo"
                 class="absolute inset-0 z-20 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center text-white text-xs font-medium p-4 text-center pointer-events-none"
               >
-                <span>Selecciona un grupo para enfocar y analizar la colision en el mapa</span>
+                <span>Selecciona un grupo para inspeccionar el conflicto geográfico</span>
               </div>
             </div>
           </div>
 
-          <!-- 2. Comparador Lado a Lado (Master vs Duplicado) -->
-          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden">
-            <!-- Si no hay grupo activo, mostrar placeholder -->
+          <!-- 3. Comparador Lado a Lado (Master vs Duplicado) -->
+          <div
+            v-show="modoVistaDetalle === 'split' || modoVistaDetalle === 'comparador' || vistaMovil === 'comparador'"
+            class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden transition-all"
+          >
+            <!-- Placeholder si no hay grupo activo -->
             <div
               v-if="!grupoActivo"
               class="flex-1 flex flex-col items-center justify-center p-8 text-center"
@@ -416,39 +548,31 @@
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-0.5">Inspeccion de Conflicto</h4>
               <p class="text-xs text-slate-500 max-w-sm">
-                Selecciona un grupo para ver la comparativa detallada de historial de creacion, ventas y ruta.
+                Selecciona un grupo para comparar fechas de creación, facturación acumulada MTD y rutas.
               </p>
             </div>
 
-            <!-- Si hay grupo activo, mostrar el comparador lado a lado -->
+            <!-- Fichas Comparativas -->
             <template v-else>
-              <div class="px-4 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
-                <span class="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">
-                  Comparativa de Datos, Creacion y Rendimiento
-                </span>
-                <span class="text-[11px] font-mono text-slate-500">
-                  {{ grupoActivo.clientes.length }} clientes en conflicto
-                </span>
-              </div>
-
-              <!-- Grid de Comparacion Lado a Lado -->
               <div class="flex-1 overflow-y-auto custom-scroll p-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div
                     v-for="(cli, idx) in grupoActivo.clientes"
                     :key="cli.cliente_id"
-                    class="p-3 rounded-xl border flex flex-col justify-between space-y-2.5 transition-all"
+                    class="p-3.5 rounded-xl border flex flex-col justify-between space-y-3 transition-all"
                     :class="[
-                      cli.es_master_sugerido ? 'bg-emerald-50/30 border-emerald-300 ring-1 ring-emerald-200' : 'bg-slate-50/50 border-slate-200',
-                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-sky-500 shadow-sm' : ''
+                      cli.es_master_sugerido
+                        ? 'bg-emerald-50/20 border-emerald-300 ring-1 ring-emerald-200/80 shadow-2xs'
+                        : 'bg-slate-50/40 border-slate-200/90',
+                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-sky-500 shadow-md' : ''
                     ]"
                   >
-                    <!-- Header Cliente -->
-                    <div class="space-y-1 pb-2 border-b border-slate-200/80">
-                      <div class="flex items-center justify-between">
+                    <!-- Cabecera de la Ficha -->
+                    <div class="space-y-1.5 pb-2.5 border-b border-slate-200/80">
+                      <div class="flex items-center justify-between gap-1">
                         <span
-                          class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold tracking-wider uppercase"
-                          :class="cli.es_master_sugerido ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-700'"
+                          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase shadow-2xs"
+                          :class="cli.es_master_sugerido ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
                         >
                           {{ cli.es_master_sugerido ? 'Master Sugerido (Conservar)' : `Duplicado #${idx + 1}` }}
                         </span>
@@ -458,7 +582,7 @@
                             v-if="cli.latitud && cli.longitud"
                             type="button"
                             @click="enfocarClienteEnMapa(cli)"
-                            title="Hacer zoom al cliente en el mapa"
+                            title="Hacer zoom directo en el mapa"
                             class="px-2 py-0.5 rounded bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                           >
                             <svg class="w-3 h-3 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -470,66 +594,66 @@
                         </div>
                       </div>
 
-                      <h3 class="text-sm font-bold text-slate-900 leading-tight">{{ cli.cliente }}</h3>
-                      <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin direccion' }}</p>
+                      <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
+                      <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin direccion registrada' }}</p>
                     </div>
 
-                    <!-- Datos Cruce: Fecha de Creacion / Ingreso al Padron -->
-                    <div class="p-2 rounded-lg bg-white border border-slate-200/90 text-xs font-mono space-y-1 shadow-2xs">
+                    <!-- Seccion: Historial de Ingreso al Padron -->
+                    <div class="p-2.5 rounded-xl bg-white border border-slate-200/90 text-xs font-mono space-y-1 shadow-2xs">
                       <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-slate-400 font-sans uppercase font-bold tracking-wider">Ingreso al Padron:</span>
+                        <span class="text-slate-400 font-sans uppercase font-bold tracking-wider">Antigüedad en Padrón:</span>
                         <span
                           v-if="cli.es_master_sugerido"
-                          class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9px]"
+                          class="px-2 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9.5px]"
                         >
-                          Padron Mas Antiguo
+                          Padrón Más Antiguo
                         </span>
                         <span
                           v-else
-                          class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9px]"
+                          class="px-2 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9.5px]"
                         >
                           Ingreso Posterior
                         </span>
                       </div>
-                      <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5 pt-0.5">
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                         </svg>
                         <span>{{ cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Sin fecha registrada' }}</span>
                       </div>
-                      <div v-if="cli.origen_ingreso" class="text-[9.5px] text-slate-500 font-sans truncate">
+                      <div v-if="cli.origen_ingreso" class="text-[10px] text-slate-500 font-sans truncate">
                         Origen: {{ cli.origen_ingreso }}
                       </div>
                     </div>
 
-                    <!-- Metricas y Atributos Comerciales -->
-                    <div class="space-y-1.5 text-xs font-mono">
-                      <div class="flex items-center justify-between p-1.5 rounded bg-white border border-slate-200/80">
-                        <span class="text-slate-500">Venta MTD:</span>
+                    <!-- Seccion: Venta MTD y Atributos de Ruteo -->
+                    <div class="space-y-2 text-xs font-mono">
+                      <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/90 shadow-2xs">
+                        <span class="text-slate-500 font-sans text-xs">Venta Acumulada MTD:</span>
                         <span class="font-bold text-emerald-700 text-sm">Bs. {{ cli.venta_mtd }}</span>
                       </div>
 
                       <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-                        <div class="p-1.5 rounded bg-white border border-slate-200/80">
+                        <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
                           <span class="text-slate-400 block text-[9.5px]">Ruta:</span>
                           <span class="font-bold text-slate-800">{{ cli.ruta }}</span>
                         </div>
-                        <div class="p-1.5 rounded bg-white border border-slate-200/80">
+                        <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
                           <span class="text-slate-400 block text-[9.5px]">Canal:</span>
                           <span class="font-bold text-slate-800">{{ cli.canal }}</span>
                         </div>
-                        <div class="p-1.5 rounded bg-white border border-slate-200/80">
-                          <span class="text-slate-400 block text-[9.5px]">Dia:</span>
+                        <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
+                          <span class="text-slate-400 block text-[9.5px]">Día:</span>
                           <span class="font-bold text-slate-800">{{ cli.dia }}</span>
                         </div>
-                        <div class="p-1.5 rounded bg-white border border-slate-200/80">
+                        <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
                           <span class="text-slate-400 block text-[9.5px]">Vendedor:</span>
                           <span class="font-medium text-slate-800 truncate block">{{ cli.vendedor || 'S/N' }}</span>
                         </div>
                       </div>
 
-                      <!-- Contacto & Documentos -->
-                      <div class="p-1.5 rounded bg-white border border-slate-200/80 text-[10.5px] space-y-0.5">
+                      <!-- Documentos & Contacto -->
+                      <div class="p-2 rounded-lg bg-white border border-slate-200/80 text-[10.5px] space-y-0.5">
                         <div v-if="cli.nit" class="truncate"><span class="text-slate-400">NIT:</span> {{ cli.nit }}</div>
                         <div v-if="cli.ci" class="truncate"><span class="text-slate-400">CI:</span> {{ cli.ci }}</div>
                         <div v-if="cli.telefono || cli.celular" class="truncate">
@@ -547,16 +671,16 @@
                       <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
                       </svg>
-                      <span>Ver Fotografias de Visitas</span>
+                      <span>Ver Fotografías de Visitas</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              <!-- Barra de Acciones de Resolucion Directa en 1 Clic -->
+              <!-- Barra Inferior de Resolucion Directa -->
               <div class="p-3 border-t border-slate-100 bg-slate-50/80 flex flex-wrap items-center justify-between gap-2 shrink-0">
                 <div class="text-xs text-slate-500 font-mono">
-                  Sugerencia: <strong class="text-slate-800">Inactivar duplicado de menor venta/ingreso posterior</strong>
+                  Sugerencia: <strong class="text-slate-800">Inactivar duplicado de menor venta o posterior ingreso</strong>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -588,7 +712,10 @@
       <!-- ============================================================== -->
       <!-- BANDEJA INFERIOR: PROPUESTAS PENDIENTES DE RESOLUCION          -->
       <!-- ============================================================== -->
-      <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div
+        class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden"
+        :class="vistaMovil === 'propuestas' ? 'block' : 'hidden lg:block'"
+      >
         <div
           class="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 cursor-pointer select-none"
           @click="mostrarPanelPropuestas = !mostrarPanelPropuestas"
@@ -618,7 +745,7 @@
           </div>
         </div>
 
-        <div v-show="mostrarPanelPropuestas" class="overflow-x-auto max-h-72 custom-scroll">
+        <div v-show="mostrarPanelPropuestas || vistaMovil === 'propuestas'" class="overflow-x-auto max-h-72 custom-scroll">
           <table class="w-full text-left text-xs border-collapse">
             <thead class="sticky top-0 bg-slate-100 text-slate-700 uppercase text-[9.5px] font-mono font-bold tracking-wider border-b border-slate-200 z-10 shadow-2xs">
               <tr>
@@ -626,7 +753,7 @@
                 <th class="py-2.5 px-3 whitespace-nowrap">ID Origen</th>
                 <th class="py-2.5 px-3 whitespace-nowrap">Cliente Vinculado</th>
                 <th class="py-2.5 px-3 whitespace-nowrap">Ruta</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">Accion Propuesta</th>
+                <th class="py-2.5 px-3 whitespace-nowrap">Acción Propuesta</th>
                 <th class="py-2.5 px-3 whitespace-nowrap">Observaciones</th>
                 <th class="py-2.5 px-3 text-center whitespace-nowrap">Estado</th>
                 <th class="py-2.5 px-3 text-right whitespace-nowrap">Acciones</th>
@@ -635,7 +762,7 @@
             <tbody class="divide-y divide-slate-100">
               <tr v-if="propuestasPendientes.length === 0">
                 <td colspan="8" class="py-8 text-center text-slate-400 font-medium text-xs">
-                  No hay propuestas pendientes de resolucion de duplicados.
+                  No hay propuestas pendientes de resolución de duplicados.
                 </td>
               </tr>
               <tr
@@ -687,6 +814,83 @@
         </div>
       </div>
 
+      <!-- ============================================================== -->
+      <!-- DRAWER / MODAL DE FILTROS EN MOVIL                             -->
+      <!-- ============================================================== -->
+      <div
+        v-if="drawerFiltrosMovil"
+        class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        @click.self="drawerFiltrosMovil = false"
+      >
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-4 space-y-3.5 shadow-2xl max-h-[85vh] overflow-y-auto">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span class="font-bold text-sm text-slate-900 font-mono">Filtros de Auditoría</span>
+            <button
+              type="button"
+              @click="drawerFiltrosMovil = false"
+              class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+            >
+              &times;
+            </button>
+          </div>
+
+          <!-- Canales -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700 uppercase font-mono text-[10.5px]">Canales Comerciales</span>
+              <div class="flex items-center gap-1.5 text-[10px]">
+                <button type="button" @click="seleccionarTodosCanales" class="text-sky-600 font-bold hover:underline">Todos</button>
+                <span class="text-slate-300">|</span>
+                <button type="button" @click="limpiarCanales" class="text-slate-500 hover:underline">Limpiar</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-1 max-h-36 overflow-y-auto custom-scroll p-1 bg-slate-50 rounded-xl border border-slate-200">
+              <label
+                v-for="c in canalesDisponibles"
+                :key="c"
+                class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white text-xs cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  :value="c"
+                  v-model="canalesSeleccionados"
+                  class="rounded border-slate-300 text-sky-600 focus:ring-0"
+                />
+                <span class="text-slate-800 font-medium truncate">{{ c }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Radio en Metros -->
+          <div class="space-y-1.5">
+            <span class="font-bold text-slate-700 uppercase font-mono text-[10.5px]">Radio de Tolerancia</span>
+            <div class="grid grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold">
+              <button
+                v-for="r in [5, 10, 20, 50, 100]"
+                :key="r"
+                type="button"
+                @click="radioMetros = r"
+                class="py-1.5 rounded-lg border transition-all cursor-pointer"
+                :class="radioMetros === r ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200'"
+              >
+                {{ r }}m
+              </button>
+            </div>
+          </div>
+
+          <!-- Boton Aplicar -->
+          <div class="pt-2">
+            <button
+              type="button"
+              @click="drawerFiltrosMovil = false; ejecutarAuditoriaDuplicados()"
+              class="w-full py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs cursor-pointer shadow-md transition-all"
+            >
+              Aplicar Filtros y Auditar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal de Fotos de Visitas -->
       <ClienteFotosModal
         :visible="modalFotosVisible"
@@ -718,8 +922,10 @@ const props = defineProps({
 
 const cargando = ref(false)
 const procesandoPropuesta = ref(false)
-const vistaMovil = ref('grupos') // 'grupos' | 'comparador' | 'propuestas'
+const vistaMovil = ref('grupos') // 'grupos' | 'comparador' | 'mapa' | 'propuestas'
+const modoVistaDetalle = ref('split') // 'split' | 'comparador' | 'mapa'
 const mostrarPanelPropuestas = ref(false)
+const drawerFiltrosMovil = ref(false)
 
 // Selector de Canales (Multiseleccion)
 const canalDropdownRef = ref(null)
@@ -774,9 +980,24 @@ function cambiarModo(modo) {
   ejecutarAuditoriaDuplicados()
 }
 
+function toggleModoVistaDetalle(modo) {
+  modoVistaDetalle.value = modo
+  nextTick(() => {
+    if (map) {
+      map.invalidateSize()
+      if (grupoActivo.value) {
+        const bounds = collisionLayerGroup?.getBounds()
+        if (bounds && bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 })
+        }
+      }
+    }
+  })
+}
+
 function setVistaMovil(v) {
   vistaMovil.value = v
-  if (v === 'comparador') {
+  if (v === 'comparador' || v === 'mapa') {
     nextTick(() => {
       if (map) {
         map.invalidateSize()
@@ -792,8 +1013,8 @@ function setVistaMovil(v) {
 // Conteo dinamico segun la auditoria
 const totalGruposTodos = computed(() => clusters.value.length)
 const conteoMismaUbicacionYDatos = computed(() => clusters.value.filter(c => c.clasificacion === 'MISMA_UBICACION_Y_DATOS').length)
-const conteoMismosDatos = computed(() => clusters.value.filter(c => c.clasificacion === 'MISMOS_DATOS').length)
-const conteoMismaUbicacion = computed(() => clusters.value.filter(c => c.clasificacion === 'MISMA_UBICACION').length)
+const conteoMismosDatos = computed(() => clusters.value.filter(c => c.tiene_mismos_datos).length)
+const conteoMismaUbicacion = computed(() => clusters.value.filter(c => c.tiene_misma_ubicacion).length)
 
 const totalClientesImplicados = computed(() => {
   return clustersFiltrados.value.reduce((acc, c) => acc + (c.cantidad_clientes || c.clientes?.length || 0), 0)
@@ -864,7 +1085,7 @@ function getClasificacionBadge(clasif) {
 }
 
 function getClasificacionTexto(clasif) {
-  if (clasif === 'MISMA_UBICACION_Y_DATOS') return 'Critico: Ubic & Nombre'
+  if (clasif === 'MISMA_UBICACION_Y_DATOS') return 'Critico: Ubic & Datos'
   if (clasif === 'MISMOS_DATOS') return 'Mismos Datos'
   return 'Misma Ubicacion'
 }
@@ -943,13 +1164,21 @@ function initMap() {
 function enfocarClienteEnMapa(cli) {
   if (!cli || !cli.latitud || !cli.longitud) return
   clienteFocoId.value = cli.cliente_id
-  if (!map) initMap()
-  if (map) {
-    map.flyTo([Number(cli.latitud), Number(cli.longitud)], 19, {
-      animate: true,
-      duration: 0.8,
-    })
+
+  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    vistaMovil.value = 'mapa'
   }
+
+  nextTick(() => {
+    if (!map) initMap()
+    if (map) {
+      map.invalidateSize()
+      map.flyTo([Number(cli.latitud), Number(cli.longitud)], 19, {
+        animate: true,
+        duration: 0.8,
+      })
+    }
+  })
 }
 
 function enfocarGrupoEnMapa(grupo) {
@@ -1036,7 +1265,7 @@ function enfocarGrupoEnMapa(grupo) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 })
     }
   } else if (latLngs.length === 1) {
-    map.flyTo(latLngs[0], 17)
+    map.flyTo(latLngs[0], 18)
   }
 }
 
