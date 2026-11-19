@@ -51,7 +51,7 @@
         <div class="h-4 w-px bg-black/[0.08] mx-0.5 shrink-0"></div>
 
         <div
-          v-for="kpi in kpisLista"
+          v-for="kpi in kpisListaVisible"
           :key="kpi.id"
           class="inline-flex items-center gap-0.5 shrink-0"
         >
@@ -107,7 +107,7 @@
           </div>
           <div class="flex items-center gap-3">
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              Orden: <strong class="text-[#0071E3] font-bold">{{ kpisLista.find(k => k.id === sortResumenCol)?.corto || (sortResumenCol === 'ruta' ? 'Ruta' : sortResumenCol) }}</strong>
+              Orden: <strong class="text-[#0071E3] font-bold">{{ kpisListaVisible.find(k => k.id === sortResumenCol)?.corto || (sortResumenCol === 'ruta' ? 'Ruta' : (sortResumenCol === 'score_promedio' ? 'Score' : sortResumenCol)) }}</strong>
               <span class="text-[#86868B] ml-1">({{ sortResumenDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
             </span>
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
@@ -141,7 +141,7 @@
                 </th>
                 <!-- Columnas de KPIs congeladas arriba -->
                 <th
-                  v-for="kpi in kpisLista"
+                  v-for="kpi in kpisListaVisible"
                   :key="kpi.id"
                   @click="toggleSortResumen(kpi.id)"
                   class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-center whitespace-nowrap cursor-pointer hover:bg-black/[0.04] transition-colors shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] select-none group/th"
@@ -195,7 +195,7 @@
                   <div class="text-[10px] text-[#6E6E73] truncate max-w-[150px]">{{ r.vendedor || 'No Asignado' }}</div>
                 </td>
                 <td
-                  v-for="kpi in kpisLista"
+                  v-for="kpi in kpisListaVisible"
                   :key="kpi.id"
                   class="py-2 px-3 text-center whitespace-nowrap"
                   :class="sortResumenCol === kpi.id ? 'bg-blue-50/20' : ''"
@@ -242,7 +242,7 @@
                   CONSOLIDADO ({{ rutasFiltradas.length }})
                 </td>
                 <td
-                  v-for="kpi in kpisLista"
+                  v-for="kpi in kpisListaVisible"
                   :key="kpi.id"
                   class="py-2.5 px-3 text-center sticky bottom-0 z-30 bg-[#F8F8FA]"
                 >
@@ -2138,7 +2138,14 @@ const props = defineProps({
 
 const store = useAvanceStore()
 
-const modoActivo = ref(sessionStorage.getItem('avance_cumplimiento_submodo') || 'resumen')
+// KPIs visibles en la vista (se quitan Seda y Clinical de la vista pero se mantiene su lógica intacta)
+const kpisVisibleIds = ['vol_general', 'cob_general', 'cob_core', 'pizarra_unilever']
+
+const submodoGuardado = sessionStorage.getItem('avance_cumplimiento_submodo')
+const modoInicial = (submodoGuardado && (kpisVisibleIds.includes(submodoGuardado) || submodoGuardado === 'resumen'))
+  ? submodoGuardado
+  : 'resumen'
+const modoActivo = ref(modoInicial)
 
 // Estado de ordenamiento
 const sortResumenCol = ref('vol_general')
@@ -2207,13 +2214,17 @@ function toggleSortKpi(col) {
 const kpisLista = [
   { id: 'vol_general', nombre: '1. Volumen General', corto: 'Vol. General', tipo: 'VOLUMEN', unidad: 'Bs' },
   { id: 'cob_general', nombre: '2. Cobertura 100%', corto: 'Cob. General', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'vol_seda', nombre: '3. Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_seda', nombre: '4. Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'vol_clinical', nombre: '5. Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
-  { id: 'cob_clinical', nombre: '6. Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'cob_core', nombre: '7. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' },
-  { id: 'pizarra_unilever', nombre: '8. Pizarra Unilever', corto: 'Pizarra Unilever', tipo: 'SCORE', unidad: 'Pts' }
+  { id: 'vol_seda', nombre: 'Vol. Toque de Seda', corto: 'Vol. Seda', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_seda', nombre: 'Cob. Toque de Seda', corto: 'Cob. Seda', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'vol_clinical', nombre: 'Vol. Clinical', corto: 'Vol. Clinical', tipo: 'VOLUMEN', unidad: 'Bs' },
+  { id: 'cob_clinical', nombre: 'Cob. Clinical', corto: 'Cob. Clinical', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'cob_core', nombre: '3. Cobertura Core', corto: 'Cob. Core', tipo: 'COBERTURA', unidad: 'Cli' },
+  { id: 'pizarra_unilever', nombre: '4. Pizarra Unilever', corto: 'Pizarra Unilever', tipo: 'SCORE', unidad: 'Pts' }
 ]
+
+const kpisListaVisible = computed(() => {
+  return kpisLista.filter(k => kpisVisibleIds.includes(k.id))
+})
 
 const rutaExpandida = ref(null)
 const vendedorExpandido = ref(null)
