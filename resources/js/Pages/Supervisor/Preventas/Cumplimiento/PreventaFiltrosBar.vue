@@ -193,17 +193,18 @@
         />
       </div>
 
-      <!-- Checkbox Evaluar App + Web -->
+      <!-- Checkbox Validar App -->
       <label
         class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px] font-semibold text-[#1D1D1F] cursor-pointer select-none"
-        title="Al estar marcado, evalúa tanto App como Web: si alguna hora supera las 08:10 o falta marcación, no sumará puntos"
+        title="Al estar marcado (Modo Web y App), suma también lo registrado en la app móvil. Desmarcado: Modo Solo Web."
       >
         <input
           v-model="store.horarioEstricto"
           type="checkbox"
           class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
         />
-        <span class="whitespace-nowrap">Validar App + Web</span>
+        <span class="whitespace-nowrap">Validar App</span>
+        <span class="text-[9.5px] font-normal text-[#86868B]">({{ store.horarioEstricto ? 'Web + App' : 'Solo Web' }})</span>
       </label>
 
       <!-- Botón Consultar Principal -->

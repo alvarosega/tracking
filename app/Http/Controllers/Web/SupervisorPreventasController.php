@@ -116,6 +116,7 @@ class SupervisorPreventasController extends Controller
         $canales = (array) $request->input('canales', []);
         $rutas = (array) $request->input('rutas', []);
         $estrictoHorario = (bool) $request->boolean('estricto_horario', false);
+        $validarApp = (bool) $request->boolean('validar_app', false) || $estrictoHorario;
         $semanas = $request->input('semanas_historia') ? (int) $request->input('semanas_historia') : 13;
 
         $resultado = $action->execute(
@@ -123,7 +124,8 @@ class SupervisorPreventasController extends Controller
             canales: $canales,
             rutas: $rutas,
             estrictoHorario: $estrictoHorario,
-            semanasHistoria: $semanas
+            semanasHistoria: $semanas,
+            validarApp: $validarApp
         );
 
         return response()->json($resultado);

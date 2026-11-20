@@ -74,12 +74,14 @@ class PizarraController extends Controller
 
         // 3. Consultar la Pizarra oficial calculada por Web
         try {
+            $validarApp = $request->has('validar_app') ? (bool) $request->boolean('validar_app') : true;
             $data = $cumplimientoAction->execute(
                 fecha: $fecha,
                 canales: (array) $request->input('canales', []),
                 rutas: [], // evalúa el universo para obtener ranking relativo
                 estrictoHorario: (bool) $request->boolean('estricto_horario', false),
-                semanasHistoria: 13
+                semanasHistoria: 13,
+                validarApp: $validarApp
             );
         } catch (\Throwable $e) {
             Log::error("PizarraController error consultando GetCumplimientoDataAction: " . $e->getMessage(), [

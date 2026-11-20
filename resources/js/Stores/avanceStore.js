@@ -28,7 +28,8 @@ const filtrosAplicados = ref({
   canalesSeleccionados: [],
   rutasSeleccionadas: [],
   busqueda: '',
-  evaluarPorVendedor: typeof window !== 'undefined' ? localStorage.getItem('avance_vol_general_por_vendedor') === 'true' : false
+  evaluarPorVendedor: typeof window !== 'undefined' ? localStorage.getItem('avance_vol_general_por_vendedor') === 'true' : false,
+  validarApp: false
 })
 
 const cargandoCumplimiento = ref(false)
@@ -42,6 +43,7 @@ const mesesHistorico = ref(3)
 const frecuenciaMinima = ref(1)
 const cantidadMinima = ref(4)
 const evaluarPorVendedor = ref(typeof window !== 'undefined' ? localStorage.getItem('avance_vol_general_por_vendedor') === 'true' : false)
+const validarApp = ref(false)
 
 watch(evaluarPorVendedor, (val) => {
   try {
@@ -142,7 +144,8 @@ function aplicarFiltros() {
     canalesSeleccionados: [...(canalesSeleccionados.value || [])],
     rutasSeleccionadas: [...(rutasSeleccionadas.value || [])],
     busqueda: String(busqueda.value || '').trim(),
-    evaluarPorVendedor: Boolean(evaluarPorVendedor.value)
+    evaluarPorVendedor: Boolean(evaluarPorVendedor.value),
+    validarApp: Boolean(validarApp.value)
   }
   guardarEstado()
 }
@@ -372,7 +375,9 @@ async function cargarCumplimiento() {
       omitir_unitarios_3m: Boolean(omitirUnitarios3m.value),
       meses_historico: Number(mesesHistorico.value) || 3,
       frecuencia_minima: Math.max(1, Number(frecuenciaMinima.value) || 1),
-      cantidad_minima: Math.max(1, Number(cantidadMinima.value) || 1)
+      cantidad_minima: Math.max(1, Number(cantidadMinima.value) || 1),
+      validar_app: Boolean(validarApp.value),
+      estricto_horario: Boolean(validarApp.value)
     })
     datosCumplimiento.value = res.data
     if (res.data?.dias_calendario) {
@@ -411,6 +416,7 @@ export function useAvanceStore() {
     frecuenciaMinima,
     cantidadMinima,
     evaluarPorVendedor,
+    validarApp,
 
     aplicarFiltros,
     guardarEstado,

@@ -62,7 +62,8 @@ class GetAvanceCumplimientoDataAction
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
         int $frecuenciaMinima = 1,
-        int $cantidadMinima = 1
+        int $cantidadMinima = 1,
+        bool $validarApp = false
     ): array {
         $modoTemporal = in_array(strtolower($modoTemporal), ['acumulado', 'diario'], true) ? strtolower($modoTemporal) : 'acumulado';
         $mesesHistorico = max(1, min(8, $mesesHistorico));
@@ -97,7 +98,8 @@ class GetAvanceCumplimientoDataAction
                 fechaInicio: $fechaInicio,
                 fechaCorte: $fechaCorte,
                 canales: $canales,
-                rutas: $rutas
+                rutas: $rutas,
+                validarApp: $validarApp
             );
             $resultado['dias_calendario'] = $infoDias;
             $resultado['metadata_kpis'] = $this->obtenerMetadataKpis();

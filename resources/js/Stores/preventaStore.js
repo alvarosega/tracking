@@ -243,9 +243,13 @@ function enriquecerRuta(r) {
       metricas: {
         cartera_plan: Number(k2.cartera_plan || 0),
         visitados: Number(k2.visitados_activos || 0),
+        visitados_web: Number(k2.visitados_web || 0),
+        visitados_app: Number(k2.visitados_app || 0),
         fueraPlan: Number(k2.fuera_de_plan || 0),
         dif: Number(k2.visitados_activos || 0) - Number(k2.cartera_plan || 0),
-        cobertura_pct: Number(k2.cobertura_pct || 0)
+        cobertura_pct: Number(k2.cobertura_pct || 0),
+        validar_app: Boolean(k2.validar_app),
+        modo_evaluacion: k2.modo_evaluacion || 'solo_web'
       }
     },
     cumplimiento_objetivo: {
@@ -332,6 +336,7 @@ async function cargarDatosRanking() {
       canales: canalesSeleccionados.value || [],
       rutas: rutasSeleccionadas.value || [],
       estricto_horario: Boolean(horarioEstricto.value),
+      validar_app: Boolean(horarioEstricto.value),
       semanas_historia: ventanaReposicion.value || 13
     }
 

@@ -35,6 +35,22 @@
               </button>
             </div>
           </div>
+
+          <!-- Checkbox Validar App para Pizarra Unilever -->
+          <label
+            v-if="modoActivo === 'pizarra_unilever'"
+            class="flex items-center gap-1.5 apple-control-pill rounded-[10px] px-2.5 py-1 text-[11px] font-semibold text-[#1D1D1F] cursor-pointer select-none"
+            title="Al estar marcado (Modo Web y App), suma también lo registrado en la app móvil. Desmarcado: Modo Solo Web."
+          >
+            <input
+              v-model="store.validarApp"
+              type="checkbox"
+              @change="ejecutarConsulta"
+              class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+            />
+            <span class="whitespace-nowrap">Validar App</span>
+            <span class="text-[9.5px] font-normal text-[#86868B]">({{ store.validarApp ? 'Web + App' : 'Solo Web' }})</span>
+          </label>
         </template>
       </AvanceFiltrosBar>
 
@@ -1875,6 +1891,15 @@
               <span>Score Promedio Global:</span>
               <strong class="font-mono font-bold" :class="colorScore(totalesKpi?.score_promedio)">{{ totalesKpi?.score_promedio ?? 0 }} Pts</strong>
             </div>
+            <div
+              class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[8px] font-sans shadow-2xs text-[11px] font-bold"
+              :class="store.datosCumplimiento?.validar_app || store.validarApp ? 'bg-purple-50 border border-purple-200 text-purple-900' : 'bg-slate-50 border border-slate-200 text-slate-700'"
+            >
+              <span>Modo:</span>
+              <strong :class="store.datosCumplimiento?.validar_app || store.validarApp ? 'text-purple-700' : 'text-[#1D1D1F]'">
+                {{ store.datosCumplimiento?.validar_app || store.validarApp ? 'Web + App' : 'Solo Web' }}
+              </strong>
+            </div>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
@@ -2042,6 +2067,10 @@
                   <!-- 2. Visitas (5p) -->
                   <td class="py-2 px-2.5 text-center">
                     <div class="font-bold text-[#1D1D1F]">{{ formatNum(r.prom_kpi2_visitas, 1) }}</div>
+                    <div class="text-[8.5px] font-mono text-[#86868B] space-x-1" :title="`Promedio Visitados Web: ${formatNum(r.prom_visitados_web, 1)} · Promedio Visitados App: ${formatNum(r.prom_visitados_app, 1)}`">
+                      <span>W: {{ formatNum(r.prom_visitados_web, 1) }}</span>
+                      <span class="text-[#0071E3]">A: {{ formatNum(r.prom_visitados_app, 1) }}</span>
+                    </div>
                     <div class="text-[9px] text-[#86868B]">{{ formatPct(r.prom_cobertura_visitas_pct) }}</div>
                   </td>
                   <!-- 3. Facturación (10p) -->
@@ -2143,15 +2172,18 @@
                               <!-- 1. Horario -->
                               <td class="py-2 px-2.5 text-center">
                                 <div class="font-bold" :class="dia.kpi1_horario?.pts >= 10 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi1_horario?.pts ?? 0 }}p</div>
-                                <div class="text-[8px] text-[#86868B]">
-                                  {{ dia.kpi1_horario?.hora || '--:--' }}
+                                <div class="text-[8.5px] font-mono text-[#86868B] space-x-1" :title="`Web: ${dia.kpi1_horario?.hora_web || '—'} · App: ${dia.kpi1_horario?.hora_app || '—'}`">
+                                  <span><span class="text-[#6E6E73]">W:</span>{{ dia.kpi1_horario?.hora_web || '—' }}</span>
+                                  <span><span class="text-[#0071E3]">A:</span>{{ dia.kpi1_horario?.hora_app || '—' }}</span>
                                 </div>
                               </td>
                               <!-- 2. Visitas -->
                               <td class="py-2 px-2.5 text-center">
                                 <div class="font-bold" :class="dia.kpi2_visitas?.pts >= 5 ? 'text-emerald-700' : 'text-[#1D1D1F]'">{{ dia.kpi2_visitas?.pts ?? 0 }}p</div>
-                                <div class="text-[8px] text-[#86868B]">
-                                  {{ dia.kpi2_visitas?.visitados ?? 0 }}/{{ dia.kpi2_visitas?.cartera ?? 0 }} ({{ formatPct(dia.kpi2_visitas?.cobertura_pct) }})
+                                <div class="text-[8.5px] font-mono text-[#86868B] space-x-1" :title="`Visitados Web: ${dia.kpi2_visitas?.visitados_web ?? 0} · App: ${dia.kpi2_visitas?.visitados_app ?? 0} · Evaluados: ${dia.kpi2_visitas?.visitados ?? 0}/${dia.kpi2_visitas?.cartera ?? 0}`">
+                                  <span><span class="text-[#6E6E73]">W:</span>{{ dia.kpi2_visitas?.visitados_web ?? 0 }}</span>
+                                  <span><span class="text-[#0071E3]">A:</span>{{ dia.kpi2_visitas?.visitados_app ?? 0 }}</span>
+                                  <span class="text-[#1D1D1F] font-bold">({{ dia.kpi2_visitas?.visitados ?? 0 }}/{{ dia.kpi2_visitas?.cartera ?? 0 }})</span>
                                 </div>
                               </td>
                               <!-- 3. Facturación -->

@@ -72,6 +72,8 @@ class SupervisorAvanceController extends Controller
         $cantidadMinima = $request->has('cantidad_minima')
             ? max(1, (int) $request->input('cantidad_minima'))
             : ($kpi === 'cob_core' ? 4 : ($omitirUnitarios ? 2 : 1));
+        $validarApp = filter_var($request->input('validar_app', false), FILTER_VALIDATE_BOOLEAN)
+            || filter_var($request->input('estricto_horario', false), FILTER_VALIDATE_BOOLEAN);
 
         $data = $action->execute(
             vista: $vista,
@@ -84,7 +86,8 @@ class SupervisorAvanceController extends Controller
             omitirUnitarios3m: $omitirUnitarios,
             mesesHistorico: $mesesHistorico,
             frecuenciaMinima: $frecuenciaMinima,
-            cantidadMinima: $cantidadMinima
+            cantidadMinima: $cantidadMinima,
+            validarApp: $validarApp
         );
 
         return response()->json($data);

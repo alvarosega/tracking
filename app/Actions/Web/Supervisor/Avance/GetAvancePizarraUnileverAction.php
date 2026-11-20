@@ -26,6 +26,7 @@ class GetAvancePizarraUnileverAction
      * @param array<int, string> $canales
      * @param array<int, string> $rutas
      * @param bool $estrictoHorario
+     * @param bool $validarApp
      * @return array<string, mixed>
      */
     public function execute(
@@ -33,8 +34,10 @@ class GetAvancePizarraUnileverAction
         ?string $fechaCorte = null,
         array $canales = [],
         array $rutas = [],
-        bool $estrictoHorario = false
+        bool $estrictoHorario = false,
+        bool $validarApp = false
     ): array {
+        $validarApp = $validarApp || $estrictoHorario;
         @ini_set('memory_limit', '512M');
         @set_time_limit(180);
 
@@ -89,7 +92,7 @@ class GetAvancePizarraUnileverAction
         $evaluacionesPorDia = [];
         foreach ($diasEvaluados as $fechaDia) {
             $esHoy = ($fechaDia === $hoyStr);
-            $cacheKey = "pizarra_eval_dia_{$fechaDia}_" . ($estrictoHorario ? 'estricto' : 'normal');
+            $cacheKey = "pizarra_eval_dia_{$fechaDia}_" . ($validarApp ? 'web_app' : 'solo_web');
 
             if ($esHoy) {
                 // Para el día actual, caché breve de 60 segundos
@@ -97,8 +100,9 @@ class GetAvancePizarraUnileverAction
                     fecha: $fechaDia,
                     canales: [],
                     rutas: [],
-                    estrictoHorario: $estrictoHorario,
-                    semanasHistoria: 13
+                    estrictoHorario: $validarApp,
+                    semanasHistoria: 13,
+                    validarApp: $validarApp
                 ));
             } else {
                 // Para días pasados cerrados, caché permanente de 24 horas
@@ -106,8 +110,9 @@ class GetAvancePizarraUnileverAction
                     fecha: $fechaDia,
                     canales: [],
                     rutas: [],
-                    estrictoHorario: $estrictoHorario,
-                    semanasHistoria: 13
+                    estrictoHorario: $validarApp,
+                    semanasHistoria: 13,
+                    validarApp: $validarApp
                 ));
             }
 
@@ -266,6 +271,9 @@ class GetAvancePizarraUnileverAction
                 $kpi7TasaPctList[] = $ampPct;
                 $kpi8TasaPctList[] = $covPct;
 
+                $kpi2WebList[] = (int) ($evalDiaRuta['kpi2_visitas']['visitados_web'] ?? 0);
+                $kpi2AppList[] = (int) ($evalDiaRuta['kpi2_visitas']['visitados_app'] ?? 0);
+
                 $diasDetalle[] = [
                     'fecha' => $fechaDia,
                     'dia_semana' => $abrev,
@@ -278,15 +286,23 @@ class GetAvancePizarraUnileverAction
                         'puntos' => $p1,
                         'cumple' => (bool) ($evalDiaRuta['kpi1_horario']['cumple'] ?? false),
                         'hora' => (string) ($evalDiaRuta['kpi1_horario']['primer_checkin'] ?? '-'),
+                        'hora_web' => (string) ($evalDiaRuta['kpi1_horario']['hora_web'] ?? '-'),
+                        'hora_app' => (string) ($evalDiaRuta['kpi1_horario']['hora_movil'] ?? '-'),
                         'retraso' => (int) ($evalDiaRuta['kpi1_horario']['retraso_minutos'] ?? 0),
+                        'validar_app' => $validarApp,
+                        'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
                     ],
                     'kpi2_visitas' => [
                         'pts' => $p2,
                         'puntos' => $p2,
                         'cumple' => (bool) ($evalDiaRuta['kpi2_visitas']['cumple'] ?? false),
                         'cartera' => (int) ($evalDiaRuta['kpi2_visitas']['cartera_plan'] ?? 0),
-                        'visitados' => (int) ($evalDiaRuta['kpi2_visitas']['total_visitados'] ?? 0),
+                        'visitados' => (int) ($evalDiaRuta['kpi2_visitas']['visitados_activos'] ?? $evalDiaRuta['kpi2_visitas']['total_visitados'] ?? 0),
+                        'visitados_web' => (int) ($evalDiaRuta['kpi2_visitas']['visitados_web'] ?? 0),
+                        'visitados_app' => (int) ($evalDiaRuta['kpi2_visitas']['visitados_app'] ?? 0),
                         'cobertura_pct' => $cobPct,
+                        'validar_app' => $validarApp,
+                        'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
                     ],
                     'kpi3_objetivo' => [
                         'pts' => $p3,
@@ -356,6 +372,8 @@ class GetAvancePizarraUnileverAction
 
                 // Tasas Promedio (%)
                 'prom_cobertura_visitas_pct' => $diasCont > 0 ? round(array_sum($kpi2CobPctList) / $diasCont, 1) : 0.0,
+                'prom_visitados_web' => $diasCont > 0 ? round(array_sum($kpi2WebList) / $diasCont, 1) : 0.0,
+                'prom_visitados_app' => $diasCont > 0 ? round(array_sum($kpi2AppList) / $diasCont, 1) : 0.0,
                 'prom_alcance_objetivo_pct' => $diasCont > 0 ? round(array_sum($kpi3AlcancePctList) / $diasCont, 1) : 0.0,
                 'prom_efectividad_pct' => $diasCont > 0 ? round(array_sum($kpi4EfectPctList) / $diasCont, 1) : 0.0,
                 'prom_reposicion_tasa_pct' => $diasCont > 0 ? round(array_sum($kpi6TasaPctList) / $diasCont, 1) : 0.0,
@@ -385,6 +403,8 @@ class GetAvancePizarraUnileverAction
             'pct_aprobacion' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'pct_aprobacion')) / $totalRutas, 1) : 0.0,
             'prom_kpi1_horario' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_kpi1_horario')) / $totalRutas, 1) : 0.0,
             'prom_kpi2_visitas' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_kpi2_visitas')) / $totalRutas, 1) : 0.0,
+            'prom_visitados_web' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_visitados_web')) / $totalRutas, 1) : 0.0,
+            'prom_visitados_app' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_visitados_app')) / $totalRutas, 1) : 0.0,
             'prom_kpi3_objetivo' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_kpi3_objetivo')) / $totalRutas, 1) : 0.0,
             'prom_kpi4_efectividad' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_kpi4_efectividad')) / $totalRutas, 1) : 0.0,
             'prom_kpi5_compra_minima' => $totalRutas > 0 ? round(array_sum(array_column($rutasConsolidadas, 'prom_kpi5_compra_minima')) / $totalRutas, 1) : 0.0,
@@ -400,6 +420,8 @@ class GetAvancePizarraUnileverAction
             'kpi_tipo' => 'SCORE',
             'kpi_unidad' => 'Pts',
             'modo_temporal' => 'acumulado',
+            'validar_app' => $validarApp,
+            'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
             'fecha_inicio' => $fechaInicio,
             'fecha_corte' => $fechaCorte,
             'mes_ym' => $mesYm,

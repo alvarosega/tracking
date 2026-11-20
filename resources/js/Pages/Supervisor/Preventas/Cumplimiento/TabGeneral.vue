@@ -205,6 +205,10 @@
                   class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]"
                 >10</span>
                 <span v-else class="text-[#86868B] font-mono text-[11px]">—</span>
+                <div class="text-[8.5px] font-mono text-[#86868B] mt-0.5" :title="`Web: ${r.kpis?.horario_ingreso?.metricas?.hora_web || '—'} · App: ${r.kpis?.horario_ingreso?.metricas?.hora_app || '—'}`">
+                  <span>W: {{ r.kpis?.horario_ingreso?.metricas?.hora_web || '—' }}</span>
+                  <span class="ml-1 text-[#0071E3]">A: {{ r.kpis?.horario_ingreso?.metricas?.hora_app || '—' }}</span>
+                </div>
               </td>
 
               <!-- KPI 2: Visitas (5) -->
@@ -214,6 +218,10 @@
                   class="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-[5px] text-[11px] font-bold font-mono text-[#1E6B37] bg-[#EBF9EF] border border-[#D1F2D9]"
                 >5</span>
                 <span v-else class="text-[#86868B] font-mono text-[11px]">—</span>
+                <div class="text-[8.5px] font-mono text-[#86868B] mt-0.5" :title="`Web: ${r.kpis?.clientes_visitados?.metricas?.visitados_web ?? 0} · App: ${r.kpis?.clientes_visitados?.metricas?.visitados_app ?? 0} · Evaluados: ${r.kpis?.clientes_visitados?.metricas?.visitados ?? 0}/${r.kpis?.clientes_visitados?.metricas?.cartera_plan ?? 0}`">
+                  <span>W: {{ r.kpis?.clientes_visitados?.metricas?.visitados_web ?? 0 }}</span>
+                  <span class="ml-1 text-[#0071E3]">A: {{ r.kpis?.clientes_visitados?.metricas?.visitados_app ?? 0 }}</span>
+                </div>
               </td>
 
               <!-- KPI 3: Obj. Diario (10) -->

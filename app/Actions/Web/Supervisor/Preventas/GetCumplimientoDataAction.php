@@ -35,6 +35,8 @@ class GetCumplimientoDataAction
      * @param array<int, string> $canales
      * @param array<int, string> $rutas
      * @param bool $estrictoHorario
+     * @param int $semanasHistoria
+     * @param bool $validarApp
      * @return array<string, mixed>
      */
     public function execute(
@@ -42,8 +44,10 @@ class GetCumplimientoDataAction
         array $canales = [],
         array $rutas = [],
         bool $estrictoHorario = false,
-        int $semanasHistoria = 13
+        int $semanasHistoria = 13,
+        bool $validarApp = false
     ): array {
+        $validarApp = $validarApp || $estrictoHorario;
         // 1. Obtener catálogo y filtrar rutas objetivo
         $catalogoData = $this->catalogoAction->execute();
         $catalogoRutas = $catalogoData['catalogo']; // Colección de objetos ruta con vendedor, canal, etc.
@@ -201,6 +205,7 @@ class GetCumplimientoDataAction
                     $q->whereIn('v.route', $rutasFiltradas);
                     foreach ($rutasFiltradas as $rf) {
                         $q->orWhereRaw("TRIM(UPPER(v.route)) = ?", [strtoupper(trim($rf))]);
+                        $q->orWhereRaw("TRIM(UPPER(COALESCE(u.ruta, ''))) = ?", [strtoupper(trim($rf))]);
                     }
                 })
                 ->where('v.is_opportunity', 0)
@@ -215,6 +220,7 @@ class GetCumplimientoDataAction
                     'v.longitude',
                     'v.photo_path',
                     'u.username as vendedor_movil',
+                    'u.ruta as user_ruta',
                 ])
                 ->orderBy('v.visited_at', 'asc')
                 ->get();
@@ -222,8 +228,32 @@ class GetCumplimientoDataAction
             Log::warning('Error consultando visitas móviles en Cumplimiento: ' . $e->getMessage());
         }
 
-        $visitasMovilPorRuta = $visitasMovilRaw->groupBy(fn ($item) => strtoupper(trim((string) ($item->route ?? ''))));
+        $visitasMovilPorRuta = $visitasMovilRaw->groupBy(fn ($item) => strtoupper(trim((string) ($item->route ?: ($item->user_ruta ?? '')))));
         unset($visitasMovilRaw);
+
+        // C.1 user_workdays (Local MySQL): Inicio de jornada laboral en app móvil
+        $workdaysMovilRaw = collect();
+        try {
+            $workdaysMovilRaw = DB::table('user_workdays as uw')
+                ->join('users as u', 'uw.user_id', '=', 'u.id')
+                ->whereDate('uw.work_date', $fecha)
+                ->whereNotNull('uw.started_at')
+                ->select([
+                    'uw.id',
+                    'uw.user_id',
+                    'uw.work_date',
+                    'uw.started_at',
+                    'u.username',
+                    'u.ruta',
+                ])
+                ->orderBy('uw.started_at', 'asc')
+                ->get();
+        } catch (\Throwable $e) {
+            Log::debug('Error consultando user_workdays en Cumplimiento: ' . $e->getMessage());
+        }
+
+        $workdaysPorRuta = $workdaysMovilRaw->groupBy(fn ($item) => strtoupper(trim((string) ($item->ruta ?: ($item->username ?? '')))));
+        unset($workdaysMovilRaw);
 
         // D. fact_preventas: Pedidos transaccionados intra-día en tiempo real
         $preventasRaw = collect();
@@ -543,7 +573,23 @@ class GetCumplimientoDataAction
             $horaMovil = null;
             $segundosMovil = null;
 
-            // Recorrer todas las visitas móviles de la ruta para encontrar el primer check-in válido
+            // 1. Revisar inicio de jornada en la app (user_workdays)
+            $workdaysRuta = $workdaysPorRuta->get($rutaUpper, collect());
+            foreach ($workdaysRuta as $w) {
+                $h = $this->extraerHoraString($w->started_at ?? null);
+                if ($h && $h !== '00:00:00' && $h !== '00:00') {
+                    $sec = $this->horaASegundos($h);
+                    if ($sec !== null && $sec >= 18000) {
+                        if ($segundosMovil === null || $sec < $segundosMovil) {
+                            $segundosMovil = $sec;
+                            $horaMovil = $h;
+                            $primerCheckinMovil = $h;
+                        }
+                    }
+                }
+            }
+
+            // 2. Recorrer todas las visitas móviles de la ruta para encontrar el primer check-in válido
             foreach ($visitasMovilRuta as $vm) {
                 $h = $this->extraerHoraString($vm->visited_at ?? null);
                 if ($h && $h !== '00:00:00' && $h !== '00:00') {
@@ -563,53 +609,47 @@ class GetCumplimientoDataAction
             $kpi1Estado = 'Sin Marcación';
             $kpi1RetrasoMin = 0;
 
-            // En modo normal, el primer contacto toma la menor hora válida entre Web y App disponible
-            $mejorSegundos = null;
-            $mejorHora = null;
-
-            if ($segundosWeb !== null && $segundosMovil !== null) {
-                if ($segundosWeb <= $segundosMovil) {
-                    $mejorSegundos = $segundosWeb;
-                    $mejorHora = $horaWeb;
-                } else {
-                    $mejorSegundos = $segundosMovil;
-                    $mejorHora = $horaMovil;
-                }
-            } elseif ($segundosWeb !== null) {
-                $mejorSegundos = $segundosWeb;
-                $mejorHora = $horaWeb;
-            } elseif ($segundosMovil !== null) {
-                $mejorSegundos = $segundosMovil;
-                $mejorHora = $horaMovil;
-            }
-
-            if (!$estrictoHorario) {
-                // Modo Normal: Evalúa el primer contacto registrado (Web o App)
-                if ($mejorSegundos !== null) {
-                    if ($mejorSegundos <= self::UMBRAL_HORARIO_SEGUNDOS) {
+            if (!$validarApp) {
+                // Modo Solo Web: Solo cuenta la marcación registrada en Web (fact_visitas)
+                if ($segundosWeb !== null) {
+                    if ($segundosWeb <= self::UMBRAL_HORARIO_SEGUNDOS) {
                         $kpi1Cumple = true;
                         $kpi1Puntos = 10;
-                        $kpi1Estado = 'Puntual';
+                        $kpi1Estado = 'Puntual (Web)';
                     } else {
                         $kpi1Cumple = false;
                         $kpi1Puntos = 0;
                         $kpi1Estado = 'Atrasado';
-                        $kpi1RetrasoMin = (int) round(($mejorSegundos - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
-                    }
-                }
-            } else {
-                // Modo Estricto: Exige obligatoriamente marcación tanto en web como en app móvil <= 08:10:00
-                if ($segundosWeb === null || $segundosMovil === null) {
-                    $kpi1Cumple = false;
-                    $kpi1Puntos = 0;
-                    $kpi1Estado = 'Incompleto (Falta marcación)';
-                    $refSec = $segundosWeb ?? $segundosMovil;
-                    if ($refSec && $refSec > self::UMBRAL_HORARIO_SEGUNDOS) {
-                        $kpi1RetrasoMin = (int) round(($refSec - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
+                        $kpi1RetrasoMin = (int) round(($segundosWeb - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
                     }
                 } else {
-                    $maxSegundos = max($segundosWeb, $segundosMovil);
-                    if ($maxSegundos <= self::UMBRAL_HORARIO_SEGUNDOS) {
+                    $kpi1Cumple = false;
+                    $kpi1Puntos = 0;
+                    $kpi1Estado = 'Sin Marcación Web';
+                }
+            } else {
+                // Modo Web y App: Cuenta el primer contacto válido registrado entre Web y App móvil
+                $mejorSegundos = null;
+                $mejorHora = null;
+
+                if ($segundosWeb !== null && $segundosMovil !== null) {
+                    if ($segundosWeb <= $segundosMovil) {
+                        $mejorSegundos = $segundosWeb;
+                        $mejorHora = $horaWeb;
+                    } else {
+                        $mejorSegundos = $segundosMovil;
+                        $mejorHora = $horaMovil;
+                    }
+                } elseif ($segundosWeb !== null) {
+                    $mejorSegundos = $segundosWeb;
+                    $mejorHora = $horaWeb;
+                } elseif ($segundosMovil !== null) {
+                    $mejorSegundos = $segundosMovil;
+                    $mejorHora = $horaMovil;
+                }
+
+                if ($mejorSegundos !== null) {
+                    if ($mejorSegundos <= self::UMBRAL_HORARIO_SEGUNDOS) {
                         $kpi1Cumple = true;
                         $kpi1Puntos = 10;
                         $kpi1Estado = 'Puntual (Web+App)';
@@ -617,7 +657,7 @@ class GetCumplimientoDataAction
                         $kpi1Cumple = false;
                         $kpi1Puntos = 0;
                         $kpi1Estado = 'Atrasado';
-                        $kpi1RetrasoMin = (int) round(($maxSegundos - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
+                        $kpi1RetrasoMin = (int) round(($mejorSegundos - self::UMBRAL_HORARIO_SEGUNDOS) / 60);
                     }
                 }
             }
@@ -744,9 +784,17 @@ class GetCumplimientoDataAction
                 }
             }
 
-            $vActivosCount = count($visitadosPlanUnicos);
             $visitadosWebCount = count($visitadosWebUnicos);
             $visitadosAppCount = count($visitadosAppUnicos);
+
+            if (!$validarApp) {
+                // Modo Solo Web: Únicamente visitas Web (fact_visitas) cuentan para el score
+                $vActivosCount = $visitadosWebCount;
+            } else {
+                // Modo Web y App: Cuentan visitas Web + App móvil unificadas
+                $vActivosCount = count($visitadosPlanUnicos);
+            }
+
             $fueraDePlanCount = count($visitadosFueraPlanUnicos);
             $visitadosTotalCount = $vActivosCount + $fueraDePlanCount;
             $inactivosVisitadosCount = 0;
@@ -1171,9 +1219,11 @@ class GetCumplimientoDataAction
                     'estado' => $kpi1Estado,
                     'hora_web' => $horaWeb,
                     'hora_movil' => $horaMovil,
-                    'primer_checkin' => $primerCheckinWeb ?: $primerCheckinMovil,
+                    'primer_checkin' => $validarApp ? ($primerCheckinWeb && $primerCheckinMovil ? min($primerCheckinWeb, $primerCheckinMovil) : ($primerCheckinWeb ?: $primerCheckinMovil)) : $primerCheckinWeb,
                     'retraso_minutos' => $kpi1RetrasoMin,
                     'umbral' => '08:10:00',
+                    'validar_app' => $validarApp,
+                    'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
                 ],
 
                 // Resumen KPI 2: Visitas
@@ -1189,6 +1239,8 @@ class GetCumplimientoDataAction
                     'fuera_de_plan' => $fueraDePlanCount,
                     'total_visitados' => $visitadosTotalCount,
                     'cobertura_pct' => $coberturaVisitasPct,
+                    'validar_app' => $validarApp,
+                    'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
                 ],
 
                 // Resumen KPI 3: Objetivo Diario
@@ -1314,7 +1366,9 @@ class GetCumplimientoDataAction
         return [
             'fecha' => $fecha,
             'dia_semana' => $diaSemana,
-            'estricto_horario' => $estrictoHorario,
+            'estricto_horario' => $validarApp,
+            'validar_app' => $validarApp,
+            'modo_evaluacion' => $validarApp ? 'web_app' : 'solo_web',
             'kpis_globales' => [
                 'total_rutas' => $totalRutasCount,
                 'score_promedio' => $totalRutasCount > 0 ? round($sumaScores / $totalRutasCount, 1) : 0.0,
