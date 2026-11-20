@@ -87,7 +87,7 @@ class AuditarDuplicadosAction
             ];
         }
 
-        // 3. Pre-normalización y limpieza
+        // 3. Pre-normalización y extracción de núcleos inteligentes
         $puntos = [];
         $puntosMap = [];
         foreach ($puntosRaw as $row) {
@@ -101,17 +101,29 @@ class AuditarDuplicadosAction
             $canalStr = $mapaCanalRuta[$rutaStr] ?? 'SIN CANAL';
 
             $cNorm = $this->normalizarTexto((string) $row->cliente_norm ?: (string) $row->cliente);
-            $nitClean = (!in_array($nit, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($nit) >= 5) ? $nit : '';
-            $ciClean = (!in_array($ci, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($ci) >= 5) ? $ci : '';
+            $nucleo = $this->obtenerNucleoOrdenado((string) $row->cliente_norm ?: (string) $row->cliente);
+            $tokens = $this->extraerTokensSignificativos((string) $row->cliente_norm ?: (string) $row->cliente);
+
+            $factNorm = $this->normalizarTexto($fact);
+            $nucleoFact = $this->obtenerNucleoOrdenado($fact);
+            $tokensFact = $this->extraerTokensSignificativos($fact);
+
+            $nitDigits = preg_replace('/\D/', '', $nit);
+            $nitClean = (!in_array($nitDigits, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($nitDigits) >= 5 && !preg_match('/^(\d)\1+$/', $nitDigits)) ? $nitDigits : '';
+            $ciClean = (!in_array($ci, ['', '0', '00', '000', '1', '123', '1234', '12345'], true) && strlen($ci) >= 5 && !preg_match('/^(\d)\1+$/', $ci)) ? $ci : '';
+
             $telNorm = $this->normalizarTelefono($tel);
             $celNorm = $this->normalizarTelefono($cel);
-            $factNorm = $this->normalizarTexto($fact);
 
             $p = [
                 'cliente_id' => $cid,
                 'cliente' => trim((string) $row->cliente),
                 'cliente_norm' => $cNorm,
+                'nucleo' => $nucleo,
+                'tokens' => $tokens,
                 'nombre_factura' => trim($fact),
+                'nucleo_factura' => $nucleoFact,
+                'tokens_factura' => $tokensFact,
                 'nit' => $nitClean,
                 'ci' => $ciClean,
                 'telefono' => $tel,
@@ -137,41 +149,56 @@ class AuditarDuplicadosAction
             $puntosMap[$cid] = $p;
         }
 
-        // 4. Índices para "MISMOS DATOS" (Nombre, NIT, CI, Teléfono/Celular, Factura)
-        $nombresGenericos = [
-            '', 'tienda', 'almacen', 'venta', 'ventas', 'sin nombre', 'sn', 's n', 's/n',
-            'cliente', 'pension', 'micromercado', 'kiosko', 'sn nombre', 'comercial',
-            'restaurante', 'farmacia', 'ferreteria', 'panaderia', 'pasteleria', 'snack',
-            'variedades', 'bazar', 'licoreria', 'minimarket', 'abarrotes', 'doña', 'don',
-        ];
-        $genericosMap = array_fill_keys($nombresGenericos, true);
+        // 4. Índices para "MISMOS DATOS" Y "NOMBRES SIMILARES"
+        $genericosMap = array_fill_keys(self::$stopWords, true);
 
-        $indexNombre = [];
-        $indexNit = [];
-        $indexCi = [];
-        $indexTel = [];
-        $indexFactura = [];
+        $indexDoc = [];       // NIT, CI y cruce unificado de documentos
+        $indexNombre = [];    // Nombre exacto normalizado
+        $indexNucleo = [];    // Núcleo de nombre ordenado (sin stop-words)
+        $indexFactura = [];   // Razón social / factura
+        $indexTel = [];       // Teléfonos y celulares
+        $indexTokens = [];    // Tokens significativos individuales para matching difuso/subconjunto
 
         foreach ($puntos as $p) {
             $cid = $p['cliente_id'];
 
+            // A) Documentos (NIT y CI unificados con etiqueta de origen)
+            if ($p['_nit_clean'] !== '') {
+                $indexDoc[$p['_nit_clean']][] = ['cid' => $cid, 'tipo' => 'NIT'];
+            }
+            if ($p['_ci_clean'] !== '') {
+                $indexDoc[$p['_ci_clean']][] = ['cid' => $cid, 'tipo' => 'CI'];
+            }
+
+            // B) Nombre exacto y Núcleo ordenado
             if ($p['cliente_norm'] !== '' && mb_strlen($p['cliente_norm']) >= 4 && !isset($genericosMap[$p['cliente_norm']])) {
                 $indexNombre[$p['cliente_norm']][] = $cid;
             }
-            if ($p['_nit_clean'] !== '') {
-                $indexNit[$p['_nit_clean']][] = $cid;
+            if ($p['nucleo'] !== '' && mb_strlen($p['nucleo']) >= 4 && !isset($genericosMap[$p['nucleo']])) {
+                $indexNucleo[$p['nucleo']][] = $cid;
             }
-            if ($p['_ci_clean'] !== '') {
-                $indexCi[$p['_ci_clean']][] = $cid;
+
+            // C) Factura / Razón Social
+            if ($p['_factura_norm'] !== '' && mb_strlen($p['_factura_norm']) >= 4 && !isset($genericosMap[$p['_factura_norm']])) {
+                $indexFactura[$p['_factura_norm']][] = $cid;
             }
+            if ($p['nucleo_factura'] !== '' && mb_strlen($p['nucleo_factura']) >= 4 && !isset($genericosMap[$p['nucleo_factura']])) {
+                $indexFactura[$p['nucleo_factura']][] = $cid;
+            }
+
+            // D) Teléfonos
             if ($p['_tel_norm'] !== '') {
                 $indexTel[$p['_tel_norm']][] = $cid;
             }
             if ($p['_cel_norm'] !== '') {
                 $indexTel[$p['_cel_norm']][] = $cid;
             }
-            if ($p['_factura_norm'] !== '' && mb_strlen($p['_factura_norm']) >= 4 && !isset($genericosMap[$p['_factura_norm']])) {
-                $indexFactura[$p['_factura_norm']][] = $cid;
+
+            // E) Tokens significativos (longitud >= 4, no genéricos)
+            foreach ($p['tokens'] as $tok) {
+                if (mb_strlen($tok) >= 4 && !isset($genericosMap[$tok])) {
+                    $indexTokens[$tok][] = $cid;
+                }
             }
         }
 
@@ -281,49 +308,192 @@ class AuditarDuplicadosAction
             }
         };
 
-        // A) Grupos Atómicos por NIT (Cada NIT idéntico es su propio grupo exclusivo)
-        foreach ($indexNit as $nitVal => $cids) {
-            $cids = array_values(array_unique($cids));
+        // A) Grupos por Documento de Identidad (NIT / CI y Cruce NIT vs CI)
+        foreach ($indexDoc as $docVal => $docItems) {
+            $cids = array_values(array_unique(array_column($docItems, 'cid')));
             if (count($cids) >= 2 && count($cids) <= 20) {
-                $registrarGrupo($cids, ['NIT' => (string) $nitVal]);
+                $tipos = array_unique(array_column($docItems, 'tipo'));
+                if (count($tipos) === 1 && in_array('NIT', $tipos, true)) {
+                    $campoCrit = 'NIT';
+                } elseif (count($tipos) === 1 && in_array('CI', $tipos, true)) {
+                    $campoCrit = 'CI';
+                } else {
+                    $campoCrit = 'Documento (NIT/CI)';
+                }
+                $registrarGrupo($cids, [$campoCrit => (string) $docVal]);
             }
         }
 
-        // B) Grupos Atómicos por CI (Cada CI idéntico es su propio grupo exclusivo)
-        foreach ($indexCi as $ciVal => $cids) {
-            $cids = array_values(array_unique($cids));
-            if (count($cids) >= 2 && count($cids) <= 20) {
-                $registrarGrupo($cids, ['CI' => (string) $ciVal]);
-            }
-        }
-
-        // C) Grupos Atómicos por Teléfono + Nombre Comercial o Factura
-        // (Un teléfono solo duplica si además comparten nombre comercial o factura, o misma ubicación)
-        foreach ($indexTel as $telVal => $cids) {
-            $cids = array_values(array_unique($cids));
-            $cnt = count($cids);
-            if ($cnt >= 2 && $cnt <= 8) { // Filtro defensivo: descarta teléfonos genéricos o de vendedor
-                for ($i = 0; $i < $cnt; $i++) {
-                    for ($j = $i + 1; $j < $cnt; $j++) {
-                        $p1 = $puntosMap[$cids[$i]];
-                        $p2 = $puntosMap[$cids[$j]];
-                        $mismoNombre = ($p1['cliente_norm'] !== '' && $p1['cliente_norm'] === $p2['cliente_norm']);
-                        $mismaFactura = ($p1['_factura_norm'] !== '' && $p1['_factura_norm'] === $p2['_factura_norm']);
-                        $minD = $calcularMinDistancia([$cids[$i], $cids[$j]]);
-                        $esCerca = ($minD <= $radioMetros);
-
-                        if ($mismoNombre || $mismaFactura || $esCerca) {
-                            $crits = ['Teléfono' => (string) $telVal];
-                            if ($mismoNombre) $crits['Nombre'] = $p1['cliente'];
-                            if ($mismaFactura) $crits['Factura'] = !empty($p1['nombre_factura']) ? $p1['nombre_factura'] : $p1['_factura_norm'];
-                            $registrarGrupo([$cids[$i], $cids[$j]], $crits);
+        // A.2) Cruce de NIT con sufijo de sucursal Bolivia (ej: CI 4567890 vs NIT 4567890012)
+        foreach ($puntos as $p1) {
+            $nit = $p1['_nit_clean'];
+            if (strlen($nit) >= 9) {
+                $baseCi = substr($nit, 0, strlen($nit) - 3);
+                if (strlen($baseCi) >= 6 && isset($indexDoc[$baseCi])) {
+                    $cidsMatch = array_values(array_unique(array_column($indexDoc[$baseCi], 'cid')));
+                    foreach ($cidsMatch as $cid2) {
+                        if ($p1['cliente_id'] !== $cid2) {
+                            $registrarGrupo([$p1['cliente_id'], $cid2], [
+                                'Documento (NIT/CI)' => "NIT {$nit} ~ CI {$baseCi}"
+                            ]);
                         }
                     }
                 }
             }
         }
 
-        // D) Grupos Atómicos por Misma Ubicación Física (Colisión Espacial Pura)
+        // B) Grupos por Nombre Comercial Idéntico (Exacto o Núcleo Idéntico)
+        foreach ($indexNombre as $nomVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            if (count($cids) >= 2 && count($cids) <= 20) {
+                $p0 = $puntosMap[$cids[0]];
+                $registrarGrupo($cids, ['Nombre' => $p0['cliente']]);
+            }
+        }
+
+        foreach ($indexNucleo as $nucVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            if (count($cids) >= 2 && count($cids) <= 20 && mb_strlen($nucVal) >= 4) {
+                $p0 = $puntosMap[$cids[0]];
+                $todosMismoNom = array_reduce($cids, fn($acc, $id) => $acc && ($puntosMap[$id]['cliente_norm'] === $p0['cliente_norm']), true);
+                if (!$todosMismoNom) {
+                    $registrarGrupo($cids, ['Nombre Similar' => strtoupper($nucVal)]);
+                }
+            }
+        }
+
+        // C) Grupos por Razón Social / Factura Idéntica
+        foreach ($indexFactura as $factVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            if (count($cids) >= 2 && count($cids) <= 20 && mb_strlen($factVal) >= 5) {
+                $p0 = $puntosMap[$cids[0]];
+                $nombreFact = $p0['nombre_factura'] ?: $factVal;
+                $registrarGrupo($cids, ['Factura' => $nombreFact]);
+            }
+        }
+
+        // D) Cruce Nombre Comercial vs Razón Social (Factura)
+        foreach ($puntos as $p1) {
+            $cid1 = $p1['cliente_id'];
+            $nuc1 = $p1['nucleo'];
+            if ($nuc1 !== '' && mb_strlen($nuc1) >= 5 && isset($indexFactura[$nuc1])) {
+                foreach ($indexFactura[$nuc1] as $cid2) {
+                    if ($cid1 < $cid2) {
+                        $p2 = $puntosMap[$cid2];
+                        $registrarGrupo([$cid1, $cid2], [
+                            'Nombre / Factura' => "{$p1['cliente']} ~ Factura: {$p2['nombre_factura']}"
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // E) Nombres Similares Inteligentes (Inverted Index de Tokens con Fuzzy Matching)
+        $paresSimilares = [];
+        foreach ($indexTokens as $token => $cids) {
+            $cids = array_values(array_unique($cids));
+            $cnt = count($cids);
+            if ($cnt < 2 || $cnt > 35) {
+                continue;
+            }
+            for ($i = 0; $i < $cnt; $i++) {
+                for ($j = $i + 1; $j < $cnt; $j++) {
+                    $idA = min($cids[$i], $cids[$j]);
+                    $idB = max($cids[$i], $cids[$j]);
+                    $pairKey = "{$idA}_{$idB}";
+                    if (isset($paresSimilares[$pairKey])) {
+                        continue;
+                    }
+                    $paresSimilares[$pairKey] = true;
+
+                    $pA = $puntosMap[$idA];
+                    $pB = $puntosMap[$idB];
+                    $nucA = $pA['nucleo'];
+                    $nucB = $pB['nucleo'];
+                    if ($nucA === '' || $nucB === '' || $nucA === $nucB) {
+                        continue;
+                    }
+
+                    $toksA = $pA['tokens'];
+                    $toksB = $pB['tokens'];
+                    $inter = array_intersect($toksA, $toksB);
+                    $cantInter = count($inter);
+
+                    $esSimilar = false;
+                    $descSimilar = '';
+
+                    // Caso 1: Comparten 2 o más tokens significativos
+                    if ($cantInter >= 2) {
+                        $esSimilar = true;
+                        $descSimilar = strtoupper(implode(' ', $inter));
+                    }
+                    // Caso 2: Un nombre de 1 palabra distintiva (>= 6 letras) coincide exactamente
+                    elseif ($cantInter === 1 && (count($toksA) === 1 || count($toksB) === 1)) {
+                        $tokCommon = reset($inter);
+                        if (mb_strlen($tokCommon) >= 6) {
+                            $esSimilar = true;
+                            $descSimilar = strtoupper($tokCommon);
+                        }
+                    }
+                    // Caso 3: Similitud difusa de caracteres (similar_text >= 85% o Levenshtein <= 2)
+                    if (!$esSimilar) {
+                        similar_text($nucA, $nucB, $simPct);
+                        $lenMin = min(mb_strlen($nucA), mb_strlen($nucB));
+                        $lev = ($lenMin >= 6 && abs(mb_strlen($nucA) - mb_strlen($nucB)) <= 2)
+                            ? levenshtein(substr($nucA, 0, 255), substr($nucB, 0, 255))
+                            : 99;
+
+                        if ($simPct >= 85.0 || ($lev <= 2 && $lenMin >= 7)) {
+                            $esSimilar = true;
+                            $descSimilar = "Similitud " . round($simPct, 0) . "%: " . strtoupper($pA['cliente']) . " ~ " . strtoupper($pB['cliente']);
+                        }
+                    }
+
+                    if ($esSimilar) {
+                        $registrarGrupo([$idA, $idB], ['Nombre Similar' => $descSimilar]);
+                    }
+                }
+            }
+        }
+
+        // F) Grupos Atómicos por Teléfono + Coincidencia de Nombre/Factura/Ubicación
+        foreach ($indexTel as $telVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            $cnt = count($cids);
+            if ($cnt >= 2 && $cnt <= 8) {
+                for ($i = 0; $i < $cnt; $i++) {
+                    for ($j = $i + 1; $j < $cnt; $j++) {
+                        $idA = min($cids[$i], $cids[$j]);
+                        $idB = max($cids[$i], $cids[$j]);
+                        $p1 = $puntosMap[$idA];
+                        $p2 = $puntosMap[$idB];
+
+                        $mismoNombre = ($p1['cliente_norm'] !== '' && $p1['cliente_norm'] === $p2['cliente_norm']);
+                        $mismoNucleo = ($p1['nucleo'] !== '' && $p1['nucleo'] === $p2['nucleo']);
+                        $mismaFactura = ($p1['_factura_norm'] !== '' && $p1['_factura_norm'] === $p2['_factura_norm']);
+                        $minD = $calcularMinDistancia([$idA, $idB]);
+                        $esCerca = ($minD <= $radioMetros);
+
+                        similar_text($p1['nucleo'], $p2['nucleo'], $simNuc);
+
+                        if ($mismoNombre || $mismoNucleo || $mismaFactura || $esCerca || $simNuc >= 70.0) {
+                            $crits = ['Teléfono' => (string) $telVal];
+                            if ($mismoNombre) {
+                                $crits['Nombre'] = $p1['cliente'];
+                            } elseif ($mismoNucleo || $simNuc >= 70.0) {
+                                $crits['Nombre Similar'] = strtoupper($p1['nucleo'] ?: $p1['cliente']);
+                            }
+                            if ($mismaFactura) {
+                                $crits['Factura'] = $p1['nombre_factura'] ?: $p1['_factura_norm'];
+                            }
+                            $registrarGrupo([$idA, $idB], $crits);
+                        }
+                    }
+                }
+            }
+        }
+
+        // G) Grupos Atómicos por Misma Ubicación Física (Colisión Espacial)
         $visitadosProx = [];
         foreach (array_keys($adjProx) as $cid) {
             if (!isset($visitadosProx[$cid]) && !empty($adjProx[$cid])) {
@@ -344,12 +514,28 @@ class AuditarDuplicadosAction
                     $minD = $calcularMinDistancia($clusterIds);
                     $crits = ['Ubicación' => round($minD, 1) . ' m'];
                     
-                    // Verificar si comparten nombre comercial idéntico
+                    // En colisión espacial, comprobar si además tienen nombres idénticos o similares
                     $p0 = $puntosMap[$clusterIds[0]];
                     $nomC = $p0['cliente_norm'];
                     $todosMismoNombre = ($nomC !== '') && array_reduce($clusterIds, fn($acc, $id) => $acc && ($puntosMap[$id]['cliente_norm'] === $nomC), true);
                     if ($todosMismoNombre) {
                         $crits['Nombre'] = $p0['cliente'];
+                    } else {
+                        // Buscar si al menos dos clientes en la misma ubicación tienen nombres parecidos
+                        for ($ci = 0; $ci < count($clusterIds); $ci++) {
+                            for ($cj = $ci + 1; $cj < count($clusterIds); $cj++) {
+                                $pA = $puntosMap[$clusterIds[$ci]];
+                                $pB = $puntosMap[$clusterIds[$cj]];
+                                if ($pA['nucleo'] !== '' && $pB['nucleo'] !== '') {
+                                    similar_text($pA['nucleo'], $pB['nucleo'], $simSpa);
+                                    $tokInter = array_intersect($pA['tokens'], $pB['tokens']);
+                                    if ($simSpa >= 65.0 || count($tokInter) >= 1) {
+                                        $crits['Nombre Similar'] = strtoupper($pA['cliente']) . ' ~ ' . strtoupper($pB['cliente']);
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
                     }
                     $registrarGrupo($clusterIds, $crits);
                 }
@@ -368,9 +554,8 @@ class AuditarDuplicadosAction
                     continue;
                 }
 
-                // Regla de Oro: En un grupo de duplicados, cada campo de datos debe tener un único valor idéntico
                 $valoresUnicos = array_keys($valsMap);
-                if (count($valoresUnicos) === 1) {
+                if (count($valoresUnicos) === 1 || in_array($campo, ['Nombre Similar', 'Documento (NIT/CI)', 'Nombre / Factura'], true)) {
                     $criteriosFiltrados[$campo] = $valsMap;
                 }
             }
@@ -566,17 +751,20 @@ class AuditarDuplicadosAction
                 'Ubicación' => 1,
                 'NIT' => 2,
                 'CI' => 3,
-                'Teléfono' => 4,
-                'Nombre' => 5,
-                'Factura' => 6,
+                'Documento (NIT/CI)' => 4,
+                'Teléfono' => 5,
+                'Nombre' => 6,
+                'Nombre Similar' => 7,
+                'Factura' => 8,
+                'Nombre / Factura' => 9,
             ];
 
             $criteriosFinales = [];
             foreach ($cl['criterios_raw'] as $campo => $valsMap) {
                 $vals = array_keys($valsMap);
                 sort($vals);
-                // En un criterio de duplicidad por datos, un valor solo es idéntico si es único en el grupo
-                if ($campo !== 'Ubicación' && count($vals) > 1) {
+                // En un criterio de duplicidad por datos, un valor solo es idéntico si es único en el grupo, salvo criterios multievaluados controlados
+                if ($campo !== 'Ubicación' && !in_array($campo, ['Nombre Similar', 'Documento (NIT/CI)', 'Nombre / Factura'], true) && count($vals) > 1) {
                     continue;
                 }
                 $criteriosFinales[] = [
@@ -685,16 +873,59 @@ class AuditarDuplicadosAction
         ];
     }
 
+    protected static array $stopWords = [
+        'tienda', 'tiendita', 'almacen', 'almacenes', 'micromercado', 'minimarket', 'supermercado',
+        'kiosko', 'quiosco', 'comercial', 'bazar', 'variedades', 'pension', 'snack',
+        'restaurante', 'comedor', 'cafeteria', 'libreria', 'farmacia', 'ferreteria',
+        'panaderia', 'pasteleria', 'licoreria', 'distribuidora', 'agencia', 'sucursal',
+        'abarrotes', 'fruteria', 'verduderia', 'carniceria', 'pollo', 'pollos',
+        'puesto', 'caseta', 'venta', 'ventas', 'cliente', 'sin nombre', 'sn', 's n', 's/n',
+        'sn nombre', 'dona', 'dono', 'don', 'doña', 'sr', 'sra', 'de', 'del', 'la', 'las',
+        'el', 'los', 'y', 'en', 'para', 'san', 'santa', 'un', 'una', 'mi', 'tu', 'srl',
+        'ltda', 'sa', 'sociedad', 'anonima', 'responsabilidad', 'limitada', 'hnos', 'hermanos',
+    ];
+
+    protected function extraerTokensSignificativos(string $texto): array
+    {
+        $norm = $this->normalizarTexto($texto);
+        if ($norm === '') {
+            return [];
+        }
+        $palabras = explode(' ', $norm);
+        $stopMap = array_fill_keys(self::$stopWords, true);
+        $tokens = [];
+        foreach ($palabras as $p) {
+            $p = trim($p);
+            if (mb_strlen($p) >= 3 && !isset($stopMap[$p]) && !is_numeric($p)) {
+                $tokens[] = $p;
+            }
+        }
+        return array_values(array_unique($tokens));
+    }
+
+    protected function obtenerNucleoOrdenado(string $texto): string
+    {
+        $tokens = $this->extraerTokensSignificativos($texto);
+        if (empty($tokens)) {
+            $norm = $this->normalizarTexto($texto);
+            return mb_strlen($norm) >= 4 ? $norm : '';
+        }
+        sort($tokens);
+        return implode(' ', $tokens);
+    }
+
     protected function normalizarTelefono(?string $t): string
     {
         if (empty($t)) {
             return '';
         }
         $digitos = preg_replace('/\D/', '', (string) $t);
-        if (strlen($digitos) >= 8) {
-            $sub = substr($digitos, -8);
-            if (!in_array($sub, ['00000000', '11111111', '12345678', '77777777'], true)) {
-                return $sub;
+        if (strlen($digitos) >= 7) {
+            $sub = strlen($digitos) >= 8 ? substr($digitos, -8) : $digitos;
+            if (!in_array($sub, ['0000000', '00000000', '1111111', '11111111', '1234567', '12345678', '7777777', '77777777'], true)) {
+                if (!preg_match('/^(\d)\1+$/', $sub)) {
+                    return $sub;
+                }
             }
         }
         return '';

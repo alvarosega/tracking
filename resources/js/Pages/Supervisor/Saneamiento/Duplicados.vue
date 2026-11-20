@@ -890,6 +890,13 @@
                         >
                           Nombre Idéntico
                         </span>
+                        <span
+                          v-else-if="nombreSimilarEnGrupo()"
+                          class="shrink-0 px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9px] font-bold font-mono"
+                          title="Nombre comercial similar detectado en este grupo"
+                        >
+                          Nombre Similar
+                        </span>
                       </div>
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin dirección registrada' }}</p>
                     </div>
@@ -984,6 +991,13 @@
                         >
                           IDÉNTICO
                         </span>
+                        <span
+                          v-else-if="cli.nit && documentoCoincideEnGrupo(cli.nit, cli.cliente_id)"
+                          class="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 font-bold text-[9px] shrink-0"
+                          title="Coincide con CI o NIT de otro cliente en este grupo"
+                        >
+                          COINCIDENTE
+                        </span>
                       </div>
                       <div class="flex items-center justify-between truncate">
                         <div class="truncate">
@@ -995,6 +1009,13 @@
                           class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold text-[9px] shrink-0"
                         >
                           IDÉNTICO
+                        </span>
+                        <span
+                          v-else-if="cli.ci && documentoCoincideEnGrupo(cli.ci, cli.cliente_id)"
+                          class="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 font-bold text-[9px] shrink-0"
+                          title="Coincide con NIT o CI de otro cliente en este grupo"
+                        >
+                          COINCIDENTE
                         </span>
                       </div>
                       <div class="flex items-center justify-between truncate">
@@ -1962,7 +1983,6 @@ function obtenerCoincidenciasLegibles(grupo) {
       }
 
       if (campoNorm === 'nit') {
-        if (valores.length > 1) continue
         res.push({
           campo: 'NIT',
           titulo: 'NIT Idéntico',
@@ -1970,15 +1990,20 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'ci') {
-        if (valores.length > 1) continue
         res.push({
           campo: 'CI',
           titulo: 'CI Idéntico',
           valor: valorStr,
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
+      } else if (campoNorm.includes('doc') || campoNorm.includes('nit/ci')) {
+        res.push({
+          campo: 'Documento (NIT/CI)',
+          titulo: 'Doc. Identidad Coincidente',
+          valor: valorStr,
+          clase: 'bg-indigo-50 text-indigo-900 border-indigo-200 font-mono',
+        })
       } else if (campoNorm.includes('tel') || campoNorm.includes('cel')) {
-        if (valores.length > 1) continue
         res.push({
           campo: 'Teléfono',
           titulo: 'Tel/Cel Idéntico',
@@ -1986,25 +2011,37 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'nombre') {
-        if (valores.length > 1) continue
         res.push({
           campo: 'Nombre',
           titulo: 'Nombre Comercial Idéntico',
           valor: `"${valorStr}"`,
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
+      } else if (campoNorm.includes('similar')) {
+        res.push({
+          campo: 'Nombre Similar',
+          titulo: 'Nombre Similar',
+          valor: valorStr,
+          clase: 'bg-amber-50 text-amber-900 border-amber-200 font-mono',
+        })
       } else if (campoNorm === 'factura') {
-        if (valores.length > 1) continue
         res.push({
           campo: 'Factura',
           titulo: 'Razón Social Idéntica',
           valor: `"${valorStr}"`,
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
+      } else if (campoNorm.includes('factura') && campoNorm.includes('nombre')) {
+        res.push({
+          campo: 'Nombre / Factura',
+          titulo: 'Nombre vs Razón Social',
+          valor: valorStr,
+          clase: 'bg-emerald-50 text-emerald-900 border-emerald-200 font-mono',
+        })
       } else {
         res.push({
           campo: campo,
-          titulo: `${campo} Idéntico`,
+          titulo: campo.includes('Similar') ? campo : `${campo} Coincidente`,
           valor: valorStr,
           clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
@@ -2035,6 +2072,19 @@ function campoEsIdenticoEnGrupo(campo) {
   return clientes.every(c => (c[campo] ?? '').toString().trim().toUpperCase() === val0)
 }
 
+function documentoCoincideEnGrupo(docVal, clienteIdActual) {
+  if (!docVal || !grupoActivo.value || !grupoActivo.value.clientes) return false
+  const docClean = String(docVal).replace(/\D/g, '')
+  if (docClean.length < 5) return false
+  return grupoActivo.value.clientes.some(c => {
+    if (c.cliente_id === clienteIdActual) return false
+    const nitOther = String(c.nit || '').replace(/\D/g, '')
+    const ciOther = String(c.ci || '').replace(/\D/g, '')
+    return (nitOther && (nitOther === docClean || nitOther.startsWith(docClean))) ||
+           (ciOther && (ciOther === docClean || docClean.startsWith(ciOther)))
+  })
+}
+
 function telefonoEsIdenticoEnGrupo() {
   if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
   const grupo = grupoActivo.value
@@ -2049,6 +2099,16 @@ function nombreEsIdenticoEnGrupo() {
   if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
   const grupo = grupoActivo.value
   const crit = grupo.criterios?.find(cr => (cr.campo || '').toLowerCase() === 'nombre')
+  return !!crit
+}
+
+function nombreSimilarEnGrupo() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const grupo = grupoActivo.value
+  const crit = grupo.criterios?.find(cr => {
+    const cNorm = (cr.campo || '').toLowerCase()
+    return cNorm.includes('similar') || (cNorm.includes('nombre') && cNorm !== 'nombre')
+  })
   return !!crit
 }
 
