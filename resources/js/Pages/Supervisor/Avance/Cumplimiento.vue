@@ -482,18 +482,6 @@
                   >
                     Venta Repetición
                   </th>
-                  <th
-                    @click="toggleSortKpi('cuota_dia')"
-                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  >
-                    Cuota Diaria
-                  </th>
-                  <th
-                    @click="toggleSortKpi('proyeccion_cierre')"
-                    class="sticky top-0 z-30 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none"
-                  >
-                    Proyección
-                  </th>
                 </template>
               </tr>
             </thead>
@@ -558,8 +546,7 @@
                     <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
                     <td
                       class="py-2 px-3 text-right font-bold text-[12px]"
-                      :class="colorPct(r.pct_proyeccion ?? r.pct)"
-                      :title="r.pct_proyeccion !== undefined ? `Proyección al cierre: ${formatPct(r.pct_proyeccion)}` : undefined"
+                      :class="colorPct(r.pct)"
                     >
                       {{ formatPct(r.pct) }}
                     </td>
@@ -580,17 +567,12 @@
                         <span v-else>0 cli (0%)</span>
                       </div>
                     </td>
-                    <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.cuota_dia ?? r.cuota_diaria_req) }}</td>
-                    <td class="py-2 px-3 text-right">
-                      <div class="font-bold text-[#1D1D1F]">{{ formatValorKpi(r.proyeccion_cierre) }}</div>
-                      <div class="text-[9px]" :class="colorPct(r.pct_proyeccion)">{{ formatPct(r.pct_proyeccion) }}</div>
-                    </td>
                   </template>
                 </tr>
 
                 <!-- FILA EXPANDIBLE: Desglose directo de la Ruta (Venta por Día vs Por Clientes) -->
                 <tr v-if="isItemExpandido(r)" class="bg-black/[0.02]">
-                  <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 10 : 8)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                  <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 8 : 6)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -1816,8 +1798,7 @@
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
                   <td
                     class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
-                    :class="colorPct(totalesKpi.pct_proyeccion ?? totalesKpi.pct)"
-                    :title="totalesKpi.pct_proyeccion !== undefined ? `Proyección consolidada: ${formatPct(totalesKpi.pct_proyeccion)}` : undefined"
+                    :class="colorPct(totalesKpi.pct)"
                   >
                     {{ formatPct(totalesKpi.pct) }}
                   </td>
@@ -1830,8 +1811,6 @@
                     <div class="text-[#0071E3]">Bs {{ formatNum(totalesKpi.venta_repeticion, 1) }}</div>
                     <div class="text-[9px] text-[#6E6E73] font-sans font-normal">{{ formatPct(totalesKpi.pct_repeticion) }}</div>
                   </td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.cuota_dia) }}</td>
-                  <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.proyeccion_cierre) }}</td>
                 </template>
               </tr>
             </tfoot>
