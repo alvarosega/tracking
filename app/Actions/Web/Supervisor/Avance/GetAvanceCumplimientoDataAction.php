@@ -517,7 +517,7 @@ class GetAvanceCumplimientoDataAction
                 $resumenRuta = $detRuta['resumen'] ?? [];
 
                 $sugeridoRutasMap[$r] = (float) ($totales3m['total_sugerido'] ?? ($resumenRuta['total_sugerido_ruta'] ?? 0.0));
-                $ventaMtdRutasMap[$r] = (float) ($resumenRuta['venta_total_bs'] ?? ($acumVol[$r]['vol_general'] ?? 0.0));
+                $ventaMtdRutasMap[$r] = (float) ($resumenRuta['venta_total_bs'] ?? 0.0);
 
                 if (!empty($mesesCerrados)) {
                     $histRutasMap[$r][$mesesCerrados[0]['ym']] = (float) ($totales3m['mes_1'] ?? 0.0);
@@ -583,6 +583,7 @@ class GetAvanceCumplimientoDataAction
             $total3mBs = 0.0;
             $objetivoMesRuta = 0.0;
             $sugeridoRuta = 0.0;
+            $pctAvanceCobCore = 0.0;
             if ($clave === 'cob_core') {
                 foreach ($mesesCerrados as $mObj) {
                     $ym = $mObj['ym'];
@@ -596,7 +597,10 @@ class GetAvanceCumplimientoDataAction
                 $objetivoMesRuta = $this->obtenerMetaMesRuta($ruta, $carbonCorte->format('Y-m'));
                 $sugeridoRuta = round($sugeridoRutasMap[$ruta] ?? 0.0, 2);
                 $meta = $objetivoMesRuta;
-                $brecha = round(max(0.0, $objetivoMesRuta - (float) ($acumVol[$ruta]['vol_general'] ?? 0.0)), 2);
+                $ventaMtdRuta = (float) ($ventaMtdRutasMap[$ruta] ?? 0.0);
+                $brecha = round(max(0.0, $objetivoMesRuta - $ventaMtdRuta), 2);
+                $baseCobCore = $objetivoMesRuta > 0 ? $objetivoMesRuta : $sugeridoRuta;
+                $pctAvanceCobCore = $baseCobCore > 0 ? round(($ventaMtdRuta / $baseCobCore) * 100.0, 1) : 0.0;
             }
 
             // Desglose de Esfuerzo Útil: Venta de Apertura vs Venta de Repetición (Coberturas)
@@ -696,6 +700,7 @@ class GetAvanceCumplimientoDataAction
                 'total_sugerido' => $sugeridoRuta,
                 'objetivo_mes' => $objetivoMesRuta,
                 'venta_mtd' => $clave === 'cob_core' ? ($ventaMtdRutasMap[$ruta] ?? 0.0) : round($acumVol[$ruta]['vol_general'] ?? 0.0, 2),
+                'pct_avance_cob_core' => $pctAvanceCobCore,
                 'sin_meta' => false,
             ];
         }
@@ -729,6 +734,9 @@ class GetAvanceCumplimientoDataAction
         $totObjetivoMes = array_sum(array_column($filas, 'objetivo_mes'));
         $totVentaMtd = array_sum(array_column($filas, 'venta_mtd'));
 
+        $totBaseCobCore = $totObjetivoMes > 0 ? $totObjetivoMes : $totSugerido;
+        $totPctCobCore = $totBaseCobCore > 0 ? round(($totVentaMtd / $totBaseCobCore) * 100.0, 1) : 0.0;
+
         $totales = [
             'meta' => round($totMeta, 2),
             'logrado' => round($totLogrado, 2),
@@ -754,6 +762,7 @@ class GetAvanceCumplimientoDataAction
             'total_sugerido' => round($totSugerido, 2),
             'objetivo_mes' => round($totObjetivoMes, 2),
             'venta_mtd' => round($totVentaMtd, 2),
+            'pct_avance_cob_core' => $totPctCobCore,
         ];
 
         // Consolidación de métricas reales agrupadas por vendedor

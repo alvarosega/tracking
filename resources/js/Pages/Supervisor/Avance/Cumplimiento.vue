@@ -433,9 +433,17 @@
                     @click="toggleSortKpi('venta_mtd')"
                     class="sticky top-0 z-30 bg-emerald-50/50 text-emerald-900 py-2.5 px-3 border-b border-emerald-100 text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-emerald-100/50 transition-colors select-none"
                     :class="sortKpiCol === 'venta_mtd' ? 'bg-emerald-100' : ''"
-                    title="Venta acumulada del mes en curso de los clientes de la ruta"
+                    title="Venta acumulada del mes en curso de los clientes de la ruta (estricta de hábito y objetivo)"
                   >
                     Venta MTD
+                  </th>
+                  <th
+                    @click="toggleSortKpi('pct_avance_cob_core')"
+                    class="sticky top-0 z-30 bg-emerald-50/70 text-emerald-950 py-2.5 px-3 border-b border-emerald-100 text-right font-mono shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-emerald-100/70 transition-colors select-none"
+                    :class="sortKpiCol === 'pct_avance_cob_core' ? 'bg-emerald-100' : ''"
+                    title="Porcentaje de avance sobre objetivo mensual (o sugerido)"
+                  >
+                    % Avance
                   </th>
                 </template>
                 <template v-else>
@@ -540,6 +548,12 @@
                     <td class="py-2 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/10">
                       Bs {{ formatNum(r.venta_mtd ?? r.logrado, 2) }}
                     </td>
+                    <td
+                      class="py-2 px-3 text-right font-mono font-bold text-[12px] bg-emerald-50/20"
+                      :class="colorPct(r.pct_avance_cob_core)"
+                    >
+                      {{ formatPct(r.pct_avance_cob_core) }}
+                    </td>
                   </template>
                   <template v-else>
                     <td class="py-2 px-3 text-right font-medium text-[#1D1D1F]">{{ formatValorKpi(r.meta) }}</td>
@@ -572,7 +586,7 @@
 
                 <!-- FILA EXPANDIBLE: Desglose directo de la Ruta (Venta por Día vs Por Clientes) -->
                 <tr v-if="isItemExpandido(r)" class="bg-black/[0.02]">
-                  <td :colspan="modoActivo === 'cob_core' ? 6 : (esCobertura ? 8 : 6)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
+                  <td :colspan="modoActivo === 'cob_core' ? 7 : (esCobertura ? 8 : 6)" class="p-3.5 border-y border-black/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-sans">
                     <div class="bg-white/95 backdrop-blur-xl rounded-[12px] border border-black/[0.08] p-3 shadow-md space-y-2.5">
                       <!-- Cabecera del Desglose de Ruta con Switch Principal -->
                       <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/[0.06]">
@@ -606,7 +620,8 @@
                                 <strong class="text-blue-600 font-bold">{{ clientesConHistorico.length }} con histórico 3M</strong> ·
                                 <strong class="text-emerald-600 font-bold">{{ clientesConCompra.length }} compradores MTD</strong> ·
                                 Acumulado 3M: <strong class="text-[#0071E3] font-bold">Bs {{ formatNum(totales3mRuta.total_3m, 2) }}</strong> ·
-                                Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes, 2) }}</strong>
+                                Objetivo Mes: <strong class="text-purple-700 font-bold">Bs {{ formatNum(totales3mRuta.objetivo_mes, 2) }}</strong> ·
+                                Venta MTD: <strong class="text-emerald-700 font-bold">Bs {{ formatNum(totalVentaCartera, 2) }}</strong>
                               </template>
                               <template v-else-if="esCobertura">
                                 {{ carteraClientes.length }} clientes en cartera · 
@@ -1792,6 +1807,12 @@
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-purple-50/70 text-purple-900 font-bold">Bs {{ formatNum(totalesKpi?.total_sugerido, 2) }}</td>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-purple-50/50 text-[#6B21A8] font-bold">Bs {{ formatNum(totalesKpi?.objetivo_mes, 2) }}</td>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-emerald-50/50 text-emerald-700 font-bold">Bs {{ formatNum(totalesKpi?.venta_mtd ?? totalesKpi?.logrado, 2) }}</td>
+                  <td
+                    class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-emerald-50/70 font-mono font-bold text-[12px]"
+                    :class="colorPct(totalesKpi?.pct_avance_cob_core)"
+                  >
+                    {{ formatPct(totalesKpi?.pct_avance_cob_core) }}
+                  </td>
                 </template>
                 <template v-else>
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.meta) }}</td>
@@ -2331,6 +2352,7 @@ const sortLabelsKpi = computed(() => {
     total_sugerido: 'Compra Sugerida',
     objetivo_mes: 'Objetivo',
     venta_mtd: 'Venta MTD',
+    pct_avance_cob_core: '% Avance',
     score_promedio: 'Score Promedio',
     dias_evaluados: 'Días Evaluados',
     dias_aprobados: 'Días Aprobados',
