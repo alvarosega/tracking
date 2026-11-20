@@ -55,14 +55,6 @@ export const navigationConfig = {
           icon: 'UsersIcon'
         },
         {
-          id: 'calidad',
-          module: 'saneamiento',
-          name: 'Calidad de Datos',
-          route: 'supervisor.saneamiento.calidad',
-          component: 'Supervisor/Saneamiento/Calidad',
-          icon: 'CheckBadgeIcon'
-        },
-        {
           id: 'bd',
           module: 'saneamiento',
           name: 'Matriz Saneamiento BD',
@@ -507,7 +499,6 @@ export const saneamientoSubTabs = [
   { id: 'visor', module: 'saneamiento', name: 'Visor y Fronteras', route: 'supervisor.saneamiento.visor' },
   { id: 'cercanos', module: 'saneamiento', name: 'Clientes Cercanos', route: 'supervisor.saneamiento.cercanos' },
   { id: 'duplicados', module: 'saneamiento', name: 'Clientes Duplicados', route: 'supervisor.saneamiento.duplicados' },
-  { id: 'calidad', module: 'saneamiento', name: 'Calidad de Datos', route: 'supervisor.saneamiento.calidad' },
   { id: 'bd', module: 'saneamiento', name: 'Matriz Saneamiento BD', route: 'supervisor.saneamiento.bd' },
   { id: 'pendientes', module: 'auditoria', name: 'Cambios Pendientes', route: 'supervisor.auditoria.pendientes' },
   { id: 'clientes', module: 'auditoria', name: 'Matriz de Cambios', route: 'supervisor.auditoria.clientes' },

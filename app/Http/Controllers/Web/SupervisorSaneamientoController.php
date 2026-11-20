@@ -406,16 +406,11 @@ class SupervisorSaneamientoController extends Controller
     }
 
     /**
-     * Vista 4: Auditoría de Calidad de Datos del Padrón.
+     * Vista 4: Auditoría de Calidad de Datos del Padrón (Redirigido a Matriz Saneamiento BD).
      */
-    public function calidad(GetSaneamientoCatalogoAction $catalogoAction): Response
+    public function calidad(): \Illuminate\Http\RedirectResponse
     {
-        $catalogo = $catalogoAction->execute();
-
-        return Inertia::render('Supervisor/Saneamiento/Calidad', [
-            'catalogo' => $catalogo,
-            'submoduloActivo' => 'calidad',
-        ]);
+        return redirect()->route('supervisor.saneamiento.bd');
     }
 
     /**
@@ -749,13 +744,7 @@ class SupervisorSaneamientoController extends Controller
         ]);
     }
 
-    // ── API: Calidad y Matriz BD ───────────────────────────────────────────────
-
-    public function auditarCalidad(Request $request, AuditarCalidadAction $action): JsonResponse
-    {
-        $rutas = (array) $request->input('rutas', []);
-        return response()->json($action->execute($rutas));
-    }
+    // ── API: Matriz BD ────────────────────────────────────────────────────────
 
     public function matrizBd(Request $request, AuditarSaneamientoBdAction $action): JsonResponse
     {

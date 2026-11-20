@@ -43,7 +43,6 @@ class ModuleCatalogService
                     ['id' => 'intrusos', 'module_key' => 'saneamiento', 'name' => 'Fronteras & Intrusos', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'duplicados', 'module_key' => 'saneamiento', 'name' => 'Clientes Duplicados', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'dias', 'module_key' => 'saneamiento', 'name' => 'Días Desalineados', 'group' => 'Saneamiento Padrón'],
-                    ['id' => 'calidad', 'module_key' => 'saneamiento', 'name' => 'Calidad de Datos', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'bd', 'module_key' => 'saneamiento', 'name' => 'Matriz Saneamiento BD', 'group' => 'Saneamiento Padrón'],
                     ['id' => 'propuestas', 'module_key' => 'saneamiento', 'name' => 'Historial de Propuestas', 'group' => 'Saneamiento Padrón'],
                 ],

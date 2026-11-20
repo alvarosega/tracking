@@ -408,7 +408,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('saneamiento')->name('saneamiento.')->middleware('module.access:saneamiento')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['visor', 'cercanos', 'duplicados', 'dias', 'calidad', 'bd', 'propuestas', 'intrusos'];
+            $submodules = ['visor', 'cercanos', 'duplicados', 'dias', 'bd', 'propuestas', 'intrusos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('saneamiento', $sub)) {
                     return redirect()->route("supervisor.saneamiento.{$sub}");
@@ -471,11 +471,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/dias-desalineados/guardar-frontera', [SupervisorSaneamientoController::class, 'guardarFronteraDia'])->name('dias.guardar-frontera');
         });
 
-        // Calidad de Datos
-        Route::middleware('module.access:saneamiento,calidad')->group(function () {
-            Route::get('/calidad', [SupervisorSaneamientoController::class, 'calidad'])->name('calidad');
-            Route::post('/calidad/auditar', [SupervisorSaneamientoController::class, 'auditarCalidad'])->name('calidad.auditar');
-        });
+        // Redirección de Calidad de Datos a Matriz Saneamiento BD
+        Route::redirect('/calidad', '/supervisor/saneamiento/bd')->name('calidad');
 
         // Matriz BD
         Route::middleware('module.access:saneamiento,bd')->group(function () {
