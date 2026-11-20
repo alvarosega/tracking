@@ -288,9 +288,12 @@
                 v-if="busquedaTexto"
                 type="button"
                 @click="busquedaTexto = ''"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+                title="Limpiar búsqueda"
               >
-                ✕
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -327,10 +330,12 @@
               v-if="busquedaTexto"
               type="button"
               @click="busquedaTexto = ''"
-              class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs font-bold rounded-full hover:bg-slate-200 cursor-pointer"
+              class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 flex items-center justify-center rounded-full hover:bg-slate-200 cursor-pointer"
               title="Limpiar búsqueda"
             >
-              ✕
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         </div>
@@ -487,7 +492,6 @@
                     :class="coinc.clase"
                   >
                     <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
-                      <span class="text-xs shrink-0">{{ coinc.icono }}</span>
                       <span class="text-[9.5px] uppercase font-bold text-slate-500 shrink-0">{{ coinc.titulo }}:</span>
                       <span class="font-extrabold text-slate-900 break-words select-all">{{ coinc.valor }}</span>
                     </div>
@@ -498,10 +502,11 @@
                 <div class="flex items-center gap-1.5 text-[9.5px] font-mono pt-0.5 flex-wrap">
                   <span
                     v-if="grupo.rutas.length > 1"
-                    class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold"
+                    class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
                     title="Los clientes pertenecen a rutas distintas"
                   >
-                    ⚠️ Inter-Rutas: {{ grupo.rutas.join(' vs ') }}
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <span>Inter-Rutas: {{ grupo.rutas.join(' vs ') }}</span>
                   </span>
                   <span
                     v-else-if="grupo.rutas.length === 1"
@@ -512,7 +517,7 @@
 
                   <span
                     v-if="grupo.canales.length > 1"
-                    class="px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200 font-bold"
+                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-bold"
                     title="Los clientes pertenecen a canales distintos"
                   >
                     Inter-Canal: {{ grupo.canales.join('/') }}
@@ -764,8 +769,7 @@
                       class="px-2.5 py-1 rounded-lg border font-mono text-xs flex items-center gap-1.5 shadow-2xs font-medium"
                       :class="coinc.clase"
                     >
-                      <span class="text-sm">{{ coinc.icono }}</span>
-                      <span class="font-bold opacity-80 text-[10px] uppercase">{{ coinc.titulo }}:</span>
+                      <span class="font-bold opacity-75 text-[10px] uppercase">{{ coinc.titulo }}:</span>
                       <span class="font-extrabold tracking-tight select-all">{{ coinc.valor }}</span>
                     </div>
                   </div>
@@ -776,26 +780,28 @@
                       v-if="sonRutasDistintas()"
                       class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
                     >
-                      ⚠️ Conflicto Inter-Ruta (Rutas Diferentes: {{ grupoActivo.rutas.join(' vs ') }})
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                      <span>Inter-Ruta (Rutas Diferentes: {{ grupoActivo.rutas.join(' vs ') }})</span>
                     </span>
                     <span
                       v-else
-                      class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1"
+                      class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
                     >
-                      ✓ Misma Ruta: {{ grupoActivo.rutas[0] }}
+                      <span>Misma Ruta: {{ grupoActivo.rutas[0] }}</span>
                     </span>
 
                     <span
                       v-if="sonDiasDistintos()"
                       class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
                     >
-                      ⚠️ Días de Visita Distintos
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                      <span>Días de Visita Distintos</span>
                     </span>
                     <span
                       v-else
-                      class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1"
+                      class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
                     >
-                      ✓ Mismo Día de Visita
+                      <span>Mismo Día de Visita</span>
                     </span>
                   </div>
                 </div>
@@ -832,10 +838,10 @@
                             v-if="!cli.es_master_sugerido"
                             type="button"
                             @click="designarComoMaster(cli)"
-                            class="px-2 py-0.5 rounded bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-bold font-mono cursor-pointer transition-colors shadow-2xs"
+                            class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold font-mono cursor-pointer transition-colors shadow-2xs"
                             title="Hacer clic para conservar este cliente en lugar del actual"
                           >
-                            &starf; Fijar como Master
+                            Fijar como Master
                           </button>
                         </div>
 
@@ -861,10 +867,10 @@
                         <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
                         <span
                           v-if="nombreEsIdenticoEnGrupo()"
-                          class="shrink-0 px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[9px] font-bold font-mono"
+                          class="shrink-0 px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[9px] font-bold font-mono"
                           title="Nombre comercial idéntico en este grupo"
                         >
-                          ✓ Nombre Idéntico
+                          Nombre Idéntico
                         </span>
                       </div>
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin dirección registrada' }}</p>
@@ -956,9 +962,9 @@
                         </div>
                         <span
                           v-if="cli.nit && campoEsIdenticoEnGrupo('nit')"
-                          class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[9px] shrink-0"
+                          class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold text-[9px] shrink-0"
                         >
-                          ✓ IDÉNTICO
+                          IDÉNTICO
                         </span>
                       </div>
                       <div class="flex items-center justify-between truncate">
@@ -968,9 +974,9 @@
                         </div>
                         <span
                           v-if="cli.ci && campoEsIdenticoEnGrupo('ci')"
-                          class="px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-900 font-bold text-[9px] shrink-0"
+                          class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold text-[9px] shrink-0"
                         >
-                          ✓ IDÉNTICO
+                          IDÉNTICO
                         </span>
                       </div>
                       <div class="flex items-center justify-between truncate">
@@ -980,9 +986,9 @@
                         </div>
                         <span
                           v-if="telefonoEsIdenticoEnGrupo()"
-                          class="px-1.5 py-0.2 rounded bg-sky-100 text-sky-900 font-bold text-[9px] shrink-0"
+                          class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold text-[9px] shrink-0"
                         >
-                          ✓ IDÉNTICO
+                          IDÉNTICO
                         </span>
                       </div>
                     </div>
@@ -1166,9 +1172,12 @@
               <button
                 type="button"
                 @click="modalConfirmacionVisible = false"
-                class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer font-bold"
+                class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+                title="Cerrar modal"
               >
-                ✕
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -1749,10 +1758,9 @@ function obtenerCoincidenciasLegibles(grupo) {
     const textoDist = d <= 0.5 ? 'Misma coordenada GPS (0 m)' : `Misma ubicación física a ${formatearDistancia(d)}`
     res.push({
       campo: 'Ubicación',
-      icono: '📍',
       titulo: 'Ubicación Física',
       valor: textoDist,
-      clase: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
+      clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
     })
   }
 
@@ -1768,10 +1776,9 @@ function obtenerCoincidenciasLegibles(grupo) {
         if (!res.some(r => r.campo === 'Ubicación')) {
           res.push({
             campo: 'Ubicación',
-            icono: '📍',
             titulo: 'Ubicación Física',
             valor: `Distancia a ${valorStr}`,
-            clase: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
+            clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
           })
         }
         continue
@@ -1781,54 +1788,48 @@ function obtenerCoincidenciasLegibles(grupo) {
         if (valores.length > 1) continue
         res.push({
           campo: 'NIT',
-          icono: '🪪',
           titulo: 'NIT Idéntico',
           valor: valorStr,
-          clase: 'bg-amber-50 text-amber-950 border-amber-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'ci') {
         if (valores.length > 1) continue
         res.push({
           campo: 'CI',
-          icono: '🪪',
           titulo: 'CI Idéntico',
           valor: valorStr,
-          clase: 'bg-indigo-50 text-indigo-950 border-indigo-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm.includes('tel') || campoNorm.includes('cel')) {
         if (valores.length > 1) continue
         res.push({
           campo: 'Teléfono',
-          icono: '📞',
           titulo: 'Tel/Cel Idéntico',
           valor: valorStr,
-          clase: 'bg-sky-50 text-sky-950 border-sky-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'nombre') {
         if (valores.length > 1) continue
         res.push({
           campo: 'Nombre',
-          icono: '👤',
           titulo: 'Nombre Comercial Idéntico',
           valor: `"${valorStr}"`,
-          clase: 'bg-purple-50 text-purple-950 border-purple-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'factura') {
         if (valores.length > 1) continue
         res.push({
           campo: 'Factura',
-          icono: '🧾',
           titulo: 'Razón Social Idéntica',
           valor: `"${valorStr}"`,
-          clase: 'bg-violet-50 text-violet-950 border-violet-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       } else {
         res.push({
           campo: campo,
-          icono: '🔍',
           titulo: `${campo} Idéntico`,
           valor: valorStr,
-          clase: 'bg-slate-100 text-slate-900 border-slate-300 font-bold',
+          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
         })
       }
     }
@@ -1981,7 +1982,7 @@ function enfocarGrupoEnMapa(grupo) {
 
       // Tooltip visible permanente
       marker.bindTooltip(
-        `<span style="font-weight: 700; font-family: monospace; font-size: 10px;">${cli.es_master_sugerido ? '★ MASTER' : 'DUP'} #${cli.cliente_id}</span>`,
+        `<span style="font-weight: 700; font-family: monospace; font-size: 10px;">${cli.es_master_sugerido ? 'MASTER' : 'DUP'} #${cli.cliente_id}</span>`,
         {
           permanent: true,
           direction: 'top',
