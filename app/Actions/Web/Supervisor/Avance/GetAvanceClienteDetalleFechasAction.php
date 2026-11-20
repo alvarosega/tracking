@@ -706,8 +706,8 @@ class GetAvanceClienteDetalleFechasAction
         $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
             ? strtoupper(trim((string) $dimRuta->canal))
             : 'SC';
-        $reglaCob = $this->cumplimientoAction->obtenerUmbralCoberturaCanal($canalRuta);
-        $cumpleUmbral = $this->cumplimientoAction->clienteCumpleCoberturaCanal((float) $totalMontoMesActual, $canalRuta);
+        $reglaCob = $this->cumplimientoAction->obtenerUmbralCoberturaCanal($canalRuta, $rutaClean);
+        $cumpleUmbral = $this->cumplimientoAction->clienteCumpleCoberturaCanal((float) $totalMontoMesActual, $canalRuta, $rutaClean);
 
         return [
             'cliente_id' => $clienteId,

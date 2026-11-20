@@ -619,7 +619,7 @@
                                 Total Facturado: <strong class="text-[#1D1D1F] font-bold">Bs {{ formatNum(totalVentaCartera, 2) }}</strong>
                                 <template v-if="reglaCoberturaRuta && reglaCoberturaRuta.min > 0">
                                   <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200" :title="reglaCoberturaRuta.descripcion">
-                                    Canal {{ canalRutaActual }}: Umbral {{ reglaCoberturaRuta.operador }} Bs {{ reglaCoberturaRuta.min }}
+                                    {{ reglaCoberturaRuta.descripcion || `Canal ${canalRutaActual}: Umbral ${reglaCoberturaRuta.operador} Bs ${reglaCoberturaRuta.min}` }}
                                   </span>
                                 </template>
                               </template>

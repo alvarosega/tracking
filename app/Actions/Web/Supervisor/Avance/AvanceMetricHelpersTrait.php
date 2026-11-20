@@ -12,22 +12,33 @@ trait AvanceMetricHelpersTrait
     /**
      * Reglas de umbral mínimo facturado en el período para que un cliente cuente como Cobertura según su Canal.
      * Centralizado y editable directamente en el código para su rápida modificación y mantenimiento:
-     * - MAY:  monto >= 500.0 (Mayoristas)
-     * - MZO:  monto >= 350.0 (Mercados / Macrozonas)
-     * - PROV: monto >= 350.0 (Provincias)
-     * - PRT:  monto > 50.0   (Porteo / Preventa)
-     * - TDB:  monto > 0.0    (Tiendas de Barrio)
-     * - SC:   monto > 0.0    (Sin Canal / General)
+     * - MAY:  monto >= 3000.0 (Mayoristas)
+     * - MZO:  monto >= 1500.0 (Mercados / Macrozonas general)
+     * - PROV: monto >= 350.0  (Provincias)
+     * - PRT:  monto > 50.0    (Porteo / Preventa)
+     * - TDB:  monto >= 150.0  (Tiendas de Barrio)
+     * - SC:   monto > 0.0     (Sin Canal / General)
      *
      * @var array<string, array{min: float, operador: string, descripcion: string}>
      */
     public static array $reglasCoberturaCanal = [
-        'MAY'  => ['min' => 500.0, 'operador' => '>=', 'descripcion' => 'Mayoristas (>= 500 Bs)'],
-        'MZO'  => ['min' => 350.0, 'operador' => '>=', 'descripcion' => 'Mercados / Macrozonas (>= 350 Bs)'],
-        'PROV' => ['min' => 350.0, 'operador' => '>=', 'descripcion' => 'Provincias (>= 350 Bs)'],
-        'PRT'  => ['min' => 50.0,  'operador' => '>',  'descripcion' => 'Porteo (> 50 Bs)'],
-        'TDB'  => ['min' => 0.0,   'operador' => '>',  'descripcion' => 'Tiendas de Barrio (> 0 Bs)'],
-        'SC'   => ['min' => 0.0,   'operador' => '>',  'descripcion' => 'Sin Canal / General (> 0 Bs)'],
+        'MAY'  => ['min' => 3000.0, 'operador' => '>=', 'descripcion' => 'Mayoristas (>= 3000 Bs)'],
+        'MZO'  => ['min' => 1500.0, 'operador' => '>=', 'descripcion' => 'Mercados / Macrozonas (>= 1500 Bs)'],
+        'PROV' => ['min' => 350.0,  'operador' => '>=', 'descripcion' => 'Provincias (>= 350 Bs)'],
+        'PRT'  => ['min' => 50.0,   'operador' => '>',  'descripcion' => 'Porteo (> 50 Bs)'],
+        'TDB'  => ['min' => 150.0,  'operador' => '>=', 'descripcion' => 'Tiendas de Barrio (>= 150 Bs)'],
+        'SC'   => ['min' => 0.0,    'operador' => '>',  'descripcion' => 'Sin Canal / General (> 0 Bs)'],
+    ];
+
+    /**
+     * Reglas de excepción específicas por ruta para cobertura.
+     * Permite sobreescribir el umbral del canal para rutas particulares.
+     * - TDB 8 MM: monto >= 1000.0 (compra mínima en MZO para esta ruta)
+     *
+     * @var array<string, array{min: float, operador: string, descripcion: string}>
+     */
+    public static array $reglasCoberturaRuta = [
+        'TDB 8 MM' => ['min' => 1000.0, 'operador' => '>=', 'descripcion' => 'Ruta TDB 8 MM (>= 1000 Bs)'],
     ];
 
     /**
@@ -51,12 +62,28 @@ trait AvanceMetricHelpersTrait
     ];
 
     /**
-     * Obtiene la regla de umbral de cobertura configurada para un canal.
+     * Obtiene la regla de umbral de cobertura configurada para un canal o ruta específica.
      *
      * @return array{min: float, operador: string, descripcion: string}
      */
-    public function obtenerUmbralCoberturaCanal(?string $canal): array
+    public function obtenerUmbralCoberturaCanal(?string $canal, ?string $ruta = null): array
     {
+        // 1. Prioridad: Excepciones específicas por ruta (insensible a mayúsculas y espacios)
+        if ($ruta !== null && trim($ruta) !== '') {
+            $rClean = strtoupper(trim((string) preg_replace('/\s+/', ' ', $ruta)));
+            $rNoSpaces = str_replace(' ', '', $rClean);
+
+            foreach (self::$reglasCoberturaRuta as $rKey => $reglaRuta) {
+                $rKeyClean = strtoupper(trim((string) preg_replace('/\s+/', ' ', $rKey)));
+                $rKeyNoSpaces = str_replace(' ', '', $rKeyClean);
+
+                if ($rClean === $rKeyClean || $rNoSpaces === $rKeyNoSpaces) {
+                    return $reglaRuta;
+                }
+            }
+        }
+
+        // 2. Regla según canal
         $c = strtoupper(trim((string) $canal));
         if (isset(self::$reglasCoberturaCanal[$c])) {
             return self::$reglasCoberturaCanal[$c];
@@ -68,15 +95,15 @@ trait AvanceMetricHelpersTrait
     }
 
     /**
-     * Evalúa si un monto facturado acumulado cumple con el umbral de Cobertura para un canal específico.
+     * Evalúa si un monto facturado acumulado cumple con el umbral de Cobertura para un canal y ruta específicos.
      */
-    public function clienteCumpleCoberturaCanal(float $monto, ?string $canal): bool
+    public function clienteCumpleCoberturaCanal(float $monto, ?string $canal, ?string $ruta = null): bool
     {
         if ($monto <= 0.0001) {
             return false;
         }
 
-        $regla = $this->obtenerUmbralCoberturaCanal($canal);
+        $regla = $this->obtenerUmbralCoberturaCanal($canal, $ruta);
         $min = (float) ($regla['min'] ?? 0.0);
         $op = (string) ($regla['operador'] ?? '>=');
 

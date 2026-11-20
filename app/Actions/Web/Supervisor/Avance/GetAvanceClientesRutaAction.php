@@ -66,7 +66,7 @@ class GetAvanceClientesRutaAction
         $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
             ? strtoupper(trim((string) $dimRuta->canal))
             : 'SC';
-        $reglaCoberturaRuta = $this->obtenerUmbralCoberturaCanal($canalRuta);
+        $reglaCoberturaRuta = $this->obtenerUmbralCoberturaCanal($canalRuta, $rutaClean);
 
         // 1. Cartera Oficial desde pan_ruteo
         $filasCartera = DB::connection('supervisor')->table('pan_ruteo')
@@ -780,7 +780,7 @@ class GetAvanceClientesRutaAction
                 $cantMtdCli = $item['cantidad'];
 
                 if ($kpiClave === 'cob_general') {
-                    $tieneLogro = $this->clienteCumpleCoberturaCanal($montoBsCli, $canalRuta);
+                    $tieneLogro = $this->clienteCumpleCoberturaCanal($montoBsCli, $canalRuta, $rutaClean);
                 } else {
                     $tieneLogro = $esCobertura ? ($montoBsCli > 0 || $cantMtdCli > 0) : ($montoBsCli > 0);
                 }

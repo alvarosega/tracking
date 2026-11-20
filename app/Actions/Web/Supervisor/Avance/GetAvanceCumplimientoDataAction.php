@@ -356,7 +356,7 @@ class GetAvanceCumplimientoDataAction
                     $cliMontos = $montoClienteCob[$r][$kId] ?? [];
                     foreach ($cliMontos as $cid => $mTot) {
                         $cumple = ($kId === 'cob_general')
-                            ? $this->clienteCumpleCoberturaCanal((float) $mTot, $canalRuta)
+                            ? $this->clienteCumpleCoberturaCanal((float) $mTot, $canalRuta, $r)
                             : ($mTot > 0);
                         if ($cumple) {
                             $acumCob[$r][$kId][$cid] = true;
@@ -366,7 +366,7 @@ class GetAvanceCumplimientoDataAction
                     $cliMontosDia = $montoClienteCobDia[$r][$kId] ?? [];
                     foreach ($cliMontosDia as $cid => $mDia) {
                         $cumpleDia = ($kId === 'cob_general')
-                            ? $this->clienteCumpleCoberturaCanal((float) $mDia, $canalRuta)
+                            ? $this->clienteCumpleCoberturaCanal((float) $mDia, $canalRuta, $r)
                             : ($mDia > 0);
                         if ($cumpleDia) {
                             $acumCobDia[$r][$kId][$cid] = true;
@@ -487,6 +487,7 @@ class GetAvanceCumplimientoDataAction
                 'meses_cerrados' => $mesesCerrados,
                 'metadata_kpis' => $this->obtenerMetadataKpis(),
                 'reglas_cobertura_canal' => self::$reglasCoberturaCanal,
+                'reglas_cobertura_ruta' => self::$reglasCoberturaRuta,
             ];
         }
 
@@ -869,6 +870,7 @@ class GetAvanceCumplimientoDataAction
             'meses_cerrados' => $mesesCerrados,
             'metadata_kpis' => $this->obtenerMetadataKpis(),
             'reglas_cobertura_canal' => self::$reglasCoberturaCanal,
+            'reglas_cobertura_ruta' => self::$reglasCoberturaRuta,
         ];
     }
 
