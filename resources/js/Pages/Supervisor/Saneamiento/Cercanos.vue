@@ -622,7 +622,7 @@
               <div
                 v-for="c in clientesFiltrados"
                 :key="c.id"
-                @click="abrirExpedienteCliente(c)"
+                @click="abrirExpedienteCliente(c, 'lista')"
                 class="p-3 hover:bg-slate-50/80 cursor-pointer transition-all flex items-start space-x-3 group relative"
                 :class="[
                   clienteActivoId === c.id ? 'bg-sky-50/60 border-l-4 border-sky-500' : '',
@@ -710,16 +710,21 @@
                   <!-- Boton para ver en mapa en movil -->
                   <button
                     type="button"
-                    @click="vistaMovil = 'mapa'"
-                    class="md:hidden text-xs font-semibold text-sky-600 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                    @click="verClienteEnMapa(clienteSeleccionado)"
+                    class="md:hidden text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                    title="Centrar y visualizar cliente en el mapa"
                   >
+                    <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a1.12 1.12 0 01-1.006 0L9.503 3.31a1.12 1.12 0 00-1.006 0L3.623 5.748A1.125 1.125 0 003 6.754v12.37c0 .836.88 1.38 1.628 1.006l3.869-1.934a1.12 1.12 0 011.006 0l4.994 2.497a1.12 1.12 0 001.006 0z" />
+                    </svg>
                     <span>Ver en mapa</span>
                   </button>
 
                   <button
                     type="button"
                     @click="cerrarExpediente"
-                    class="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
+                    class="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer p-1 rounded-md"
+                    title="Cerrar expediente"
                   >
                     &times;
                   </button>
@@ -880,12 +885,131 @@
             </button>
           </div>
 
+          <!-- Tarjeta Flotante Inferior: Expediente Rapido del Cliente (Movil) -->
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="transform translate-y-4 opacity-0"
+            enter-to-class="transform translate-y-0 opacity-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="transform translate-y-0 opacity-100"
+            leave-to-class="transform translate-y-4 opacity-0"
+          >
+            <div
+              v-if="clienteSeleccionado && vistaMovil === 'mapa'"
+              class="md:hidden absolute bottom-3 left-2 right-2 sm:left-4 sm:right-4 z-40 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3 shadow-2xl flex flex-col gap-2"
+            >
+              <!-- Fila 1: Cabecera con Nombre, Estado, Distancia y Boton Cerrar -->
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-start gap-2 min-w-0 flex-1">
+                  <div
+                    class="w-3 h-3 rounded-full mt-1 shrink-0 shadow-2xs"
+                    :style="{ backgroundColor: getMarkerColor(clienteSeleccionado) }"
+                  ></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                        {{ clienteSeleccionado.cliente }}
+                      </span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-mono truncate">
+                      ID: {{ clienteSeleccionado.cliente_id }} • {{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1 shrink-0">
+                  <span
+                    class="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md border"
+                    :class="(!clienteSeleccionado.estado || clienteSeleccionado.estado.toLowerCase() === 'activo') ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-500 bg-slate-100 border-slate-200'"
+                  >
+                    {{ clienteSeleccionado.distancia_metros }} m
+                  </span>
+                  <button
+                    type="button"
+                    @click="cerrarExpediente"
+                    class="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                    title="Cerrar selección"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Fila 2: Chips de Clasificacion y Estado -->
+              <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-mono">
+                <span class="px-2 py-0.5 rounded font-bold bg-slate-900 text-white shadow-2xs">
+                  {{ formatRuta(clienteSeleccionado.ruta) }}
+                </span>
+                <span
+                  class="px-2 py-0.5 rounded text-white font-bold shadow-2xs"
+                  :style="{ backgroundColor: getCanalColor(clienteSeleccionado.canal_calculado) }"
+                >
+                  {{ clienteSeleccionado.canal_calculado }}
+                </span>
+                <span
+                  v-if="clienteSeleccionado.dia_norm"
+                  class="px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-700 border border-slate-200"
+                >
+                  {{ clienteSeleccionado.dia_norm }}
+                </span>
+                <span
+                  class="px-1.5 py-0.5 rounded font-bold"
+                  :class="(!clienteSeleccionado.estado || clienteSeleccionado.estado.toLowerCase() === 'activo') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200/80 text-slate-500 border border-slate-300'"
+                >
+                  {{ (!clienteSeleccionado.estado || clienteSeleccionado.estado.toLowerCase() === 'activo') ? 'Activo' : 'Inactivo' }}
+                </span>
+              </div>
+
+              <!-- Fila 3: Acciones Ejecutivas -->
+              <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                <button
+                  type="button"
+                  @click="vistaMovil = 'lista'"
+                  class="flex-1 h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  <span>Ver Expediente Completo</span>
+                </button>
+
+                <a
+                  v-if="clienteSeleccionado.celular"
+                  :href="`tel:${clienteSeleccionado.celular}`"
+                  class="h-8 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                  title="Llamar al cliente"
+                >
+                  <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                  </svg>
+                  <span>Llamar</span>
+                </a>
+
+                <a
+                  v-if="clienteSeleccionado.latitud && clienteSeleccionado.longitud"
+                  :href="`https://www.google.com/maps?q=${clienteSeleccionado.latitud},${clienteSeleccionado.longitud}`"
+                  target="_blank"
+                  class="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                  title="Abrir en Google Maps"
+                >
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                  <span>Maps</span>
+                </a>
+              </div>
+            </div>
+          </Transition>
+
           <!-- Boton Flotante para Abrir Leyenda cuando esta Colapsada -->
           <button
             v-if="clientesFiltrados.length > 0 && leyendaColapsada"
             type="button"
             @click="leyendaColapsada = false"
-            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl px-2.5 py-1.5 shadow-xl z-30 text-xs flex items-center gap-1.5 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
+            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl px-2.5 py-1.5 shadow-xl z-30 text-xs items-center gap-1.5 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
+            :class="clienteSeleccionado && vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex'"
             title="Mostrar leyenda de colores"
           >
             <span class="flex -space-x-1">
@@ -900,7 +1024,8 @@
           <!-- Leyenda Dinamica en Tiempo Real (Expandida) -->
           <div
             v-if="clientesFiltrados.length > 0 && !leyendaColapsada"
-            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-xl z-30 text-xs w-[220px] sm:w-72 max-h-44 sm:max-h-64 flex flex-col"
+            class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-xl z-30 text-xs w-[220px] sm:w-72 max-h-44 sm:max-h-64 flex-col"
+            :class="clienteSeleccionado && vistaMovil === 'mapa' ? 'hidden md:flex' : 'flex'"
           >
             <div class="flex items-center justify-between pb-1 mb-1.5 border-b border-slate-100 shrink-0 gap-1.5">
               <div class="min-w-0 flex-1">
@@ -1633,6 +1758,7 @@ let centerMarker = null;
 let radiusCircle = null;
 let clientsLayer = null;
 let fronterasRutasLayer = null;
+let highlightLayer = null;
 const clientMarkersMap = new Map();
 
 const clientesFiltrados = computed(() => {
@@ -1792,6 +1918,7 @@ async function resolverEnlaceMaps() {
 async function consultarCercanos(lat, lng) {
   origenConsulta.value = { lat, lng };
   cargando.value = true;
+  cerrarExpediente();
 
   try {
     const url = typeof route === 'function'
@@ -1855,8 +1982,10 @@ function initMap() {
   // Orden jerarquico de capas Leaflet:
   // 1. Fronteras Rutas (poligonos de mayor extension)
   // 2. Clientes (puntos y marcadores en radio)
+  // 3. Highlight (anillo halo de cliente seleccionado)
   fronterasRutasLayer = L.featureGroup().addTo(map);
   clientsLayer = L.featureGroup().addTo(map);
+  highlightLayer = L.featureGroup().addTo(map);
 
   renderizarFronterasRutas();
 
@@ -1922,12 +2051,41 @@ function getMarkerColor(c) {
   return getRutaColor(c.ruta);
 }
 
+function actualizarHighlightCliente(c) {
+  if (!map || !highlightLayer) return;
+  highlightLayer.clearLayers();
+  if (!c || !c.latitud || !c.longitud) return;
+
+  const color = getMarkerColor(c);
+
+  // Halo exterior suave y elegante para el cliente activo
+  L.circleMarker([c.latitud, c.longitud], {
+    radius: 12,
+    color: '#0284C7',
+    weight: 2.5,
+    fillColor: '#38BDF8',
+    fillOpacity: 0.35,
+    interactive: false,
+  }).addTo(highlightLayer);
+
+  // Núcleo concéntrico destacado con borde blanco nítido
+  L.circleMarker([c.latitud, c.longitud], {
+    radius: 6.5,
+    color: '#FFFFFF',
+    weight: 2,
+    fillColor: color,
+    fillOpacity: 1,
+    interactive: false,
+  }).addTo(highlightLayer);
+}
+
 function renderizarEnMapa() {
   if (!map || !origenConsulta.value) return;
 
   if (centerMarker) map.removeLayer(centerMarker);
   if (radiusCircle) map.removeLayer(radiusCircle);
   clientsLayer.clearLayers();
+  if (highlightLayer) highlightLayer.clearLayers();
   clientMarkersMap.clear();
 
   const center = [origenConsulta.value.lat, origenConsulta.value.lng];
@@ -1951,7 +2109,6 @@ function renderizarEnMapa() {
   }).addTo(map);
 
   clientesFiltrados.value.forEach(c => {
-    const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
     const markerColor = getMarkerColor(c);
 
     const marker = L.circleMarker([c.latitud, c.longitud], {
@@ -1963,50 +2120,57 @@ function renderizarEnMapa() {
       fillOpacity: 1,
     });
 
-    const estadoBadge = esActivo
-      ? '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #ECFDF5; color: #047857;">Activo</span>'
-      : '<span style="font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 4px; font-weight: bold; background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1;">Inactivo</span>';
-
-    marker.bindPopup(`
-      <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #0F172A; max-width: 230px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; gap: 4px;">
-          <span style="font-weight: 700; font-size: 12px;" class="truncate">${c.cliente}</span>
-          ${estadoBadge}
-        </div>
-        <div style="color: #64748B; margin-bottom: 5px;">${c.direccion || 'Sin direccion registrada'}</div>
-        <div style="display: flex; gap: 4px; font-family: monospace; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 4px; justify-content: space-between; align-items: center;">
-          <span>Ruta: <b style="color: ${getRutaColor(c.ruta)}">${formatRuta(c.ruta)}</b></span>
-          <span>•</span>
-          <span style="color: #047857; font-weight: bold;">${c.distancia_metros} m</span>
-        </div>
+    // Tooltip rápido en hover para desktop (sin popup estorboso que tape el mapa)
+    marker.bindTooltip(`
+      <div style="font-family: inherit; font-size: 11px; line-height: 1.25; color: #0F172A;">
+        <span style="font-weight: 700;">${c.cliente}</span>
+        <span style="color: #64748B; font-family: monospace; font-size: 10px;"> • ${formatRuta(c.ruta)} • ${c.distancia_metros}m</span>
       </div>
-    `);
+    `, {
+      direction: 'top',
+      offset: [0, -6],
+      opacity: 0.95,
+      className: 'custom-map-tooltip',
+    });
 
-    marker.on('click', () => {
-      abrirExpedienteCliente(c);
+    marker.on('click', (e) => {
+      if (e && e.originalEvent) {
+        L.DomEvent.stopPropagation(e);
+      }
+      abrirExpedienteCliente(c, 'mapa');
     });
 
     marker.addTo(clientsLayer);
     clientMarkersMap.set(c.id, marker);
   });
+
+  // Si había un cliente seleccionado, mantener su halo activo
+  if (clienteSeleccionado.value) {
+    actualizarHighlightCliente(clienteSeleccionado.value);
+  }
 }
 
-async function abrirExpedienteCliente(c) {
+async function abrirExpedienteCliente(c, origen = 'lista') {
   clienteActivoId.value = c.id;
   clienteSeleccionado.value = c;
   tabExpediente.value = 'ventas';
   ventasCliente.value = [];
   visitasCliente.value = [];
 
-  // En movil cambiar a pestana de lista/expediente para inspeccionar la informacion
-  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+  // Actualizar resaltado de halo en el mapa
+  actualizarHighlightCliente(c);
+
+  // En móvil: solo cambiar de vista si el clic provino de la lista.
+  // Si provino del mapa, mantener al usuario en el mapa con la tarjeta flotante inferior.
+  if (origen === 'lista' && typeof window !== 'undefined' && window.innerWidth < 768) {
     vistaMovil.value = 'lista';
   }
 
+  // Centrado suave en el mapa sin alterar bruscamente el zoom
   if (map && c.latitud && c.longitud) {
-    map.flyTo([c.latitud, c.longitud], 17, { duration: 0.6 });
-    const m = clientMarkersMap.get(c.id);
-    if (m) m.openPopup();
+    const currentZoom = map.getZoom();
+    const targetZoom = currentZoom < 16 ? 16 : currentZoom;
+    map.flyTo([c.latitud, c.longitud], targetZoom, { duration: 0.5 });
   }
 
   // Cargar ventas
@@ -2038,6 +2202,22 @@ async function abrirExpedienteCliente(c) {
 function cerrarExpediente() {
   clienteSeleccionado.value = null;
   clienteActivoId.value = null;
+  if (highlightLayer) {
+    highlightLayer.clearLayers();
+  }
+}
+
+function verClienteEnMapa(c) {
+  vistaMovil.value = 'mapa';
+  nextTick(() => {
+    if (map) {
+      map.invalidateSize();
+      if (c && c.latitud && c.longitud) {
+        map.panTo([c.latitud, c.longitud], { animate: true, duration: 0.4 });
+        actualizarHighlightCliente(c);
+      }
+    }
+  });
 }
 
 watch([verFronterasRutas, filtroRutasFronterasRutas, filtroCanales], () => {
@@ -2071,3 +2251,19 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+:deep(.custom-map-tooltip) {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+  padding: 4px 8px !important;
+  color: #0F172A !important;
+}
+
+:deep(.leaflet-tooltip-top:before) {
+  border-top-color: rgba(226, 232, 240, 0.95) !important;
+}
+</style>
