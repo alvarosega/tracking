@@ -626,7 +626,7 @@
                 class="p-3 hover:bg-slate-50/80 cursor-pointer transition-all flex items-start space-x-3 group relative"
                 :class="[
                   clienteActivoId === c.id ? 'bg-sky-50/60 border-l-4 border-sky-500' : '',
-                  (!c.estado || c.estado.toLowerCase() === 'activo') ? '' : 'bg-slate-50/70 opacity-75'
+                  (!c.estado || c.estado.toLowerCase() === 'activo') ? '' : 'bg-slate-50/70'
                 ]"
               >
                 <!-- Indicador de Color Segun Modo (gris en inactivos) -->
@@ -1673,7 +1673,7 @@ const elementosLeyenda = computed(() => {
     if (!esActivo) {
       key = '__INACTIVO__';
       nombre = 'Inactivos';
-      color = '#94A3B8';
+      color = '#64748B';
     } else if (modoColor.value === 'ruta') {
       key = c.ruta || 'Sin Ruta';
       nombre = formatRuta(c.ruta);
@@ -1908,7 +1908,7 @@ function renderizarFronterasRutas() {
 function getMarkerColor(c) {
   const esActivo = !c.estado || c.estado.toLowerCase() === 'activo';
   if (!esActivo) {
-    return '#94A3B8'; // Clientes inactivos en gris slate-400
+    return '#64748B'; // Clientes inactivos en gris slate-500 sólido
   }
   if (modoColor.value === 'ruta') {
     return getRutaColor(c.ruta);
@@ -1955,12 +1955,12 @@ function renderizarEnMapa() {
     const markerColor = getMarkerColor(c);
 
     const marker = L.circleMarker([c.latitud, c.longitud], {
-      radius: esActivo ? 5.5 : 4.5,
+      radius: 5.5,
       fillColor: markerColor,
-      color: esActivo ? '#FFFFFF' : '#CBD5E1',
-      weight: esActivo ? 1.5 : 1,
+      color: '#FFFFFF',
+      weight: 1.5,
       opacity: 1,
-      fillOpacity: esActivo ? 0.95 : 0.65,
+      fillOpacity: 1,
     });
 
     const estadoBadge = esActivo
