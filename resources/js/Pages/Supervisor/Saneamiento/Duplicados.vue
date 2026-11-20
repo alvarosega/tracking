@@ -426,7 +426,7 @@
               <p class="text-slate-500">No se encontraron conflictos bajo los filtros y tolerancia de radio seleccionados.</p>
             </div>
 
-            <!-- Tarjeta de Grupo Refinada y Compacta -->
+            <!-- Tarjeta de Grupo Refinada y Destacada -->
             <div
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
@@ -468,6 +468,58 @@
                 </div>
               </div>
 
+              <!-- BLOQUE DESTACADO: ¿QUÉ ESTÁ REPETIDO EXACTAMENTE? -->
+              <div class="p-2 rounded-lg bg-slate-50/90 border border-slate-200/80 space-y-1.5">
+                <div class="flex items-center justify-between text-[10px] font-mono">
+                  <span class="font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                    <span>Dato(s) Repetido(s):</span>
+                  </span>
+                  <span class="text-slate-400 font-sans text-[9.5px]">{{ grupo.clientes.length }} clientes</span>
+                </div>
+
+                <!-- Lista de Coincidencias Exactas Sin Truncar -->
+                <div class="flex flex-col gap-1 text-[11px] font-mono">
+                  <div
+                    v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
+                    :key="idxC"
+                    class="px-2 py-1 rounded-md border flex items-center justify-between gap-1 shadow-2xs leading-tight"
+                    :class="coinc.clase"
+                  >
+                    <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span class="text-xs shrink-0">{{ coinc.icono }}</span>
+                      <span class="text-[9.5px] uppercase font-bold text-slate-500 shrink-0">{{ coinc.titulo }}:</span>
+                      <span class="font-extrabold text-slate-900 break-words select-all">{{ coinc.valor }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Indicador de Rutas y Canales en Conflicto -->
+                <div class="flex items-center gap-1.5 text-[9.5px] font-mono pt-0.5 flex-wrap">
+                  <span
+                    v-if="grupo.rutas.length > 1"
+                    class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold"
+                    title="Los clientes pertenecen a rutas distintas"
+                  >
+                    ⚠️ Inter-Rutas: {{ grupo.rutas.join(' vs ') }}
+                  </span>
+                  <span
+                    v-else-if="grupo.rutas.length === 1"
+                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium"
+                  >
+                    Ruta: {{ grupo.rutas[0] }}
+                  </span>
+
+                  <span
+                    v-if="grupo.canales.length > 1"
+                    class="px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200 font-bold"
+                    title="Los clientes pertenecen a canales distintos"
+                  >
+                    Inter-Canal: {{ grupo.canales.join('/') }}
+                  </span>
+                </div>
+              </div>
+
               <!-- Clientes del Grupo (Mini Comparativa Escaneable) -->
               <div class="space-y-1 text-xs">
                 <div
@@ -496,23 +548,6 @@
                     <div class="text-slate-400 text-[9px]">{{ cli.es_master_sugerido ? 'Master' : 'Duplicado' }}</div>
                   </div>
                 </div>
-              </div>
-
-              <!-- Criterios Compartidos -->
-              <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-100/80 text-[10px] font-mono">
-                <div class="flex flex-wrap gap-1 min-w-0 truncate">
-                  <span
-                    v-for="crit in grupo.criterios"
-                    :key="crit.campo"
-                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-semibold truncate flex items-center gap-1"
-                  >
-                    <span class="text-slate-400">{{ crit.campo }}:</span>
-                    <span>{{ crit.valores.join(', ') }}</span>
-                  </span>
-                </div>
-                <span class="text-slate-400 text-[9px] font-mono shrink-0">
-                  {{ grupo.clientes.length }} clientes
-                </span>
               </div>
             </div>
           </div>
@@ -708,19 +743,60 @@
             <template v-else>
               <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3">
                 <!-- Resumen de Coincidencias en la Cabecera del Comparador -->
-                <div class="p-2 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Coincidencias:</span>
-                    <span
-                      v-for="crit in grupoActivo.criterios"
-                      :key="crit.campo"
-                      class="px-2 py-0.5 rounded-full bg-white border border-slate-200 font-mono text-[10px] font-bold text-slate-800 shadow-2xs"
-                    >
-                      {{ crit.campo }}: {{ crit.valores.join(', ') }}
-                    </span>
+                <div class="p-3 bg-gradient-to-r from-slate-50 via-sky-50/40 to-slate-50 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
+                  <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 font-mono">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                      <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        ¿Qué datos coinciden exactamente en este grupo?
+                      </span>
+                    </div>
+                    <div class="text-[11px] font-mono text-slate-600">
+                      Distancia física: <strong class="text-slate-900 font-bold">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
+                    </div>
                   </div>
-                  <div class="text-[10px] font-mono text-slate-500">
-                    Distancia: <strong class="text-slate-800">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
+
+                  <!-- Chips de coincidencias exactas -->
+                  <div class="flex flex-wrap gap-1.5">
+                    <div
+                      v-for="(coinc, idx) in obtenerCoincidenciasLegibles(grupoActivo)"
+                      :key="idx"
+                      class="px-2.5 py-1 rounded-lg border font-mono text-xs flex items-center gap-1.5 shadow-2xs font-medium"
+                      :class="coinc.clase"
+                    >
+                      <span class="text-sm">{{ coinc.icono }}</span>
+                      <span class="font-bold opacity-80 text-[10px] uppercase">{{ coinc.titulo }}:</span>
+                      <span class="font-extrabold tracking-tight select-all">{{ coinc.valor }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Resumen de similitud y discrepancia operativa -->
+                  <div class="flex items-center gap-2 pt-1 border-t border-slate-200/60 text-[10.5px] font-mono flex-wrap">
+                    <span
+                      v-if="sonRutasDistintas()"
+                      class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
+                    >
+                      ⚠️ Conflicto Inter-Ruta (Rutas Diferentes: {{ grupoActivo.rutas.join(' vs ') }})
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1"
+                    >
+                      ✓ Misma Ruta: {{ grupoActivo.rutas[0] }}
+                    </span>
+
+                    <span
+                      v-if="sonDiasDistintos()"
+                      class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
+                    >
+                      ⚠️ Días de Visita Distintos
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1"
+                    >
+                      ✓ Mismo Día de Visita
+                    </span>
                   </div>
                 </div>
 
@@ -781,7 +857,16 @@
                         </div>
                       </div>
 
-                      <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
+                      <div class="flex items-start justify-between gap-1">
+                        <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
+                        <span
+                          v-if="nombreEsIdenticoEnGrupo()"
+                          class="shrink-0 px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[9px] font-bold font-mono"
+                          title="Nombre comercial idéntico en este grupo"
+                        >
+                          ✓ Nombre Idéntico
+                        </span>
+                      </div>
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin dirección registrada' }}</p>
                     </div>
 
@@ -830,18 +915,30 @@
                       </div>
                     </div>
 
-                    <!-- Seccion: Atributos de Ruteo -->
+                    <!-- Seccion: Atributos de Ruteo con Alertas de Diferencias -->
                     <div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
-                      <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
-                        <span class="text-slate-400 block text-[9.5px]">Ruta:</span>
+                      <div
+                        class="p-1.5 rounded-lg border transition-colors"
+                        :class="sonRutasDistintas() ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/80'"
+                      >
+                        <div class="flex items-center justify-between">
+                          <span class="text-slate-400 block text-[9.5px]">Ruta:</span>
+                          <span v-if="sonRutasDistintas()" class="text-[8.5px] font-bold text-amber-800 bg-amber-100 px-1 rounded">DISTINTA</span>
+                        </div>
                         <span class="font-bold text-slate-800">{{ cli.ruta }}</span>
                       </div>
                       <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
                         <span class="text-slate-400 block text-[9.5px]">Canal:</span>
                         <span class="font-bold text-slate-800">{{ cli.canal }}</span>
                       </div>
-                      <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
-                        <span class="text-slate-400 block text-[9.5px]">Día:</span>
+                      <div
+                        class="p-1.5 rounded-lg border transition-colors"
+                        :class="sonDiasDistintos() ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/80'"
+                      >
+                        <div class="flex items-center justify-between">
+                          <span class="text-slate-400 block text-[9.5px]">Día:</span>
+                          <span v-if="sonDiasDistintos()" class="text-[8.5px] font-bold text-amber-800 bg-amber-100 px-1 rounded">DISTINTO</span>
+                        </div>
                         <span class="font-bold text-slate-800">{{ cli.dia }}</span>
                       </div>
                       <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
@@ -850,19 +947,43 @@
                       </div>
                     </div>
 
-                    <!-- Documentos & Contacto -->
-                    <div class="p-2 rounded-lg bg-white border border-slate-200/80 text-[10.5px] space-y-0.5 font-mono">
-                      <div class="truncate">
-                        <span class="text-slate-400">NIT:</span>
-                        <span :class="cli.nit ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.nit || 'Sin NIT' }}</span>
+                    <!-- Documentos & Contacto con Resaltado de Coincidencias -->
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80 text-[10.5px] space-y-1 font-mono">
+                      <div class="flex items-center justify-between truncate">
+                        <div class="truncate">
+                          <span class="text-slate-400">NIT:</span>
+                          <span class="ml-1" :class="cli.nit ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.nit || 'Sin NIT' }}</span>
+                        </div>
+                        <span
+                          v-if="cli.nit && campoEsIdenticoEnGrupo('nit')"
+                          class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[9px] shrink-0"
+                        >
+                          ✓ IDÉNTICO
+                        </span>
                       </div>
-                      <div class="truncate">
-                        <span class="text-slate-400">CI:</span>
-                        <span :class="cli.ci ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.ci || 'Sin CI' }}</span>
+                      <div class="flex items-center justify-between truncate">
+                        <div class="truncate">
+                          <span class="text-slate-400">CI:</span>
+                          <span class="ml-1" :class="cli.ci ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.ci || 'Sin CI' }}</span>
+                        </div>
+                        <span
+                          v-if="cli.ci && campoEsIdenticoEnGrupo('ci')"
+                          class="px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-900 font-bold text-[9px] shrink-0"
+                        >
+                          ✓ IDÉNTICO
+                        </span>
                       </div>
-                      <div class="truncate">
-                        <span class="text-slate-400">Tel/Cel:</span>
-                        <span :class="(cli.telefono || cli.celular) ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.telefono || cli.celular || 'Sin teléfono' }}</span>
+                      <div class="flex items-center justify-between truncate">
+                        <div class="truncate">
+                          <span class="text-slate-400">Tel/Cel:</span>
+                          <span class="ml-1" :class="(cli.telefono || cli.celular) ? 'font-bold text-slate-800' : 'text-slate-400'">{{ cli.telefono || cli.celular || 'Sin teléfono' }}</span>
+                        </div>
+                        <span
+                          v-if="telefonoEsIdenticoEnGrupo()"
+                          class="px-1.5 py-0.2 rounded bg-sky-100 text-sky-900 font-bold text-[9px] shrink-0"
+                        >
+                          ✓ IDÉNTICO
+                        </span>
                       </div>
                     </div>
 
@@ -1616,6 +1737,136 @@ function formatearFecha(f) {
 
 function tienePropuestaPendiente(grupo) {
   return grupo.clientes?.some(c => c.tiene_propuesta_pendiente)
+}
+
+function obtenerCoincidenciasLegibles(grupo) {
+  if (!grupo) return []
+  const res = []
+
+  // 1. Ubicacion fisica si aplica
+  if (grupo.tiene_misma_ubicacion) {
+    const d = grupo.distancia_minima_m
+    const textoDist = d <= 0.5 ? 'Misma coordenada GPS (0 m)' : `Misma ubicación física a ${formatearDistancia(d)}`
+    res.push({
+      campo: 'Ubicación',
+      icono: '📍',
+      titulo: 'Ubicación Física',
+      valor: textoDist,
+      clase: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
+    })
+  }
+
+  // 2. Criterios de datos agrupados
+  if (grupo.criterios && Array.isArray(grupo.criterios)) {
+    for (const crit of grupo.criterios) {
+      const campo = crit.campo || ''
+      const campoNorm = campo.toLowerCase().trim()
+      const valores = crit.valores || []
+      const valorStr = valores.join(', ')
+
+      if (campoNorm === 'ubicación' || campoNorm === 'proximidad') {
+        if (!res.some(r => r.campo === 'Ubicación')) {
+          res.push({
+            campo: 'Ubicación',
+            icono: '📍',
+            titulo: 'Ubicación Física',
+            valor: `Distancia a ${valorStr}`,
+            clase: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
+          })
+        }
+        continue
+      }
+
+      if (campoNorm === 'nit') {
+        res.push({
+          campo: 'NIT',
+          icono: '🪪',
+          titulo: 'NIT Idéntico',
+          valor: valorStr,
+          clase: 'bg-amber-50 text-amber-950 border-amber-300 font-bold',
+        })
+      } else if (campoNorm === 'ci') {
+        res.push({
+          campo: 'CI',
+          icono: '🪪',
+          titulo: 'CI Idéntico',
+          valor: valorStr,
+          clase: 'bg-indigo-50 text-indigo-950 border-indigo-300 font-bold',
+        })
+      } else if (campoNorm.includes('tel') || campoNorm.includes('cel')) {
+        res.push({
+          campo: 'Teléfono',
+          icono: '📞',
+          titulo: 'Tel/Cel Idéntico',
+          valor: valorStr,
+          clase: 'bg-sky-50 text-sky-950 border-sky-300 font-bold',
+        })
+      } else if (campoNorm === 'nombre') {
+        res.push({
+          campo: 'Nombre',
+          icono: '👤',
+          titulo: 'Nombre Comercial Idéntico',
+          valor: `"${valorStr}"`,
+          clase: 'bg-purple-50 text-purple-950 border-purple-300 font-bold',
+        })
+      } else if (campoNorm === 'factura') {
+        res.push({
+          campo: 'Factura',
+          icono: '🧾',
+          titulo: 'Razón Social Idéntica',
+          valor: `"${valorStr}"`,
+          clase: 'bg-violet-50 text-violet-950 border-violet-300 font-bold',
+        })
+      } else {
+        res.push({
+          campo: campo,
+          icono: '🔍',
+          titulo: `${campo} Idéntico`,
+          valor: valorStr,
+          clase: 'bg-slate-100 text-slate-900 border-slate-300 font-bold',
+        })
+      }
+    }
+  }
+
+  return res
+}
+
+function sonRutasDistintas() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const rutas = grupoActivo.value.clientes.map(c => (c.ruta ?? '').toString().trim().toUpperCase()).filter(Boolean)
+  return new Set(rutas).size > 1
+}
+
+function sonDiasDistintos() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const dias = grupoActivo.value.clientes.map(c => (c.dia ?? '').toString().trim().toUpperCase()).filter(Boolean)
+  return new Set(dias).size > 1
+}
+
+function campoEsIdenticoEnGrupo(campo) {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const clientes = grupoActivo.value.clientes
+  const val0 = (clientes[0][campo] ?? '').toString().trim().toUpperCase()
+  if (!val0 || val0 === 'SIN NIT' || val0 === 'SIN CI' || val0 === 'SIN TELÉFONO' || val0 === '0') return false
+  return clientes.every(c => (c[campo] ?? '').toString().trim().toUpperCase() === val0)
+}
+
+function telefonoEsIdenticoEnGrupo() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const grupo = grupoActivo.value
+  const crit = grupo.criterios?.find(cr => {
+    const cNorm = (cr.campo || '').toLowerCase()
+    return cNorm.includes('tel') || cNorm.includes('cel')
+  })
+  return !!crit
+}
+
+function nombreEsIdenticoEnGrupo() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
+  const grupo = grupoActivo.value
+  const crit = grupo.criterios?.find(cr => (cr.campo || '').toLowerCase() === 'nombre')
+  return !!crit
 }
 
 function abrirModalFotos(cli) {

@@ -207,11 +207,16 @@ class AuditarDuplicadosAction
         // Procesar coincidencias de datos con límite defensivo por bucket para evitar explosiones
         $procesarBucket = function (array $index, string $campo, int $maxBucket = 20) use ($agregarCoincidenciaDato, $puntosMap) {
             foreach ($index as $valor => $cids) {
+                $cids = array_values(array_unique($cids));
                 $cnt = count($cids);
                 if ($cnt >= 2 && $cnt <= $maxBucket) {
                     for ($i = 0; $i < $cnt; $i++) {
                         for ($j = $i + 1; $j < $cnt; $j++) {
-                            $valMostrado = $campo === 'Nombre' ? $puntosMap[$cids[$i]]['cliente'] : (string) $valor;
+                            $valMostrado = match ($campo) {
+                                'Nombre' => $puntosMap[$cids[$i]]['cliente'],
+                                'Factura' => !empty($puntosMap[$cids[$i]]['nombre_factura']) ? $puntosMap[$cids[$i]]['nombre_factura'] : (string) $valor,
+                                default => (string) $valor,
+                            };
                             $agregarCoincidenciaDato($cids[$i], $cids[$j], $campo, $valMostrado);
                         }
                     }
@@ -269,7 +274,7 @@ class AuditarDuplicadosAction
                         $adjProx[$id1][] = $id2;
                         $adjProx[$id2][] = $id1;
                         $distanciasProx[$par] = round($dM, 1);
-                        $criteriosProx[$par] = [['campo' => 'Proximidad', 'valor' => round($dM, 1) . ' m']];
+                        $criteriosProx[$par] = [['campo' => 'Ubicación', 'valor' => round($dM, 1) . ' m']];
                     }
                 }
             }
@@ -352,6 +357,10 @@ class AuditarDuplicadosAction
 
             $tieneMismaUbicacion = ($minDist <= $radioMetros);
             $tipo = $tieneMismaUbicacion ? 'MISMA_UBICACION_Y_DATOS' : 'MISMOS_DATOS';
+
+            if ($tieneMismaUbicacion && $minDist !== 999999.0) {
+                $criteriosAgrupados['Ubicación'][round($minDist, 1) . ' m'] = true;
+            }
 
             $clustersConsolidados[] = [
                 'clasificacion' => $tipo,
@@ -528,6 +537,15 @@ class AuditarDuplicadosAction
             }
             unset($cliItem);
 
+            $ordenCampos = [
+                'Ubicación' => 1,
+                'NIT' => 2,
+                'CI' => 3,
+                'Teléfono' => 4,
+                'Nombre' => 5,
+                'Factura' => 6,
+            ];
+
             $criteriosFinales = [];
             foreach ($cl['criterios_raw'] as $campo => $valsMap) {
                 $vals = array_keys($valsMap);
@@ -537,6 +555,12 @@ class AuditarDuplicadosAction
                     'valores' => $vals,
                 ];
             }
+
+            usort($criteriosFinales, function ($a, $b) use ($ordenCampos) {
+                $pA = $ordenCampos[$a['campo']] ?? 99;
+                $pB = $ordenCampos[$b['campo']] ?? 99;
+                return $pA <=> $pB;
+            });
 
             $rutasUnicas = array_values(array_unique(array_filter($rutasSet)));
             sort($rutasUnicas);
