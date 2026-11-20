@@ -62,28 +62,28 @@ class GetCercanosInitDataAction
         $fronterasDias = [];
 
         // Polígonos de fronteras rutas para visualización territorial
-        $poligonosRutas = FronteraRuta::query()
-            ->activos()
-            ->select(['ruta', 'canal', DB::raw('ST_AsGeoJSON(poligono) as geojson')])
+        // dim_rutas es la única fuente de la verdad: sólo se toman rutas que existan y estén activas en dim_rutas
+        $poligonosRutas = DB::connection('supervisor')
+            ->table('dim_fronteras_rutas as f')
+            ->join('dim_rutas as r', DB::raw("TRIM(UPPER(f.ruta))"), '=', DB::raw("TRIM(UPPER(r.ruta))"))
+            ->where('f.estado', 'ACTIVO')
+            ->where('r.estado', 'ACTIVO')
+            ->whereNotNull('f.poligono')
+            ->select([
+                'f.ruta',
+                DB::raw("TRIM(r.canal) as canal"),
+                DB::raw("ST_AsGeoJSON(f.poligono) as geojson"),
+            ])
+            ->orderBy('r.canal')
+            ->orderBy('f.ruta')
             ->get();
-
-        // Mapa ruta -> canal desde dim_rutas (catálogo oficial maestro con prioridad absoluta)
-        $canalPorRuta = [];
-        foreach ($catalogo as $r) {
-            if (!empty($r->ruta) && !empty($r->canal)) {
-                $canalPorRuta[strtoupper(trim((string) $r->ruta))] = strtoupper(trim((string) $r->canal));
-            }
-        }
 
         $fronterasRutas = [];
         foreach ($poligonosRutas as $fr) {
             if (!empty($fr->geojson)) {
-                $rutaKey = strtoupper(trim((string) $fr->ruta));
-                // dim_rutas es la única fuente de verdad para el canal; dim_fronteras_rutas.canal es sólo fallback
-                $canal = $canalPorRuta[$rutaKey] ?? (!empty($fr->canal) ? strtoupper(trim((string) $fr->canal)) : 'SIN CANAL');
                 $fronterasRutas[] = [
                     'ruta' => $fr->ruta,
-                    'canal' => $canal,
+                    'canal' => strtoupper(trim((string) $fr->canal)),
                     'geojson' => json_decode($fr->geojson, true),
                 ];
             }
