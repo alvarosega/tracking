@@ -61,13 +61,22 @@ class GetCercanosInitDataAction
         // Fronteras días ya no se utilizan en clientes cercanos para optimizar la carga
         $fronterasDias = [];
 
+        // Subquery deduplicado de dim_rutas (fuente única de la verdad para rutas y canales)
+        $subRutas = DB::connection('supervisor')
+            ->table('dim_rutas')
+            ->selectRaw("TRIM(UPPER(ruta)) AS ruta_clean, MAX(TRIM(canal)) AS canal")
+            ->whereNotNull('ruta')
+            ->whereRaw("TRIM(ruta) != ''")
+            ->groupBy(DB::raw("TRIM(UPPER(ruta))"));
+
         // Polígonos de fronteras rutas para visualización territorial
-        // dim_rutas es la única fuente de la verdad: sólo se toman rutas que existan y estén activas en dim_rutas
+        // dim_rutas es la única fuente de la verdad: sólo se toman rutas que existan en dim_rutas
         $poligonosRutas = DB::connection('supervisor')
             ->table('dim_fronteras_rutas as f')
-            ->join('dim_rutas as r', DB::raw("TRIM(UPPER(f.ruta))"), '=', DB::raw("TRIM(UPPER(r.ruta))"))
+            ->joinSub($subRutas, 'r', function ($join) {
+                $join->on(DB::raw("TRIM(UPPER(f.ruta))"), '=', 'r.ruta_clean');
+            })
             ->where('f.estado', 'ACTIVO')
-            ->where('r.estado', 'ACTIVO')
             ->whereNotNull('f.poligono')
             ->select([
                 'f.ruta',
