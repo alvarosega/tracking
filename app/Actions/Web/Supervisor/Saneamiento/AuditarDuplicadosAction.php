@@ -559,16 +559,17 @@ class AuditarDuplicadosAction
             ];
         }
 
-        // 10. Filtrar por rutas o canales si se especificaron
+        // 10. Filtrar por canales y/o rutas si se especificaron
+        if (!empty($canales)) {
+            $canalesNorm = array_map(fn($c) => strtoupper(trim((string) $c)), array_filter($canales));
+            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($canalesNorm) {
+                return count(array_intersect($cl['canales'], $canalesNorm)) > 0;
+            }));
+        }
         if (!empty($rutas)) {
             $rutasNorm = array_map(fn($r) => strtoupper(trim((string) $r)), array_filter($rutas));
             $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($rutasNorm) {
                 return count(array_intersect($cl['rutas'], $rutasNorm)) > 0;
-            }));
-        } elseif (!empty($canales)) {
-            $canalesNorm = array_map(fn($c) => strtoupper(trim((string) $c)), array_filter($canales));
-            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($canalesNorm) {
-                return count(array_intersect($cl['canales'], $canalesNorm)) > 0;
             }));
         }
 
