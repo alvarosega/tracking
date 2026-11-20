@@ -407,40 +407,69 @@ class AuditarDuplicadosAction
 
         $mapaVentas = $this->obtenerVentasMtd($todosCids);
 
-        // Consultar historial de alta/creación e ingreso al padrón en auditoria_ruteo_cambios
+        // Consultar historial completo de modificaciones y altas en auditoria_ruteo_cambios
+        $mapaCambios = [];
         $mapaAltasRuteo = [];
         if (!empty($todosCids)) {
-            $altasDb = $conn->table('auditoria_ruteo_cambios')
+            $cambiosDb = $conn->table('auditoria_ruteo_cambios')
                 ->whereIn('cliente_id', $todosCids)
-                ->where(function ($w) {
-                    $w->where('tipo_evento', 'NUEVO')
-                      ->orWhere('campo_afectado', 'cliente_alta_total');
-                })
-                ->selectRaw('cliente_id, MIN(fecha_auditoria) as fecha_alta, MIN(archivo_origen) as archivo_origen')
-                ->groupBy('cliente_id')
+                ->select([
+                    'id',
+                    'cliente_id',
+                    'archivo_origen',
+                    'tipo_evento',
+                    'campo_afectado',
+                    DB::raw("COALESCE(valor_anterior, '-') AS valor_anterior"),
+                    DB::raw("COALESCE(valor_nuevo, '-') AS valor_nuevo"),
+                    'fecha_auditoria',
+                    DB::raw("DATE_FORMAT(fecha_auditoria, '%Y-%m-%d %H:%i') AS fecha_auditoria_fmt"),
+                    'estado_auditoria',
+                    DB::raw("COALESCE(observaciones, '') AS observaciones"),
+                    DB::raw("COALESCE(auditado_por, '') AS auditado_por"),
+                    DB::raw("DATE_FORMAT(fecha_resolucion, '%Y-%m-%d %H:%i') AS fecha_resolucion"),
+                ])
+                ->orderByRaw("COALESCE(fecha_resolucion, fecha_auditoria) DESC")
+                ->orderByDesc('id')
                 ->get();
 
-            foreach ($altasDb as $a) {
-                $mapaAltasRuteo[(int) $a->cliente_id] = [
-                    'fecha' => (string) $a->fecha_alta,
-                    'origen' => 'Alta en ' . (string) ($a->archivo_origen ?? 'Ruteo'),
+            foreach ($cambiosDb as $c) {
+                $cidInt = (int) $c->cliente_id;
+                $mapaCambios[$cidInt][] = [
+                    'id' => (int) $c->id,
+                    'cliente_id' => $cidInt,
+                    'archivo_origen' => (string) ($c->archivo_origen ?? ''),
+                    'tipo_evento' => (string) ($c->tipo_evento ?? ''),
+                    'campo_afectado' => (string) ($c->campo_afectado ?? ''),
+                    'valor_anterior' => (string) ($c->valor_anterior ?? '-'),
+                    'valor_nuevo' => (string) ($c->valor_nuevo ?? '-'),
+                    'fecha_auditoria' => (string) ($c->fecha_auditoria ?? ''),
+                    'fecha_auditoria_fmt' => (string) ($c->fecha_auditoria_fmt ?? ''),
+                    'estado_auditoria' => (string) ($c->estado_auditoria ?? 'PENDIENTE'),
+                    'observaciones' => (string) ($c->observaciones ?? ''),
+                    'auditado_por' => (string) ($c->auditado_por ?? ''),
+                    'fecha_resolucion' => (string) ($c->fecha_resolucion ?? ''),
                 ];
+
+                // Identificar fecha y origen de alta
+                if ($c->tipo_evento === 'NUEVO' || $c->campo_afectado === 'cliente_alta_total') {
+                    if (!isset($mapaAltasRuteo[$cidInt]) || strcmp((string) $c->fecha_auditoria, $mapaAltasRuteo[$cidInt]['fecha']) < 0) {
+                        $mapaAltasRuteo[$cidInt] = [
+                            'fecha' => (string) $c->fecha_auditoria,
+                            'origen' => 'Alta en ' . (string) ($c->archivo_origen ?: 'Ruteo'),
+                        ];
+                    }
+                }
             }
 
-            // Para los clientes que no tuvieron evento explícito 'NUEVO', buscar el primer evento registrado
-            $cidsRestantes = array_diff($todosCids, array_keys($mapaAltasRuteo));
-            if (!empty($cidsRestantes)) {
-                $primerEventoDb = $conn->table('auditoria_ruteo_cambios')
-                    ->whereIn('cliente_id', $cidsRestantes)
-                    ->selectRaw('cliente_id, MIN(fecha_auditoria) as primera_fecha, MIN(archivo_origen) as primer_archivo')
-                    ->groupBy('cliente_id')
-                    ->get();
-
-                foreach ($primerEventoDb as $pe) {
-                    if (!empty($pe->primera_fecha)) {
-                        $mapaAltasRuteo[(int) $pe->cliente_id] = [
-                            'fecha' => (string) $pe->primera_fecha,
-                            'origen' => 'Histórico en ' . (string) ($pe->primer_archivo ?? 'Ruteo'),
+            // Para los clientes que no tuvieron evento explícito 'NUEVO', tomar el evento más antiguo disponible
+            foreach ($todosCids as $cid) {
+                if (!isset($mapaAltasRuteo[$cid]) && !empty($mapaCambios[$cid])) {
+                    $lista = $mapaCambios[$cid];
+                    $primerEvento = end($lista);
+                    if (!empty($primerEvento['fecha_auditoria'])) {
+                        $mapaAltasRuteo[$cid] = [
+                            'fecha' => (string) $primerEvento['fecha_auditoria'],
+                            'origen' => 'Histórico en ' . (string) ($primerEvento['archivo_origen'] ?: 'Ruteo'),
                         ];
                     }
                 }
@@ -511,6 +540,8 @@ class AuditarDuplicadosAction
                     'tiene_propuesta_pendiente' => $prop !== null,
                     'propuesta_id' => $prop ? (int) $prop['id'] : null,
                     'accion_propuesta_pendiente' => $prop ? $prop['accion_propuesta'] : null,
+                    'cambios' => $mapaCambios[$cId] ?? [],
+                    'total_cambios' => count($mapaCambios[$cId] ?? []),
                 ];
             }
 

@@ -627,6 +627,37 @@ class SupervisorSaneamientoController extends Controller
         ]);
     }
 
+    public function cambiosClienteDuplicados(int|string $clienteId): JsonResponse
+    {
+        $conn = DB::connection('supervisor');
+        $cambios = $conn->table('auditoria_ruteo_cambios as a')
+            ->where('a.cliente_id', (int) $clienteId)
+            ->select([
+                'a.id',
+                'a.cliente_id',
+                'a.archivo_origen',
+                'a.tipo_evento',
+                'a.campo_afectado',
+                DB::raw("COALESCE(a.valor_anterior, '-') AS valor_anterior"),
+                DB::raw("COALESCE(a.valor_nuevo, '-') AS valor_nuevo"),
+                'a.fecha_auditoria',
+                DB::raw("DATE_FORMAT(a.fecha_auditoria, '%Y-%m-%d %H:%i') AS fecha_auditoria_fmt"),
+                'a.estado_auditoria',
+                DB::raw("COALESCE(a.observaciones, '') AS observaciones"),
+                DB::raw("COALESCE(a.auditado_por, '') AS auditado_por"),
+                DB::raw("DATE_FORMAT(a.fecha_resolucion, '%Y-%m-%d %H:%i') AS fecha_resolucion"),
+            ])
+            ->orderByRaw("COALESCE(a.fecha_resolucion, a.fecha_auditoria) DESC")
+            ->orderByDesc('a.id')
+            ->get();
+
+        return response()->json([
+            'cliente_id' => (int) $clienteId,
+            'cambios' => $cambios,
+            'total' => $cambios->count(),
+        ]);
+    }
+
     // ── API: Días Desalineados ─────────────────────────────────────────────────
 
     public function auditarDias(Request $request, AuditarDiasDesalineadosAction $action): JsonResponse

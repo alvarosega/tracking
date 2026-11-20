@@ -756,8 +756,26 @@
                         ¿Qué datos coinciden exactamente en este grupo?
                       </span>
                     </div>
-                    <div class="text-[11px] font-mono text-slate-600">
-                      Distancia física: <strong class="text-slate-900 font-bold">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <!-- Botón Desglosar Cambios de Ambos -->
+                      <button
+                        type="button"
+                        @click="desglosarCambiosAmbos"
+                        class="px-2.5 py-1 rounded-lg border text-[10.5px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        :class="sonTodosCambiosExpandidos
+                          ? 'bg-sky-50 text-sky-800 border-sky-300'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'"
+                        title="Desglosar o replegar historial de cambios de ambos clientes a la vez"
+                      >
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{{ sonTodosCambiosExpandidos ? 'Replegar Historiales' : 'Desglosar Historial de Ambos' }}</span>
+                      </button>
+
+                      <div class="text-[11px] font-mono text-slate-600">
+                        Distancia física: <strong class="text-slate-900 font-bold">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
+                      </div>
                     </div>
                   </div>
 
@@ -990,6 +1008,151 @@
                         >
                           IDÉNTICO
                         </span>
+                      </div>
+                    </div>
+
+                    <!-- Seccion: Historial de Modificaciones (Lógica Matriz de Cambios) -->
+                    <div class="rounded-xl bg-white border border-slate-200/90 shadow-2xs overflow-hidden">
+                      <button
+                        type="button"
+                        @click="alternarCambiosCliente(cli.cliente_id, cli)"
+                        class="w-full px-3 py-2 flex items-center justify-between text-left transition-colors hover:bg-slate-50 cursor-pointer select-none"
+                      >
+                        <div class="flex items-center gap-2 min-w-0">
+                          <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span class="text-xs font-bold text-slate-800">
+                            Historial de Modificaciones
+                          </span>
+                          <span
+                            class="px-1.5 py-0.2 rounded-full font-mono text-[10px] font-bold border"
+                            :class="(cli.cambios && cli.cambios.length > 0)
+                              ? 'bg-sky-50 text-sky-700 border-sky-200'
+                              : 'bg-slate-100 text-slate-500 border-slate-200'"
+                          >
+                            {{ (cli.cambios ? cli.cambios.length : cli.total_cambios) || 0 }} evento(s)
+                          </span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 shrink-0 text-slate-400">
+                          <span class="text-[10px] font-mono">
+                            {{ cambiosExpandidos.has(cli.cliente_id) ? 'Ocultar' : 'Desglosar' }}
+                          </span>
+                          <svg
+                            class="w-3.5 h-3.5 transition-transform duration-200"
+                            :class="cambiosExpandidos.has(cli.cliente_id) ? 'rotate-180 text-sky-600' : ''"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </div>
+                      </button>
+
+                      <!-- Detalle Desglosado de Modificaciones -->
+                      <div
+                        v-if="cambiosExpandidos.has(cli.cliente_id)"
+                        class="border-t border-slate-100 p-2.5 bg-slate-50/70 space-y-2"
+                      >
+                        <div v-if="cargandoCambios.has(cli.cliente_id)" class="py-4 text-center text-xs text-slate-500 font-mono">
+                          <span class="inline-block w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mr-1.5 align-middle"></span>
+                          <span>Cargando auditoría de cambios...</span>
+                        </div>
+
+                        <div
+                          v-else-if="!cli.cambios || cli.cambios.length === 0"
+                          class="py-3 px-2 text-center text-[11px] text-slate-500 font-sans bg-white rounded-lg border border-slate-200/80"
+                        >
+                          Sin modificaciones registradas en auditoría de ruteo para este cliente.
+                        </div>
+
+                        <div v-else class="space-y-1.5 max-h-72 overflow-y-auto custom-scroll pr-1">
+                          <div class="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider pb-0.5">
+                            <span>Cronología Histórica (#{{ cli.cliente_id }})</span>
+                            <span>{{ cli.cambios.length }} evento(s)</span>
+                          </div>
+
+                          <div
+                            v-for="ev in cli.cambios"
+                            :key="ev.id"
+                            class="p-2 bg-white rounded-lg border border-slate-200/90 shadow-2xs space-y-1 text-xs hover:bg-slate-50/80 transition-colors"
+                          >
+                            <!-- Encabezado del Evento -->
+                            <div class="flex items-center justify-between gap-1.5 flex-wrap">
+                              <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span
+                                  class="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold border"
+                                  :class="obtenerBadgeEventoClase(ev.tipo_evento, ev.campo_afectado)"
+                                >
+                                  {{ formatearTipoEvento(ev.tipo_evento, ev.campo_afectado) }}
+                                </span>
+
+                                <span class="font-bold text-slate-900 text-xs">
+                                  <code class="font-mono text-sky-700 bg-sky-50 px-1 py-0.2 rounded border border-sky-100 text-[10.5px]">
+                                    {{ ev.campo_afectado }}
+                                  </code>
+                                </span>
+
+                                <span class="text-[10px] text-slate-500 font-mono">
+                                  &bull; {{ ev.fecha_auditoria_fmt || ev.fecha_auditoria }}
+                                </span>
+
+                                <span v-if="ev.archivo_origen" class="text-[9.5px] text-slate-400 font-sans truncate max-w-[130px]" :title="ev.archivo_origen">
+                                  ({{ ev.archivo_origen }})
+                                </span>
+                              </div>
+
+                              <!-- Estado de Auditoría -->
+                              <span
+                                class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border shrink-0"
+                                :class="ev.estado_auditoria === 'APROBADO'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : (ev.estado_auditoria === 'RECHAZADO'
+                                    ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                    : (ev.estado_auditoria === 'PENDIENTE'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-slate-100 text-slate-700 border-slate-200'))"
+                              >
+                                {{ ev.estado_auditoria }}
+                              </span>
+                            </div>
+
+                            <!-- Transición Antes -> Después en texto completo con font-mono -->
+                            <div class="flex items-center gap-1.5 font-mono text-[11px] flex-wrap pt-0.5">
+                              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 line-through opacity-85 break-words max-w-full">
+                                {{ ev.valor_anterior || '-' }}
+                              </span>
+
+                              <svg class="w-3 h-3 text-sky-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                              </svg>
+
+                              <span class="px-2 py-0.5 rounded bg-sky-50 text-sky-800 font-bold border border-sky-200 break-words max-w-full">
+                                {{ ev.valor_nuevo || '-' }}
+                              </span>
+
+                              <!-- Visor interactivo para cambios de coordenadas -->
+                              <AuditoriaCoordenadasMapa
+                                v-if="esCambioCoordenadas(ev)"
+                                :id="ev.id"
+                                :valor-anterior="ev.valor_anterior"
+                                :valor-nuevo="ev.valor_nuevo"
+                                :cliente="cli.cliente"
+                                :cliente-id="cli.cliente_id"
+                              />
+                            </div>
+
+                            <!-- Observaciones y Auditor si existen -->
+                            <div v-if="ev.observaciones || ev.auditado_por" class="text-[9.5px] text-slate-500 italic pt-0.5 border-t border-slate-100">
+                              <span v-if="ev.auditado_por">Por {{ ev.auditado_por }}</span>
+                              <span v-if="ev.fecha_resolucion"> el {{ ev.fecha_resolucion }}</span>
+                              <span v-if="ev.observaciones"> &mdash; "{{ ev.observaciones }}"</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -1393,6 +1556,7 @@ import { mapsConfig } from '@/Config/maps'
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import AuditoriaSaneamientoSubTabs from '@/Components/AuditoriaSaneamientoSubTabs.vue'
 import ClienteFotosModal from './Components/ClienteFotosModal.vue'
+import AuditoriaCoordenadasMapa from '@/Pages/Supervisor/Auditoria/Components/AuditoriaCoordenadasMapa.vue'
 
 const props = defineProps({
   catalogo: {
@@ -1455,6 +1619,10 @@ const clusters = ref([])
 const propuestasPendientes = ref([])
 const grupoSeleccionadoId = ref(null)
 const clienteFocoId = ref(null)
+
+// Historial de Modificaciones (Lógica Matriz de Cambios)
+const cambiosExpandidos = ref(new Set())
+const cargandoCambios = ref(new Set())
 
 // Modal de Confirmacion
 const modalConfirmacionVisible = ref(false)
@@ -1649,6 +1817,7 @@ function navegarGrupo(direccion) {
 function seleccionarGrupo(grupo) {
   grupoSeleccionadoId.value = grupo.cluster_id
   clienteFocoId.value = null
+  cambiosExpandidos.value = new Set()
 
   // Calcular quien es el mas antiguo en el grupo para badge visual
   marcarAntiguedadGrupo(grupo)
@@ -1878,6 +2047,118 @@ function nombreEsIdenticoEnGrupo() {
 function abrirModalFotos(cli) {
   clienteSeleccionadoFotos.value = cli
   modalFotosVisible.value = true
+}
+
+// ==========================================
+// DESGLOSE DE CAMBIOS (LÓGICA MATRIZ DE CAMBIOS)
+// ==========================================
+async function alternarCambiosCliente(clienteId, cli = null) {
+  const next = new Set(cambiosExpandidos.value)
+  if (next.has(clienteId)) {
+    next.delete(clienteId)
+  } else {
+    next.add(clienteId)
+    // Carga perezosa si los cambios no estuvieran en memoria
+    if (cli && (!cli.cambios || cli.cambios.length === 0) && cli.total_cambios !== 0) {
+      cargandoCambios.value.add(clienteId)
+      try {
+        const url = typeof route === 'function'
+          ? route('supervisor.saneamiento.duplicados.cliente.cambios', { clienteId })
+          : `/supervisor/saneamiento/duplicados/cliente/${clienteId}/cambios`
+        const res = await axios.get(url)
+        if (res.data && res.data.cambios) {
+          cli.cambios = res.data.cambios
+          cli.total_cambios = res.data.total ?? res.data.cambios.length
+        }
+      } catch (err) {
+        console.error(`Error al consultar cambios del cliente #${clienteId}:`, err)
+      } finally {
+        cargandoCambios.value.delete(clienteId)
+      }
+    }
+  }
+  cambiosExpandidos.value = next
+}
+
+function desglosarCambiosAmbos() {
+  if (!grupoActivo.value || !grupoActivo.value.clientes) return
+  const todosExpandidos = grupoActivo.value.clientes.every(c => cambiosExpandidos.value.has(c.cliente_id))
+  const next = new Set(cambiosExpandidos.value)
+  grupoActivo.value.clientes.forEach(c => {
+    if (todosExpandidos) {
+      next.delete(c.cliente_id)
+    } else {
+      next.add(c.cliente_id)
+      if ((!c.cambios || c.cambios.length === 0) && c.total_cambios !== 0) {
+        alternarCambiosCliente(c.cliente_id, c)
+      }
+    }
+  })
+  cambiosExpandidos.value = next
+}
+
+const sonTodosCambiosExpandidos = computed(() => {
+  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length === 0) return false
+  return grupoActivo.value.clientes.every(c => cambiosExpandidos.value.has(c.cliente_id))
+})
+
+function esCambioCoordenadas(ev) {
+  if (!ev) return false
+  const tipo = (ev.tipo_evento || '').toUpperCase()
+  const campo = (ev.campo_afectado || '').toLowerCase()
+  return tipo === 'MODIFICADO_COORDENADAS' || campo === 'coordenadas' || campo === 'latitud' || campo === 'longitud' || campo === 'ubicacion'
+}
+
+function formatearTipoEvento(tipo, campo = '') {
+  if (campo === 'cliente' || tipo === 'CAMBIO_CLIENTE' || tipo === 'MODIFICADO_CLIENTE') {
+    return 'Cliente'
+  }
+  switch (tipo) {
+    case 'NUEVO': return 'Alta'
+    case 'REACTIVADO': return 'Reactivado'
+    case 'ELIMINADO': return 'Baja'
+    case 'INACTIVADO': return 'Inactivado'
+    case 'MODIFICADO_RUTA': return 'Cambio Ruta'
+    case 'MODIFICADO_DIA': return 'Cambio Día'
+    case 'MODIFICADO_COORDENADAS': return 'GPS'
+    case 'CAMBIO_DE_CLUSTER': return 'Cluster'
+    case 'MODIFICADO_VENDEDOR': return 'Vendedor'
+    case 'FRECUENCIA_VISITA': return 'Frecuencia'
+    case 'MODIFICACION_DATOS':
+    case 'MODIFICADO': return 'Datos'
+    default: return tipo || 'Modificado'
+  }
+}
+
+function obtenerBadgeEventoClase(tipo, campo = '') {
+  if (campo === 'cliente' || tipo === 'CAMBIO_CLIENTE' || tipo === 'MODIFICADO_CLIENTE') {
+    return 'bg-[#F0F4FF] text-[#2563EB] border-[#BFDBFE]'
+  }
+  switch (tipo) {
+    case 'NUEVO':
+    case 'REACTIVADO':
+      return 'bg-[#EBF9EF] text-[#1E6B37] border-[#D1F2D9]'
+    case 'ELIMINADO':
+    case 'INACTIVADO':
+      return 'bg-[#FDF0EF] text-[#C9342C] border-[#FADCD5]'
+    case 'MODIFICADO_RUTA':
+      return 'bg-[#EBF5FF] text-[#0071E3] border-[#B3D7FF]'
+    case 'MODIFICADO_DIA':
+      return 'bg-[#FFF8E6] text-[#B7791F] border-[#FCE8B3]'
+    case 'MODIFICADO_COORDENADAS':
+      return 'bg-[#FEF5E7] text-[#D35400] border-[#FADBD8]'
+    case 'CAMBIO_DE_CLUSTER':
+      return 'bg-[#F5EEF8] text-[#8E44AD] border-[#E8DAEF]'
+    case 'MODIFICADO_VENDEDOR':
+      return 'bg-[#E8F8F5] text-[#16A085] border-[#D1F2EB]'
+    case 'FRECUENCIA_VISITA':
+      return 'bg-[#EBF5FB] text-[#2980B9] border-[#D4E6F1]'
+    case 'MODIFICACION_DATOS':
+    case 'MODIFICADO':
+      return 'bg-[#F0F2F5] text-[#475569] border-[#CBD5E1]'
+    default:
+      return 'bg-black/[0.05] text-[#1D1D1F] border-black/10'
+  }
 }
 
 // ==========================================

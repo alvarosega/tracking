@@ -457,6 +457,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/duplicados/propuestas/crear', [SupervisorSaneamientoController::class, 'crearPropuestaDuplicado'])->name('duplicados.propuestas.crear');
             Route::post('/duplicados/propuestas/cambiar-estado', [SupervisorSaneamientoController::class, 'cambiarEstadoPropuestaDuplicado'])->name('duplicados.propuestas.cambiar-estado');
             Route::post('/duplicados/propuestas/revertir', [SupervisorSaneamientoController::class, 'revertirPropuestaDuplicado'])->name('duplicados.propuestas.revertir');
+            Route::get('/duplicados/cliente/{clienteId}/cambios', [SupervisorSaneamientoController::class, 'cambiosClienteDuplicados'])->name('duplicados.cliente.cambios');
         });
 
         // Días Desalineados
