@@ -175,61 +175,6 @@ class AuditarDuplicadosAction
             }
         }
 
-        // Matriz de adyacencia de MISMOS DATOS
-        $adjDatos = [];
-        $distanciasDatos = [];
-        $criteriosDatos = [];
-
-        $agregarCoincidenciaDato = function (int $id1, int $id2, string $campo, string $valor) use (
-            &$adjDatos, &$distanciasDatos, &$criteriosDatos, $puntosMap
-        ): void {
-            if ($id1 === $id2) {
-                return;
-            }
-            $minId = min($id1, $id2);
-            $maxId = max($id1, $id2);
-            $par = "{$minId}_{$maxId}";
-
-            if (!isset($criteriosDatos[$par])) {
-                $criteriosDatos[$par] = [];
-                $adjDatos[$minId][] = $maxId;
-                $adjDatos[$maxId][] = $minId;
-
-                $p1 = $puntosMap[$minId];
-                $p2 = $puntosMap[$maxId];
-                $dM = GeometryHelper::haversineDistance($p1['latitud'], $p1['longitud'], $p2['latitud'], $p2['longitud']);
-                $distanciasDatos[$par] = round($dM, 1);
-            }
-
-            $criteriosDatos[$par][] = ['campo' => $campo, 'valor' => $valor];
-        };
-
-        // Procesar coincidencias de datos con límite defensivo por bucket para evitar explosiones
-        $procesarBucket = function (array $index, string $campo, int $maxBucket = 20) use ($agregarCoincidenciaDato, $puntosMap) {
-            foreach ($index as $valor => $cids) {
-                $cids = array_values(array_unique($cids));
-                $cnt = count($cids);
-                if ($cnt >= 2 && $cnt <= $maxBucket) {
-                    for ($i = 0; $i < $cnt; $i++) {
-                        for ($j = $i + 1; $j < $cnt; $j++) {
-                            $valMostrado = match ($campo) {
-                                'Nombre' => $puntosMap[$cids[$i]]['cliente'],
-                                'Factura' => !empty($puntosMap[$cids[$i]]['nombre_factura']) ? $puntosMap[$cids[$i]]['nombre_factura'] : (string) $valor,
-                                default => (string) $valor,
-                            };
-                            $agregarCoincidenciaDato($cids[$i], $cids[$j], $campo, $valMostrado);
-                        }
-                    }
-                }
-            }
-        };
-
-        $procesarBucket($indexNombre, 'Nombre');
-        $procesarBucket($indexNit, 'NIT');
-        $procesarBucket($indexCi, 'CI');
-        $procesarBucket($indexTel, 'Teléfono');
-        $procesarBucket($indexFactura, 'Factura');
-
         // 5. Grid espacial para "MISMA UBICACIÓN" (proximidad <= radioMetros)
         $tamanoCelda = max(0.0003, $radioMetros / 100000.0);
         $grid = [];
@@ -241,7 +186,6 @@ class AuditarDuplicadosAction
 
         $adjProx = [];
         $distanciasProx = [];
-        $criteriosProx = [];
 
         foreach ($grid as $key => $celdas) {
             [$kLat, $kLon] = explode('_', $key);
@@ -274,131 +218,181 @@ class AuditarDuplicadosAction
                         $adjProx[$id1][] = $id2;
                         $adjProx[$id2][] = $id1;
                         $distanciasProx[$par] = round($dM, 1);
-                        $criteriosProx[$par] = [['campo' => 'Ubicación', 'valor' => round($dM, 1) . ' m']];
                     }
                 }
             }
         }
 
-        // 6. Detección de Componentes Conexos
-        $detectarClusters = function (array $adj): array {
-            $visitados = [];
-            $clusters = [];
-            foreach (array_keys($adj) as $cid) {
-                if (!isset($visitados[$cid]) && !empty($adj[$cid])) {
-                    $clusterIds = [];
-                    $cola = [$cid];
-                    $visitados[$cid] = true;
-                    while (!empty($cola)) {
-                        $curr = array_shift($cola);
-                        $clusterIds[] = $curr;
-                        foreach ($adj[$curr] as $vecino) {
-                            if (!isset($visitados[$vecino])) {
-                                $visitados[$vecino] = true;
-                                $cola[] = $vecino;
-                            }
-                        }
+        // Helper para calcular la distancia mínima entre un conjunto de clientes
+        $calcularMinDistancia = function (array $cids) use ($puntosMap, $distanciasProx): float {
+            $cnt = count($cids);
+            if ($cnt < 2) return 0.0;
+            $minDist = 999999.0;
+            for ($i = 0; $i < $cnt; $i++) {
+                for ($j = $i + 1; $j < $cnt; $j++) {
+                    $minId = min($cids[$i], $cids[$j]);
+                    $maxId = max($cids[$i], $cids[$j]);
+                    $par = "{$minId}_{$maxId}";
+                    if (isset($distanciasProx[$par])) {
+                        $dM = $distanciasProx[$par];
+                    } else {
+                        $p1 = $puntosMap[$minId];
+                        $p2 = $puntosMap[$maxId];
+                        $dM = round(GeometryHelper::haversineDistance($p1['latitud'], $p1['longitud'], $p2['latitud'], $p2['longitud']), 1);
                     }
-                    if (count($clusterIds) >= 2) {
-                        $clusters[] = $clusterIds;
-                    }
+                    if ($dM < $minDist) $minDist = $dM;
                 }
             }
-            return $clusters;
+            return $minDist !== 999999.0 ? $minDist : 0.0;
         };
 
-        // Componentes conexos de datos
-        $clustersDatosRaw = $detectarClusters($adjDatos);
+        // 6. Generación de Grupos Atómicos (Cada grupo tiene una identidad real comprobada)
+        $gruposPorClave = [];
 
-        // Mapear qué clientes ya están cubiertos en clusters de datos
-        $mapaClienteAClusterDato = [];
-        foreach ($clustersDatosRaw as $idxDato => $clIds) {
-            foreach ($clIds as $cId) {
-                $mapaClienteAClusterDato[$cId] = $idxDato;
+        $registrarGrupo = function (array $cids, array $criteriosIniciales) use (&$gruposPorClave, $calcularMinDistancia, $radioMetros): void {
+            $cids = array_values(array_unique($cids));
+            sort($cids);
+            if (count($cids) < 2) return;
+
+            $key = implode('_', $cids);
+            $minDist = $calcularMinDistancia($cids);
+            $esMismaUbicacion = ($minDist <= $radioMetros);
+
+            if (!isset($gruposPorClave[$key])) {
+                $gruposPorClave[$key] = [
+                    'clientes_ids' => $cids,
+                    'distancia_minima_m' => $minDist,
+                    'tiene_misma_ubicacion' => $esMismaUbicacion,
+                    'tiene_mismos_datos' => false,
+                    'criterios_raw' => [],
+                ];
+            }
+
+            foreach ($criteriosIniciales as $campo => $valor) {
+                if ($campo !== 'Ubicación') {
+                    $gruposPorClave[$key]['tiene_mismos_datos'] = true;
+                }
+                $gruposPorClave[$key]['criterios_raw'][$campo][(string) $valor] = true;
+            }
+
+            if ($esMismaUbicacion) {
+                $gruposPorClave[$key]['tiene_misma_ubicacion'] = true;
+                $gruposPorClave[$key]['criterios_raw']['Ubicación'][round($minDist, 1) . ' m'] = true;
+            }
+        };
+
+        // A) Grupos Atómicos por NIT (Cada NIT idéntico es su propio grupo exclusivo)
+        foreach ($indexNit as $nitVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            if (count($cids) >= 2 && count($cids) <= 20) {
+                $registrarGrupo($cids, ['NIT' => (string) $nitVal]);
             }
         }
 
-        // Filtrar adjProx para extraer colisiones espaciales PURAS (donde no pertenecen al mismo cluster de datos)
-        $adjProxPuro = [];
-        foreach ($adjProx as $id1 => $vecinos) {
-            foreach ($vecinos as $id2) {
-                $cd1 = $mapaClienteAClusterDato[$id1] ?? null;
-                $cd2 = $mapaClienteAClusterDato[$id2] ?? null;
-                // Si ambos no están en el mismo cluster de datos, es una colisión de ubicación independiente
-                if ($cd1 === null || $cd2 === null || $cd1 !== $cd2) {
-                    $adjProxPuro[$id1][] = $id2;
+        // B) Grupos Atómicos por CI (Cada CI idéntico es su propio grupo exclusivo)
+        foreach ($indexCi as $ciVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            if (count($cids) >= 2 && count($cids) <= 20) {
+                $registrarGrupo($cids, ['CI' => (string) $ciVal]);
+            }
+        }
+
+        // C) Grupos Atómicos por Teléfono + Nombre Comercial o Factura
+        // (Un teléfono solo duplica si además comparten nombre comercial o factura, o misma ubicación)
+        foreach ($indexTel as $telVal => $cids) {
+            $cids = array_values(array_unique($cids));
+            $cnt = count($cids);
+            if ($cnt >= 2 && $cnt <= 8) { // Filtro defensivo: descarta teléfonos genéricos o de vendedor
+                for ($i = 0; $i < $cnt; $i++) {
+                    for ($j = $i + 1; $j < $cnt; $j++) {
+                        $p1 = $puntosMap[$cids[$i]];
+                        $p2 = $puntosMap[$cids[$j]];
+                        $mismoNombre = ($p1['cliente_norm'] !== '' && $p1['cliente_norm'] === $p2['cliente_norm']);
+                        $mismaFactura = ($p1['_factura_norm'] !== '' && $p1['_factura_norm'] === $p2['_factura_norm']);
+                        $minD = $calcularMinDistancia([$cids[$i], $cids[$j]]);
+                        $esCerca = ($minD <= $radioMetros);
+
+                        if ($mismoNombre || $mismaFactura || $esCerca) {
+                            $crits = ['Teléfono' => (string) $telVal];
+                            if ($mismoNombre) $crits['Nombre'] = $p1['cliente'];
+                            if ($mismaFactura) $crits['Factura'] = !empty($p1['nombre_factura']) ? $p1['nombre_factura'] : $p1['_factura_norm'];
+                            $registrarGrupo([$cids[$i], $cids[$j]], $crits);
+                        }
+                    }
                 }
             }
         }
-        $clustersProxRaw = $detectarClusters($adjProxPuro);
 
-        // 7. Estructurar clusters sin duplicación
-        // A) Clusters de datos (pueden tener o no misma ubicación)
+        // D) Grupos Atómicos por Misma Ubicación Física (Colisión Espacial Pura)
+        $visitadosProx = [];
+        foreach (array_keys($adjProx) as $cid) {
+            if (!isset($visitadosProx[$cid]) && !empty($adjProx[$cid])) {
+                $clusterIds = [];
+                $cola = [$cid];
+                $visitadosProx[$cid] = true;
+                while (!empty($cola)) {
+                    $curr = array_shift($cola);
+                    $clusterIds[] = $curr;
+                    foreach ($adjProx[$curr] as $vecino) {
+                        if (!isset($visitadosProx[$vecino])) {
+                            $visitadosProx[$vecino] = true;
+                            $cola[] = $vecino;
+                        }
+                    }
+                }
+                if (count($clusterIds) >= 2 && count($clusterIds) <= 15) {
+                    $minD = $calcularMinDistancia($clusterIds);
+                    $crits = ['Ubicación' => round($minD, 1) . ' m'];
+                    
+                    // Verificar si comparten nombre comercial idéntico
+                    $p0 = $puntosMap[$clusterIds[0]];
+                    $nomC = $p0['cliente_norm'];
+                    $todosMismoNombre = ($nomC !== '') && array_reduce($clusterIds, fn($acc, $id) => $acc && ($puntosMap[$id]['cliente_norm'] === $nomC), true);
+                    if ($todosMismoNombre) {
+                        $crits['Nombre'] = $p0['cliente'];
+                    }
+                    $registrarGrupo($clusterIds, $crits);
+                }
+            }
+        }
+
+        // 7. Estructurar clusters consolidados y filtrar veracidad
         $clustersConsolidados = [];
+        foreach ($gruposPorClave as $item) {
+            $cids = $item['clientes_ids'];
+            $criteriosFiltrados = [];
 
-        foreach ($clustersDatosRaw as $clIds) {
-            $minDist = 999999.0;
-            $countIds = count($clIds);
-            $criteriosAgrupados = [];
+            foreach ($item['criterios_raw'] as $campo => $valsMap) {
+                if ($campo === 'Ubicación') {
+                    $criteriosFiltrados['Ubicación'] = $valsMap;
+                    continue;
+                }
 
-            for ($i = 0; $i < $countIds; $i++) {
-                for ($j = $i + 1; $j < $countIds; $j++) {
-                    $par = min($clIds[$i], $clIds[$j]) . '_' . max($clIds[$i], $clIds[$j]);
-                    if (isset($distanciasDatos[$par]) && $distanciasDatos[$par] < $minDist) {
-                        $minDist = $distanciasDatos[$par];
-                    }
-                    if (isset($criteriosDatos[$par])) {
-                        foreach ($criteriosDatos[$par] as $crit) {
-                            $criteriosAgrupados[$crit['campo']][(string) $crit['valor']] = true;
-                        }
-                    }
+                // Regla de Oro: En un grupo de duplicados, cada campo de datos debe tener un único valor idéntico
+                $valoresUnicos = array_keys($valsMap);
+                if (count($valoresUnicos) === 1) {
+                    $criteriosFiltrados[$campo] = $valsMap;
                 }
             }
 
-            $tieneMismaUbicacion = ($minDist <= $radioMetros);
-            $tipo = $tieneMismaUbicacion ? 'MISMA_UBICACION_Y_DATOS' : 'MISMOS_DATOS';
+            $tieneUbic = $item['tiene_misma_ubicacion'] || isset($criteriosFiltrados['Ubicación']);
+            $tieneDatos = count(array_diff(array_keys($criteriosFiltrados), ['Ubicación'])) > 0;
 
-            if ($tieneMismaUbicacion && $minDist !== 999999.0) {
-                $criteriosAgrupados['Ubicación'][round($minDist, 1) . ' m'] = true;
+            if ($tieneUbic && $tieneDatos) {
+                $clasif = 'MISMA_UBICACION_Y_DATOS';
+            } elseif ($tieneDatos) {
+                $clasif = 'MISMOS_DATOS';
+            } else {
+                $clasif = 'MISMA_UBICACION';
             }
 
             $clustersConsolidados[] = [
-                'clasificacion' => $tipo,
-                'tiene_misma_ubicacion' => $tieneMismaUbicacion,
-                'tiene_mismos_datos' => true,
-                'clientes_ids' => $clIds,
-                'distancia_minima_m' => $minDist !== 999999.0 ? $minDist : 0.0,
-                'criterios_raw' => $criteriosAgrupados,
-            ];
-        }
-
-        // B) Clusters de ubicación pura (misma ubicación, diferentes datos)
-        foreach ($clustersProxRaw as $clIds) {
-            $minDist = 999999.0;
-            $countIds = count($clIds);
-            $criteriosAgrupados = [];
-
-            for ($i = 0; $i < $countIds; $i++) {
-                for ($j = $i + 1; $j < $countIds; $j++) {
-                    $par = min($clIds[$i], $clIds[$j]) . '_' . max($clIds[$i], $clIds[$j]);
-                    if (isset($distanciasProx[$par]) && $distanciasProx[$par] < $minDist) {
-                        $minDist = $distanciasProx[$par];
-                    }
-                    if (isset($criteriosProx[$par])) {
-                        foreach ($criteriosProx[$par] as $crit) {
-                            $criteriosAgrupados[$crit['campo']][(string) $crit['valor']] = true;
-                        }
-                    }
-                }
-            }
-
-            $clustersConsolidados[] = [
-                'clasificacion' => 'MISMA_UBICACION',
-                'tiene_misma_ubicacion' => true,
-                'tiene_mismos_datos' => false,
-                'clientes_ids' => $clIds,
-                'distancia_minima_m' => $minDist !== 999999.0 ? $minDist : 0.0,
-                'criterios_raw' => $criteriosAgrupados,
+                'clasificacion' => $clasif,
+                'tiene_misma_ubicacion' => $tieneUbic,
+                'tiene_mismos_datos' => $tieneDatos,
+                'clientes_ids' => $cids,
+                'distancia_minima_m' => $item['distancia_minima_m'],
+                'criterios_raw' => $criteriosFiltrados,
             ];
         }
 
@@ -550,6 +544,10 @@ class AuditarDuplicadosAction
             foreach ($cl['criterios_raw'] as $campo => $valsMap) {
                 $vals = array_keys($valsMap);
                 sort($vals);
+                // En un criterio de duplicidad por datos, un valor solo es idéntico si es único en el grupo
+                if ($campo !== 'Ubicación' && count($vals) > 1) {
+                    continue;
+                }
                 $criteriosFinales[] = [
                     'campo' => $campo,
                     'valores' => $vals,

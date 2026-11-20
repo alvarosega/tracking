@@ -1778,6 +1778,7 @@ function obtenerCoincidenciasLegibles(grupo) {
       }
 
       if (campoNorm === 'nit') {
+        if (valores.length > 1) continue
         res.push({
           campo: 'NIT',
           icono: '🪪',
@@ -1786,6 +1787,7 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-amber-50 text-amber-950 border-amber-300 font-bold',
         })
       } else if (campoNorm === 'ci') {
+        if (valores.length > 1) continue
         res.push({
           campo: 'CI',
           icono: '🪪',
@@ -1794,6 +1796,7 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-indigo-50 text-indigo-950 border-indigo-300 font-bold',
         })
       } else if (campoNorm.includes('tel') || campoNorm.includes('cel')) {
+        if (valores.length > 1) continue
         res.push({
           campo: 'Teléfono',
           icono: '📞',
@@ -1802,6 +1805,7 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-sky-50 text-sky-950 border-sky-300 font-bold',
         })
       } else if (campoNorm === 'nombre') {
+        if (valores.length > 1) continue
         res.push({
           campo: 'Nombre',
           icono: '👤',
@@ -1810,6 +1814,7 @@ function obtenerCoincidenciasLegibles(grupo) {
           clase: 'bg-purple-50 text-purple-950 border-purple-300 font-bold',
         })
       } else if (campoNorm === 'factura') {
+        if (valores.length > 1) continue
         res.push({
           campo: 'Factura',
           icono: '🧾',
