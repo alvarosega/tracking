@@ -724,6 +724,20 @@
                               placeholder="Buscar cliente..."
                               class="text-[10px] bg-black/[0.03] border border-black/[0.06] rounded-[7px] px-2 py-1 w-32 focus:outline-none font-medium"
                             />
+
+                            <!-- Botón para descargar PDF cuando tengamos seleccionado 'sin_compra' en Cobertura -->
+                            <button
+                              v-if="esCobertura && filtroClientesTab === 'sin_compra'"
+                              type="button"
+                              @click.stop="descargarPdfSinCompraRuta(r)"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 text-[10px] font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+                              :title="`Descargar lista de ${clientesSinCompra.length} clientes sin compra en PDF agrupados por día de visita`"
+                            >
+                              <svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span>Descargar PDF ({{ clientesSinCompra.length }})</span>
+                            </button>
                           </template>
                         </div>
                       </div>
@@ -2818,6 +2832,28 @@ function cerrarModalFotos() {
 const kpiActualObj = computed(() => {
   return kpisLista.find(k => k.id === modoActivo.value) || kpisLista[0]
 })
+
+async function descargarPdfSinCompraRuta(itemRuta) {
+  const rutaNombre = rutaExpandida.value || itemRuta?.ruta || 'Sin Ruta'
+  const vendedor = itemRuta?.vendedor || 'No Asignado'
+  const canal = canalRutaActual.value || itemRuta?.canal || 'SC'
+  const fechaCorte = store.filtrosAplicados?.fechaCorte || store.fechaCorte || ''
+  const kpiNombre = kpiActualObj.value?.nombre || 'Cobertura'
+
+  const listaParaExportar = busquedaClienteTexto.value.trim()
+    ? clientesRutaFiltrados.value
+    : clientesSinCompra.value
+
+  const { exportarPdfClientesSinCompra } = await import('@/Utils/exportPdfSinCompra')
+  exportarPdfClientesSinCompra({
+    ruta: rutaNombre,
+    vendedor,
+    canal,
+    fechaCorte,
+    kpiNombre,
+    clientes: listaParaExportar
+  })
+}
 
 const esCobertura = computed(() => {
   return kpiActualObj.value?.tipo === 'COBERTURA'
