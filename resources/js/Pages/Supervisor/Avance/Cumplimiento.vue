@@ -725,18 +725,18 @@
                               class="text-[10px] bg-black/[0.03] border border-black/[0.06] rounded-[7px] px-2 py-1 w-32 focus:outline-none font-medium"
                             />
 
-                            <!-- Botón para descargar PDF cuando tengamos seleccionado 'sin_compra' en Cobertura -->
+                            <!-- Botón para descargar PDF cuando tengamos seleccionado 'sin_compra' o 'bajo_umbral' en Cobertura -->
                             <button
-                              v-if="esCobertura && filtroClientesTab === 'sin_compra'"
+                              v-if="esCobertura && (filtroClientesTab === 'sin_compra' || filtroClientesTab === 'bajo_umbral')"
                               type="button"
                               @click.stop="descargarPdfSinCompraRuta(r)"
                               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 text-[10px] font-bold transition-all shadow-xs cursor-pointer active:scale-95"
-                              :title="`Descargar lista de ${clientesSinCompra.length} clientes sin compra en PDF agrupados por día de visita`"
+                              :title="`Descargar lista de ${clientesSinCobertura.length} clientes no cubiertos (sin compra y bajo umbral) en PDF agrupados por día de visita`"
                             >
                               <svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <span>Descargar PDF ({{ clientesSinCompra.length }})</span>
+                              <span>Descargar PDF ({{ clientesSinCobertura.length }})</span>
                             </button>
                           </template>
                         </div>
@@ -2718,6 +2718,10 @@ const clientesSinCompra = computed(() => {
   return carteraClientes.value.filter(c => !c.tiene_logro && (c.monto_bs || 0) <= 0 && (c.cantidad || 0) <= 0)
 })
 
+const clientesSinCobertura = computed(() => {
+  return carteraClientes.value.filter(c => !c.tiene_logro)
+})
+
 const totalCantidadCartera = computed(() => {
   return carteraClientes.value.reduce((acc, c) => acc + Number(c.cantidad || 0), 0)
 })
@@ -2839,10 +2843,19 @@ async function descargarPdfSinCompraRuta(itemRuta) {
   const canal = canalRutaActual.value || itemRuta?.canal || 'SC'
   const fechaCorte = store.filtrosAplicados?.fechaCorte || store.fechaCorte || ''
   const kpiNombre = kpiActualObj.value?.nombre || 'Cobertura'
+  const reglaMin = reglaCoberturaRuta.value?.min || 0
 
-  const listaParaExportar = busquedaClienteTexto.value.trim()
-    ? clientesRutaFiltrados.value
-    : clientesSinCompra.value
+  let listaParaExportar = clientesSinCobertura.value
+
+  if (busquedaClienteTexto.value.trim()) {
+    const q = busquedaClienteTexto.value.toLowerCase().trim()
+    listaParaExportar = listaParaExportar.filter(c =>
+      String(c.cliente_id || '').includes(q) ||
+      String(c.cliente || '').toLowerCase().includes(q) ||
+      String(c.vendedor || '').toLowerCase().includes(q) ||
+      String(c.dia || c.dia_visita || '').toLowerCase().includes(q)
+    )
+  }
 
   const { exportarPdfClientesSinCompra } = await import('@/Utils/exportPdfSinCompra')
   exportarPdfClientesSinCompra({
@@ -2851,6 +2864,7 @@ async function descargarPdfSinCompraRuta(itemRuta) {
     canal,
     fechaCorte,
     kpiNombre,
+    reglaMin,
     clientes: listaParaExportar
   })
 }

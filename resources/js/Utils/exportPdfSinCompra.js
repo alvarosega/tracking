@@ -41,7 +41,8 @@ function normalizarDia(diaRaw) {
 }
 
 /**
- * Genera y descarga un PDF con el listado de clientes sin compra de una ruta,
+ * Genera y descarga un PDF con el listado de clientes no cubiertos de una ruta
+ * (incluyendo tanto a los clientes sin compra como a los que están bajo el umbral mínimo),
  * agrupados por día de visita y con las columnas: Código de Cliente y Nombre de Cliente.
  *
  * @param {Object} params
@@ -50,7 +51,8 @@ function normalizarDia(diaRaw) {
  * @param {string} [params.canal] - Canal de la ruta
  * @param {string} [params.fechaCorte] - Fecha de corte o período
  * @param {string} [params.kpiNombre] - Nombre del KPI evaluado (ej. Cobertura General)
- * @param {Array<Object>} params.clientes - Lista de clientes sin compra
+ * @param {number} [params.reglaMin] - Umbral mínimo del canal
+ * @param {Array<Object>} params.clientes - Lista de clientes (sin compra y bajo umbral)
  */
 export function exportarPdfClientesSinCompra({
   ruta = 'Sin Ruta',
@@ -58,6 +60,7 @@ export function exportarPdfClientesSinCompra({
   canal = 'GENERAL',
   fechaCorte = '',
   kpiNombre = 'Cobertura',
+  reglaMin = 0,
   clientes = []
 }) {
   const doc = new jsPDF({
@@ -70,6 +73,9 @@ export function exportarPdfClientesSinCompra({
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 14;
   let currentY = 14;
+
+  const sinCompraCount = clientes.filter(c => !c.tiene_logro && Number(c.monto_bs || 0) <= 0).length;
+  const bajoUmbralCount = clientes.filter(c => !c.tiene_logro && Number(c.monto_bs || 0) > 0).length;
 
   // 1. Agrupar clientes por día de visita normalizado
   const gruposPorDia = {};
@@ -85,12 +91,19 @@ export function exportarPdfClientesSinCompra({
     gruposPorDia[diaNorm].push(c);
   });
 
-  // Ordenar clientes alfabéticamente dentro de cada día
+  // Ordenar clientes dentro de cada día: primero los que tienen compra bajo umbral descendente por monto, luego alfabético
   DIAS_ORDEN.forEach(d => {
     if (gruposPorDia[d]) {
-      gruposPorDia[d].sort((a, b) =>
-        String(a.cliente || '').localeCompare(String(b.cliente || ''), 'es', { numeric: true })
-      );
+      gruposPorDia[d].sort((a, b) => {
+        const montoA = Number(a.monto_bs || 0);
+        const montoB = Number(b.monto_bs || 0);
+        if (montoA > 0 && montoB > 0) {
+          return montoB - montoA;
+        }
+        if (montoA > 0) return -1;
+        if (montoB > 0) return 1;
+        return String(a.cliente || '').localeCompare(String(b.cliente || ''), 'es', { numeric: true });
+      });
     }
   });
 
@@ -100,13 +113,13 @@ export function exportarPdfClientesSinCompra({
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('REPORTE DE CLIENTES SIN COMPRA', marginX + 6, currentY + 8);
+  doc.setFontSize(12.5);
+  doc.text('REPORTE DE CLIENTES SIN COBERTURA', marginX + 6, currentY + 8);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(200, 200, 205);
-  doc.text(`${kpiNombre} · Módulo de Avance y Cumplimiento`, marginX + 6, currentY + 14);
+  doc.text(`${kpiNombre} · Sin Compra y Bajo Umbral Mínimo`, marginX + 6, currentY + 14);
 
   // Fecha de generación a la derecha
   const now = new Date();
@@ -114,7 +127,7 @@ export function exportarPdfClientesSinCompra({
   doc.setFontSize(7.5);
   doc.text(`Generado: ${fechaGenStr}`, pageWidth - marginX - 6, currentY + 8, { align: 'right' });
   if (fechaCorte) {
-    doc.text(`Corte: ${fechaCorte}`, pageWidth - marginX - 6, currentY + 14, { align: 'right' });
+    doc.text(`Fecha Corte: ${fechaCorte}`, pageWidth - marginX - 6, currentY + 14, { align: 'right' });
   }
 
   currentY += 26;
@@ -122,41 +135,51 @@ export function exportarPdfClientesSinCompra({
   // 3. Ficha con parámetros clave de la ruta
   doc.setFillColor(248, 248, 250); // #F8F8FA
   doc.setDrawColor(220, 220, 225);
-  doc.roundedRect(marginX, currentY, pageWidth - (marginX * 2), 16, 2, 2, 'FD');
+  doc.roundedRect(marginX, currentY, pageWidth - (marginX * 2), 17, 2, 2, 'FD');
 
   doc.setTextColor(30, 30, 35);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
 
   const colW = (pageWidth - (marginX * 2)) / 4;
 
-  // Ruta
+  // Columna 1: Ruta
   doc.setFont('helvetica', 'bold');
-  doc.text('RUTA:', marginX + 4, currentY + 6);
+  doc.text('RUTA:', marginX + 4, currentY + 5.5);
   doc.setFont('helvetica', 'normal');
   doc.text(String(ruta), marginX + 4, currentY + 11);
 
-  // Preventista / Vendedor
+  // Columna 2: Preventista / Vendedor
   doc.setFont('helvetica', 'bold');
-  doc.text('PREVENTISTA:', marginX + colW + 2, currentY + 6);
+  doc.text('PREVENTISTA:', marginX + colW + 2, currentY + 5.5);
   doc.setFont('helvetica', 'normal');
   const vendStr = String(vendedor).length > 24 ? `${String(vendedor).slice(0, 22)}...` : String(vendedor);
   doc.text(vendStr, marginX + colW + 2, currentY + 11);
 
-  // Canal
+  // Columna 3: Canal y Umbral
   doc.setFont('helvetica', 'bold');
-  doc.text('CANAL:', marginX + (colW * 2) + 2, currentY + 6);
+  doc.text('CANAL:', marginX + (colW * 2) + 2, currentY + 5.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(String(canal), marginX + (colW * 2) + 2, currentY + 11);
+  const umbralInfo = reglaMin > 0 ? ` (Mín: Bs ${reglaMin})` : '';
+  doc.text(`${canal}${umbralInfo}`, marginX + (colW * 2) + 2, currentY + 11);
 
-  // Total Sin Compra
+  // Columna 4: Total No Coberturados
   doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL SIN COMPRA:', marginX + (colW * 3) + 2, currentY + 6);
+  doc.text('NO COBERTURADOS:', marginX + (colW * 3) + 2, currentY + 5.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(185, 28, 28); // Rojo sobrio
-  doc.text(`${clientes.length} Clientes`, marginX + (colW * 3) + 2, currentY + 11);
+  doc.setTextColor(185, 28, 28);
+  doc.text(`${clientes.length} Clientes`, marginX + (colW * 3) + 2, currentY + 10.5);
 
-  currentY += 21;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 105);
+  if (bajoUmbralCount > 0) {
+    doc.text(`${sinCompraCount} s/compra · ${bajoUmbralCount} bajo umbral`, marginX + (colW * 3) + 2, currentY + 14.5);
+  } else {
+    doc.text(`${sinCompraCount} sin compra`, marginX + (colW * 3) + 2, currentY + 14.5);
+  }
+
+  currentY += 22;
 
   // 4. Tablas por Día de Visita
   let hayGruposConDatos = false;
@@ -174,8 +197,16 @@ export function exportarPdfClientesSinCompra({
       currentY = 16;
     }
 
+    const diaSinCompra = listadoDia.filter(c => !c.tiene_logro && Number(c.monto_bs || 0) <= 0).length;
+    const diaBajoUmbral = listadoDia.filter(c => !c.tiene_logro && Number(c.monto_bs || 0) > 0).length;
+
+    let subConteo = `${listadoDia.length} ${listadoDia.length === 1 ? 'cliente' : 'clientes'}`;
+    if (diaBajoUmbral > 0) {
+      subConteo += ` (${diaSinCompra} sin compra, ${diaBajoUmbral} bajo umbral)`;
+    }
+
     // Cabecera del Día de Visita
-    const diaTitulo = `${DIAS_ETIQUETAS[diaKey] || diaKey} (${listadoDia.length} ${listadoDia.length === 1 ? 'cliente' : 'clientes'})`;
+    const diaTitulo = `${DIAS_ETIQUETAS[diaKey] || diaKey} — ${subConteo}`;
 
     doc.setFillColor(235, 238, 245);
     doc.setDrawColor(200, 205, 215);
@@ -189,10 +220,23 @@ export function exportarPdfClientesSinCompra({
     currentY += 8;
 
     // Filas para la tabla
-    const bodyRows = listadoDia.map(c => [
-      String(c.cliente_id || '-'),
-      String(c.cliente || 'CLIENTE S/N')
-    ]);
+    const bodyRows = listadoDia.map(c => {
+      const montoBs = Number(c.monto_bs || 0);
+      const cant = Number(c.cantidad || 0);
+      const esBajoUmbral = (!c.tiene_logro && (montoBs > 0 || cant > 0));
+
+      let nombreTexto = String(c.cliente || 'CLIENTE S/N');
+      if (esBajoUmbral) {
+        const minVal = c.umbral_minimo ?? reglaMin;
+        const minTexto = minVal > 0 ? ` | Mínimo: Bs ${Number(minVal).toFixed(2)}` : '';
+        nombreTexto += `\n[BAJO UMBRAL - Compró: Bs ${montoBs.toFixed(2)}${minTexto}]`;
+      }
+
+      return [
+        String(c.cliente_id || '-'),
+        nombreTexto
+      ];
+    });
 
     autoTable(doc, {
       startY: currentY,
@@ -224,8 +268,19 @@ export function exportarPdfClientesSinCompra({
       alternateRowStyles: {
         fillColor: [250, 250, 252]
       },
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          const rawItem = listadoDia[data.row.index];
+          if (rawItem && !rawItem.tiene_logro && Number(rawItem.monto_bs || 0) > 0) {
+            // Fondo ámbar suave para clientes que compraron pero quedaron bajo el umbral
+            data.cell.styles.fillColor = [255, 251, 235];
+            if (data.column.index === 0) {
+              data.cell.styles.textColor = [180, 83, 9]; // amber-800
+            }
+          }
+        }
+      },
       didDrawPage: (data) => {
-        // Reservar espacio si se agregaron páginas automáticas
         currentY = data.cursor.y;
       }
     });
@@ -233,15 +288,15 @@ export function exportarPdfClientesSinCompra({
     currentY = doc.lastAutoTable.finalY + 5;
   });
 
-  // Si no hubiera clientes sin compra
+  // Si no hubiera clientes no cubiertos
   if (!hayGruposConDatos) {
     doc.setTextColor(110, 110, 115);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
-    doc.text('La ruta seleccionada no registra clientes sin compra en el período.', marginX, currentY + 6);
+    doc.text('La ruta seleccionada tiene el 100% de cobertura (sin clientes pendientes ni bajo umbral).', marginX, currentY + 6);
   }
 
-  // 5. Pie de página en todas las páginas (Número de página y confidencialidad)
+  // 5. Pie de página en todas las páginas
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -249,14 +304,14 @@ export function exportarPdfClientesSinCompra({
     doc.setFontSize(7);
     doc.setTextColor(140, 140, 145);
 
-    const footerText = `Página ${i} de ${totalPages} · Ruta ${ruta} (${vendedor}) · Documento de Control Operativo`;
+    const footerText = `Página ${i} de ${totalPages} · Ruta ${ruta} (${vendedor}) · Control de Cobertura y Seguimiento`;
     doc.text(footerText, pageWidth / 2, pageHeight - 7, { align: 'center' });
   }
 
   // 6. Descargar archivo PDF
   const nombreLimpio = String(ruta).replace(/[^a-zA-Z0-9_-]/g, '_');
   const fechaNombre = fechaCorte ? `_${fechaCorte}` : '';
-  const fileName = `Sin_Compra_Ruta_${nombreLimpio}${fechaNombre}.pdf`;
+  const fileName = `Sin_Cobertura_Ruta_${nombreLimpio}${fechaNombre}.pdf`;
 
   doc.save(fileName);
 }
