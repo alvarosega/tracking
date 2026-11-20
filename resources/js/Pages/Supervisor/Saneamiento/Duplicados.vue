@@ -1548,7 +1548,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -1601,6 +1601,14 @@ const rutasFiltradasEnDropdown = computed(() => {
     (r.canal && r.canal.toLowerCase().includes(q))
   )
 })
+
+// Sincronizar rutas seleccionadas cuando cambian los canales activos
+watch(canalesSeleccionados, () => {
+  if (rutasSeleccionadas.value.length > 0) {
+    const rutasValidas = new Set(rutasDisponibles.value.map(r => r.ruta))
+    rutasSeleccionadas.value = rutasSeleccionadas.value.filter(r => rutasValidas.has(r))
+  }
+}, { deep: true })
 
 // Selector de Modo: 'TODOS' | 'CRITICOS' | 'DATOS' | 'UBICACION'
 const filtroModo = ref('TODOS')

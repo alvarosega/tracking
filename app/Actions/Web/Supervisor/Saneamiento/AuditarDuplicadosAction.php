@@ -36,7 +36,7 @@ class AuditarDuplicadosAction
         foreach ($rutasDim as $rd) {
             $rKey = strtoupper(trim((string) $rd->ruta));
             if ($rKey !== '') {
-                $mapaCanalRuta[$rKey] = trim((string) $rd->canal);
+                $mapaCanalRuta[$rKey] = strtoupper(trim((string) $rd->canal));
             }
         }
 
@@ -591,10 +591,10 @@ class AuditarDuplicadosAction
                 return $pA <=> $pB;
             });
 
-            $rutasUnicas = array_values(array_unique(array_filter($rutasSet)));
+            $rutasUnicas = array_values(array_unique(array_filter(array_map(fn($r) => strtoupper(trim((string) $r)), $rutasSet))));
             sort($rutasUnicas);
 
-            $canalesUnicos = array_values(array_unique(array_filter($canalesSet)));
+            $canalesUnicos = array_values(array_unique(array_filter(array_map(fn($c) => strtoupper(trim((string) $c)), $canalesSet))));
             sort($canalesUnicos);
 
             $resultadoClusters[] = [
@@ -612,17 +612,20 @@ class AuditarDuplicadosAction
             ];
         }
 
-        // 10. Filtrar por canales y/o rutas si se especificaron
-        if (!empty($canales)) {
-            $canalesNorm = array_map(fn($c) => strtoupper(trim((string) $c)), array_filter($canales));
-            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($canalesNorm) {
-                return count(array_intersect($cl['canales'], $canalesNorm)) > 0;
-            }));
-        }
+        // 10. Filtrar por rutas y/o canales si se especificaron
+        // Si se especificó una o más rutas, la condición mandatoria es que la ruta esté involucrada en el cluster
         if (!empty($rutas)) {
             $rutasNorm = array_map(fn($r) => strtoupper(trim((string) $r)), array_filter($rutas));
             $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($rutasNorm) {
-                return count(array_intersect($cl['rutas'], $rutasNorm)) > 0;
+                $clRutasUpper = array_map(fn($r) => strtoupper(trim((string) $r)), $cl['rutas']);
+                return count(array_intersect($clRutasUpper, $rutasNorm)) > 0;
+            }));
+        } elseif (!empty($canales)) {
+            // Si solo se especificaron canales (sin ruta específica), se muestran todos los clusters donde esté involucrado alguno de los canales
+            $canalesNorm = array_map(fn($c) => strtoupper(trim((string) $c)), array_filter($canales));
+            $resultadoClusters = array_values(array_filter($resultadoClusters, function ($cl) use ($canalesNorm) {
+                $clCanalesUpper = array_map(fn($c) => strtoupper(trim((string) $c)), $cl['canales']);
+                return count(array_intersect($clCanalesUpper, $canalesNorm)) > 0;
             }));
         }
 
