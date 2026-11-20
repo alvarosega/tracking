@@ -321,6 +321,18 @@ class AuditarSaneamientoBdAction
         $totalCorrectos = $totalGeneral - $totalDefectuosos;
         $pctGlobal = $totalGeneral > 0 ? round(($totalDefectuosos / $totalGeneral) * 100, 1) : 0.0;
 
+        // Agrupar clientes filtrados directamente por ruta para desglose jerárquico
+        $clientesPorRuta = [];
+        foreach ($clientesFiltrados as $cli) {
+            $clientesPorRuta[$cli['ruta']][] = $cli;
+        }
+
+        foreach ($matrizRutas as &$rData) {
+            $rData['clientes'] = $clientesPorRuta[$rData['ruta']] ?? [];
+            $rData['total_filtrados'] = count($rData['clientes']);
+        }
+        unset($rData);
+
         return [
             'resumen_general' => [
                 'total_rutas' => count($matrizRutas),
