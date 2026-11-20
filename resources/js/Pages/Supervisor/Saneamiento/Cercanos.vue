@@ -1630,7 +1630,7 @@ function limpiarFiltroRutas() {
 // ==========================================
 // ESTADO DE FRONTERAS RUTAS
 // ==========================================
-const verFronterasRutas = ref(true);
+const verFronterasRutas = ref(false);
 const busquedaRutaFronterasRutas = ref('');
 const drawerFiltrosMovil = ref(false);
 
@@ -2082,31 +2082,17 @@ function actualizarHighlightCliente(c) {
 function renderizarEnMapa() {
   if (!map || !origenConsulta.value) return;
 
-  if (centerMarker) map.removeLayer(centerMarker);
-  if (radiusCircle) map.removeLayer(radiusCircle);
+  if (centerMarker) {
+    map.removeLayer(centerMarker);
+    centerMarker = null;
+  }
+  if (radiusCircle) {
+    map.removeLayer(radiusCircle);
+    radiusCircle = null;
+  }
   clientsLayer.clearLayers();
   if (highlightLayer) highlightLayer.clearLayers();
   clientMarkersMap.clear();
-
-  const center = [origenConsulta.value.lat, origenConsulta.value.lng];
-
-  centerMarker = L.circleMarker(center, {
-    radius: 7,
-    fillColor: '#0284C7',
-    color: '#FFFFFF',
-    weight: 2,
-    opacity: 1,
-    fillOpacity: 1,
-  }).addTo(map);
-
-  radiusCircle = L.circle(center, {
-    radius: radioSeleccionado.value,
-    color: '#0284C7',
-    fillColor: '#0284C7',
-    fillOpacity: 0.05,
-    weight: 1.5,
-    dashArray: '4, 6',
-  }).addTo(map);
 
   clientesFiltrados.value.forEach(c => {
     const markerColor = getMarkerColor(c);
@@ -2118,19 +2104,6 @@ function renderizarEnMapa() {
       weight: 1.5,
       opacity: 1,
       fillOpacity: 1,
-    });
-
-    // Tooltip rápido en hover para desktop (sin popup estorboso que tape el mapa)
-    marker.bindTooltip(`
-      <div style="font-family: inherit; font-size: 11px; line-height: 1.25; color: #0F172A;">
-        <span style="font-weight: 700;">${c.cliente}</span>
-        <span style="color: #64748B; font-family: monospace; font-size: 10px;"> • ${formatRuta(c.ruta)} • ${c.distancia_metros}m</span>
-      </div>
-    `, {
-      direction: 'top',
-      offset: [0, -6],
-      opacity: 0.95,
-      className: 'custom-map-tooltip',
     });
 
     marker.on('click', (e) => {
@@ -2251,19 +2224,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped>
-:deep(.custom-map-tooltip) {
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(226, 232, 240, 0.95) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
-  padding: 4px 8px !important;
-  color: #0F172A !important;
-}
-
-:deep(.leaflet-tooltip-top:before) {
-  border-top-color: rgba(226, 232, 240, 0.95) !important;
-}
-</style>
