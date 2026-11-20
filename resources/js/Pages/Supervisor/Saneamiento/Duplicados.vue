@@ -2254,25 +2254,12 @@ function enfocarGrupoEnMapa(grupo) {
       const markerColor = cli.es_master_sugerido ? '#059669' : '#DC2626'
 
       const marker = L.circleMarker(latlng, {
-        radius: cli.es_master_sugerido ? 10 : 8.5,
+        radius: cli.es_master_sugerido ? 8.5 : 7.5,
         fillColor: markerColor,
         color: '#FFFFFF',
-        weight: 2.5,
+        weight: 2,
         fillOpacity: 1,
       }).addTo(collisionLayerGroup)
-
-      // Tooltip visible permanente
-      marker.bindTooltip(
-        `<span style="font-weight: 700; font-family: monospace; font-size: 10px;">${cli.es_master_sugerido ? 'MASTER' : 'DUP'} #${cli.cliente_id}</span>`,
-        {
-          permanent: true,
-          direction: 'top',
-          offset: [0, -10],
-          className: cli.es_master_sugerido
-            ? 'font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs bg-emerald-800 text-white border-0'
-            : 'font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs bg-rose-800 text-white border-0',
-        }
-      )
 
       marker.on('click', () => {
         enfocarClienteEnMapa(cli)
@@ -2280,32 +2267,8 @@ function enfocarGrupoEnMapa(grupo) {
     }
   })
 
-  // Conexión entre puntos
+  // Ajustar encuadre del mapa a los puntos del grupo sin elementos adicionales
   if (latLngs.length >= 2) {
-    L.polyline(latLngs, {
-      color: '#DC2626',
-      weight: 2,
-      dashArray: '5, 5',
-    }).addTo(collisionLayerGroup)
-
-    const midLat = (latLngs[0][0] + latLngs[1][0]) / 2
-    const midLng = (latLngs[0][1] + latLngs[1][1]) / 2
-
-    L.tooltip({ permanent: true, direction: 'center', className: 'font-mono text-xs font-bold text-slate-800 bg-white/95 px-2 py-0.5 rounded border border-slate-300 shadow-sm' })
-      .setLatLng([midLat, midLng])
-      .setContent(`${formatearDistancia(grupo.distancia_minima_m)}`)
-      .addTo(collisionLayerGroup)
-
-    // Circulo de tolerancia de radio alrededor del master
-    L.circle(latLngs[0], {
-      radius: radioMetros.value,
-      color: '#0284C7',
-      fillColor: '#0284C7',
-      fillOpacity: 0.08,
-      weight: 1.5,
-      dashArray: '4, 4',
-    }).addTo(collisionLayerGroup)
-
     const bounds = collisionLayerGroup.getBounds()
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
