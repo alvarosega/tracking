@@ -140,13 +140,6 @@ export const navigationConfig = {
           route: 'supervisor.avance.bpc',
           component: 'Supervisor/Avance/Bpc',
           icon: 'SparklesIcon'
-        },
-        {
-          id: 'horarios',
-          name: 'Horarios e Itinerario',
-          route: 'supervisor.avance.horarios',
-          component: 'Supervisor/Avance/Horarios',
-          icon: 'CalendarIcon'
         }
       ]
     },

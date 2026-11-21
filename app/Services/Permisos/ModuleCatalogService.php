@@ -58,7 +58,6 @@ class ModuleCatalogService
                     ['id' => 'paretos', 'name' => 'Paretos & Scoring'],
                     ['id' => 'entregas', 'name' => 'Avance Entregas'],
                     ['id' => 'bpc', 'name' => 'Sell Out y BPC'],
-                    ['id' => 'horarios', 'name' => 'Horario e Itinerario'],
                 ],
             ],
             [

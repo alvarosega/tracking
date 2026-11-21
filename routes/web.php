@@ -57,7 +57,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('avance')->name('avance.')->middleware('module.access:avance')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc', 'horarios'];
+            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('avance', $sub)) {
                     return redirect()->route("supervisor.avance.{$sub}");
@@ -114,15 +114,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/bpc/sellout', [SupervisorAvanceController::class, 'bpcSellOut'])->name('bpc.sellout');
         });
 
-        // Horario e Itinerario
-        Route::middleware('module.access:avance,horarios')->group(function () {
-            Route::get('/horarios', [SupervisorAvanceController::class, 'horarios'])->name('horarios');
-            Route::post('/horarios/matriz', [SupervisorAvanceController::class, 'horariosMatriz'])->name('horarios.matriz');
-            Route::post('/horarios/detalle-ruta', [SupervisorAvanceController::class, 'horariosDetalleRuta'])->name('horarios.detalle-ruta');
-            Route::post('/horarios/timeline', [SupervisorAvanceController::class, 'horariosTimeline'])->name('horarios.timeline');
-            Route::post('/itinerario/secuencia', [SupervisorAvanceController::class, 'itinerarioSecuencia'])->name('itinerario.secuencia');
-            Route::post('/itinerario/guardar', [SupervisorAvanceController::class, 'itinerarioGuardar'])->name('itinerario.guardar');
-        });
+        // Redirección de compatibilidad: Horarios e Itinerario migrado a Cumplimiento
+        Route::get('/horarios', fn() => redirect()->route('supervisor.avance.cumplimiento'))->name('horarios');
 
         Route::post('/dias-habiles', [SupervisorAvanceController::class, 'diasHabiles'])->name('dias-habiles');
     });
