@@ -112,6 +112,27 @@ class StoreSaneamientoRequest extends FormRequest
             $merge['longitude'] = (float) $lng;
         }
 
+        // 6.1 Normalizar coordenadas de Visita (Preventa separada de Entrega)
+        $latVisita = $this->input('latitud_visita') ?? $this->input('latitude_visita') ?? $this->input('lat_visita');
+        if ($latVisita !== null && $latVisita !== '' && $latVisita !== 'null') {
+            $merge['latitud_visita'] = (float) $latVisita;
+        }
+
+        $lngVisita = $this->input('longitud_visita') ?? $this->input('longitude_visita') ?? $this->input('lng_visita') ?? $this->input('lon_visita');
+        if ($lngVisita !== null && $lngVisita !== '' && $lngVisita !== 'null') {
+            $merge['longitud_visita'] = (float) $lngVisita;
+        }
+
+        $dirVisita = $this->input('direccion_visita') ?? $this->input('address_visita');
+        if ($dirVisita !== null && $dirVisita !== '' && $dirVisita !== 'null') {
+            $merge['direccion_visita'] = trim((string) $dirVisita);
+        }
+
+        $refVisita = $this->input('referencia_visita') ?? $this->input('reference_visita');
+        if ($refVisita !== null && $refVisita !== '' && $refVisita !== 'null') {
+            $merge['referencia_visita'] = trim((string) $refVisita);
+        }
+
         // 7. Normalizar zona comercial: soportar territorio, zona_comercial, zona, etc.
         $rawZona = $this->input('territorio')
             ?? $this->input('zona_comercial')
@@ -294,6 +315,13 @@ class StoreSaneamientoRequest extends FormRequest
                 'numeric',
                 'between:-180,180',
             ],
+
+            // Coordenadas de Visita (Preventa separada de Entrega)
+            'latitud_visita' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitud_visita' => ['nullable', 'numeric', 'between:-180,180'],
+            'direccion_visita' => ['nullable', 'string', 'max:255'],
+            'referencia_visita' => ['nullable', 'string', 'max:255'],
+            'tiene_ubicacion_visita_diferente' => ['nullable'],
 
             'accuracy' => ['nullable', 'numeric', 'min:0'],
 

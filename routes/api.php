@@ -70,6 +70,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Saneamiento de Clientes en Campo (Altas y Ediciones)
     Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
+    Route::match(['get', 'post'], '/clientes/{clienteId}', [SaneamientoController::class, 'showCliente']);
+    Route::match(['get', 'post'], '/saneamiento/cliente/{clienteId}', [SaneamientoController::class, 'showCliente']);
+
+    // Módulo Ediciones de Clientes (Android App)
+    foreach (['ediciones', 'edicion'] as $prefix) {
+        Route::prefix($prefix)->group(function (): void {
+            Route::match(['get', 'post'], '/cliente/{clienteId}', [SaneamientoController::class, 'showCliente']);
+            Route::post('/', [SaneamientoController::class, 'store']);
+            Route::post('/store', [SaneamientoController::class, 'store']);
+        });
+    }
 
     // Módulo Historial de Altas de Clientes (Android App - Opción A: /api/altas/historial y alias)
     foreach (['altas', 'alta'] as $prefix) {
