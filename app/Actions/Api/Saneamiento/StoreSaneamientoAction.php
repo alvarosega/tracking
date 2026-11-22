@@ -34,7 +34,7 @@ class StoreSaneamientoAction
             ? trim((string) $validated['territorio'])
             : (!empty($validated['zona_comercial'])
                 ? trim((string) $validated['zona_comercial'])
-                : (!empty($validated['zona']) ? trim((string) $validated['zona']) : 'SIN ZONA'));
+                : (!empty($validated['zona']) ? trim((string) $validated['zona']) : ''));
 
         $nombres = !empty($validated['nombres']) ? trim((string) $validated['nombres']) : null;
         $apellidoPaterno = !empty($validated['apellido_paterno']) ? trim((string) $validated['apellido_paterno']) : null;
