@@ -263,20 +263,13 @@ class StoreSaneamientoRequest extends FormRequest
                 'min:1',
             ],
 
-            'zona' => ['required', 'string', 'max:100'],
+            'zona' => ['nullable', 'string', 'max:100'],
             'zona_comercial' => ['nullable', 'string', 'max:100'],
             'territorio' => ['nullable', 'string', 'max:100'],
 
-            // Al menos teléfono o celular debe ser obligatorio en ALTA
-            'telefono' => [
-                Rule::requiredIf($esAlta && empty($this->input('celular'))),
-                'nullable',
-                'string',
-                'max:50',
-                'regex:/^[0-9]{6,15}$/',
-            ],
+            'telefono' => ['nullable', 'string', 'max:50'],
             'celular' => [
-                Rule::requiredIf($esAlta && empty($this->input('telefono'))),
+                Rule::requiredIf($esAlta),
                 'nullable',
                 'string',
                 'max:50',
@@ -350,8 +343,7 @@ class StoreSaneamientoRequest extends FormRequest
             'zona.required' => 'La zona es obligatoria.',
             'direccion.required' => 'La dirección es obligatoria para registrar un alta.',
             'referencia.required' => 'La referencia de ubicación es obligatoria para registrar un alta.',
-            'celular.required' => 'Debe ingresar al menos un número de celular o teléfono de contacto.',
-            'telefono.required' => 'Debe ingresar al menos un número de teléfono o celular de contacto.',
+            'celular.required' => 'El número de celular es obligatorio para registrar un alta.',
             'celular.regex' => 'El celular debe contener únicamente números (entre 7 y 15 dígitos).',
             'expedido.in' => 'El expedido debe ser uno de: BEN, CBBA, LP, OR, PAN, PT, SC, SUC, TJA.',
             'tipo_documento.in' => 'El tipo de documento seleccionado no es válido.',
