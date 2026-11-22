@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [AltaController::class, 'historial']);
             Route::match(['get', 'post'], '/historial', [AltaController::class, 'historial']);
             Route::match(['get', 'post'], '/listar', [AltaController::class, 'historial']);
+            Route::match(['get', 'post'], '/catalogos', [AltaController::class, 'catalogos']);
             Route::post('/', [SaneamientoController::class, 'store']);
             Route::post('/store', [SaneamientoController::class, 'store']);
         });
@@ -85,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Alias bajo saneamiento para compatibilidad Retrofit
     Route::match(['get', 'post'], '/saneamiento/altas', [AltaController::class, 'historial']);
     Route::match(['get', 'post'], '/saneamiento/altas/historial', [AltaController::class, 'historial']);
+    Route::match(['get', 'post'], '/saneamiento/catalogos', [AltaController::class, 'catalogos']);
 
     // Módulo Pedidos Rechazados (Android App - Soporte plural, singular, guiones y guiones bajos para Retrofit)
     foreach (['pedidos-rechazados', 'pedidos_rechazados', 'pedido-rechazado', 'pedido_rechazado', 'rechazos', 'rechazo'] as $prefix) {

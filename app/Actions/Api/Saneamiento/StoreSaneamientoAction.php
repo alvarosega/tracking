@@ -36,21 +36,39 @@ class StoreSaneamientoAction
                 ? trim((string) $validated['zona_comercial'])
                 : (!empty($validated['zona']) ? trim((string) $validated['zona']) : 'SIN ZONA'));
 
+        $nombres = !empty($validated['nombres']) ? trim((string) $validated['nombres']) : null;
+        $apellidoPaterno = !empty($validated['apellido_paterno']) ? trim((string) $validated['apellido_paterno']) : null;
+        $apellidoMaterno = !empty($validated['apellido_materno']) ? trim((string) $validated['apellido_materno']) : null;
+
+        $clienteFinal = !empty($validated['cliente'])
+            ? trim((string) $validated['cliente'])
+            : trim("{$nombres} {$apellidoPaterno} {$apellidoMaterno}");
+
         $insertData = [
             'user_id' => $user->id,
-            'cliente_id' => $esAlta ? null : (int) $validated['cliente_id'],
+            'cliente_id' => $esAlta ? null : (isset($validated['cliente_id']) ? (int) $validated['cliente_id'] : null),
             'tipo_registro' => $tipoRegistro,
             'route' => trim((string) $validated['route']),
-            'cliente' => trim((string) $validated['cliente']),
+            'cliente' => $clienteFinal,
+            'apellido_paterno' => $apellidoPaterno,
+            'apellido_materno' => $apellidoMaterno,
+            'nombres' => $nombres,
             'tipo_negocio' => trim((string) $validated['tipo_negocio']),
             'zona' => $zona,
+            'lista_precios' => !empty($validated['lista_precios']) ? trim((string) $validated['lista_precios']) : null,
             'contacto' => !empty($validated['contacto']) ? trim((string) $validated['contacto']) : null,
             'telefono' => !empty($validated['telefono']) ? trim((string) $validated['telefono']) : null,
             'celular' => !empty($validated['celular']) ? trim((string) $validated['celular']) : null,
             'direccion' => !empty($validated['direccion']) ? trim((string) $validated['direccion']) : null,
             'referencia' => !empty($validated['referencia']) ? trim((string) $validated['referencia']) : null,
+            'documento_identidad' => !empty($validated['documento_identidad']) ? trim((string) $validated['documento_identidad']) : null,
+            'expedido' => !empty($validated['expedido']) ? trim((string) $validated['expedido']) : null,
+            'complemento' => !empty($validated['complemento']) ? trim((string) $validated['complemento']) : null,
+            'tipo_documento' => !empty($validated['tipo_documento']) ? trim((string) $validated['tipo_documento']) : null,
+            'tipo_nit' => !empty($validated['tipo_nit']) ? trim((string) $validated['tipo_nit']) : null,
             'nombre_factura' => !empty($validated['nombre_factura']) ? trim((string) $validated['nombre_factura']) : null,
             'nit' => !empty($validated['nit']) ? trim((string) $validated['nit']) : null,
+            'razon_social' => !empty($validated['razon_social']) ? trim((string) $validated['razon_social']) : null,
             'latitude' => isset($validated['latitude']) ? (float) $validated['latitude'] : null,
             'longitude' => isset($validated['longitude']) ? (float) $validated['longitude'] : null,
             'accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : 0.0,
@@ -74,6 +92,16 @@ class StoreSaneamientoAction
         return [
             'id' => $saneamientoId,
             'tipo_registro' => $tipoRegistro,
+            'cliente' => $clienteFinal,
+            'nombres' => $nombres,
+            'apellido_paterno' => $apellidoPaterno,
+            'apellido_materno' => $apellidoMaterno,
+            'documento_identidad' => $insertData['documento_identidad'],
+            'expedido' => $insertData['expedido'],
+            'complemento' => $insertData['complemento'],
+            'tipo_documento' => $insertData['tipo_documento'],
+            'tipo_nit' => $insertData['tipo_nit'],
+            'razon_social' => $insertData['razon_social'],
             'zona' => $zona,
             'zona_comercial' => $zona,
             'territorio' => $zona,

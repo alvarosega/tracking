@@ -6,12 +6,28 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Api\Altas\GetHistorialAltasAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Saneamiento\StoreSaneamientoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class AltaController extends Controller
 {
+    /**
+     * Retorna los catálogos oficiales para el registro de altas en Android.
+     * GET /api/altas/catalogos
+     */
+    public function catalogos(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'expedidos' => StoreSaneamientoRequest::EXPEDIDOS,
+            'tipos_documento' => StoreSaneamientoRequest::TIPOS_DOCUMENTO,
+            'tipos_nit' => StoreSaneamientoRequest::TIPOS_NIT,
+            'tipos_negocio' => StoreSaneamientoRequest::TIPOS_NEGOCIO,
+        ], 200);
+    }
+
     /**
      * Consulta el historial de altas registradas estrictamente por el vendedor autenticado.
      * GET /api/altas/historial (y alias /api/altas, /api/altas/listar)
