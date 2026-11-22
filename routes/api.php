@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\AltaController;
 use App\Http\Controllers\Api\AppModuleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClienteInventarioController;
@@ -69,6 +70,21 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Saneamiento de Clientes en Campo (Altas y Ediciones)
     Route::post('/saneamiento', [SaneamientoController::class, 'store']);
     Route::post('/saneamiento-base', [SaneamientoController::class, 'store']);
+
+    // Módulo Historial de Altas de Clientes (Android App - Opción A: /api/altas/historial y alias)
+    foreach (['altas', 'alta'] as $prefix) {
+        Route::prefix($prefix)->group(function (): void {
+            Route::get('/', [AltaController::class, 'historial']);
+            Route::match(['get', 'post'], '/historial', [AltaController::class, 'historial']);
+            Route::match(['get', 'post'], '/listar', [AltaController::class, 'historial']);
+            Route::post('/', [SaneamientoController::class, 'store']);
+            Route::post('/store', [SaneamientoController::class, 'store']);
+        });
+    }
+
+    // Alias bajo saneamiento para compatibilidad Retrofit
+    Route::match(['get', 'post'], '/saneamiento/altas', [AltaController::class, 'historial']);
+    Route::match(['get', 'post'], '/saneamiento/altas/historial', [AltaController::class, 'historial']);
 
     // Módulo Pedidos Rechazados (Android App - Soporte plural, singular, guiones y guiones bajos para Retrofit)
     foreach (['pedidos-rechazados', 'pedidos_rechazados', 'pedido-rechazado', 'pedido_rechazado', 'rechazos', 'rechazo'] as $prefix) {
