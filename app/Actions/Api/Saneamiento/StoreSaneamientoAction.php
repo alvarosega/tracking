@@ -67,7 +67,6 @@ class StoreSaneamientoAction
             'tipo_negocio' => trim((string) $validated['tipo_negocio']),
             'zona' => $zona,
             'lista_precios' => !empty($validated['lista_precios']) ? trim((string) $validated['lista_precios']) : null,
-            'contacto' => !empty($validated['contacto']) ? trim((string) $validated['contacto']) : null,
             'telefono' => !empty($validated['telefono']) ? trim((string) $validated['telefono']) : null,
             'celular' => !empty($validated['celular']) ? trim((string) $validated['celular']) : null,
             'direccion' => !empty($validated['direccion']) ? trim((string) $validated['direccion']) : null,

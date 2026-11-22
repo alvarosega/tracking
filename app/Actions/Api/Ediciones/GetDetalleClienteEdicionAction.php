@@ -77,7 +77,6 @@ class GetDetalleClienteEdicionAction
         $tipoNegocio = $edicionRow?->tipo_negocio ?: ($panRow?->tipo_negocio ?? '');
         $zona = $edicionRow?->zona ?: ($panRow?->territorio ?: ($panRow?->zona_venta ?? ''));
         $listaPrecios = $edicionRow?->lista_precios ?: ($panRow?->precio ?? null);
-        $contacto = $edicionRow?->contacto ?: ($panRow?->contacto ?? null);
         $telefono = $edicionRow?->telefono ?: ($panRow?->telefono ?? null);
         $celular = $edicionRow?->celular ?: ($panRow?->celular ?? null);
         $nombreFactura = $edicionRow?->nombre_factura ?: ($panRow?->nombre_factura ?? null);
@@ -122,7 +121,6 @@ class GetDetalleClienteEdicionAction
             'ruta' => (string) $ruta,
             'route' => (string) $ruta,
             'lista_precios' => $listaPrecios ? (string) $listaPrecios : null,
-            'contacto' => $contacto ? (string) $contacto : null,
             'telefono' => $telefono ? (string) $telefono : null,
             'celular' => $celular ? (string) $celular : null,
             'documento_identidad' => $docIdentidad ? (string) $docIdentidad : null,

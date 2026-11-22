@@ -72,7 +72,6 @@ class GetHistorialAltasAction
                 'sb.tipo_negocio',
                 'sb.zona',
                 'sb.lista_precios',
-                'sb.contacto',
                 'sb.telefono',
                 'sb.celular',
                 'sb.direccion',
@@ -118,8 +117,7 @@ class GetHistorialAltasAction
                   ->orWhere('sb.apellido_materno', 'LIKE', $term)
                   ->orWhere('sb.documento_identidad', 'LIKE', $term)
                   ->orWhere('sb.nit', 'LIKE', $term)
-                  ->orWhere('sb.direccion', 'LIKE', $term)
-                  ->orWhere('sb.contacto', 'LIKE', $term);
+                  ->orWhere('sb.direccion', 'LIKE', $term);
             });
         }
 
@@ -151,7 +149,6 @@ class GetHistorialAltasAction
                 'tipo_negocio' => (string) ($row->tipo_negocio ?? ''),
                 'zona' => (string) ($row->zona ?? ''),
                 'lista_precios' => $row->lista_precios ? (string) $row->lista_precios : null,
-                'contacto' => $row->contacto ? (string) $row->contacto : null,
                 'telefono' => $row->telefono ? (string) $row->telefono : null,
                 'celular' => $row->celular ? (string) $row->celular : null,
                 'direccion' => $row->direccion ? (string) $row->direccion : null,

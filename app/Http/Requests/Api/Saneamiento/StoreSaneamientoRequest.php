@@ -267,8 +267,6 @@ class StoreSaneamientoRequest extends FormRequest
             'zona_comercial' => ['nullable', 'string', 'max:100'],
             'territorio' => ['nullable', 'string', 'max:100'],
 
-            'contacto' => ['nullable', 'string', 'max:255'],
-
             // Al menos teléfono o celular debe ser obligatorio en ALTA
             'telefono' => [
                 Rule::requiredIf($esAlta && empty($this->input('celular'))),
