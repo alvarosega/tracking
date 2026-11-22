@@ -17,6 +17,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Cargar migraciones organizadas por bases de datos
+        $this->loadMigrationsFrom([
+            database_path('migrations/alva'),
+            database_path('migrations/supervisor'),
+        ]);
+
         // Forzar timezone a nivel de PHP y Carbon
         date_default_timezone_set('America/La_Paz');
         Carbon::setLocale('es');
