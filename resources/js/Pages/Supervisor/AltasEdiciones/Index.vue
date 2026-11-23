@@ -826,12 +826,12 @@
                       <span class="text-[11px] font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.tipo_negocio || 'No asignado' }}</span>
                     </div>
                     <div
-                      @click="copiarAlPortapapeles(registroSeleccionado.lista_precios || 'LP01', 'lista_precios', 'Precio Lista')"
+                      @click="copiarAlPortapapeles(registroSeleccionado.lista_precios || 'TDB', 'lista_precios', 'Precio Lista')"
                       class="p-1.5 rounded-[6px] bg-white border cursor-pointer hover:border-[#0071E3] transition-colors"
                       :class="campoCopiado === 'lista_precios' ? 'border-[#34C759] bg-[#EBF9EF]' : 'border-[#E5E5EA]'"
                     >
                       <span class="text-[8px] font-bold uppercase text-[#86868B] block">Precio Lista</span>
-                      <span class="text-[11px] font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.lista_precios || 'LP01' }}</span>
+                      <span class="text-[11px] font-bold text-[#1D1D1F] truncate block">{{ registroSeleccionado.lista_precios || 'TDB' }}</span>
                     </div>
                     <div
                       @click="copiarAlPortapapeles(registroSeleccionado.ruta, 'ruta', 'Ruta')"
@@ -2866,7 +2866,7 @@ function generarFilaErpAlta(r) {
     pMaterno, // 4. ApellidoMaterno
     pNombres, // 5. Nombres (Obligatorio)
     r.tipo_negocio || '', // 6. TipoNegocio (Obligatorio)
-    'CONTADO', // 7. TipoPago (Obligatorio)
+    'Contado', // 7. TipoPago (Obligatorio)
     '', // 8. DiasPago
     '', // 9. TopeCredito
     latStr, // 10. Latitud (Obligatorio)
@@ -2891,7 +2891,7 @@ function generarFilaErpAlta(r) {
     nombreFacturaVal, // 29. NombreFactura
     nitVal, // 30. Nit
     r.complemento || '', // 31. Complemento
-    r.lista_precios || 'LP01', // 32. PrecioLista (Obligatorio)
+    (r.lista_precios && r.lista_precios !== 'LP01' ? r.lista_precios : 'TDB'), // 32. PrecioLista (Obligatorio)
     r.ruta || '', // 33. Ruta
     '', // 34. Dia
     '', // 35. SecuenciaVenta
