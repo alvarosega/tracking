@@ -2578,7 +2578,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, Teleport } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, Teleport } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import SupervisorLayout from '@/Layouts/SupervisorLayout.vue';
