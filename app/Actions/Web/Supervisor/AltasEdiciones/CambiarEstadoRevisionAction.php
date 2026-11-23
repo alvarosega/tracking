@@ -40,10 +40,12 @@ class CambiarEstadoRevisionAction
 
         $nowBolivia = Carbon::now('America/La_Paz')->format('Y-m-d H:i:s');
         $revisadoAt = ($estadoUpper !== 'PENDIENTE') ? $nowBolivia : null;
+        $revisorId = ($estadoUpper !== 'PENDIENTE') ? auth()->id() : null;
 
         $updateData = [
             'estado_revision' => $estadoUpper,
             'revisado_at' => $revisadoAt,
+            'revisor_id' => $revisorId,
             'updated_at' => $nowBolivia,
         ];
 
@@ -57,6 +59,8 @@ class CambiarEstadoRevisionAction
             'id' => $id,
             'estado_revision' => $estadoUpper,
             'revisado_at' => $revisadoAt,
+            'revisor_id' => $revisorId,
+            'revisor_nombre' => auth()->user()?->username ?? null,
             'message' => "Registro #{$id} actualizado a estado {$estadoUpper} correctamente.",
         ];
     }

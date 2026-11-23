@@ -65,6 +65,15 @@ class GetAltasEdicionesDataAction
                 DB::raw("COALESCE(dr.canal, 'PRT') as canal"),
                 DB::raw("COALESCE(dr.vendedor, 'Sin asignar') as vendedor"),
                 'sb.cliente',
+                'sb.apellido_paterno',
+                'sb.apellido_materno',
+                'sb.nombres',
+                'sb.documento_identidad',
+                'sb.expedido',
+                'sb.complemento',
+                'sb.tipo_documento',
+                'sb.tipo_nit',
+                'sb.razon_social',
                 'sb.tipo_negocio',
                 'sb.zona',
                 DB::raw("sb.zona as zona_comercial"),
@@ -74,14 +83,19 @@ class GetAltasEdicionesDataAction
                 'sb.celular',
                 'sb.direccion',
                 'sb.referencia',
+                'sb.direccion_visita',
+                'sb.referencia_visita',
                 'sb.nombre_factura',
                 'sb.nit',
                 'sb.latitude as latitud',
                 'sb.longitude as longitud',
+                'sb.latitud_visita',
+                'sb.longitud_visita',
                 'sb.accuracy',
                 'sb.photo_path',
                 'sb.estado_revision',
                 'sb.revisado_at',
+                'sb.revisor_id',
                 'sb.created_at',
                 'sb.updated_at',
             ])
@@ -137,8 +151,14 @@ class GetAltasEdicionesDataAction
             ];
         }
 
-        // 3. Mapear usuarios creadores desde users
-        $userIds = $registrosRaw->pluck('user_id')->filter()->unique()->toArray();
+        // 3. Mapear usuarios creadores y revisores desde users
+        $userIds = $registrosRaw->pluck('user_id')
+            ->concat($registrosRaw->pluck('revisor_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
         $userMap = [];
         if (!empty($userIds)) {
             try {
@@ -218,16 +238,32 @@ class GetAltasEdicionesDataAction
                 $usuarioNombre = $userMap[$r->user_id] ?? ("Usuario #{$r->user_id}");
             }
 
+            $revisorNombre = null;
+            if (!empty($r->revisor_id)) {
+                $revisorNombre = $userMap[$r->revisor_id] ?? ("Usuario #{$r->revisor_id}");
+            }
+
             $registros[] = [
                 'id' => $r->id,
                 'user_id' => $r->user_id,
                 'usuario' => $usuarioNombre,
+                'revisor_id' => $r->revisor_id,
+                'revisor_nombre' => $revisorNombre,
                 'cliente_id' => $r->cliente_id,
                 'tipo_registro' => $r->tipo_registro,
                 'ruta' => $r->ruta,
                 'canal' => $r->canal,
                 'vendedor' => $r->vendedor,
                 'cliente' => $r->cliente,
+                'apellido_paterno' => $r->apellido_paterno,
+                'apellido_materno' => $r->apellido_materno,
+                'nombres' => $r->nombres,
+                'documento_identidad' => $r->documento_identidad,
+                'expedido' => $r->expedido,
+                'complemento' => $r->complemento,
+                'tipo_documento' => $r->tipo_documento,
+                'tipo_nit' => $r->tipo_nit,
+                'razon_social' => $r->razon_social,
                 'tipo_negocio' => $r->tipo_negocio,
                 'zona' => $r->zona,
                 'zona_comercial' => $r->zona_comercial ?? $r->zona,
@@ -237,10 +273,14 @@ class GetAltasEdicionesDataAction
                 'celular' => $r->celular,
                 'direccion' => $r->direccion,
                 'referencia' => $r->referencia,
+                'direccion_visita' => $r->direccion_visita,
+                'referencia_visita' => $r->referencia_visita,
                 'nombre_factura' => $r->nombre_factura,
                 'nit' => $r->nit,
                 'latitud' => $tieneGps ? $lat : null,
                 'longitud' => $tieneGps ? $lng : null,
+                'latitud_visita' => $r->latitud_visita !== null ? (float) $r->latitud_visita : null,
+                'longitud_visita' => $r->longitud_visita !== null ? (float) $r->longitud_visita : null,
                 'accuracy' => $r->accuracy ? round((float) $r->accuracy, 1) : null,
                 'photo_path' => $r->photo_path,
                 'photo_url' => $r->photo_path ? Storage::url($r->photo_path) : null,
