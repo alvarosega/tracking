@@ -2823,45 +2823,6 @@ const CABECERAS_ERP_ALTAS = [
   'SecuenciaDistribuidor',
 ];
 
-const FILA_GUIA_ERP_ALTAS = [
-  '0: Nuevos',
-  'Obligatorio',
-  'Obligatorio',
-  '',
-  'Obligatorio',
-  'Obligatorio',
-  'Obligatorio',
-  '',
-  '',
-  'Obligatorio',
-  'Obligatorio',
-  'SI/NO',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  'Obligatorio',
-  '',
-  '',
-  '',
-  '',
-];
-
 function extraerApellidoPaterno(nombreCompleto) {
   if (!nombreCompleto) return '';
   const p = nombreCompleto.trim().split(/\s+/);
@@ -2942,7 +2903,6 @@ function descargarXlsxAltaIndividual(r) {
   if (!r) return;
   const rows = [
     CABECERAS_ERP_ALTAS,
-    FILA_GUIA_ERP_ALTAS,
     generarFilaErpAlta(r),
   ];
   const nombreSeguro = (r.cliente || `alta_${r.id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -3260,7 +3220,6 @@ function exportarAltasExcel() {
 
   const rows = [
     CABECERAS_ERP_ALTAS,
-    FILA_GUIA_ERP_ALTAS,
     ...finalLista.map(r => generarFilaErpAlta(r)),
   ];
 
