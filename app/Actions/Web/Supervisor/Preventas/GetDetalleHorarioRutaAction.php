@@ -260,6 +260,38 @@ class GetDetalleHorarioRutaAction
                             }
                             $visitasFueraPlan[$fpKey]['monto'] += $itemWeb['monto'];
                         }
+                    } else {
+                        // Visita web fuera de plan de cliente no catalogado en esta ruta
+                        $keyNom = $n1 ?: ($n2 ?: ($a1 ?: $a2));
+                        $fpKey = 'web_' . md5($keyNom ?: trim((string) $fs->cliente));
+                        if (!isset($visitasFueraPlan[$fpKey])) {
+                            $visitasFueraPlan[$fpKey] = [
+                                'client_id' => null,
+                                'cliente' => trim((string) $fs->cliente),
+                                'hora_app' => null,
+                                'visitas_app_count' => 0,
+                                'marcajes_app' => [],
+                                'hora_web' => $itemWeb['check_in'],
+                                'visitas_web_count' => 1,
+                                'marcajes_web' => $itemWeb['marcajes_web'],
+                                'check_out_web' => $itemWeb['check_out'],
+                                'tiempo_pdv_web' => $itemWeb['tiempo_pdv'],
+                                'monto' => $itemWeb['monto'],
+                                'tipo' => $itemWeb['tipo'] ?: 'Visita',
+                                'foto_url' => null,
+                                'fotos_count' => 0,
+                                'direccion' => null,
+                            ];
+                        } else {
+                            $visitasFueraPlan[$fpKey]['visitas_web_count']++;
+                            if ($hInValido) {
+                                $visitasFueraPlan[$fpKey]['marcajes_web'][] = $hIn;
+                                if (empty($visitasFueraPlan[$fpKey]['hora_web']) || strcmp($hIn, $visitasFueraPlan[$fpKey]['hora_web']) < 0) {
+                                    $visitasFueraPlan[$fpKey]['hora_web'] = $hIn;
+                                }
+                            }
+                            $visitasFueraPlan[$fpKey]['monto'] += $itemWeb['monto'];
+                        }
                     }
                 }
             }
@@ -383,7 +415,7 @@ class GetDetalleHorarioRutaAction
                             'marcajes_app' => $horaM ? [$horaM] : [],
                             'hora_web' => $webFp['check_in'] ?? null,
                             'visitas_web_count' => $webFp['visitas_web_count'] ?? ($webFp ? 1 : 0),
-                            'marcajes_web' => $webFp['marcajes_web'] ?? ($webFp['check_in'] ? [$webFp['check_in']] : []),
+                            'marcajes_web' => $webFp['marcajes_web'] ?? (!empty($webFp['check_in']) ? [$webFp['check_in']] : []),
                             'check_out_web' => $webFp['check_out'] ?? null,
                             'tiempo_pdv_web' => $webFp['tiempo_pdv'] ?? null,
                             'monto' => $montoFp,

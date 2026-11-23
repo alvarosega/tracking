@@ -66,18 +66,27 @@ class GetHistorialAltasAction
                 'sb.tipo_registro',
                 'sb.route',
                 'sb.cliente',
+                'sb.nombres',
+                'sb.apellido_paterno',
+                'sb.apellido_materno',
                 'sb.tipo_negocio',
-                'sb.zona',
-                'sb.lista_precios',
-                'sb.contacto',
-                'sb.telefono',
                 'sb.celular',
                 'sb.direccion',
                 'sb.referencia',
+                'sb.documento_identidad',
+                'sb.expedido',
+                'sb.complemento',
+                'sb.tipo_documento',
+                'sb.tipo_nit',
                 'sb.nombre_factura',
                 'sb.nit',
+                'sb.razon_social',
                 'sb.latitude',
                 'sb.longitude',
+                'sb.latitud_visita',
+                'sb.longitud_visita',
+                'sb.direccion_visita',
+                'sb.referencia_visita',
                 'sb.accuracy',
                 'sb.photo_path',
                 'sb.estado_revision',
@@ -104,9 +113,12 @@ class GetHistorialAltasAction
             $term = '%' . trim($searchParam) . '%';
             $query->where(function ($q) use ($term): void {
                 $q->where('sb.cliente', 'LIKE', $term)
+                  ->orWhere('sb.nombres', 'LIKE', $term)
+                  ->orWhere('sb.apellido_paterno', 'LIKE', $term)
+                  ->orWhere('sb.apellido_materno', 'LIKE', $term)
+                  ->orWhere('sb.documento_identidad', 'LIKE', $term)
                   ->orWhere('sb.nit', 'LIKE', $term)
-                  ->orWhere('sb.direccion', 'LIKE', $term)
-                  ->orWhere('sb.contacto', 'LIKE', $term);
+                  ->orWhere('sb.direccion', 'LIKE', $term);
             });
         }
 
@@ -132,20 +144,31 @@ class GetHistorialAltasAction
                 'ruta' => (string) ($row->route ?? ''),
                 'cliente' => (string) ($row->cliente ?? ''),
                 'nombre_comercial' => (string) ($row->cliente ?? ''),
+                'nombres' => $row->nombres ? (string) $row->nombres : null,
+                'apellido_paterno' => $row->apellido_paterno ? (string) $row->apellido_paterno : null,
+                'apellido_materno' => $row->apellido_materno ? (string) $row->apellido_materno : null,
                 'tipo_negocio' => (string) ($row->tipo_negocio ?? ''),
-                'zona' => (string) ($row->zona ?? ''),
-                'contacto' => $row->contacto ? (string) $row->contacto : null,
-                'telefono' => $row->telefono ? (string) $row->telefono : null,
                 'celular' => $row->celular ? (string) $row->celular : null,
                 'direccion' => $row->direccion ? (string) $row->direccion : null,
                 'referencia' => $row->referencia ? (string) $row->referencia : null,
+                'documento_identidad' => $row->documento_identidad ? (string) $row->documento_identidad : null,
+                'ci' => $row->documento_identidad ? (string) $row->documento_identidad : null,
+                'expedido' => $row->expedido ? (string) $row->expedido : null,
+                'complemento' => $row->complemento ? (string) $row->complemento : null,
+                'tipo_documento' => $row->tipo_documento ? (string) $row->tipo_documento : null,
+                'tipo_nit' => $row->tipo_nit ? (string) $row->tipo_nit : null,
                 'nombre_factura' => $row->nombre_factura ? (string) $row->nombre_factura : null,
-                'razon_social' => $row->nombre_factura ? (string) $row->nombre_factura : null,
+                'razon_social' => $row->razon_social ? (string) $row->razon_social : ($row->nombre_factura ? (string) $row->nombre_factura : null),
                 'nit' => $row->nit ? (string) $row->nit : null,
                 'latitude' => $row->latitude !== null ? (float) $row->latitude : null,
                 'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
                 'latitud' => $row->latitude !== null ? (float) $row->latitude : null,
                 'longitud' => $row->longitude !== null ? (float) $row->longitude : null,
+                'tiene_ubicacion_visita_diferente' => ($row->latitud_visita !== null && $row->longitud_visita !== null),
+                'latitud_visita' => $row->latitud_visita !== null ? (float) $row->latitud_visita : null,
+                'longitud_visita' => $row->longitud_visita !== null ? (float) $row->longitud_visita : null,
+                'direccion_visita' => $row->direccion_visita ? (string) $row->direccion_visita : null,
+                'referencia_visita' => $row->referencia_visita ? (string) $row->referencia_visita : null,
                 'accuracy' => (float) ($row->accuracy ?? 0.0),
                 'photo_path' => $row->photo_path ? (string) $row->photo_path : null,
                 'photo_url' => $photoUrl,

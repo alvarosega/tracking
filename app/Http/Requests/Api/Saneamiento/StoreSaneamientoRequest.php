@@ -112,6 +112,27 @@ class StoreSaneamientoRequest extends FormRequest
             $merge['longitude'] = (float) $lng;
         }
 
+        // 6.1 Normalizar coordenadas de Visita (Preventa separada de Entrega)
+        $latVisita = $this->input('latitud_visita') ?? $this->input('latitude_visita') ?? $this->input('lat_visita');
+        if ($latVisita !== null && $latVisita !== '' && $latVisita !== 'null') {
+            $merge['latitud_visita'] = (float) $latVisita;
+        }
+
+        $lngVisita = $this->input('longitud_visita') ?? $this->input('longitude_visita') ?? $this->input('lng_visita') ?? $this->input('lon_visita');
+        if ($lngVisita !== null && $lngVisita !== '' && $lngVisita !== 'null') {
+            $merge['longitud_visita'] = (float) $lngVisita;
+        }
+
+        $dirVisita = $this->input('direccion_visita') ?? $this->input('address_visita');
+        if ($dirVisita !== null && $dirVisita !== '' && $dirVisita !== 'null') {
+            $merge['direccion_visita'] = trim((string) $dirVisita);
+        }
+
+        $refVisita = $this->input('referencia_visita') ?? $this->input('reference_visita');
+        if ($refVisita !== null && $refVisita !== '' && $refVisita !== 'null') {
+            $merge['referencia_visita'] = trim((string) $refVisita);
+        }
+
         // 7. Normalizar zona comercial: soportar territorio, zona_comercial, zona, etc.
         $rawZona = $this->input('territorio')
             ?? $this->input('zona_comercial')
@@ -242,22 +263,13 @@ class StoreSaneamientoRequest extends FormRequest
                 'min:1',
             ],
 
-            'zona' => ['required', 'string', 'max:100'],
+            'zona' => ['nullable', 'string', 'max:100'],
             'zona_comercial' => ['nullable', 'string', 'max:100'],
             'territorio' => ['nullable', 'string', 'max:100'],
 
-            'contacto' => ['nullable', 'string', 'max:255'],
-
-            // Al menos teléfono o celular debe ser obligatorio en ALTA
-            'telefono' => [
-                Rule::requiredIf($esAlta && empty($this->input('celular'))),
-                'nullable',
-                'string',
-                'max:50',
-                'regex:/^[0-9]{6,15}$/',
-            ],
+            'telefono' => ['nullable', 'string', 'max:50'],
             'celular' => [
-                Rule::requiredIf($esAlta && empty($this->input('telefono'))),
+                Rule::requiredIf($esAlta),
                 'nullable',
                 'string',
                 'max:50',
@@ -295,6 +307,13 @@ class StoreSaneamientoRequest extends FormRequest
                 'between:-180,180',
             ],
 
+            // Coordenadas de Visita (Preventa separada de Entrega)
+            'latitud_visita' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitud_visita' => ['nullable', 'numeric', 'between:-180,180'],
+            'direccion_visita' => ['nullable', 'string', 'max:255'],
+            'referencia_visita' => ['nullable', 'string', 'max:255'],
+            'tiene_ubicacion_visita_diferente' => ['nullable'],
+
             'accuracy' => ['nullable', 'numeric', 'min:0'],
 
             'photo' => [
@@ -324,8 +343,7 @@ class StoreSaneamientoRequest extends FormRequest
             'zona.required' => 'La zona es obligatoria.',
             'direccion.required' => 'La dirección es obligatoria para registrar un alta.',
             'referencia.required' => 'La referencia de ubicación es obligatoria para registrar un alta.',
-            'celular.required' => 'Debe ingresar al menos un número de celular o teléfono de contacto.',
-            'telefono.required' => 'Debe ingresar al menos un número de teléfono o celular de contacto.',
+            'celular.required' => 'El número de celular es obligatorio para registrar un alta.',
             'celular.regex' => 'El celular debe contener únicamente números (entre 7 y 15 dígitos).',
             'expedido.in' => 'El expedido debe ser uno de: BEN, CBBA, LP, OR, PAN, PT, SC, SUC, TJA.',
             'tipo_documento.in' => 'El tipo de documento seleccionado no es válido.',

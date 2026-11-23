@@ -34,7 +34,7 @@ class StoreSaneamientoAction
             ? trim((string) $validated['territorio'])
             : (!empty($validated['zona_comercial'])
                 ? trim((string) $validated['zona_comercial'])
-                : (!empty($validated['zona']) ? trim((string) $validated['zona']) : 'SIN ZONA'));
+                : (!empty($validated['zona']) ? trim((string) $validated['zona']) : ''));
 
         $nombres = !empty($validated['nombres']) ? trim((string) $validated['nombres']) : null;
         $apellidoPaterno = !empty($validated['apellido_paterno']) ? trim((string) $validated['apellido_paterno']) : null;
@@ -44,9 +44,20 @@ class StoreSaneamientoAction
             ? trim((string) $validated['cliente'])
             : trim("{$nombres} {$apellidoPaterno} {$apellidoMaterno}");
 
+        $clienteId = $esAlta ? null : (isset($validated['cliente_id']) ? (int) $validated['cliente_id'] : null);
+
+        $latitudVisita = isset($validated['latitud_visita']) && is_numeric($validated['latitud_visita'])
+            ? (float) $validated['latitud_visita']
+            : null;
+        $longitudVisita = isset($validated['longitud_visita']) && is_numeric($validated['longitud_visita'])
+            ? (float) $validated['longitud_visita']
+            : null;
+        $direccionVisita = !empty($validated['direccion_visita']) ? trim((string) $validated['direccion_visita']) : null;
+        $referenciaVisita = !empty($validated['referencia_visita']) ? trim((string) $validated['referencia_visita']) : null;
+
         $insertData = [
             'user_id' => $user->id,
-            'cliente_id' => $esAlta ? null : (isset($validated['cliente_id']) ? (int) $validated['cliente_id'] : null),
+            'cliente_id' => $clienteId,
             'tipo_registro' => $tipoRegistro,
             'route' => trim((string) $validated['route']),
             'cliente' => $clienteFinal,
@@ -56,7 +67,6 @@ class StoreSaneamientoAction
             'tipo_negocio' => trim((string) $validated['tipo_negocio']),
             'zona' => $zona,
             'lista_precios' => !empty($validated['lista_precios']) ? trim((string) $validated['lista_precios']) : null,
-            'contacto' => !empty($validated['contacto']) ? trim((string) $validated['contacto']) : null,
             'telefono' => !empty($validated['telefono']) ? trim((string) $validated['telefono']) : null,
             'celular' => !empty($validated['celular']) ? trim((string) $validated['celular']) : null,
             'direccion' => !empty($validated['direccion']) ? trim((string) $validated['direccion']) : null,
@@ -71,6 +81,10 @@ class StoreSaneamientoAction
             'razon_social' => !empty($validated['razon_social']) ? trim((string) $validated['razon_social']) : null,
             'latitude' => isset($validated['latitude']) ? (float) $validated['latitude'] : null,
             'longitude' => isset($validated['longitude']) ? (float) $validated['longitude'] : null,
+            'latitud_visita' => $latitudVisita,
+            'longitud_visita' => $longitudVisita,
+            'direccion_visita' => $direccionVisita,
+            'referencia_visita' => $referenciaVisita,
             'accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : 0.0,
             'photo_path' => $photoPath,
             'estado_revision' => 'PENDIENTE',
@@ -82,6 +96,34 @@ class StoreSaneamientoAction
             $saneamientoId = (int) DB::connection('supervisor')
                 ->table('saneamiento_base')
                 ->insertGetId($insertData);
+
+            // Sincronizar en caliente cliente_ubicaciones_visita si corresponde a EDICION
+            if (!$esAlta && $clienteId) {
+                $rawTieneDiferente = $validated['tiene_ubicacion_visita_diferente'] ?? null;
+                $tieneVisitaDiferente = ($rawTieneDiferente === true || $rawTieneDiferente === 'true' || $rawTieneDiferente === 1 || $rawTieneDiferente === '1')
+                    ? true
+                    : (($rawTieneDiferente === false || $rawTieneDiferente === 'false' || $rawTieneDiferente === 0 || $rawTieneDiferente === '0') ? false : null);
+
+                if ($latitudVisita !== null && $longitudVisita !== null) {
+                    DB::connection('supervisor')->table('cliente_ubicaciones_visita')->updateOrInsert(
+                        ['cliente_id' => $clienteId],
+                        [
+                            'latitud' => $latitudVisita,
+                            'longitud' => $longitudVisita,
+                            'accuracy' => (float) ($validated['accuracy'] ?? 0.0),
+                            'direccion_visita' => $direccionVisita,
+                            'referencia_visita' => $referenciaVisita,
+                            'user_id' => $user->id,
+                            'updated_at' => $nowBolivia,
+                        ]
+                    );
+                } elseif ($tieneVisitaDiferente === false) {
+                    // El usuario desactivó explícitamente la visita separada (vuelven a unificarse)
+                    DB::connection('supervisor')->table('cliente_ubicaciones_visita')
+                        ->where('cliente_id', $clienteId)
+                        ->delete();
+                }
+            }
         } catch (\Throwable $e) {
             if ($photoPath) {
                 Storage::disk('public')->delete((string) $photoPath);
@@ -91,6 +133,7 @@ class StoreSaneamientoAction
 
         return [
             'id' => $saneamientoId,
+            'cliente_id' => $clienteId,
             'tipo_registro' => $tipoRegistro,
             'cliente' => $clienteFinal,
             'nombres' => $nombres,
@@ -105,6 +148,13 @@ class StoreSaneamientoAction
             'zona' => $zona,
             'zona_comercial' => $zona,
             'territorio' => $zona,
+            'latitude' => $insertData['latitude'],
+            'longitude' => $insertData['longitude'],
+            'latitud_visita' => $latitudVisita,
+            'longitud_visita' => $longitudVisita,
+            'direccion_visita' => $direccionVisita,
+            'referencia_visita' => $referenciaVisita,
+            'tiene_ubicacion_visita_diferente' => ($latitudVisita !== null && $longitudVisita !== null),
             'photo_url' => $photoPath ? Storage::disk('public')->url($photoPath) : null,
         ];
     }
