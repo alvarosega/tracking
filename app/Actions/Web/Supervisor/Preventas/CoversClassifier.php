@@ -119,33 +119,42 @@ class CoversClassifier
 
             $tag = null;
             $tagTipo = null;
+            $tagTexto = null;
 
             if (str_contains($prod, 'TOQUE DE SEDA') && str_contains($prod, '40ML') && $desc > 0 && $monto <= 0.01) {
                 if ($tieneCover1 && $tieneCover2) {
                     $tag = 'C1+C2 BONIF';
                     $tagTipo = 'cover1_2';
+                    $tagTexto = 'Cover 1 y 2: Bonificado 100% (Sedal Toque de Seda 40ml)';
                 } elseif ($tieneCover1) {
                     $tag = 'C1 BONIF';
                     $tagTipo = 'cover1';
+                    $tagTexto = 'Cover 1: Bonificado 100% (Sedal Toque de Seda 40ml)';
                 } elseif ($tieneCover2) {
                     $tag = 'C2 BONIF';
                     $tagTipo = 'cover2';
+                    $tagTexto = 'Cover 2: Bonificado 100% (Sedal Toque de Seda 40ml)';
                 } else {
                     $tag = 'BONIF';
                     $tagTipo = 'bonif';
+                    $tagTexto = 'Bonificado 100% (Sedal Toque de Seda 40ml)';
                 }
             } elseif (str_contains($prod, 'SEDAL') && str_contains($prod, '40ML') && $desc > 0) {
                 $tag = 'C3 PROMO';
                 $tagTipo = 'cover3';
+                $tagTexto = 'Cover 3: Bonificación 2x12 (Sedal 40ml)';
             } elseif ($desc > 0) {
                 $tag = 'DESC';
                 $tagTipo = 'desc';
+                $tagTexto = 'Descuento Regular';
             } elseif (str_contains($prod, 'SEDAL') && str_contains($prod, '340ML') && $tieneCover1) {
                 $tag = 'C1 REQ';
                 $tagTipo = 'req1';
+                $tagTexto = 'Cover 1: Compra Sedal 340ml';
             } elseif (str_contains($prod, 'PEPSODENT') && (str_contains($prod, '90G') || str_contains($prod, '130G')) && $tieneCover2) {
                 $tag = 'C2 REQ';
                 $tagTipo = 'req2';
+                $tagTexto = 'Cover 2: Compra Pepsodent';
             }
 
             $itemData = is_array($it) ? $it : (array) $it;
@@ -159,8 +168,24 @@ class CoversClassifier
             $itemData['con_descuento'] = ($desc > 0);
             $itemData['tag'] = $tag;
             $itemData['tag_tipo'] = $tagTipo;
+            $itemData['tag_texto'] = $tagTexto;
             $itemsEtiquetados[] = $itemData;
         }
+
+        // Construir resumen explicativo del o los covers del cliente
+        $resumenPartes = [];
+        if ($tieneCover1) {
+            $resumenPartes[] = "Cover 1: {$cantSedal340}u Sedal 340ml + {$toqueSedaBonifCant}u Toque de Seda 40ml bonif.";
+        }
+        if ($tieneCover2) {
+            $resumenPartes[] = "Cover 2: {$cantPepsodent}u Pepsodent + {$toqueSedaBonifCant}u Toque de Seda 40ml bonif.";
+        }
+        if ($tieneCover3) {
+            $resumenPartes[] = "Cover 3: {$sedal40Cant}u Sedal 40ml (Bs " . number_format($sedal40DescTotal, 2) . " descuento 2x12)";
+        }
+        $resumenTexto = !empty($resumenPartes)
+            ? implode(' | ', $resumenPartes)
+            : ($descuentoTotal > 0 ? 'Descuento en productos regulares' : 'Sin promoción aplicada');
 
         return [
             'covers' => $covers,
@@ -175,6 +200,7 @@ class CoversClassifier
             'cant_sedal_40' => $sedal40Cant,
             'desc_sedal_40' => round($sedal40DescTotal, 2),
             'descuento_total' => round($descuentoTotal, 2),
+            'resumen_promo' => $resumenTexto,
             'items_etiquetados' => $itemsEtiquetados,
         ];
     }

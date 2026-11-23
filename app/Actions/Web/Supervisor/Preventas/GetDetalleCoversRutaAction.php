@@ -191,6 +191,7 @@ class GetDetalleCoversRutaAction
                     'cant_pepsodent' => $cRes['cant_pepsodent'],
                     'cant_toque_seda_bonif' => $cRes['cant_toque_seda_bonif'],
                     'cant_sedal_40' => $cRes['cant_sedal_40'],
+                    'resumen_promo' => $cRes['resumen_promo'],
                     'items' => $items,
                 ];
             }
