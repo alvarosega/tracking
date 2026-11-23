@@ -684,6 +684,7 @@ class GetAvanceCumplimientoDataAction
                 'cuota_dia' => $cuota,
                 'pct_avance_mtd' => $pctAv,
                 'pct' => $pctAv,
+                'pct_ritmo' => $pctProy,
                 'proyeccion_cierre' => $proy,
                 'pct_proyeccion' => $pctProy,
                 'venta_apertura' => round($vApertura, 2),
@@ -739,6 +740,8 @@ class GetAvanceCumplimientoDataAction
         $totBaseCobCore = $totObjetivoMes > 0 ? $totObjetivoMes : $totSugerido;
         $totPctCobCore = $totBaseCobCore > 0 ? round(($totVentaMtd / $totBaseCobCore) * 100.0, 1) : 0.0;
 
+        $totPctProy = ($totMeta > 0) ? $this->calcPct((float) $totProyCalc, (float) $totMeta) : 0.0;
+
         $totales = [
             'meta' => round($totMeta, 2),
             'logrado' => round($totLogrado, 2),
@@ -748,7 +751,9 @@ class GetAvanceCumplimientoDataAction
             'cuota_diaria_req' => $totCuotaCalc,
             'pct' => ($clave === 'cob_core' && $totCartera > 0) ? round(($totLogrado / $totCartera) * 100.0, 1) : $totPct,
             'pct_avance_mtd' => $totPct,
+            'pct_ritmo' => $totPctProy,
             'proyeccion_cierre' => $totProyCalc,
+            'pct_proyeccion' => $totPctProy,
             'venta_apertura' => round($totVApertura, 2),
             'venta_cobertura' => round($totVApertura, 2),
             'venta_repeticion' => round($totVRepeticion, 2),

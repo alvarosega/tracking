@@ -576,7 +576,7 @@
                     <td class="py-2 px-3 text-right font-bold text-[#1D1D1F]">{{ formatValorKpi(r.logrado) }}</td>
                     <td
                       class="py-2 px-3 text-right font-bold text-[12px]"
-                      :class="colorPct(r.pct)"
+                      :class="colorAvanceKpi(r)"
                     >
                       {{ formatPct(r.pct) }}
                     </td>
@@ -1849,7 +1849,7 @@
                   <td class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA]">{{ formatValorKpi(totalesKpi.logrado) }}</td>
                   <td
                     class="py-2.5 px-3 text-right sticky bottom-0 z-30 bg-[#F8F8FA] font-bold text-[12px]"
-                    :class="colorPct(totalesKpi.pct)"
+                    :class="colorAvanceKpi(totalesKpi)"
                   >
                     {{ formatPct(totalesKpi.pct) }}
                   </td>
@@ -3071,7 +3071,8 @@ const vendedoresFiltrados = computed(() => {
       canal: canalStr,
       pct: Number(pct.toFixed(1)),
       pct_avance_mtd: Number(pct.toFixed(1)),
-      pct_proyeccion: Number(pctProy.toFixed(1))
+      pct_proyeccion: Number(pctProy.toFixed(1)),
+      pct_ritmo: Number(pctProy.toFixed(1))
     }
   })
 
@@ -3395,8 +3396,8 @@ function colorPct(pct) {
 function colorKpiResumen(kpiId, kpiObj) {
   if (!kpiObj || Number(kpiObj.meta || 0) <= 0) return 'text-[#86868B]'
   const esVolumen = ['vol_general', 'vol_seda', 'vol_clinical'].includes(kpiId)
-  // El color se evalúa según el ritmo/predicción (pct_ritmo) o porcentaje según sea el caso
-  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct ?? 0))
+  // El color se evalúa según el ritmo/predicción (pct_ritmo o pct_proyeccion) o porcentaje según sea el caso
+  const evalPct = Number(kpiObj.pct_ritmo !== undefined ? kpiObj.pct_ritmo : (kpiObj.pct_proyeccion !== undefined ? kpiObj.pct_proyeccion : (kpiObj.pct ?? 0)))
 
   if (esVolumen) {
     if (evalPct >= 100) return 'text-emerald-600'
@@ -3407,6 +3408,11 @@ function colorKpiResumen(kpiId, kpiObj) {
     if (evalPct >= 70) return 'text-amber-600'
     return 'text-red-600'
   }
+}
+
+function colorAvanceKpi(r) {
+  if (!r) return 'text-[#86868B]'
+  return colorKpiResumen(modoActivo.value, r)
 }
 
 function badgeRitmo(pctRitmo) {
