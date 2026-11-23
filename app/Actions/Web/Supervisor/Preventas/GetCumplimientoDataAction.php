@@ -1106,27 +1106,33 @@ class GetCumplimientoDataAction
             $kpi8Cumple = false;
             $kpi8Puntos = 0.0;
             $cumplenCovers = 0;
+            $cover1Count = 0;
+            $cover2Count = 0;
+            $cover3Count = 0;
             $detalleCoversTiendas = [];
             $tasaCovers = 0.0;
 
             if (self::EVALUAR_KPI8_COVERS) {
                 foreach ($preventasPorCliente as $cId => $itemsCliente) {
                     $cIdInt = (int) $cId;
-                    $tieneDescuento = false;
-                    $totalDescuentoCliente = 0.0;
-                    $itemsConDescuentoCount = 0;
+                    $cRes = CoversClassifier::clasificar($itemsCliente);
 
-                    foreach ($itemsCliente as $it) {
-                        $desc = (float) ($it->descuento ?? 0.0);
-                        if ($desc > 0) {
-                            $tieneDescuento = true;
-                            $itemsConDescuentoCount++;
-                            $totalDescuentoCliente += $desc;
-                        }
-                    }
+                    // La lógica de medición se mantiene idéntica: cualquier cliente con descuento suma a covers
+                    $tieneDescuento = $cRes['tiene_descuento'];
+                    $itemsConDescuentoCount = count(array_filter($cRes['items_etiquetados'], fn ($it) => !empty($it['con_descuento'])));
 
                     if ($tieneDescuento) {
                         $cumplenCovers++;
+                    }
+
+                    if ($cRes['tiene_cover1']) {
+                        $cover1Count++;
+                    }
+                    if ($cRes['tiene_cover2']) {
+                        $cover2Count++;
+                    }
+                    if ($cRes['tiene_cover3']) {
+                        $cover3Count++;
                     }
 
                     $primerItem = $itemsCliente->first();
@@ -1136,8 +1142,12 @@ class GetCumplimientoDataAction
                         'cliente' => $primerItem->cliente ?? "Cliente #{$cIdInt}",
                         'total_items' => $itemsCliente->count(),
                         'items_con_descuento' => $itemsConDescuentoCount,
-                        'descuento_total' => round($totalDescuentoCliente, 2),
+                        'descuento_total' => $cRes['descuento_total'],
                         'cumple' => $tieneDescuento,
+                        'covers' => $cRes['covers'],
+                        'tiene_cover1' => $cRes['tiene_cover1'],
+                        'tiene_cover2' => $cRes['tiene_cover2'],
+                        'tiene_cover3' => $cRes['tiene_cover3'],
                     ];
                 }
 
@@ -1326,6 +1336,9 @@ class GetCumplimientoDataAction
                     'cumplen' => $cumplenCovers,
                     'tasa_pct' => $tasaCovers,
                     'umbral_pct' => self::UMBRAL_COVERS_PCT,
+                    'cover1_count' => $cover1Count,
+                    'cover2_count' => $cover2Count,
+                    'cover3_count' => $cover3Count,
                 ],
 
                 // Desgloses monográficos para las pestañas 1-8

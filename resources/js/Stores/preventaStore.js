@@ -320,7 +320,10 @@ function enriquecerRuta(r) {
         total_compradores: Number(k8.total_compradores || 0),
         cumplen: Number(k8.cumplen || 0),
         tasa_pct: Number(k8.tasa_pct || 0),
-        umbral_pct: Number(k8.umbral_pct || 50.0)
+        umbral_pct: Number(k8.umbral_pct || 50.0),
+        cover1_count: Number(k8.cover1_count || 0),
+        cover2_count: Number(k8.cover2_count || 0),
+        cover3_count: Number(k8.cover3_count || 0)
       }
     }
   }

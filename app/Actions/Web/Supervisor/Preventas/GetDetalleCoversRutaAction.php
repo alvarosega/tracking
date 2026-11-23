@@ -42,10 +42,13 @@ class GetDetalleCoversRutaAction
                 $canal = trim((string) ($dimInfo->canal ?: 'GENERAL'));
             }
 
-            // 1. Preventas del día para la ruta
+            // 1. Preventas del día para la ruta (monto > 0 o bonificaciones con descuento > 0)
             $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
                 ->where('fecha_norm', $fechaNorm)
-                ->where('monto_final', '>', 0)
+                ->where(function ($q): void {
+                    $q->where('monto_final', '>', 0)
+                      ->orWhere('descuento', '>', 0);
+                })
                 ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
                 ->select([
                     'cliente_id',
@@ -76,6 +79,9 @@ class GetDetalleCoversRutaAction
                         'compradores_hoy' => 0,
                         'clientes_con_descuento' => 0,
                         'clientes_sin_descuento' => 0,
+                        'cover1_count' => 0,
+                        'cover2_count' => 0,
+                        'cover3_count' => 0,
                         'porcentaje_covers_ruta' => 0.0,
                         'cumple_umbral' => false,
                         'puntos_obtenidos' => 0.0,
@@ -119,12 +125,17 @@ class GetDetalleCoversRutaAction
                 ];
             }
 
-            // 3. Evaluar Covers por Tienda
+            // 3. Evaluar Covers por Tienda usando CoversClassifier
             $tiendas = [];
             $clientesConDescuentoCount = 0;
+            $cover1Count = 0;
+            $cover2Count = 0;
+            $cover3Count = 0;
 
             foreach ($clientesCompradores as $cid => $cData) {
-                $items = $cData['items'];
+                $cRes = CoversClassifier::clasificar($cData['items']);
+
+                $items = $cRes['items_etiquetados'];
                 $itemsConDescuento = 0;
                 $itemsSinDescuento = 0;
 
@@ -136,15 +147,28 @@ class GetDetalleCoversRutaAction
                     }
                 }
 
+                // La lógica de medición se mantiene idéntica (clientes con al menos un ítem con descuento)
                 $cumple = ($itemsConDescuento > 0);
                 if ($cumple) {
                     $clientesConDescuentoCount++;
                 }
 
-                // Ordenar items: con descuento primero, luego por monto descendente
+                if ($cRes['tiene_cover1']) {
+                    $cover1Count++;
+                }
+                if ($cRes['tiene_cover2']) {
+                    $cover2Count++;
+                }
+                if ($cRes['tiene_cover3']) {
+                    $cover3Count++;
+                }
+
+                // Ordenar items: con descuento o tag primero, luego por monto descendente
                 usort($items, function ($a, $b) {
-                    if ($a['con_descuento'] !== $b['con_descuento']) {
-                        return $b['con_descuento'] <=> $a['con_descuento'];
+                    $pesoA = ($a['con_descuento'] || !empty($a['tag'])) ? 1 : 0;
+                    $pesoB = ($b['con_descuento'] || !empty($b['tag'])) ? 1 : 0;
+                    if ($pesoA !== $pesoB) {
+                        return $pesoB <=> $pesoA;
                     }
                     return $b['monto_final'] <=> $a['monto_final'];
                 });
@@ -159,12 +183,27 @@ class GetDetalleCoversRutaAction
                     'items_con_descuento' => $itemsConDescuento,
                     'items_sin_descuento' => $itemsSinDescuento,
                     'cumple' => $cumple,
+                    'covers' => $cRes['covers'],
+                    'tiene_cover1' => $cRes['tiene_cover1'],
+                    'tiene_cover2' => $cRes['tiene_cover2'],
+                    'tiene_cover3' => $cRes['tiene_cover3'],
+                    'cant_sedal_340' => $cRes['cant_sedal_340'],
+                    'cant_pepsodent' => $cRes['cant_pepsodent'],
+                    'cant_toque_seda_bonif' => $cRes['cant_toque_seda_bonif'],
+                    'cant_sedal_40' => $cRes['cant_sedal_40'],
                     'items' => $items,
                 ];
             }
 
-            // Ordenar tiendas por monto descendente
-            usort($tiendas, fn ($a, $b) => $b['total_bs_hoy'] <=> $a['total_bs_hoy']);
+            // Ordenar tiendas: con covers primero, luego por monto descendente
+            usort($tiendas, function ($a, $b) {
+                $pesoA = !empty($a['covers']) ? 1 : ($a['cumple'] ? 0.5 : 0);
+                $pesoB = !empty($b['covers']) ? 1 : ($b['cumple'] ? 0.5 : 0);
+                if ($pesoA !== $pesoB) {
+                    return $pesoB <=> $pesoA;
+                }
+                return $b['total_bs_hoy'] <=> $a['total_bs_hoy'];
+            });
 
             $totalCompradores = count($clientesCompradores);
             $clientesSinDescuentoCount = max(0, $totalCompradores - $clientesConDescuentoCount);
@@ -189,6 +228,9 @@ class GetDetalleCoversRutaAction
                     'compradores_hoy' => $totalCompradores,
                     'clientes_con_descuento' => $clientesConDescuentoCount,
                     'clientes_sin_descuento' => $clientesSinDescuentoCount,
+                    'cover1_count' => $cover1Count,
+                    'cover2_count' => $cover2Count,
+                    'cover3_count' => $cover3Count,
                     'porcentaje_covers_ruta' => $pctCoversRuta,
                     'cumple_umbral' => $cumpleUmbral,
                     'puntos_obtenidos' => $puntosObtenidos,
