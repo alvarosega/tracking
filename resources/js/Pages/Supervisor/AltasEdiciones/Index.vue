@@ -2846,7 +2846,12 @@ function extraerNombres(nombreCompleto) {
   return p[0] || '';
 }
 
-function generarFilaErpAlta(r) {
+function obtenerDiaDescarga() {
+  const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+  return dias[new Date().getDay()] || 'Lunes';
+}
+
+function generarFilaErpAlta(r, diaDescarga = null) {
   const pPaterno = (r.apellido_paterno || '').trim() || extraerApellidoPaterno(r.cliente);
   const pMaterno = (r.apellido_materno || '').trim() || extraerApellidoMaterno(r.cliente);
   const pNombres = (r.nombres || '').trim() || extraerNombres(r.cliente);
@@ -2858,10 +2863,11 @@ function generarFilaErpAlta(r) {
   const nitVal = (r.nit || r.documento_identidad || '').trim();
   const razonSocialVal = (r.razon_social || r.nombre_factura || r.cliente || '').trim();
   const nombreFacturaVal = (r.nombre_factura || r.razon_social || r.cliente || '').trim();
+  const diaVal = diaDescarga || obtenerDiaDescarga();
 
   return [
     0, // 1. IdCliente (0: Nuevos)
-    r.id ? String(r.id) : '', // 2. Codigo (ID de solicitud de alta)
+    '', // 2. Codigo (Vacio para altas)
     pPaterno, // 3. ApellidoPaterno (Obligatorio)
     pMaterno, // 4. ApellidoMaterno
     pNombres, // 5. Nombres (Obligatorio)
@@ -2893,7 +2899,7 @@ function generarFilaErpAlta(r) {
     r.complemento || '', // 31. Complemento
     (r.lista_precios && r.lista_precios !== 'LP01' ? r.lista_precios : 'TDB'), // 32. PrecioLista (Obligatorio)
     r.ruta || '', // 33. Ruta
-    '', // 34. Dia
+    diaVal, // 34. Dia (Día de descarga)
     '', // 35. SecuenciaVenta
     '', // 36. SecuenciaDistribuidor
   ];
