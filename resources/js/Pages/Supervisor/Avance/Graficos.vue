@@ -1,206 +1,103 @@
 <template>
   <SupervisorLayout title="Avance > Gráficos de Avance">
     <div class="space-y-2.5 font-sans select-none">
-      <!-- ── Subnavegación de Módulo Avance ── -->
+      <!-- Subnavegación de Módulo Avance -->
       <div class="flex items-center justify-between gap-2">
         <SubNavTabs :tabs="avanceTabs" />
       </div>
 
-      <!-- ── Barra Superior de Filtros Transversales ── -->
+      <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="consultarGraficos" />
 
-      <!-- ── Tarjetas Resumen MTD del KPI Seleccionado ── -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        <!-- Card 1: Meta del Mes -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Meta del Mes</span>
-            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-[#1D1D1F] font-mono">
-              {{ kpiActivo === 'volumen' ? fmtBs(metaTotal) : fmt(metaTotal) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">
-            {{ kpiActivo === 'volumen' ? 'Cuota en Bs' : 'Cartera activa' }}
-          </span>
-        </div>
-
-        <!-- Card 2: Logrado MTD -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold uppercase tracking-wider" :class="kpiActivo === 'volumen' ? 'text-[#0071E3]' : 'text-emerald-700'">
-              Logrado MTD
-            </span>
-            <span class="w-2 h-2 rounded-full" :class="kpiActivo === 'volumen' ? 'bg-[#0071E3]' : 'bg-emerald-500'"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold font-mono" :class="kpiActivo === 'volumen' ? 'text-[#0071E3]' : 'text-emerald-700'">
-              {{ kpiActivo === 'volumen' ? fmtBs(logradoTotal) : fmt(logradoTotal) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">
-            {{ fechas.length }} días evaluados
-          </span>
-        </div>
-
-        <!-- Card 3: % Avance MTD -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between" :class="pctTotal >= 100 ? 'bg-emerald-50/20 border-emerald-400/30' : ''">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">% Cumplimiento</span>
-            <span class="w-2 h-2 rounded-full" :class="pctTotal >= 100 ? 'bg-emerald-500' : (pctTotal >= 75 ? 'bg-blue-500' : 'bg-amber-500')"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold font-mono" :class="pctTotal >= 100 ? 'text-emerald-700' : (pctTotal >= 75 ? 'text-[#0071E3]' : 'text-amber-700')">
-              {{ fmtPct(pctTotal) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">
-            {{ pctTotal >= 100 ? 'Meta Superada' : 'En Progreso' }}
-          </span>
-        </div>
-
-        <!-- Card 4: Ritmo Ideal a la Fecha -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Ritmo Ideal</span>
-            <span class="px-1 py-0.2 rounded text-[8.5px] font-bold bg-black/[0.04] text-[#6E6E73]">Lineal</span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-base font-bold text-[#1D1D1F] font-mono">
-              {{ kpiActivo === 'volumen' ? fmtBs(ritmoIdealActual) : fmt(ritmoIdealActual) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">
-            Día {{ fechas.length }} de {{ totalDiasMesEstimados }}
-          </span>
-        </div>
-
-        <!-- Card 5: Brecha vs Ritmo -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between" :class="brechaRitmo >= 0 ? 'bg-emerald-50/15' : 'bg-rose-50/15'">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Brecha vs Ritmo</span>
-            <span class="w-2 h-2 rounded-full" :class="brechaRitmo >= 0 ? 'bg-emerald-500' : 'bg-rose-500'"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-base font-bold font-mono" :class="brechaRitmo >= 0 ? 'text-emerald-700' : 'text-rose-700'">
-              {{ brechaRitmo >= 0 ? '+' : '' }}{{ kpiActivo === 'volumen' ? fmtBs(brechaRitmo) : fmt(brechaRitmo) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">
-            {{ brechaRitmo >= 0 ? 'Por encima del ritmo' : 'Por debajo del ritmo' }}
-          </span>
-        </div>
-
-        <!-- Card 6: Proyección de Cierre -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Proyección Fin de Mes</span>
-            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-base font-bold text-indigo-700 font-mono">
-              {{ kpiActivo === 'volumen' ? fmtBs(proyeccionCierre) : fmt(proyeccionCierre) }}
-            </span>
-          </div>
-          <span class="text-[9px] text-indigo-600 truncate mt-0.5 font-semibold">
-            Run-rate: {{ fmtPct(proyeccionPct) }}
-          </span>
-        </div>
-      </div>
-
-      <!-- ── Barra de Controles Interactivos del Gráfico ── -->
-      <div class="apple-glass-card rounded-[14px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2">
+      <!-- Barra de Controles Minimalista del Gráfico -->
+      <div class="apple-glass-card rounded-[12px] p-2 flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-2">
-          <!-- Selector 1: KPI (Volumen vs Cobertura) -->
-          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[9px] text-[11px] font-semibold">
+          <!-- Selector: Métrica (Volumen vs Cobertura) -->
+          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[8px] text-[11px] font-medium">
             <button
               type="button"
               @click="kpiActivo = 'volumen'"
-              class="px-3 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              :class="kpiActivo === 'volumen' ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="kpiActivo === 'volumen' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
-              <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-              <span>1. Volumen General (Bs)</span>
+              Volumen General (Bs)
             </button>
             <button
               type="button"
               @click="kpiActivo = 'cobertura'"
-              class="px-3 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              :class="kpiActivo === 'cobertura' ? 'bg-white text-emerald-700 font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="kpiActivo === 'cobertura' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>2. Cobertura 100% (Clientes)</span>
+              Cobertura 100% (Clientes)
             </button>
           </div>
 
-          <!-- Selector 2: Modo Temporal (Acumulado MTD vs Diario) -->
-          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[9px] text-[11px] font-semibold">
+          <!-- Selector: Modo Temporal (Acumulado vs Diario) -->
+          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[8px] text-[11px] font-medium">
             <button
               type="button"
               @click="modoTemporal = 'acumulado'"
-              class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
-              :class="modoTemporal === 'acumulado' ? 'bg-white text-[#1D1D1F] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="modoTemporal === 'acumulado' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
-              Curva Acumulada MTD
+              Curva Acumulada
             </button>
             <button
               type="button"
               @click="modoTemporal = 'diario'"
-              class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
-              :class="modoTemporal === 'diario' ? 'bg-white text-[#1D1D1F] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="modoTemporal === 'diario' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
               Evolución Diaria
             </button>
           </div>
 
-          <!-- Selector 3: Consolidado vs Por Rutas -->
-          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[9px] text-[11px] font-semibold">
+          <!-- Selector: Consolidado vs Por Rutas -->
+          <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[8px] text-[11px] font-medium">
             <button
               type="button"
               @click="vistaModo = 'rutas'"
-              class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
-              :class="vistaModo === 'rutas' ? 'bg-white text-[#1D1D1F] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="vistaModo === 'rutas' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
               Por Rutas ({{ rutasActivasVisibles.length }})
             </button>
             <button
               type="button"
               @click="vistaModo = 'consolidado'"
-              class="px-2.5 py-1 rounded-[7px] transition-all cursor-pointer whitespace-nowrap"
-              :class="vistaModo === 'consolidado' ? 'bg-white text-[#1D1D1F] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
+              :class="vistaModo === 'consolidado' ? 'bg-white text-zinc-900 font-semibold shadow-xs' : 'text-zinc-500 hover:text-zinc-900'"
             >
-              Consolidado Global
+              Consolidado
             </button>
           </div>
         </div>
 
-        <!-- Opciones adicionales: Mostrar Ritmo Ideal y Selector Rápido de Rutas -->
+        <!-- Toggle: Ritmo Ideal -->
         <div class="flex items-center gap-2 ml-auto">
-          <label class="flex items-center gap-1.5 text-[11px] font-semibold text-[#1D1D1F] cursor-pointer select-none">
+          <label class="flex items-center gap-1.5 text-[11px] text-zinc-600 hover:text-zinc-900 cursor-pointer select-none">
             <input
               type="checkbox"
               v-model="mostrarRitmoIdeal"
-              class="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-0 cursor-pointer"
+              class="rounded border-zinc-300 text-zinc-900 focus:ring-0 cursor-pointer"
             />
-            <span>Línea Ritmo Ideal</span>
+            <span>Ritmo Ideal</span>
           </label>
         </div>
       </div>
 
-      <!-- ── Selector Rápido de Rutas (Pills de colores interactivos) ── -->
-      <div v-if="vistaModo === 'rutas'" class="apple-glass-card rounded-[14px] p-2 flex flex-wrap items-center gap-1.5">
-        <div class="flex items-center gap-1 mr-2 text-[10px] font-bold text-[#86868B] uppercase shrink-0">
+      <!-- Selector Rápido de Rutas (Minimalista) -->
+      <div v-if="vistaModo === 'rutas'" class="apple-glass-card rounded-[12px] p-2 flex flex-wrap items-center gap-1.5">
+        <div class="flex items-center gap-1 mr-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider shrink-0">
           <span>Rutas:</span>
-          <button type="button" @click="marcarTodasRutas" class="text-[#0071E3] hover:underline cursor-pointer">Todas</button>
-          <span>&bull;</span>
-          <button type="button" @click="marcarSoloTop5" class="text-[#0071E3] hover:underline cursor-pointer">Top 5</button>
-          <span>&bull;</span>
-          <button type="button" @click="desmarcarTodasRutas" class="text-[#86868B] hover:underline cursor-pointer">Ninguna</button>
+          <button type="button" @click="marcarTodasRutas" class="text-zinc-700 hover:text-zinc-900 hover:underline cursor-pointer">Todas</button>
+          <span>·</span>
+          <button type="button" @click="marcarSoloTop5" class="text-zinc-700 hover:text-zinc-900 hover:underline cursor-pointer">Top 5</button>
+          <span>·</span>
+          <button type="button" @click="desmarcarTodasRutas" class="text-zinc-400 hover:text-zinc-700 hover:underline cursor-pointer">Ninguna</button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-1 max-h-24 overflow-y-auto custom-scroll flex-1">
+        <div class="flex flex-wrap items-center gap-1 max-h-20 overflow-y-auto custom-scroll flex-1">
           <button
             v-for="r in rutasDisponibles"
             :key="r.ruta"
@@ -208,50 +105,44 @@
             @click="toggleRutaActiva(r.ruta)"
             @mouseenter="hoveredRuta = r.ruta"
             @mouseleave="hoveredRuta = null"
-            class="px-2 py-0.5 rounded-[6px] text-[10.5px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1 border"
+            class="px-1.5 py-0.5 rounded-[5px] text-[10.5px] font-mono transition-all cursor-pointer flex items-center gap-1 border"
             :class="isRutaActiva(r.ruta)
-              ? 'bg-white shadow-2xs'
-              : 'opacity-40 hover:opacity-75 bg-transparent border-transparent text-[#6E6E73]'"
-            :style="{
-              borderColor: isRutaActiva(r.ruta) ? getColorRuta(r.ruta) : 'transparent',
-              color: isRutaActiva(r.ruta) ? getColorRuta(r.ruta) : '#6E6E73'
-            }"
+              ? 'bg-white border-zinc-300 text-zinc-900 shadow-2xs font-semibold'
+              : 'opacity-35 hover:opacity-75 bg-transparent border-transparent text-zinc-400'"
           >
-            <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getColorRuta(r.ruta) }"></span>
+            <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: getColorRuta(r.ruta) }"></span>
             <span>{{ r.ruta }}</span>
           </button>
         </div>
       </div>
 
-      <!-- ── SKELETON LOADER ── -->
-      <div v-if="cargando" class="apple-glass-card rounded-[14px] p-8 animate-pulse space-y-3">
-        <div class="h-6 bg-black/[0.05] rounded-md w-1/4"></div>
-        <div class="h-64 bg-black/[0.03] rounded-xl"></div>
+      <!-- Skeleton Loader -->
+      <div v-if="cargando" class="apple-glass-card rounded-[12px] p-8 animate-pulse space-y-3">
+        <div class="h-4 bg-black/[0.04] rounded w-1/5"></div>
+        <div class="h-64 bg-black/[0.02] rounded-lg"></div>
       </div>
 
-      <!-- ── GRÁFICO DE LÍNEAS SVG INTERACTIVO ── -->
-      <div v-else class="apple-glass-card rounded-[16px] p-3 sm:p-4 relative overflow-hidden shadow-xs border border-white/80">
+      <!-- Gráfico de Líneas SVG Minimalista -->
+      <div v-else class="apple-glass-card rounded-[12px] p-3 sm:p-4 relative overflow-hidden border border-black/[0.04]">
         <!-- Título e Información del Gráfico -->
-        <div class="flex items-center justify-between pb-2 mb-2 border-b border-black/[0.06]">
+        <div class="flex items-center justify-between pb-2 mb-2 border-b border-black/[0.04]">
           <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full" :class="kpiActivo === 'volumen' ? 'bg-[#0071E3]' : 'bg-emerald-500'"></span>
-            <span class="text-xs font-bold text-[#1D1D1F] uppercase tracking-wide">
-              {{ kpiActivo === 'volumen' ? 'Curva de Volumen General (Bs)' : 'Curva de Cobertura 100% (Clientes)' }}
-              &bull;
-              <span class="text-[#0071E3] font-mono lowercase">
-                {{ modoTemporal === 'acumulado' ? 'acumulado progresivo' : 'evolución por día' }}
+            <span class="text-xs font-semibold text-zinc-800">
+              {{ kpiActivo === 'volumen' ? 'Volumen General (Bs)' : 'Cobertura 100% (Clientes)' }}
+              <span class="text-zinc-400 font-normal">
+                — {{ modoTemporal === 'acumulado' ? 'Acumulado MTD' : 'Evolución Diaria' }}
               </span>
             </span>
           </div>
 
-          <div class="flex items-center gap-3 text-[11px] text-[#86868B]">
+          <div class="flex items-center gap-3 text-[11px] text-zinc-500">
             <div v-if="mostrarRitmoIdeal && modoTemporal === 'acumulado'" class="flex items-center gap-1.5">
-              <span class="w-4 h-0.5 border-t-2 border-dashed border-[#86868B]"></span>
-              <span>Ritmo Ideal Meta</span>
+              <span class="w-3.5 h-0 border-t border-dashed border-zinc-400"></span>
+              <span>Ritmo Ideal</span>
             </div>
             <div v-if="vistaModo === 'consolidado'" class="flex items-center gap-1.5">
-              <span class="w-4 h-1 rounded-full" :class="kpiActivo === 'volumen' ? 'bg-[#0071E3]' : 'bg-emerald-600'"></span>
-              <span class="font-bold text-[#1D1D1F]">Consolidado</span>
+              <span class="w-3 h-0.5 rounded-full bg-zinc-800"></span>
+              <span class="font-medium text-zinc-800">Total</span>
             </div>
           </div>
         </div>
@@ -259,21 +150,16 @@
         <!-- Contenedor Responsive del Gráfico SVG -->
         <div class="relative w-full overflow-x-auto custom-scroll" ref="chartContainerRef">
           <svg
-            class="w-full h-80 sm:h-96 min-w-[700px] select-none"
-            viewBox="0 0 1000 440"
+            class="w-full h-80 sm:h-92 min-w-[650px] select-none"
+            viewBox="0 0 1000 420"
             preserveAspectRatio="none"
             @mousemove="onSvgMouseMove"
             @mouseleave="onSvgMouseLeave"
           >
-            <!-- Definición de Gradientes para Áreas -->
             <defs>
-              <linearGradient id="gradConsolidadoVol" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#0071E3" stop-opacity="0.25" />
-                <stop offset="100%" stop-color="#0071E3" stop-opacity="0.0" />
-              </linearGradient>
-              <linearGradient id="gradConsolidadoCob" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#10B981" stop-opacity="0.25" />
-                <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
+              <linearGradient id="gradConsolidadoMinimal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#18181B" stop-opacity="0.08" />
+                <stop offset="100%" stop-color="#18181B" stop-opacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -285,15 +171,15 @@
                   :y1="getYPixel(valY)"
                   :x2="1000 - padding.right"
                   :y2="getYPixel(valY)"
-                  stroke="#E5E5EA"
-                  stroke-dasharray="3 3"
+                  stroke="#F0F0F2"
+                  stroke-dasharray="2 2"
                   stroke-width="1"
                 />
                 <text
                   :x="padding.left - 8"
                   :y="getYPixel(valY) + 3.5"
-                  fill="#86868B"
-                  font-size="10"
+                  fill="#A1A1AA"
+                  font-size="9.5"
                   font-family="monospace"
                   text-anchor="end"
                 >
@@ -309,17 +195,16 @@
                   :x1="getXPixel(xIdx)"
                   :y1="padding.top"
                   :x2="getXPixel(xIdx)"
-                  :y2="440 - padding.bottom"
-                  stroke="#F2F2F7"
+                  :y2="420 - padding.bottom"
+                  stroke="#F8F8F9"
                   stroke-width="1"
                 />
                 <text
                   :x="getXPixel(xIdx)"
-                  :y="440 - padding.bottom + 16"
-                  fill="#86868B"
-                  font-size="9.5"
-                  font-family="sans-serif"
-                  font-weight="500"
+                  :y="420 - padding.bottom + 15"
+                  fill="#A1A1AA"
+                  font-size="9"
+                  font-family="monospace"
                   text-anchor="middle"
                 >
                   {{ diasLabels[xIdx] || f }}
@@ -327,136 +212,121 @@
               </template>
             </g>
 
-            <!-- 3. Línea de Ritmo Ideal / Meta (Discontinua) -->
+            <!-- 3. Línea de Ritmo Ideal (Discontinua sutil) -->
             <path
               v-if="mostrarRitmoIdeal && modoTemporal === 'acumulado' && ritmoIdealPuntos.length > 0"
               :d="buildPathD(ritmoIdealPuntos)"
               fill="none"
-              stroke="#A1A1A6"
-              stroke-width="2"
-              stroke-dasharray="5 5"
-              class="opacity-75"
+              stroke="#A1A1AA"
+              stroke-width="1.5"
+              stroke-dasharray="4 4"
             />
 
-            <!-- 4. Modo CONSOLIDADO GLOBAL -->
+            <!-- 4. Modo Consolidado -->
             <template v-if="vistaModo === 'consolidado'">
-              <!-- Área bajo la curva -->
               <path
                 :d="buildAreaD(consolidadoPuntos)"
-                :fill="kpiActivo === 'volumen' ? 'url(#gradConsolidadoVol)' : 'url(#gradConsolidadoCob)'"
+                fill="url(#gradConsolidadoMinimal)"
               />
-              <!-- Línea principal -->
               <path
                 :d="buildPathD(consolidadoPuntos)"
                 fill="none"
-                :stroke="kpiActivo === 'volumen' ? '#0071E3' : '#10B981'"
-                stroke-width="3"
+                stroke="#18181B"
+                stroke-width="2.2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
-              <!-- Puntos -->
               <circle
                 v-for="(p, pIdx) in consolidadoPuntos"
                 :key="pIdx"
                 :cx="p.x"
                 :cy="p.y"
-                r="3.5"
-                :fill="kpiActivo === 'volumen' ? '#0071E3' : '#10B981'"
+                r="3"
+                fill="#18181B"
                 stroke="#FFFFFF"
                 stroke-width="1.5"
               />
             </template>
 
-            <!-- 5. Modo MULTILÍNEA POR RUTAS -->
+            <!-- 5. Modo Multilínea por Rutas -->
             <template v-else-if="vistaModo === 'rutas'">
               <template v-for="rObj in rutasActivasVisibles" :key="rObj.ruta">
-                <!-- Área sutil si está en hover -->
-                <path
-                  v-if="hoveredRuta === rObj.ruta"
-                  :d="buildAreaD(getRutaPuntos(rObj))"
-                  :fill="getColorRuta(rObj.ruta)"
-                  fill-opacity="0.12"
-                />
-                <!-- Línea de la ruta -->
                 <path
                   :d="buildPathD(getRutaPuntos(rObj))"
                   fill="none"
                   :stroke="getColorRuta(rObj.ruta)"
-                  :stroke-width="hoveredRuta === rObj.ruta ? 4 : 2.2"
-                  :stroke-opacity="hoveredRuta && hoveredRuta !== rObj.ruta ? 0.25 : 1"
+                  :stroke-width="hoveredRuta === rObj.ruta ? 3.5 : 1.8"
+                  :stroke-opacity="hoveredRuta && hoveredRuta !== rObj.ruta ? 0.2 : 0.9"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  class="transition-all duration-150"
+                  class="transition-all duration-100"
                 />
-                <!-- Puntos -->
                 <circle
                   v-for="(p, pIdx) in getRutaPuntos(rObj)"
                   :key="pIdx"
                   :cx="p.x"
                   :cy="p.y"
-                  :r="hoveredRuta === rObj.ruta ? 4 : 2.5"
+                  :r="hoveredRuta === rObj.ruta ? 3.5 : 2"
                   :fill="getColorRuta(rObj.ruta)"
-                  :fill-opacity="hoveredRuta && hoveredRuta !== rObj.ruta ? 0.25 : 1"
+                  :fill-opacity="hoveredRuta && hoveredRuta !== rObj.ruta ? 0.2 : 0.9"
                   stroke="#FFFFFF"
                   stroke-width="1"
                 />
               </template>
             </template>
 
-            <!-- 6. Línea Guía Vertical de Crosshair / Tooltip -->
+            <!-- 6. Crosshair Tooltip Line -->
             <line
               v-if="hoveredIndex !== null"
               :x1="getXPixel(hoveredIndex)"
               :y1="padding.top"
               :x2="getXPixel(hoveredIndex)"
-              :y2="440 - padding.bottom"
-              stroke="#0071E3"
-              stroke-width="1.5"
+              :y2="420 - padding.bottom"
+              stroke="#71717A"
+              stroke-width="1"
               stroke-dasharray="2 2"
             />
           </svg>
 
-          <!-- 7. Tooltip Flotante Estilo Apple Glass -->
+          <!-- 7. Tooltip Flotante Minimalista -->
           <div
             v-if="hoveredIndex !== null"
             class="absolute pointer-events-none z-30 transition-all duration-75"
             :style="tooltipStyle"
           >
-            <div class="glass-dropdown rounded-[12px] p-2.5 shadow-float text-xs max-w-xs space-y-1.5 border border-white/80">
-              <div class="flex items-center justify-between border-b border-black/[0.06] pb-1">
-                <span class="font-bold text-[#1D1D1F]">{{ diasLabels[hoveredIndex] }}</span>
-                <span class="text-[9.5px] font-mono text-[#86868B]">{{ fechas[hoveredIndex] }}</span>
+            <div class="bg-white/95 backdrop-blur-md rounded-[8px] p-2.5 shadow-lg border border-zinc-200 text-xs min-w-[190px] max-w-xs space-y-1.5">
+              <div class="flex items-center justify-between border-b border-zinc-100 pb-1">
+                <span class="font-semibold text-zinc-900">{{ diasLabels[hoveredIndex] }}</span>
+                <span class="text-[9.5px] font-mono text-zinc-400">{{ fechas[hoveredIndex] }}</span>
               </div>
 
-              <!-- Valores en Modo Consolidado -->
+              <!-- Consolidado -->
               <div v-if="vistaModo === 'consolidado'" class="space-y-0.5 font-mono text-[11px]">
                 <div class="flex items-center justify-between">
-                  <span class="text-[#6E6E73]">Logrado:</span>
-                  <span class="font-bold text-[#1D1D1F]">
+                  <span class="text-zinc-500">Logrado:</span>
+                  <span class="font-bold text-zinc-900">
                     {{ kpiActivo === 'volumen' ? fmtBs(getConsolidadoValorEnFecha(hoveredIndex)) : fmt(getConsolidadoValorEnFecha(hoveredIndex)) }}
                   </span>
                 </div>
-                <div v-if="modoTemporal === 'acumulado'" class="flex items-center justify-between text-[10px]">
-                  <span class="text-[#86868B]">Ritmo Ideal:</span>
-                  <span class="text-[#86868B]">
-                    {{ kpiActivo === 'volumen' ? fmtBs(ritmoIdealSeries[hoveredIndex]) : fmt(ritmoIdealSeries[hoveredIndex]) }}
-                  </span>
+                <div v-if="modoTemporal === 'acumulado'" class="flex items-center justify-between text-[10px] text-zinc-400">
+                  <span>Ritmo Ideal:</span>
+                  <span>{{ kpiActivo === 'volumen' ? fmtBs(ritmoIdealSeries[hoveredIndex]) : fmt(ritmoIdealSeries[hoveredIndex]) }}</span>
                 </div>
               </div>
 
-              <!-- Valores en Modo Por Rutas -->
-              <div v-else class="space-y-1 max-h-48 overflow-y-auto custom-scroll pr-1">
+              <!-- Por Rutas -->
+              <div v-else class="space-y-1 max-h-48 overflow-y-auto custom-scroll pr-0.5">
                 <div
                   v-for="rObj in rutasActivasVisibles"
                   :key="rObj.ruta"
                   class="flex items-center justify-between text-[10.5px] font-mono"
-                  :class="hoveredRuta === rObj.ruta ? 'font-bold bg-black/[0.04] p-0.5 rounded' : ''"
+                  :class="hoveredRuta === rObj.ruta ? 'font-bold bg-zinc-50 px-1 py-0.5 rounded' : ''"
                 >
                   <div class="flex items-center gap-1.5 truncate mr-2">
-                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getColorRuta(rObj.ruta) }"></span>
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: getColorRuta(rObj.ruta) }"></span>
                     <span class="truncate">{{ rObj.ruta }}</span>
                   </div>
-                  <span class="font-semibold text-[#1D1D1F] shrink-0">
+                  <span class="text-zinc-900 shrink-0">
                     {{ kpiActivo === 'volumen' ? fmtBs(getRutaValorEnFecha(rObj, hoveredIndex)) : fmt(getRutaValorEnFecha(rObj, hoveredIndex)) }}
                   </span>
                 </div>
@@ -466,30 +336,30 @@
         </div>
       </div>
 
-      <!-- ── TABLA COMPARATIVA POR RUTA (Debajo del Gráfico) ── -->
-      <div class="apple-glass-card rounded-[14px] overflow-hidden shadow-xs border border-white/60">
-        <div class="p-2.5 bg-[#F8F8FA] border-b border-black/[0.06] flex items-center justify-between">
+      <!-- Tabla Comparativa por Ruta (Minimalista) -->
+      <div class="apple-glass-card rounded-[12px] overflow-hidden border border-black/[0.04]">
+        <div class="p-2.5 bg-white border-b border-zinc-100 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-[#1D1D1F] uppercase tracking-wide">
-              Resumen de Cumplimiento por Ruta
+            <span class="text-xs font-semibold text-zinc-800">
+              Detalle por Ruta
             </span>
-            <span class="text-[10px] text-[#86868B]">({{ rutasFiltradasTabla.length }} rutas)</span>
+            <span class="text-[10px] text-zinc-400 font-mono">({{ rutasFiltradasTabla.length }})</span>
           </div>
 
           <div class="flex items-center gap-2">
             <button
               type="button"
               @click="copiarTablaAlPortapapeles"
-              class="px-2.5 py-1 text-[11px] font-semibold rounded-[8px] bg-white border border-[#E5E5EA] text-[#1D1D1F] hover:bg-[#F5F5F7] cursor-pointer shadow-xs whitespace-nowrap"
+              class="px-2.5 py-1 text-[11px] font-medium rounded-[6px] bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              {{ copiadoExitoso ? '¡Copiado!' : 'Copiar Tabla' }}
+              {{ copiadoExitoso ? 'Copiado' : 'Copiar' }}
             </button>
             <button
               type="button"
               @click="exportarExcel"
-              class="px-2.5 py-1 text-[11px] font-semibold rounded-[8px] bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 cursor-pointer shadow-xs whitespace-nowrap"
+              class="px-2.5 py-1 text-[11px] font-medium rounded-[6px] bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              Exportar Excel
+              Excel
             </button>
           </div>
         </div>
@@ -497,118 +367,114 @@
         <div class="overflow-x-auto custom-scroll">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
-              <tr class="bg-[#F8F8FA] border-b border-black/[0.06] text-[10.5px] font-bold text-[#86868B] uppercase tracking-wider select-none">
-                <th class="py-2.5 px-3 whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('ruta')">
-                  Ruta / Vendedor
+              <tr class="bg-zinc-50/50 border-b border-zinc-100 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider select-none">
+                <th class="py-2 px-3 whitespace-nowrap cursor-pointer hover:text-zinc-700" @click="ordenarPor('ruta')">
+                  Ruta
                 </th>
-                <th class="py-2.5 px-2 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('canal')">
+                <th class="py-2 px-2 text-center whitespace-nowrap cursor-pointer hover:text-zinc-700" @click="ordenarPor('canal')">
                   Canal
                 </th>
-                <th class="py-2.5 px-3 text-right whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor(kpiActivo === 'volumen' ? 'meta_volumen' : 'meta_cobertura')">
+                <th class="py-2 px-3 text-right whitespace-nowrap cursor-pointer hover:text-zinc-700" @click="ordenarPor(kpiActivo === 'volumen' ? 'meta_volumen' : 'meta_cobertura')">
                   Meta Mes ({{ kpiActivo === 'volumen' ? 'Bs' : 'Cli' }})
                 </th>
-                <th class="py-2.5 px-3 text-right whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor(kpiActivo === 'volumen' ? 'logrado_volumen' : 'logrado_cobertura')">
+                <th class="py-2 px-3 text-right whitespace-nowrap cursor-pointer hover:text-zinc-700" @click="ordenarPor(kpiActivo === 'volumen' ? 'logrado_volumen' : 'logrado_cobertura')">
                   Logrado MTD
                 </th>
-                <th class="py-2.5 px-3 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor(kpiActivo === 'volumen' ? 'pct_volumen' : 'pct_cobertura')">
+                <th class="py-2 px-3 text-center whitespace-nowrap cursor-pointer hover:text-zinc-700" @click="ordenarPor(kpiActivo === 'volumen' ? 'pct_volumen' : 'pct_cobertura')">
                   % Avance
                 </th>
-                <th class="py-2.5 px-3 text-right whitespace-nowrap">
+                <th class="py-2 px-3 text-right whitespace-nowrap">
                   Promedio / Día
                 </th>
-                <th class="py-2.5 px-3 text-center whitespace-nowrap">
-                  Tendencia MTD
+                <th class="py-2 px-3 text-center whitespace-nowrap">
+                  Tendencia
                 </th>
-                <th class="py-2.5 px-2 text-center whitespace-nowrap">
-                  Enfoque
+                <th class="py-2 px-2 text-center whitespace-nowrap">
+                  Aislar
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-black/[0.04]">
+            <tbody class="divide-y divide-zinc-100">
               <tr
                 v-for="r in rutasFiltradasTabla"
                 :key="r.ruta"
-                class="hover:bg-black/[0.02] transition-colors"
-                :class="hoveredRuta === r.ruta ? 'bg-blue-50/30' : ''"
+                class="hover:bg-zinc-50/70 transition-colors"
+                :class="hoveredRuta === r.ruta ? 'bg-zinc-50' : ''"
                 @mouseenter="hoveredRuta = r.ruta"
                 @mouseleave="hoveredRuta = null"
               >
                 <!-- Ruta y Vendedor -->
-                <td class="py-2 px-3 whitespace-nowrap">
+                <td class="py-1.5 px-3 whitespace-nowrap">
                   <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: getColorRuta(r.ruta) }"></span>
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: getColorRuta(r.ruta) }"></span>
                     <div>
-                      <div class="font-bold text-[#1D1D1F] font-mono">{{ r.ruta }}</div>
-                      <div class="text-[10px] text-[#6E6E73] truncate max-w-[170px]">{{ r.vendedor }}</div>
+                      <span class="font-mono font-semibold text-zinc-900">{{ r.ruta }}</span>
+                      <span class="text-[10px] text-zinc-400 ml-1.5">{{ r.vendedor }}</span>
                     </div>
                   </div>
                 </td>
 
                 <!-- Canal -->
-                <td class="py-2 px-2 text-center whitespace-nowrap">
-                  <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-black/[0.04] text-[#6E6E73]">
+                <td class="py-1.5 px-2 text-center whitespace-nowrap">
+                  <span class="text-[10px] font-mono text-zinc-500">
                     {{ r.canal }}
                   </span>
                 </td>
 
                 <!-- Meta Mes -->
-                <td class="py-2 px-3 text-right whitespace-nowrap font-mono font-medium text-[#1D1D1F]">
+                <td class="py-1.5 px-3 text-right whitespace-nowrap font-mono text-zinc-600">
                   {{ kpiActivo === 'volumen' ? fmtBs(r.meta_volumen) : fmt(r.meta_cobertura) }}
                 </td>
 
                 <!-- Logrado MTD -->
-                <td class="py-2 px-3 text-right whitespace-nowrap font-mono font-bold" :class="kpiActivo === 'volumen' ? 'text-[#0071E3]' : 'text-emerald-700'">
+                <td class="py-1.5 px-3 text-right whitespace-nowrap font-mono font-semibold text-zinc-900">
                   {{ kpiActivo === 'volumen' ? fmtBs(r.logrado_volumen) : fmt(r.logrado_cobertura) }}
                 </td>
 
-                <!-- % Avance -->
-                <td class="py-2 px-3 whitespace-nowrap text-center">
+                <!-- % Avance con barra sutil -->
+                <td class="py-1.5 px-3 whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-1.5">
-                    <div class="w-12 bg-black/[0.06] rounded-full h-1.5 overflow-hidden shrink-0 hidden sm:block">
+                    <div class="w-10 bg-zinc-100 rounded-full h-1 overflow-hidden shrink-0 hidden sm:block">
                       <div
-                        class="h-full rounded-full transition-all"
-                        :class="getPctRuta(r) >= 100 ? 'bg-emerald-500' : (getPctRuta(r) >= 70 ? 'bg-blue-500' : 'bg-amber-500')"
+                        class="h-full rounded-full bg-zinc-800"
                         :style="{ width: `${Math.min(getPctRuta(r), 100)}%` }"
                       ></div>
                     </div>
-                    <span
-                      class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
-                      :class="getPctRuta(r) >= 100 ? 'bg-emerald-100 text-emerald-800' : (getPctRuta(r) >= 70 ? 'bg-blue-100 text-[#0071E3]' : 'bg-amber-100 text-amber-800')"
-                    >
+                    <span class="text-[11px] font-mono font-medium text-zinc-800">
                       {{ fmtPct(getPctRuta(r)) }}
                     </span>
                   </div>
                 </td>
 
                 <!-- Promedio por Día -->
-                <td class="py-2 px-3 text-right whitespace-nowrap font-mono text-[11px] text-[#6E6E73]">
-                  {{ kpiActivo === 'volumen' ? fmtBs(getPromedioDiarioRuta(r)) : `${getPromedioDiarioRuta(r)} cli/día` }}
+                <td class="py-1.5 px-3 text-right whitespace-nowrap font-mono text-[10.5px] text-zinc-500">
+                  {{ kpiActivo === 'volumen' ? fmtBs(getPromedioDiarioRuta(r)) : `${getPromedioDiarioRuta(r)} cli` }}
                 </td>
 
-                <!-- Sparkline SVG -->
-                <td class="py-2 px-3 text-center whitespace-nowrap">
-                  <svg class="w-20 h-5 mx-auto" viewBox="0 0 80 20">
+                <!-- Sparkline SVG Minimalista -->
+                <td class="py-1.5 px-3 text-center whitespace-nowrap">
+                  <svg class="w-16 h-4 mx-auto" viewBox="0 0 80 20">
                     <path
                       :d="buildSparklineD(r)"
                       fill="none"
                       :stroke="getColorRuta(r.ruta)"
-                      stroke-width="1.8"
+                      stroke-width="1.5"
                       stroke-linecap="round"
                     />
                   </svg>
                 </td>
 
-                <!-- Botón Enfoque en Gráfico -->
-                <td class="py-2 px-2 text-center whitespace-nowrap">
+                <!-- Botón Aislar -->
+                <td class="py-1.5 px-2 text-center whitespace-nowrap">
                   <button
                     type="button"
                     @click="enfocarRuta(r.ruta)"
-                    class="px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer"
-                    :class="hoveredRuta === r.ruta || (rutasSeleccionadasGrafico.size === 1 && rutasSeleccionadasGrafico.has(r.ruta))
-                      ? 'bg-[#0071E3] text-white'
-                      : 'bg-black/[0.04] text-[#6E6E73] hover:text-[#1D1D1F]'"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-mono transition-all cursor-pointer border"
+                    :class="rutasSeleccionadasGrafico.size === 1 && rutasSeleccionadasGrafico.has(r.ruta)
+                      ? 'bg-zinc-900 border-zinc-900 text-white font-semibold'
+                      : 'border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'"
                   >
-                    {{ rutasSeleccionadasGrafico.size === 1 && rutasSeleccionadasGrafico.has(r.ruta) ? 'Aislada' : 'Aislar' }}
+                    {{ rutasSeleccionadasGrafico.size === 1 && rutasSeleccionadasGrafico.has(r.ruta) ? '1' : 'ver' }}
                   </button>
                 </td>
               </tr>
@@ -673,26 +539,24 @@ const columnaOrden = ref('ruta')
 const ordenAsc = ref(true)
 const copiadoExitoso = ref(false)
 
-// Paleta de colores armoniosa estilo Apple Pro
+// Paleta minimalista y sobria (tonos armoniosos y balanceados, sin neones)
 const PALETA_COLORES = [
-  '#0071E3', // Apple Blue
-  '#34C759', // Apple Green
-  '#AF52DE', // Apple Purple
-  '#FF9500', // Apple Orange
-  '#5856D6', // Indigo
-  '#FF2D55', // Pink / Rose
-  '#00C7BE', // Teal
-  '#FFCC00', // Yellow
-  '#64D2FF', // Sky Blue
-  '#E056FD', // Violet
-  '#30B0C7', // Cyan
-  '#686DE0', // Blurple
-  '#4834D4', // Deep Indigo
-  '#22A6B3', // Sea Blue
-  '#EB4D4B', // Coral Red
-  '#F0932B', // Tangerine
-  '#6AB04C', // Pure Apple Green
-  '#130F40', // Deep Navy
+  '#2563EB', // Blue
+  '#0D9488', // Teal
+  '#475569', // Slate
+  '#7C3AED', // Violet
+  '#0284C7', // Sky
+  '#059669', // Emerald
+  '#D97706', // Amber cálido
+  '#4B5563', // Neutral Gray
+  '#6366F1', // Indigo
+  '#0891B2', // Cyan
+  '#334155', // Dark Slate
+  '#52525B', // Zinc
+  '#1E293B', // Charcoal
+  '#78716C', // Stone
+  '#3B82F6', // Cobalt
+  '#0F766E', // Deep Teal
 ]
 
 function getColorRuta(ruta) {
@@ -709,7 +573,7 @@ function hashCode(str) {
   return hash
 }
 
-// Formatters
+// Formatters minimalistas
 const fmt = (v) => (Number(v) || 0).toLocaleString('es-BO')
 const fmtBs = (v) => `Bs ${(Number(v) || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtPct = (v) => `${(Number(v) || 0).toFixed(1)}%`
@@ -723,10 +587,10 @@ function formatEjeY(val) {
   return `${val.toFixed(0)} cli`
 }
 
-// Margins del gráfico SVG (viewBox 1000x440)
-const padding = { top: 25, right: 35, bottom: 45, left: 75 }
+// Margins del gráfico SVG (viewBox 1000x420)
+const padding = { top: 20, right: 30, bottom: 40, left: 70 }
 
-// Rutas disponibles según filtros
+// Rutas disponibles
 const rutasDisponibles = computed(() => rutasData.value || [])
 
 const rutasActivasVisibles = computed(() => {
@@ -773,51 +637,12 @@ function enfocarRuta(ruta) {
   }
 }
 
-// Métricas de Cabecera
-const metaTotal = computed(() => {
+// Meta consolidada para escala del eje Y
+const metaConsolidado = computed(() => {
   return kpiActivo.value === 'volumen'
     ? (consolidadoData.value.meta_volumen || 0)
     : (consolidadoData.value.meta_cobertura || 0)
 })
-
-const logradoTotal = computed(() => {
-  return kpiActivo.value === 'volumen'
-    ? (consolidadoData.value.logrado_volumen || 0)
-    : (consolidadoData.value.logrado_cobertura || 0)
-})
-
-const pctTotal = computed(() => {
-  return kpiActivo.value === 'volumen'
-    ? (consolidadoData.value.pct_volumen || 0)
-    : (consolidadoData.value.pct_cobertura || 0)
-})
-
-const totalDiasMesEstimados = computed(() => {
-  return Math.max(fechas.value.length, 24)
-})
-
-const ritmoIdealActual = computed(() => {
-  const arr = ritmoIdealSeries.value
-  return arr.length > 0 ? arr[arr.length - 1] : 0
-})
-
-const brechaRitmo = computed(() => {
-  return logradoTotal.value - ritmoIdealActual.value
-})
-
-const proyeccionCierre = computed(() => {
-  if (fechas.value.length === 0) return 0
-  const rate = logradoTotal.value / fechas.value.length
-  return roundNum(rate * totalDiasMesEstimados.value)
-})
-
-const proyeccionPct = computed(() => {
-  return metaTotal.value > 0 ? (proyeccionCierre.value / metaTotal.value) * 100 : 0
-})
-
-function roundNum(n) {
-  return Math.round((n + Number.EPSILON) * 100) / 100
-}
 
 // Series para el gráfico
 const consolidadoSeries = computed(() => {
@@ -853,7 +678,7 @@ const maxValorGrafico = computed(() => {
     if (mostrarRitmoIdeal.value) {
       ritmoIdealSeries.value.forEach(v => { if (v > max) max = v })
     }
-    if (metaTotal.value > max) max = metaTotal.value
+    if (metaConsolidado.value > max) max = metaConsolidado.value
   } else {
     rutasActivasVisibles.value.forEach(r => {
       getSerieRuta(r).forEach(v => { if (v > max) max = v })
@@ -862,7 +687,7 @@ const maxValorGrafico = computed(() => {
     })
   }
 
-  return max > 0 ? max * 1.12 : 100
+  return max > 0 ? max * 1.1 : 100
 })
 
 const yAxisTicks = computed(() => {
@@ -878,12 +703,11 @@ function getXPixel(index) {
 }
 
 function getYPixel(val) {
-  const altoUtil = 440 - padding.top - padding.bottom
+  const altoUtil = 420 - padding.top - padding.bottom
   const pct = Math.max(0, Math.min(val / maxValorGrafico.value, 1))
-  return (440 - padding.bottom) - pct * altoUtil
+  return (420 - padding.bottom) - pct * altoUtil
 }
 
-// Convertir serie a coordenadas de puntos (x, y)
 function getRutaPuntos(rObj) {
   const serie = getSerieRuta(rObj)
   return serie.map((val, idx) => ({
@@ -918,7 +742,7 @@ function buildPathD(puntos) {
 
 function buildAreaD(puntos) {
   if (!puntos || puntos.length === 0) return ''
-  const bottomY = 440 - padding.bottom
+  const bottomY = 420 - padding.bottom
   const lineD = buildPathD(puntos)
   const first = puntos[0]
   const last = puntos[puntos.length - 1]
@@ -939,7 +763,7 @@ function buildSparklineD(r) {
   return buildPathD(pts)
 }
 
-// Interacción con Mouse para Tooltip Crosshair
+// Tooltip Crosshair
 function onSvgMouseMove(event) {
   if (fechas.value.length === 0) return
   const svgRect = event.currentTarget.getBoundingClientRect()
@@ -964,10 +788,10 @@ function onSvgMouseLeave() {
 
 const tooltipStyle = computed(() => {
   const x = tooltipX.value
-  const left = x > 400 ? x - 230 : x + 15
+  const left = x > 400 ? x - 210 : x + 15
   return {
     left: `${left}px`,
-    top: '20px',
+    top: '15px',
   }
 })
 
@@ -988,7 +812,7 @@ function getPctRuta(r) {
 function getPromedioDiarioRuta(r) {
   const dias = Math.max(fechas.value.length, 1)
   const log = kpiActivo.value === 'volumen' ? r.logrado_volumen : r.logrado_cobertura
-  return roundNum(log / dias)
+  return Math.round((log / dias + Number.EPSILON) * 100) / 100
 }
 
 function ordenarPor(col) {
@@ -1029,7 +853,6 @@ async function consultarGraficos() {
     consolidadoData.value = res.data.consolidado || {}
     ritmoIdealData.value = res.data.ritmo_ideal || {}
 
-    // Marcar rutas activas por defecto
     marcarTodasRutas()
   } catch (e) {
     console.error('Error al consultar datos de gráficos de avance:', e)
