@@ -3594,6 +3594,19 @@ const CABECERAS_ERP_ALTAS = [
   'SecuenciaDistribuidor',
 ];
 
+/**
+ * Capitaliza un texto colocando la primera letra de cada palabra en mayúscula y el resto en minúscula.
+ */
+function capitalizarTexto(str) {
+  if (!str) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map(w => w ? (w.charAt(0).toUpperCase() + w.slice(1)) : '')
+    .join(' ');
+}
+
 function extraerApellidoPaterno(nombreCompleto) {
   if (!nombreCompleto) return '';
   const p = nombreCompleto.trim().split(/\s+/);
@@ -3633,11 +3646,11 @@ function generarFilaErp(r, diaDescarga = null) {
   const idCliente = esAlta ? 0 : (r.cliente_id || orig.cliente_id || 0);
   const codigo = esAlta ? '' : String(r.cliente_id || orig.cliente_id || '');
 
-  // 2. Nombres y Apellidos (tomar del registro editado, luego de cliente editado o cliente original)
+  // 2. Nombres y Apellidos (formato con primera letra en mayúscula y resto en minúscula)
   const clienteNombre = (r.cliente || orig.cliente || '').trim();
-  const pPaterno = (r.apellido_paterno || '').trim() || extraerApellidoPaterno(clienteNombre);
-  const pMaterno = (r.apellido_materno || '').trim() || extraerApellidoMaterno(clienteNombre);
-  const pNombres = (r.nombres || '').trim() || extraerNombres(clienteNombre);
+  const pPaterno = capitalizarTexto((r.apellido_paterno || '').trim() || extraerApellidoPaterno(clienteNombre));
+  const pMaterno = capitalizarTexto((r.apellido_materno || '').trim() || extraerApellidoMaterno(clienteNombre));
+  const pNombres = capitalizarTexto((r.nombres || '').trim() || extraerNombres(clienteNombre));
 
   // 3. TipoNegocio
   const tipoNegocio = r.tipo_negocio || orig.tipo_negocio || '';
@@ -3653,8 +3666,8 @@ function generarFilaErp(r, diaDescarga = null) {
   // 5. Documentos e Identidad
   const docIdentidad = (r.documento_identidad || r.nit || orig.ci || orig.nit || '').trim();
   const nitVal = (r.nit || r.documento_identidad || orig.nit || orig.ci || '').trim();
-  const razonSocialVal = (r.razon_social || r.nombre_factura || clienteNombre || orig.nombre_factura || '').trim();
-  const nombreFacturaVal = (r.nombre_factura || r.razon_social || clienteNombre || orig.nombre_factura || '').trim();
+  const razonSocialVal = capitalizarTexto((r.razon_social || r.nombre_factura || clienteNombre || orig.nombre_factura || '').trim());
+  const nombreFacturaVal = capitalizarTexto((r.nombre_factura || r.razon_social || clienteNombre || orig.nombre_factura || '').trim());
 
   // 6. Día de Ruteo:
   // Para Altas: día de descarga
@@ -4054,22 +4067,22 @@ function exportarComparativoExcel() {
     const row = [
       r.cliente_id || orig.cliente_id || '',
       orig.nodo_id || r.cliente_id || orig.cliente_id || '',
-      orig.cliente || '',
-      r.cliente || '',
+      capitalizarTexto(orig.cliente || ''),
+      capitalizarTexto(r.cliente || ''),
       orig.tipo_negocio || '',
       r.tipo_negocio || '',
       orig.direccion || '',
       r.direccion || '',
       orig.referencia || '',
       r.referencia || '',
-      orig.contacto || '',
-      r.contacto || '',
+      capitalizarTexto(orig.contacto || ''),
+      capitalizarTexto(r.contacto || ''),
       orig.telefono || '',
       r.telefono || '',
       orig.celular || '',
       r.celular || '',
-      orig.nombre_factura || '',
-      r.nombre_factura || '',
+      capitalizarTexto(orig.nombre_factura || ''),
+      capitalizarTexto(r.nombre_factura || ''),
       orig.nit || '',
       r.nit || '',
       orig.territorio || orig.zona_venta || orig.zona || '',

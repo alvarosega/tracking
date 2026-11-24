@@ -358,7 +358,8 @@ class ExportarPadronActualizadoAction
             // 24. PaginaWeb
             $f24 = ['', false];
             // 25. RazonSocial
-            $f25 = ['', false];
+            $modRS = $corr && !empty(trim((string)($corr->razon_social ?? ''))) ? trim((string)$corr->razon_social) : null;
+            $f25 = [$modRS ? $this->capitalizar($modRS) : '', $modRS !== null];
             // 26. Cluster
             $f26 = [(string)($pr->cluster_t ?: ($pr->cluster_c ?? '')), false];
             // 27. TipoDocumento
@@ -370,7 +371,7 @@ class ExportarPadronActualizadoAction
             $origNF = trim((string)($pr->nombre_factura ?? ''));
             $modNF = $corr && !empty(trim((string)($corr->nombre_factura ?? ''))) ? trim((string)$corr->nombre_factura) : null;
             $nfBold = $modNF !== null && $this->isDiferente($origNF, $modNF);
-            $f29 = [$nfBold ? $modNF : $origNF, $nfBold];
+            $f29 = [$this->capitalizar($nfBold ? $modNF : $origNF), $nfBold];
 
             // 30. Nit
             $origNit = trim((string)($pr->nit ?? ''));
