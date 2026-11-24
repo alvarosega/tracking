@@ -212,6 +212,25 @@ class GetAltasEdicionesDataAction
             }
         }
 
+        // 4.1 Identificar clientes con doble o múltiple modificación pendiente
+        $pendientesPorCliente = [];
+        if (!empty($clienteIds)) {
+            $sbPendientes = DB::connection('supervisor')->table('saneamiento_base')
+                ->whereIn('cliente_id', $clienteIds)
+                ->where(DB::raw('UPPER(TRIM(estado_revision))'), 'PENDIENTE')
+                ->select('id', 'cliente_id')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            foreach ($sbPendientes as $sp) {
+                $cid = (string) $sp->cliente_id;
+                if (!isset($pendientesPorCliente[$cid])) {
+                    $pendientesPorCliente[$cid] = [];
+                }
+                $pendientesPorCliente[$cid][] = (int) $sp->id;
+            }
+        }
+
         // 5. Mapear datos con cálculo de desplazamiento si hubo cambio de coordenadas
         $registros = [];
         $kpiAltas = 0;
@@ -244,6 +263,15 @@ class GetAltasEdicionesDataAction
             $orig = $r->cliente_id
                 ? ($clientesOriginales["{$cidStr}_{$rutaClave}"] ?? $clientesOriginales[$cidStr] ?? null)
                 : null;
+
+            // Detección de doble o múltiple modificación pendiente
+            $solicitudesPendientes = (!empty($cidStr) && isset($pendientesPorCliente[$cidStr]))
+                ? $pendientesPorCliente[$cidStr]
+                : [];
+            $totalPendientes = count($solicitudesPendientes);
+            $esPendiente = $estadoUpper === 'PENDIENTE';
+            $tieneDobleModificacion = $esPendiente && ($totalPendientes > 1);
+            $otrasIds = array_values(array_filter($solicitudesPendientes, fn ($id) => $id !== (int) $r->id));
 
             $latOrig = ($orig && isset($orig->latitud) && is_numeric($orig->latitud)) ? (float) $orig->latitud : null;
             $lngOrig = ($orig && isset($orig->longitud) && is_numeric($orig->longitud)) ? (float) $orig->longitud : null;
@@ -353,6 +381,9 @@ class GetAltasEdicionesDataAction
                     'estado' => $orig->estado ?? 'Activo',
                 ] : null,
                 'distancia_desplazamiento_m' => $distanciaMetros,
+                'tiene_doble_modificacion' => $tieneDobleModificacion,
+                'total_pendientes_cliente' => $totalPendientes,
+                'otras_solicitudes_ids' => $otrasIds,
             ];
         }
 

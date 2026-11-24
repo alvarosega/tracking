@@ -432,8 +432,16 @@
                 v-for="r in registrosFiltrados"
                 :key="r.id"
                 @click="abrirExpediente(r)"
-                class="p-3 hover:bg-[#FBFBFD] transition-colors cursor-pointer border-b border-[#E5E5EA]/70"
-                :class="registroActivoId === r.id ? 'bg-[#F2F2F7]' : 'bg-white'"
+                class="p-3 transition-colors cursor-pointer border-b border-[#E5E5EA]/70 relative"
+                :class="[
+                  registroActivoId === r.id
+                    ? (r.tiene_doble_modificacion && r.estado_revision === 'PENDIENTE'
+                        ? 'bg-[#FEF3C7]/60 border-l-[5px] border-l-[#D97706]'
+                        : 'bg-[#F2F2F7]')
+                    : (r.tiene_doble_modificacion && r.estado_revision === 'PENDIENTE'
+                        ? 'bg-[#FFFBEB] hover:bg-[#FEF3C7]/40 border-l-[5px] border-l-[#D97706]'
+                        : 'bg-white hover:bg-[#FBFBFD]')
+                ]"
               >
                 <div class="flex items-start justify-between gap-1.5">
                   <div class="min-w-0 flex-1">
@@ -451,6 +459,18 @@
                         #{{ r.id }}
                         <span v-if="r.cliente_id" class="text-[#0071E3] font-normal">• Cód: {{ r.cliente_id }}</span>
                         <span v-else class="text-[#248A3D] font-normal">• Nueva</span>
+                      </span>
+
+                      <!-- Badge Doble Modificación si corresponde -->
+                      <span
+                        v-if="r.tiene_doble_modificacion && r.estado_revision === 'PENDIENTE'"
+                        class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/40 flex items-center gap-1 shrink-0"
+                        :title="`Este cliente tiene ${r.total_pendientes_cliente} modificaciones pendientes registradas`"
+                      >
+                        <svg class="w-2.5 h-2.5 text-[#D97706]" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Doble Modif. ({{ r.total_pendientes_cliente }})</span>
                       </span>
 
                       <span class="text-xs font-bold text-[#1D1D1F] line-clamp-1 w-full mt-0.5">{{ r.cliente }}</span>
@@ -539,6 +559,44 @@
             <!-- Ficha Técnica con todos los datos requeridos -->
             <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#F5F5F7]">
               
+              <!-- Banner Alerta: Cliente con Doble Modificación Pendiente -->
+              <div
+                v-if="registroSeleccionado.tiene_doble_modificacion && registroSeleccionado.estado_revision === 'PENDIENTE'"
+                class="bg-[#FFFBEB] border border-[#F59E0B]/50 rounded-[8px] p-3 shadow-2xs flex items-start gap-2.5"
+              >
+                <div class="p-1.5 rounded-full bg-[#FEF3C7] text-[#D97706] shrink-0 mt-0.5">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="flex-1 text-xs text-[#92400E]">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>Atención: Cliente con Doble Modificación</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 bg-[#FEF3C7] border border-[#F59E0B]/30 rounded-full font-bold text-[#B45309]">
+                      {{ registroSeleccionado.total_pendientes_cliente }} pendientes
+                    </span>
+                  </div>
+                  <p class="mt-1 text-[11px] text-[#B45309] leading-relaxed">
+                    Este cliente posee múltiples solicitudes pendientes en el sistema.
+                    <template v-if="registroSeleccionado.otras_solicitudes_ids?.length">
+                      Otras solicitudes pendientes:
+                      <span class="inline-flex items-center gap-1.5 ml-1">
+                        <button
+                          v-for="otroId in registroSeleccionado.otras_solicitudes_ids"
+                          :key="otroId"
+                          type="button"
+                          @click="irASolicitud(otroId)"
+                          class="font-mono font-bold px-1.5 py-0.2 bg-[#FDE68A] hover:bg-[#FCD34D] text-[#78350F] rounded cursor-pointer transition-colors"
+                          :title="`Abrir solicitud #${otroId}`"
+                        >
+                          #{{ otroId }} &rarr;
+                        </button>
+                      </span>
+                    </template>
+                  </p>
+                </div>
+              </div>
+
               <!-- 0. Panel de Acción de Auditoría (Aprobar / Rechazar) -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 shadow-2xs space-y-2.5">
                 <div class="flex items-center justify-between">
@@ -3122,28 +3180,45 @@ const labelRutas = computed(() => {
 
 const registrosFiltrados = computed(() => {
   let list = registros.value;
-  if (!busquedaTexto.value.trim()) return list;
+  if (busquedaTexto.value.trim()) {
+    const q = busquedaTexto.value.toLowerCase();
+    list = list.filter(r =>
+      (r.cliente && r.cliente.toLowerCase().includes(q)) ||
+      (r.cliente_id && String(r.cliente_id).includes(q)) ||
+      (r.id && String(r.id).includes(q)) ||
+      (r.ruta && r.ruta.toLowerCase().includes(q)) ||
+      (r.vendedor && r.vendedor.toLowerCase().includes(q)) ||
+      (r.usuario && r.usuario.toLowerCase().includes(q)) ||
+      (r.user_id && String(r.user_id).includes(q)) ||
+      (r.direccion && r.direccion.toLowerCase().includes(q)) ||
+      (r.referencia && r.referencia.toLowerCase().includes(q)) ||
+      (r.contacto && r.contacto.toLowerCase().includes(q)) ||
+      (r.telefono && String(r.telefono).includes(q)) ||
+      (r.celular && String(r.celular).includes(q)) ||
+      (r.nombre_factura && r.nombre_factura.toLowerCase().includes(q)) ||
+      (r.zona && r.zona.toLowerCase().includes(q)) ||
+      (r.tipo_negocio && r.tipo_negocio.toLowerCase().includes(q)) ||
+      (r.lista_precios && r.lista_precios.toLowerCase().includes(q)) ||
+      (r.nit && String(r.nit).includes(q))
+    );
+  }
 
-  const q = busquedaTexto.value.toLowerCase();
-  return list.filter(r =>
-    (r.cliente && r.cliente.toLowerCase().includes(q)) ||
-    (r.cliente_id && String(r.cliente_id).includes(q)) ||
-    (r.id && String(r.id).includes(q)) ||
-    (r.ruta && r.ruta.toLowerCase().includes(q)) ||
-    (r.vendedor && r.vendedor.toLowerCase().includes(q)) ||
-    (r.usuario && r.usuario.toLowerCase().includes(q)) ||
-    (r.user_id && String(r.user_id).includes(q)) ||
-    (r.direccion && r.direccion.toLowerCase().includes(q)) ||
-    (r.referencia && r.referencia.toLowerCase().includes(q)) ||
-    (r.contacto && r.contacto.toLowerCase().includes(q)) ||
-    (r.telefono && String(r.telefono).includes(q)) ||
-    (r.celular && String(r.celular).includes(q)) ||
-    (r.nombre_factura && r.nombre_factura.toLowerCase().includes(q)) ||
-    (r.zona && r.zona.toLowerCase().includes(q)) ||
-    (r.tipo_negocio && r.tipo_negocio.toLowerCase().includes(q)) ||
-    (r.lista_precios && r.lista_precios.toLowerCase().includes(q)) ||
-    (r.nit && String(r.nit).includes(q))
-  );
+  // Ordenar: primero los clientes pendientes con doble/múltiple modificación
+  return [...list].sort((a, b) => {
+    const aDoble = (a.tiene_doble_modificacion && (a.estado_revision || '').toUpperCase() === 'PENDIENTE') ? 1 : 0;
+    const bDoble = (b.tiene_doble_modificacion && (b.estado_revision || '').toUpperCase() === 'PENDIENTE') ? 1 : 0;
+    if (aDoble !== bDoble) {
+      return bDoble - aDoble; // los de doble modificación arriba
+    }
+    // Si ambos son doble modificación, agrupar por cliente_id para verlos juntos
+    if (aDoble === 1 && bDoble === 1) {
+      if (a.cliente_id !== b.cliente_id) {
+        return String(a.cliente_id || '').localeCompare(String(b.cliente_id || ''));
+      }
+      return (b.id || 0) - (a.id || 0);
+    }
+    return (b.id || 0) - (a.id || 0);
+  });
 });
 
 // Ediciones filtradas para exportación comparativa y exportación ERP contra pan_ruteo
@@ -3417,6 +3492,39 @@ function abrirLightbox(url) {
   }
 }
 
+function irASolicitud(id) {
+  const target = registros.value.find(r => r.id === id);
+  if (target) {
+    abrirExpediente(target);
+  } else {
+    mostrarToast(`La solicitud #${id} no se encuentra en el listado cargado con los filtros actuales.`);
+  }
+}
+
+function actualizarDobleModificacionCliente(clienteId) {
+  if (!clienteId) return;
+  const pendientesDelCliente = registros.value.filter(
+    r => String(r.cliente_id) === String(clienteId) && (r.estado_revision || '').toUpperCase() === 'PENDIENTE'
+  );
+  const total = pendientesDelCliente.length;
+  const esDoble = total > 1;
+  const todosIds = pendientesDelCliente.map(r => r.id);
+
+  registros.value.forEach(r => {
+    if (String(r.cliente_id) === String(clienteId)) {
+      r.total_pendientes_cliente = total;
+      r.tiene_doble_modificacion = esDoble && (r.estado_revision || '').toUpperCase() === 'PENDIENTE';
+      r.otras_solicitudes_ids = todosIds.filter(id => id !== r.id);
+    }
+  });
+
+  if (registroSeleccionado.value && String(registroSeleccionado.value.cliente_id) === String(clienteId)) {
+    registroSeleccionado.value.total_pendientes_cliente = total;
+    registroSeleccionado.value.tiene_doble_modificacion = esDoble && (registroSeleccionado.value.estado_revision || '').toUpperCase() === 'PENDIENTE';
+    registroSeleccionado.value.otras_solicitudes_ids = todosIds.filter(id => id !== registroSeleccionado.value.id);
+  }
+}
+
 async function cambiarEstadoRevision(registro, nuevoEstado) {
   if (!registro || !registro.id) return;
 
@@ -3452,6 +3560,7 @@ async function cambiarEstadoRevision(registro, nuevoEstado) {
       }
 
       recalcularKpis();
+      actualizarDobleModificacionCliente(registro.cliente_id);
 
       mensajeEstado.value = {
         tipo: 'exito',
@@ -3548,6 +3657,9 @@ async function confirmarCambioMasivo() {
       }
 
       recalcularKpis();
+      const clientesAfectados = new Set(lista.filter(r => idsSet.has(r.id)).map(r => r.cliente_id).filter(Boolean));
+      clientesAfectados.forEach(cid => actualizarDobleModificacionCliente(cid));
+
       modalCambioMasivoAbierto.value = false;
       mostrarToast(res.data.message || `Se actualizaron ${res.data.count} registro(s) a estado ${nuevoEstado}.`);
     } else {
