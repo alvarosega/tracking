@@ -3418,19 +3418,32 @@ function calcularTiposIniciales() {
   return list.length > 0 ? list : ['EDICION', 'MODIFICACION'];
 }
 
+function calcularCanalesIniciales() {
+  const tdb = props.canales.find(c => String(c).trim().toUpperCase() === 'TDB');
+  if (tdb) return [tdb];
+  return props.canales.length > 0 ? [props.canales[0]] : ['TDB'];
+}
+
+function calcularRutasIniciales(canalesIniciales) {
+  if (!props.catalogo_rutas) return [];
+  const canalesSet = new Set(canalesIniciales.map(c => String(c).trim().toUpperCase()));
+  const filtradas = props.catalogo_rutas.filter(r => {
+    const rc = r.canal ? String(r.canal).trim().toUpperCase() : '';
+    const rr = r.ruta ? String(r.ruta).trim().toUpperCase() : '';
+    return canalesSet.has(rc) || Array.from(canalesSet).some(c => rr.startsWith(c));
+  });
+  return filtradas.map(r => r.ruta);
+}
+
 function calcularEstadosIniciales() {
-  const esAlta = props.submoduloActivo === 'altas' || (tipoFijoUpper && tipoFijoUpper.includes('ALTA'));
-  if (esAlta) {
-    const pendiente = props.estados_revision.find(e => e.toUpperCase() === 'PENDIENTE');
-    return pendiente ? [pendiente] : ['PENDIENTE'];
-  }
-  return [...props.estados_revision];
+  const pendiente = props.estados_revision.find(e => String(e).trim().toUpperCase() === 'PENDIENTE');
+  return pendiente ? [pendiente] : ['PENDIENTE'];
 }
 
 const filtroTipos = ref(calcularTiposIniciales());
+const filtroCanales = ref(calcularCanalesIniciales());
 const filtroEstados = ref(calcularEstadosIniciales());
-const filtroCanales = ref([...props.canales]);
-const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));
+const filtroRutas = ref(calcularRutasIniciales(filtroCanales.value));
 const busquedaTexto = ref('');
 const busquedaRuta = ref('');
 
@@ -3445,18 +3458,25 @@ function limpiarEstados() {
 }
 
 const hayFiltrosModificados = computed(() => {
-  const canalesCambiados = filtroCanales.value.length !== props.canales.length;
-  const rutasCambiadas = filtroRutas.value.length !== rutasDisponibles.value.length;
+  const inicialCanales = calcularCanalesIniciales();
+  const canalesCambiados = filtroCanales.value.length !== inicialCanales.length ||
+    !filtroCanales.value.every(c => inicialCanales.includes(c));
+
+  const inicialRutas = calcularRutasIniciales(filtroCanales.value);
+  const rutasCambiadas = filtroRutas.value.length !== inicialRutas.length ||
+    !filtroRutas.value.every(r => inicialRutas.includes(r));
+
   const inicialEstados = calcularEstadosIniciales();
   const estadosCambiados = filtroEstados.value.length !== inicialEstados.length ||
     !filtroEstados.value.every(e => inicialEstados.includes(e));
+
   const busquedaCambiada = busquedaTexto.value.trim().length > 0;
   return canalesCambiados || rutasCambiadas || estadosCambiados || busquedaCambiada;
 });
 
 function limpiarFiltrosRapidos() {
-  filtroCanales.value = [...props.canales];
-  filtroRutas.value = props.catalogo_rutas.map(r => r.ruta);
+  filtroCanales.value = calcularCanalesIniciales();
+  filtroRutas.value = calcularRutasIniciales(filtroCanales.value);
   filtroEstados.value = calcularEstadosIniciales();
   busquedaTexto.value = '';
   cargarDatos();
@@ -4220,7 +4240,8 @@ function limpiarCanales() {
 
 function onCanalesModificados() {
   const rutasValidas = new Set(rutasDisponibles.value.map(r => r.ruta));
-  filtroRutas.value = filtroRutas.value.filter(r => rutasValidas.has(r));
+  const restantes = filtroRutas.value.filter(r => rutasValidas.has(r));
+  filtroRutas.value = restantes.length > 0 ? restantes : rutasDisponibles.value.map(r => r.ruta);
   cargarDatos();
 }
 
