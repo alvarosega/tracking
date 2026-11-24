@@ -408,18 +408,63 @@
         >
           <!-- MODO 1: LISTADO GENERAL -->
           <template v-if="!registroSeleccionado">
-            <!-- Buscador Rápido en Panel -->
-            <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] shrink-0">
+            <!-- Buscador Rápido y Selector de Vista en Panel -->
+            <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] shrink-0 space-y-1.5">
               <input
                 v-model="busquedaTexto"
                 type="text"
                 placeholder="Buscar cliente, código, ruta o dirección..."
                 class="w-full h-7 px-2.5 bg-white border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#86868B]"
               />
+
+              <!-- Selector de Modo de Listado: Individual vs Repetidos -->
+              <div class="flex items-center justify-between gap-1 text-[11px]">
+                <div class="flex items-center bg-[#E5E5EA]/70 p-0.5 rounded-[6px] border border-[#E5E5EA]">
+                  <button
+                    type="button"
+                    @click="modoVistaLista = 'individual'"
+                    class="px-2 py-0.5 rounded-[4px] font-medium transition-all cursor-pointer"
+                    :class="modoVistaLista === 'individual'
+                      ? 'bg-white text-[#1D1D1F] font-bold shadow-2xs'
+                      : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                  >
+                    Individual ({{ registrosFiltrados.length }})
+                  </button>
+                  <button
+                    type="button"
+                    @click="modoVistaLista = 'agrupado'"
+                    class="px-2 py-0.5 rounded-[4px] font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    :class="modoVistaLista === 'agrupado'
+                      ? 'bg-[#D97706] text-white font-bold shadow-2xs'
+                      : 'text-[#92400E] hover:text-[#D97706] font-semibold'"
+                  >
+                    <span>Repetidos</span>
+                    <span
+                      class="px-1.5 py-0.2 rounded-full text-[9.5px] font-mono font-bold"
+                      :class="modoVistaLista === 'agrupado' ? 'bg-black/25 text-white' : 'bg-[#FEF3C7] text-[#B45309] border border-[#F59E0B]/40'"
+                    >
+                      {{ clientesConRepetidosCount }}
+                    </span>
+                  </button>
+                </div>
+
+                <button
+                  v-if="clientesConRepetidosCount > 0"
+                  type="button"
+                  @click="abrirComparativoPrimerRepetido"
+                  class="text-[10.5px] font-bold text-[#D97706] hover:text-[#B45309] flex items-center gap-1 cursor-pointer"
+                  title="Abrir la matriz comparativa de repetidos"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span>Matriz comparativa &rarr;</span>
+                </button>
+              </div>
             </div>
 
-            <!-- Listado Densa de Solicitudes -->
-            <div class="flex-1 overflow-y-auto divide-y divide-[#E5E5EA]">
+            <!-- VISTA 1: LISTADO INDIVIDUAL -->
+            <div v-if="modoVistaLista === 'individual'" class="flex-1 overflow-y-auto divide-y divide-[#E5E5EA]">
               <div v-if="cargando" class="p-8 text-center text-xs text-[#6E6E73] animate-pulse">
                 Consultando solicitudes de saneamiento...
               </div>
@@ -519,6 +564,189 @@
                 </div>
               </div>
             </div>
+
+            <!-- VISTA 2: LISTADO AGRUPADO (CLIENTES CON REPETIDOS) -->
+            <div v-else class="flex-1 overflow-y-auto divide-y divide-[#E5E5EA] bg-[#F5F5F7] p-2 space-y-2.5">
+              <div v-if="cargando" class="p-8 text-center text-xs text-[#6E6E73] animate-pulse">
+                Consultando clientes repetidos...
+              </div>
+
+              <div v-else-if="gruposRepetidos.length === 0" class="p-8 text-center bg-white rounded-[8px] border border-[#E5E5EA]">
+                <div class="w-10 h-10 mx-auto rounded-full bg-[#EBF9EF] text-[#248A3D] flex items-center justify-center mb-2">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div class="text-xs font-bold text-[#1D1D1F]">Sin clientes con modificaciones repetidas</div>
+                <p class="text-[11px] text-[#86868B] mt-1 max-w-[280px] mx-auto">
+                  No se detectaron clientes con múltiples solicitudes bajo los filtros activos.
+                </p>
+                <button
+                  type="button"
+                  @click="modoVistaLista = 'individual'"
+                  class="mt-3 px-3 py-1 bg-white border border-[#D2D2D7] text-xs font-semibold rounded-[6px] text-[#0071E3] hover:bg-[#F2F2F7] cursor-pointer"
+                >
+                  Ver listado individual
+                </button>
+              </div>
+
+              <!-- Tarjetas de Grupo por Cliente -->
+              <div
+                v-for="grupo in gruposRepetidos"
+                :key="grupo.key"
+                class="bg-white rounded-[8px] border border-[#E5E5EA] shadow-2xs overflow-hidden transition-all hover:border-[#D97706]/50"
+              >
+                <!-- Cabecera del Grupo (Cliente) -->
+                <div class="p-2.5 bg-[#FFFBEB] border-b border-[#FDE68A]/70 flex items-start justify-between gap-2">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/30">
+                        Cód: #{{ grupo.cliente_id }}
+                      </span>
+                      <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getCanalColor(grupo.canal) }"></span>
+                      <span class="text-[10px] font-mono text-[#6E6E73]">{{ grupo.ruta }} ({{ grupo.canal }})</span>
+                    </div>
+                    <div class="text-xs font-bold text-[#1D1D1F] truncate mt-1" :title="grupo.cliente">
+                      {{ grupo.cliente }}
+                    </div>
+                  </div>
+
+                  <div class="text-right shrink-0 space-y-1">
+                    <div class="flex items-center gap-1 justify-end">
+                      <span class="px-2 py-0.5 bg-[#FEF3C7] border border-[#F59E0B]/40 rounded-full text-[10px] font-bold text-[#B45309] font-mono">
+                        {{ grupo.total }} vers. ({{ grupo.total_pendientes }} pend.)
+                      </span>
+                    </div>
+
+                    <!-- Botones de Acción del Grupo -->
+                    <div class="flex items-center gap-1 justify-end pt-0.5">
+                      <button
+                        type="button"
+                        @click="abrirComparativoCliente(grupo.cliente_id, grupo.cliente, grupo.ruta)"
+                        class="px-2 py-0.5 bg-[#D97706] hover:bg-[#B45309] text-white rounded-[4px] text-[10px] font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1"
+                        title="Comparar versiones de este cliente lado a lado"
+                      >
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span>Comparar</span>
+                      </button>
+
+                      <button
+                        v-if="grupo.total_pendientes > 1"
+                        type="button"
+                        @click="quedarseConMasReciente(grupo)"
+                        :disabled="procesandoGrupoKey === grupo.key"
+                        class="px-2 py-0.5 bg-white border border-[#D97706] text-[#B45309] hover:bg-[#FEF3C7] rounded-[4px] text-[10px] font-bold cursor-pointer transition-colors disabled:opacity-50"
+                        title="Aprobar automáticamente la más reciente y rechazar las demás solicitudes pendientes"
+                      >
+                        <span v-if="procesandoGrupoKey === grupo.key" class="w-2.5 h-2.5 border-2 border-[#B45309] border-t-transparent rounded-full animate-spin inline-block"></span>
+                        <span v-else>Quedarse con la más reciente</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sub-items (Versiones individuales de este cliente) -->
+                <div class="divide-y divide-[#E5E5EA]/70">
+                  <div
+                    v-for="(item, idx) in grupo.items"
+                    :key="item.id"
+                    class="p-2 transition-colors hover:bg-[#F9F9FB] flex items-center justify-between gap-2"
+                    :class="[
+                      registroActivoId === item.id ? 'bg-[#F2F2F7]' : '',
+                      item.estado_revision === 'APROBADO' ? 'border-l-3 border-l-[#248A3D]' : (item.estado_revision === 'RECHAZADO' ? 'border-l-3 border-l-[#FF3B30]' : 'border-l-3 border-l-[#FF9500]')
+                    ]"
+                  >
+                    <div class="min-w-0 flex-1 cursor-pointer" @click="abrirExpediente(item)">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-[9.5px] font-mono font-bold text-[#86868B]">
+                          #{{ item.id }}
+                        </span>
+                        <span v-if="idx === 0" class="px-1 py-0.2 rounded text-[8.5px] font-bold bg-[#EBF5FF] text-[#0071E3] border border-[#B3D7FF]">
+                          Más reciente
+                        </span>
+                        <span class="text-[10px] font-mono text-[#6E6E73]">
+                          {{ item.fecha_registro }}
+                        </span>
+                        <span v-if="item.vendedor" class="text-[10px] text-[#86868B] truncate max-w-[120px]">
+                          • {{ item.vendedor }}
+                        </span>
+                      </div>
+                      <div class="text-[11px] text-[#1D1D1F] line-clamp-1 mt-0.5">
+                        {{ item.direccion || item.cliente || 'Sin dirección' }}
+                      </div>
+                    </div>
+
+                    <!-- Botones de Acción Rápida por Versión -->
+                    <div class="flex items-center gap-1 shrink-0">
+                      <!-- Badge Estado -->
+                      <span
+                        class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border"
+                        :class="getEstadoRevisionClass(item.estado_revision)"
+                      >
+                        {{ item.estado_revision }}
+                      </span>
+
+                      <!-- Botón Aprobar -->
+                      <button
+                        type="button"
+                        @click.stop="cambiarEstadoRevision(item, 'APROBADO')"
+                        :disabled="cambiandoEstadoId === item.id || item.estado_revision === 'APROBADO'"
+                        class="w-6 h-6 rounded flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        :class="item.estado_revision === 'APROBADO' ? 'bg-[#248A3D] text-white' : 'bg-white text-[#248A3D] border border-[#248A3D]/40 hover:bg-[#EBF9EF]'"
+                        title="Aprobar esta versión"
+                      >
+                        <span v-if="cambiandoEstadoId === item.id && estadoEnProceso === 'APROBADO'" class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      </button>
+
+                      <!-- Botón Rechazar -->
+                      <button
+                        type="button"
+                        @click.stop="cambiarEstadoRevision(item, 'RECHAZADO')"
+                        :disabled="cambiandoEstadoId === item.id || item.estado_revision === 'RECHAZADO'"
+                        class="w-6 h-6 rounded flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        :class="item.estado_revision === 'RECHAZADO' ? 'bg-[#FF3B30] text-white' : 'bg-white text-[#C9342C] border border-[#C9342C]/40 hover:bg-[#FDF0EF]'"
+                        title="Rechazar esta versión"
+                      >
+                        <span v-if="cambiandoEstadoId === item.id && estadoEnProceso === 'RECHAZADO'" class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      <!-- Botón A Pendiente -->
+                      <button
+                        type="button"
+                        @click.stop="cambiarEstadoRevision(item, 'PENDIENTE')"
+                        :disabled="cambiandoEstadoId === item.id || item.estado_revision === 'PENDIENTE'"
+                        class="w-6 h-6 rounded flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        :class="item.estado_revision === 'PENDIENTE' ? 'bg-[#FF9500] text-white' : 'bg-white text-[#B25E00] border border-[#FF9500]/40 hover:bg-[#FFF8E6]'"
+                        title="Devolver a Pendiente"
+                      >
+                        <span v-if="cambiandoEstadoId === item.id && estadoEnProceso === 'PENDIENTE'" class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+
+                      <!-- Botón Ver Ficha -->
+                      <button
+                        type="button"
+                        @click.stop="abrirExpediente(item)"
+                        class="px-1.5 py-0.5 rounded text-[10px] text-[#0071E3] font-medium hover:bg-[#F2F2F7] cursor-pointer"
+                        title="Ver ficha técnica de inspección"
+                      >
+                        Ficha &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </template>
 
           <!-- MODO 2: FICHA TÉCNICA COMPLETA DE INSPECCIÓN -->
@@ -570,11 +798,24 @@
                   </svg>
                 </div>
                 <div class="flex-1 text-xs text-[#92400E]">
-                  <div class="font-bold flex items-center justify-between">
+                  <div class="font-bold flex items-center justify-between gap-2 flex-wrap">
                     <span>Atención: Cliente con Doble Modificación</span>
-                    <span class="text-[10px] font-mono px-2 py-0.5 bg-[#FEF3C7] border border-[#F59E0B]/30 rounded-full font-bold text-[#B45309]">
-                      {{ registroSeleccionado.total_pendientes_cliente }} pendientes
-                    </span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <span class="text-[10px] font-mono px-2 py-0.5 bg-[#FEF3C7] border border-[#F59E0B]/30 rounded-full font-bold text-[#B45309]">
+                        {{ registroSeleccionado.total_pendientes_cliente }} pendientes
+                      </span>
+                      <button
+                        type="button"
+                        @click="abrirComparativoCliente(registroSeleccionado.cliente_id)"
+                        class="px-2.5 py-1 bg-[#D97706] hover:bg-[#B45309] text-white rounded-[6px] font-bold text-[10.5px] flex items-center gap-1 shadow-2xs cursor-pointer transition-transform active:scale-95"
+                        title="Comparar todas las solicitudes del cliente lado a lado"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span>Comparar versiones &rarr;</span>
+                      </button>
+                    </div>
                   </div>
                   <p class="mt-1 text-[11px] text-[#B45309] leading-relaxed">
                     Este cliente posee múltiples solicitudes pendientes en el sistema.
@@ -597,7 +838,7 @@
                 </div>
               </div>
 
-              <!-- 0. Panel de Acción de Auditoría (Aprobar / Rechazar) -->
+              <!-- 0. Panel de Acción de Auditoría (Aprobar / Rechazar / Pendiente) -->
               <div class="bg-white border border-[#E5E5EA] rounded-[8px] p-3 shadow-2xs space-y-2.5">
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] font-bold text-[#86868B] uppercase tracking-wider flex items-center gap-1.5 font-mono">
@@ -631,17 +872,18 @@
                   </div>
                 </div>
 
-                <!-- Botones Principales: Aprobar y Rechazar -->
-                <div class="grid grid-cols-2 gap-2">
+                <!-- Botones Principales de Auditoría: Aprobar, Rechazar, Pendiente -->
+                <div class="grid grid-cols-3 gap-2">
+                  <!-- 1. APROBAR -->
                   <button
                     type="button"
                     @click="cambiarEstadoRevision(registroSeleccionado, 'APROBADO')"
                     :disabled="cambiandoEstadoId === registroSeleccionado.id || registroSeleccionado.estado_revision === 'APROBADO'"
-                    class="h-9 px-3 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="h-9 px-2 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:cursor-not-allowed"
                     :class="registroSeleccionado.estado_revision === 'APROBADO'
-                      ? 'bg-[#EBF9EF] text-[#248A3D] border border-[#248A3D]/30 font-extrabold'
-                      : 'bg-[#248A3D] text-white hover:bg-[#1E7433] active:scale-[0.98]'"
-                    title="Aprobar alta o edición"
+                      ? 'bg-[#EBF9EF] text-[#248A3D] border-2 border-[#248A3D] font-extrabold opacity-100'
+                      : 'bg-[#248A3D] text-white hover:bg-[#1E7433] active:scale-[0.98] disabled:opacity-50'"
+                    title="Aprobar solicitud"
                   >
                     <span v-if="cambiandoEstadoId === registroSeleccionado.id && estadoEnProceso === 'APROBADO'" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                     <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -650,15 +892,16 @@
                     <span>{{ registroSeleccionado.estado_revision === 'APROBADO' ? 'Aprobado' : 'Aprobar' }}</span>
                   </button>
 
+                  <!-- 2. RECHAZAR -->
                   <button
                     type="button"
                     @click="cambiarEstadoRevision(registroSeleccionado, 'RECHAZADO')"
                     :disabled="cambiandoEstadoId === registroSeleccionado.id || registroSeleccionado.estado_revision === 'RECHAZADO'"
-                    class="h-9 px-3 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="h-9 px-2 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:cursor-not-allowed"
                     :class="registroSeleccionado.estado_revision === 'RECHAZADO'
-                      ? 'bg-[#FDF0EF] text-[#C9342C] border border-[#C9342C]/30 font-extrabold'
-                      : 'bg-[#FF3B30] text-white hover:bg-[#D70015] active:scale-[0.98]'"
-                    title="Rechazar alta o edición"
+                      ? 'bg-[#FDF0EF] text-[#C9342C] border-2 border-[#C9342C] font-extrabold opacity-100'
+                      : 'bg-[#FF3B30] text-white hover:bg-[#D70015] active:scale-[0.98] disabled:opacity-50'"
+                    title="Rechazar solicitud"
                   >
                     <span v-if="cambiandoEstadoId === registroSeleccionado.id && estadoEnProceso === 'RECHAZADO'" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                     <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -666,17 +909,23 @@
                     </svg>
                     <span>{{ registroSeleccionado.estado_revision === 'RECHAZADO' ? 'Rechazado' : 'Rechazar' }}</span>
                   </button>
-                </div>
 
-                <!-- Opción de Retorno a Pendiente -->
-                <div v-if="registroSeleccionado.estado_revision !== 'PENDIENTE'" class="pt-1 text-center">
+                  <!-- 3. PENDIENTE -->
                   <button
                     type="button"
                     @click="cambiarEstadoRevision(registroSeleccionado, 'PENDIENTE')"
-                    :disabled="cambiandoEstadoId === registroSeleccionado.id"
-                    class="text-[11px] font-mono text-[#86868B] hover:text-[#1D1D1F] underline cursor-pointer disabled:opacity-50"
+                    :disabled="cambiandoEstadoId === registroSeleccionado.id || registroSeleccionado.estado_revision === 'PENDIENTE'"
+                    class="h-9 px-2 rounded-[6px] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs select-none disabled:cursor-not-allowed"
+                    :class="registroSeleccionado.estado_revision === 'PENDIENTE'
+                      ? 'bg-[#FFF8E6] text-[#B25E00] border-2 border-[#FF9500] font-extrabold opacity-100'
+                      : 'bg-white text-[#B25E00] border border-[#FF9500]/50 hover:bg-[#FFF8E6] active:scale-[0.98] disabled:opacity-50'"
+                    title="Devolver a estado Pendiente de revisión"
                   >
-                    Restablecer a Pendiente de revisión
+                    <span v-if="cambiandoEstadoId === registroSeleccionado.id && estadoEnProceso === 'PENDIENTE'" class="w-3.5 h-3.5 border-2 border-[#B25E00] border-t-transparent rounded-full animate-spin"></span>
+                    <svg v-else class="w-4 h-4 text-[#FF9500]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ registroSeleccionado.estado_revision === 'PENDIENTE' ? 'Pendiente' : 'A Pendiente' }}</span>
                   </button>
                 </div>
 
@@ -2610,6 +2859,444 @@
         </div>
       </Teleport>
 
+      <!-- Modal Matriz Comparativa Lado a Lado de Versiones Repetidas -->
+      <Teleport to="body">
+        <div
+          v-if="modalComparativo.abierto"
+          class="fixed inset-0 z-[99990] flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4"
+          @click.self="cerrarModalComparativo"
+        >
+          <div class="bg-white rounded-[14px] shadow-2xl border border-[#D2D2D7] w-full max-w-[96vw] xl:max-w-7xl h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Header del Modal -->
+            <div class="px-4 py-3 bg-[#1D1D1F] text-white flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-[8px] bg-[#D97706] text-white flex items-center justify-center font-bold shrink-0">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <h3 class="text-sm font-bold text-white truncate">
+                      Matriz Comparativa de Modificaciones Repetidas
+                    </h3>
+                    <span v-if="modalComparativo.clienteId" class="px-2 py-0.2 rounded-full bg-[#FEF3C7] text-[#92400E] font-mono text-[10px] font-bold">
+                      Cód: #{{ modalComparativo.clienteId }}
+                    </span>
+                    <span class="text-xs text-[#86868B] truncate">
+                      {{ modalComparativo.clienteNombre }}
+                    </span>
+                  </div>
+                  <p class="text-[11px] text-[#A1A1A6] truncate mt-0.5">
+                    Compara lado a lado los datos del padrón oficial frente a cada modificación registrada para elegir con cuál quedarse.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Controles Header: Navegación entre Clientes Repetidos y Cerrar -->
+              <div class="flex items-center gap-2 shrink-0">
+                <!-- Navegación si hay varios clientes con repetidos -->
+                <div v-if="gruposRepetidos.length > 1" class="hidden sm:flex items-center bg-white/10 rounded-[6px] p-0.5 text-xs text-white">
+                  <button
+                    type="button"
+                    @click="navegarComparativo(-1)"
+                    :disabled="modalComparativo.indiceRepetidoActual <= 0"
+                    class="px-2 py-1 hover:bg-white/10 rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                    title="Cliente repetido anterior"
+                  >
+                    <span>&larr;</span> Anterior
+                  </button>
+                  <span class="px-2 font-mono text-[11px] text-white/70">
+                    {{ modalComparativo.indiceRepetidoActual + 1 }} / {{ gruposRepetidos.length }}
+                  </span>
+                  <button
+                    type="button"
+                    @click="navegarComparativo(1)"
+                    :disabled="modalComparativo.indiceRepetidoActual >= gruposRepetidos.length - 1"
+                    class="px-2 py-1 hover:bg-white/10 rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                    title="Siguiente cliente repetido"
+                  >
+                    Siguiente <span>&rarr;</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  @click="cerrarModalComparativo"
+                  class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Cerrar modal (Esc)"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Contenido de la Matriz Comparativa -->
+            <div class="flex-1 overflow-auto bg-[#F5F5F7] p-3 sm:p-4">
+              <!-- Cargando -->
+              <div v-if="modalComparativo.cargando" class="h-full flex flex-col items-center justify-center space-y-3">
+                <div class="w-10 h-10 border-3 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
+                <div class="text-xs font-semibold text-[#6E6E73]">Cargando historial de versiones del cliente...</div>
+              </div>
+
+              <!-- Error -->
+              <div v-else-if="modalComparativo.errorMsg" class="h-full flex flex-col items-center justify-center p-6 text-center">
+                <div class="p-4 bg-[#FDF0EF] border border-[#C9342C]/20 rounded-[10px] text-[#C9342C] text-xs max-w-md">
+                  <div class="font-bold mb-1">No se pudieron cargar las versiones</div>
+                  <p>{{ modalComparativo.errorMsg }}</p>
+                  <button
+                    type="button"
+                    @click="abrirComparativoCliente(modalComparativo.clienteId)"
+                    class="mt-3 px-3 py-1 bg-[#C9342C] text-white rounded-[6px] font-bold text-xs cursor-pointer"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Matriz Lado a Lado (Tabla comparativa horizontal) -->
+              <div v-else class="min-w-full inline-block align-top">
+                <div class="grid gap-3" :style="{ gridTemplateColumns: `200px 280px repeat(${modalComparativo.versiones.length}, minmax(300px, 1fr))` }">
+                  
+                  <!-- COLUMNA 1: ETIQUETAS DE CAMPOS (Sticky) -->
+                  <div class="space-y-2 sticky left-0 z-20">
+                    <!-- Fila 0: Header -->
+                    <div class="h-32 bg-white rounded-[10px] border border-[#E5E5EA] p-3 flex flex-col justify-between shadow-2xs">
+                      <div>
+                        <span class="text-[10px] font-mono uppercase tracking-wider text-[#86868B] font-bold">Campos Auditables</span>
+                        <div class="text-xs font-extrabold text-[#1D1D1F] mt-1">Comparativa Detallada</div>
+                      </div>
+                      <div class="text-[10px] text-[#86868B]">
+                        Total solicitudes: <strong class="text-[#1D1D1F]">{{ modalComparativo.versiones.length }}</strong>
+                      </div>
+                    </div>
+
+                    <!-- Fila 1: Nombre / Razón Social -->
+                    <div class="h-16 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Cliente / Razón Social
+                    </div>
+
+                    <!-- Fila 2: Dirección -->
+                    <div class="h-20 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Dirección y Número
+                    </div>
+
+                    <!-- Fila 3: Referencia -->
+                    <div class="h-16 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Referencia
+                    </div>
+
+                    <!-- Fila 4: Contacto & Teléfonos -->
+                    <div class="h-16 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Contacto / Celular
+                    </div>
+
+                    <!-- Fila 5: NIT / Carnet -->
+                    <div class="h-14 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      NIT / Documento
+                    </div>
+
+                    <!-- Fila 6: Tipo Negocio -->
+                    <div class="h-14 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Tipo de Negocio
+                    </div>
+
+                    <!-- Fila 7: Zona / Territorio -->
+                    <div class="h-14 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Zona / Territorio
+                    </div>
+
+                    <!-- Fila 8: Coordenadas GPS -->
+                    <div class="h-20 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Ubicación GPS
+                    </div>
+
+                    <!-- Fila 9: Fotografía -->
+                    <div class="h-32 bg-white rounded-[8px] border border-[#E5E5EA] p-2.5 flex items-center text-xs font-bold text-[#1D1D1F]">
+                      Fotografía de Evidencia
+                    </div>
+                  </div>
+
+                  <!-- COLUMNA 2: PADRÓN ORIGINAL (pan_ruteo) -->
+                  <div class="space-y-2">
+                    <!-- Fila 0: Header Padrón Original -->
+                    <div class="h-32 bg-[#F2F2F7] rounded-[10px] border-2 border-[#D2D2D7] p-3 flex flex-col justify-between">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/10 text-[#1D1D1F]">
+                          PADRÓN OFICIAL
+                        </span>
+                        <span class="text-[10px] font-mono text-[#86868B]">pan_ruteo</span>
+                      </div>
+                      <div>
+                        <div class="text-xs font-bold text-[#1D1D1F]">Datos Registrados en Base</div>
+                        <div class="text-[10px] text-[#6E6E73] mt-0.5">Versión actual en sistema</div>
+                      </div>
+                      <div class="text-[10px] text-[#86868B] font-mono">
+                        Ruta: {{ modalComparativo.original?.ruta || 'N/D' }}
+                      </div>
+                    </div>
+
+                    <!-- Fila 1: Nombre Original -->
+                    <div class="h-16 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#1D1D1F] flex items-center font-medium">
+                      {{ modalComparativo.original?.cliente || 'Sin registro' }}
+                    </div>
+
+                    <!-- Fila 2: Dirección Original -->
+                    <div class="h-20 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#1D1D1F] flex items-center leading-snug">
+                      {{ modalComparativo.original?.direccion || 'Sin dirección' }}{{ modalComparativo.original?.nro ? ` #${modalComparativo.original.nro}` : '' }}
+                    </div>
+
+                    <!-- Fila 3: Referencia Original -->
+                    <div class="h-16 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#6E6E73] flex items-center italic">
+                      {{ modalComparativo.original?.referencia || 'Sin referencia' }}
+                    </div>
+
+                    <!-- Fila 4: Contacto / Teléfono Original -->
+                    <div class="h-16 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#1D1D1F] flex flex-col justify-center">
+                      <div class="font-medium truncate">{{ modalComparativo.original?.contacto || 'Sin contacto' }}</div>
+                      <div class="text-[11px] text-[#6E6E73] font-mono mt-0.5">Tel: {{ modalComparativo.original?.celular || modalComparativo.original?.telefono || 'N/D' }}</div>
+                    </div>
+
+                    <!-- Fila 5: NIT Original -->
+                    <div class="h-14 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs font-mono text-[#1D1D1F] flex items-center">
+                      {{ modalComparativo.original?.nit || modalComparativo.original?.ci || 'Sin NIT' }}
+                    </div>
+
+                    <!-- Fila 6: Tipo Negocio Original -->
+                    <div class="h-14 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#1D1D1F] flex items-center">
+                      {{ modalComparativo.original?.tipo_negocio || 'Sin tipo' }}
+                    </div>
+
+                    <!-- Fila 7: Zona Original -->
+                    <div class="h-14 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs text-[#1D1D1F] flex items-center">
+                      {{ modalComparativo.original?.zona || modalComparativo.original?.territorio || 'N/D' }}
+                    </div>
+
+                    <!-- Fila 8: Coordenadas Original -->
+                    <div class="h-20 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 text-xs font-mono text-[#1D1D1F] flex flex-col justify-center">
+                      <div v-if="modalComparativo.original?.latitud">
+                        Lat: {{ formatCoord(modalComparativo.original.latitud) }}<br />
+                        Lng: {{ formatCoord(modalComparativo.original.longitud) }}
+                      </div>
+                      <div v-else class="text-[#86868B] italic">Sin coordenadas en padrón</div>
+                    </div>
+
+                    <!-- Fila 9: Fotografía Original -->
+                    <div class="h-32 bg-[#F2F2F7] rounded-[8px] border border-[#D2D2D7] p-2.5 flex items-center justify-center text-center text-[11px] text-[#86868B]">
+                      (Padrón histórico sin fotografía adjunta)
+                    </div>
+                  </div>
+
+                  <!-- COLUMNAS 3..N: CADA VERSIÓN DE SANEAMIENTO_BASE -->
+                  <div
+                    v-for="(ver, vIdx) in modalComparativo.versiones"
+                    :key="ver.id"
+                    class="space-y-2"
+                  >
+                    <!-- Fila 0: Header de Solicitud con Acciones de Decisión -->
+                    <div
+                      class="h-32 bg-white rounded-[10px] border-2 p-2.5 flex flex-col justify-between shadow-2xs transition-all"
+                      :class="[
+                        ver.estado_revision === 'APROBADO' ? 'border-[#248A3D] bg-[#EBF9EF]/30' : (ver.estado_revision === 'RECHAZADO' ? 'border-[#FF3B30] bg-[#FDF0EF]/30' : 'border-[#FF9500] bg-[#FFF8E6]/40')
+                      ]"
+                    >
+                      <div class="flex items-center justify-between gap-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="text-[11px] font-mono font-bold text-[#1D1D1F]">
+                            #{{ ver.id }}
+                          </span>
+                          <span v-if="vIdx === 0" class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#0071E3] text-white">
+                            Reciente
+                          </span>
+                        </div>
+                        <span
+                          class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border"
+                          :class="getEstadoRevisionClass(ver.estado_revision)"
+                        >
+                          {{ ver.estado_revision }}
+                        </span>
+                      </div>
+
+                      <div class="text-[10px] text-[#6E6E73] space-y-0.5">
+                        <div class="truncate"><strong>Vendedor:</strong> {{ ver.vendedor || 'N/D' }}</div>
+                        <div class="truncate font-mono">{{ ver.fecha_registro }}</div>
+                      </div>
+
+                      <!-- Botones de Decisión: ⭐ Quedarse con esta y Botones Individuales -->
+                      <div class="space-y-1 pt-1">
+                        <button
+                          type="button"
+                          @click="quedarseConVersion(ver)"
+                          :disabled="modalComparativo.procesandoId === ver.id"
+                          class="w-full h-6 px-2 bg-[#D97706] hover:bg-[#B45309] text-white rounded-[5px] text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-transform active:scale-95 disabled:opacity-50 shadow-2xs"
+                          title="Aprobar esta versión y rechazar todas las demás solicitudes pendientes de este cliente"
+                        >
+                          <span v-if="modalComparativo.procesandoId === ver.id" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          <span v-else>⭐ Quedarse con esta</span>
+                        </button>
+
+                        <div class="grid grid-cols-3 gap-1">
+                          <button
+                            type="button"
+                            @click="cambiarEstadoEnModal(ver, 'APROBADO')"
+                            :disabled="ver.estado_revision === 'APROBADO' || modalComparativo.procesandoId === ver.id"
+                            class="h-5 rounded text-[9.5px] font-bold transition-all cursor-pointer flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            :class="ver.estado_revision === 'APROBADO' ? 'bg-[#248A3D] text-white' : 'bg-white text-[#248A3D] border border-[#248A3D]/40 hover:bg-[#EBF9EF]'"
+                            title="Aprobar versión"
+                          >
+                            ✓ Apr
+                          </button>
+                          <button
+                            type="button"
+                            @click="cambiarEstadoEnModal(ver, 'RECHAZADO')"
+                            :disabled="ver.estado_revision === 'RECHAZADO' || modalComparativo.procesandoId === ver.id"
+                            class="h-5 rounded text-[9.5px] font-bold transition-all cursor-pointer flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            :class="ver.estado_revision === 'RECHAZADO' ? 'bg-[#FF3B30] text-white' : 'bg-white text-[#C9342C] border border-[#C9342C]/40 hover:bg-[#FDF0EF]'"
+                            title="Rechazar versión"
+                          >
+                            ✕ Rech
+                          </button>
+                          <button
+                            type="button"
+                            @click="cambiarEstadoEnModal(ver, 'PENDIENTE')"
+                            :disabled="ver.estado_revision === 'PENDIENTE' || modalComparativo.procesandoId === ver.id"
+                            class="h-5 rounded text-[9.5px] font-bold transition-all cursor-pointer flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            :class="ver.estado_revision === 'PENDIENTE' ? 'bg-[#FF9500] text-white' : 'bg-white text-[#B25E00] border border-[#FF9500]/40 hover:bg-[#FFF8E6]'"
+                            title="Devolver a Pendiente"
+                          >
+                            ⏳ Pend
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Fila 1: Nombre Solicitado -->
+                    <div
+                      class="h-16 rounded-[8px] border p-2.5 text-xs flex items-center justify-between gap-1"
+                      :class="ver.cliente && ver.cliente !== modalComparativo.original?.cliente ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-bold' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      <span class="truncate">{{ ver.cliente || 'Sin cambio' }}</span>
+                      <span v-if="ver.cliente && ver.cliente !== modalComparativo.original?.cliente" class="text-[9px] px-1 py-0.2 rounded bg-[#0071E3] text-white font-mono shrink-0">
+                        Modif.
+                      </span>
+                    </div>
+
+                    <!-- Fila 2: Dirección Solicitada -->
+                    <div
+                      class="h-20 rounded-[8px] border p-2.5 text-xs flex flex-col justify-center leading-snug"
+                      :class="ver.direccion && ver.direccion !== modalComparativo.original?.direccion ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-semibold' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      <div class="line-clamp-2">{{ ver.direccion || 'Sin cambio' }}</div>
+                      <div v-if="ver.direccion && ver.direccion !== modalComparativo.original?.direccion" class="text-[9px] font-mono text-[#0071E3] mt-1 font-bold">
+                        • Dirección modificada
+                      </div>
+                    </div>
+
+                    <!-- Fila 3: Referencia Solicitada -->
+                    <div
+                      class="h-16 rounded-[8px] border p-2.5 text-xs flex items-center"
+                      :class="ver.referencia && ver.referencia !== modalComparativo.original?.referencia ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-medium' : 'bg-white border-[#E5E5EA] text-[#6E6E73] italic'"
+                    >
+                      <span class="line-clamp-2">{{ ver.referencia || 'Sin cambio' }}</span>
+                    </div>
+
+                    <!-- Fila 4: Contacto & Celular -->
+                    <div
+                      class="h-16 rounded-[8px] border p-2.5 text-xs flex flex-col justify-center"
+                      :class="(ver.contacto && ver.contacto !== modalComparativo.original?.contacto) || (ver.celular && ver.celular !== modalComparativo.original?.celular) ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3]' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      <div class="font-medium truncate">{{ ver.contacto || 'Sin cambio' }}</div>
+                      <div class="text-[11px] font-mono mt-0.5">Tel: {{ ver.celular || ver.telefono || 'Sin cambio' }}</div>
+                    </div>
+
+                    <!-- Fila 5: NIT / Documento -->
+                    <div
+                      class="h-14 rounded-[8px] border p-2.5 text-xs font-mono flex items-center justify-between"
+                      :class="ver.nit && ver.nit !== modalComparativo.original?.nit ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-bold' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      <span>{{ ver.nit || ver.documento_identidad || 'Sin cambio' }}</span>
+                      <span v-if="ver.nit && ver.nit !== modalComparativo.original?.nit" class="text-[9px] font-sans px-1 py-0.2 rounded bg-[#0071E3] text-white">
+                        Nuevo NIT
+                      </span>
+                    </div>
+
+                    <!-- Fila 6: Tipo Negocio -->
+                    <div
+                      class="h-14 rounded-[8px] border p-2.5 text-xs flex items-center"
+                      :class="ver.tipo_negocio && ver.tipo_negocio !== modalComparativo.original?.tipo_negocio ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-bold' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      {{ ver.tipo_negocio || 'Sin cambio' }}
+                    </div>
+
+                    <!-- Fila 7: Zona / Territorio -->
+                    <div
+                      class="h-14 rounded-[8px] border p-2.5 text-xs flex items-center"
+                      :class="ver.zona && ver.zona !== modalComparativo.original?.zona ? 'bg-[#EBF5FF] border-[#B3D7FF] text-[#0071E3] font-bold' : 'bg-white border-[#E5E5EA] text-[#1D1D1F]'"
+                    >
+                      {{ ver.zona || 'Sin cambio' }}
+                    </div>
+
+                    <!-- Fila 8: Coordenadas GPS y Desviación -->
+                    <div
+                      class="h-20 rounded-[8px] border p-2.5 text-xs font-mono flex flex-col justify-center"
+                      :class="ver.tiene_gps ? 'bg-white border-[#E5E5EA] text-[#1D1D1F]' : 'bg-[#F2F2F7] border-[#E5E5EA] text-[#86868B]'"
+                    >
+                      <div v-if="ver.tiene_gps">
+                        Lat: {{ formatCoord(ver.latitud) }}<br />
+                        Lng: {{ formatCoord(ver.longitud) }}
+                        <div v-if="ver.distancia_desplazamiento_m !== null" class="mt-0.5 text-[10.5px] font-bold text-[#0071E3]">
+                          Desv: {{ ver.distancia_desplazamiento_m }}m
+                        </div>
+                      </div>
+                      <div v-else class="italic">Sin GPS</div>
+                    </div>
+
+                    <!-- Fila 9: Fotografía de Evidencia -->
+                    <div class="h-32 rounded-[8px] border border-[#E5E5EA] bg-white p-2 flex flex-col items-center justify-center relative overflow-hidden">
+                      <div v-if="ver.photo_url" class="w-full h-full relative group">
+                        <img
+                          :src="ver.photo_url"
+                          class="w-full h-full object-cover rounded-[6px] cursor-pointer hover:scale-105 transition-transform"
+                          @click="abrirFotoDirecto(ver.photo_url, ver.cliente, ver.id)"
+                          alt="Foto"
+                        />
+                        <button
+                          type="button"
+                          @click="abrirFotoDirecto(ver.photo_url, ver.cliente, ver.id)"
+                          class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[11px] font-bold transition-opacity rounded-[6px] cursor-pointer"
+                        >
+                          Ver foto ↗
+                        </button>
+                      </div>
+                      <div v-else class="text-center text-[10px] text-[#86868B]">
+                        Sin foto registrada
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="px-4 py-2.5 bg-white border-t border-[#E5E5EA] flex items-center justify-between text-xs text-[#86868B] shrink-0">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#D97706]"></span>
+                <span>Usa <strong>⭐ Quedarse con esta</strong> para aprobar esa solicitud y rechazar automáticamente las demás solicitudes pendientes.</span>
+              </div>
+              <button
+                type="button"
+                @click="cerrarModalComparativo"
+                class="px-4 py-1.5 bg-[#1D1D1F] hover:bg-[#333336] text-white rounded-[6px] font-bold text-xs cursor-pointer transition-colors"
+              >
+                Cerrar matriz
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Toast de Notificaciones -->
       <Transition
         enter-active-class="transition duration-200 ease-out"
@@ -3221,6 +3908,55 @@ const registrosFiltrados = computed(() => {
   });
 });
 
+// Selector de Modo de Listado en Panel Izquierdo: 'individual' | 'agrupado'
+const modoVistaLista = ref('individual');
+const procesandoGrupoKey = ref(null);
+
+// Agrupamiento por cliente para resolver modificaciones repetidas
+const gruposClientes = computed(() => {
+  const map = new Map();
+
+  registrosFiltrados.value.forEach(r => {
+    const key = r.cliente_id ? `id_${r.cliente_id}` : `nom_${(r.cliente || r.id)}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        cliente_id: r.cliente_id,
+        cliente: r.cliente || 'Sin nombre',
+        canal: r.canal || 'PRT',
+        ruta: r.ruta || 'N/D',
+        items: [],
+      });
+    }
+    map.get(key).items.push(r);
+  });
+
+  return Array.from(map.values()).map(g => {
+    // Ordenar items de más reciente a más antiguo
+    g.items.sort((a, b) => (b.id || 0) - (a.id || 0));
+    g.total = g.items.length;
+    g.total_pendientes = g.items.filter(x => (x.estado_revision || '').toUpperCase() === 'PENDIENTE').length;
+    g.total_aprobados = g.items.filter(x => (x.estado_revision || '').toUpperCase() === 'APROBADO').length;
+    g.total_rechazados = g.items.filter(x => (x.estado_revision || '').toUpperCase() === 'RECHAZADO').length;
+    return g;
+  });
+});
+
+// Clientes con 2 o más solicitudes bajo los filtros activos
+const gruposRepetidos = computed(() => {
+  return gruposClientes.value
+    .filter(g => g.total >= 2)
+    .sort((a, b) => {
+      // Priorizar clientes con 2 o más solicitudes pendientes
+      const aPend = a.total_pendientes >= 2 ? 2 : (a.total_pendientes === 1 ? 1 : 0);
+      const bPend = b.total_pendientes >= 2 ? 2 : (b.total_pendientes === 1 ? 1 : 0);
+      if (aPend !== bPend) return bPend - aPend;
+      return b.total - a.total;
+    });
+});
+
+const clientesConRepetidosCount = computed(() => gruposRepetidos.value.length);
+
 // Ediciones filtradas para exportación comparativa y exportación ERP contra pan_ruteo
 const edicionesFiltradas = computed(() => {
   let lista = registrosFiltrados.value.filter(r => {
@@ -3691,6 +4427,271 @@ function recalcularKpis() {
   });
 
   kpis.value = { total, altas, ediciones, pendientes, aprobados };
+}
+
+// =========================================================================
+// MATRIZ COMPARATIVA Y RESOLUCIÓN DE MODIFICACIONES REPETIDAS
+// =========================================================================
+const modalComparativo = reactive({
+  abierto: false,
+  cargando: false,
+  clienteId: null,
+  clienteNombre: '',
+  ruta: '',
+  canal: '',
+  original: null,
+  versiones: [],
+  errorMsg: null,
+  procesandoId: null,
+  indiceRepetidoActual: 0,
+});
+
+async function abrirComparativoCliente(clienteId, clienteNombreOpt = null, rutaOpt = null) {
+  if (!clienteId) {
+    mostrarToast('Este registro no posee código de cliente (es alta nueva sin padrón previo).');
+    return;
+  }
+
+  // Buscar índice en gruposRepetidos para permitir navegación
+  const idx = gruposRepetidos.value.findIndex(g => String(g.cliente_id) === String(clienteId));
+  modalComparativo.indiceRepetidoActual = idx >= 0 ? idx : 0;
+
+  const regMatch = registros.value.find(r => String(r.cliente_id) === String(clienteId));
+  modalComparativo.clienteId = clienteId;
+  modalComparativo.clienteNombre = clienteNombreOpt || regMatch?.cliente || `Cliente #${clienteId}`;
+  modalComparativo.ruta = rutaOpt || regMatch?.ruta || '';
+  modalComparativo.canal = regMatch?.canal || '';
+  modalComparativo.abierto = true;
+  modalComparativo.cargando = true;
+  modalComparativo.errorMsg = null;
+  modalComparativo.versiones = [];
+  modalComparativo.original = null;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.cliente-versiones', { clienteId })
+      : `/supervisor/altas-ediciones/cliente/${clienteId}/versiones`;
+
+    const res = await axios.get(url);
+    if (res.data && res.data.success) {
+      modalComparativo.original = res.data.original || null;
+      modalComparativo.versiones = res.data.versiones || [];
+      if (res.data.versiones?.length > 0 && !modalComparativo.clienteNombre) {
+        modalComparativo.clienteNombre = res.data.versiones[0].cliente;
+      }
+    } else {
+      modalComparativo.errorMsg = res.data?.message || 'No fue posible cargar el historial de versiones.';
+    }
+  } catch (err) {
+    console.error('Error al cargar versiones de cliente:', err);
+    modalComparativo.errorMsg = err.response?.data?.message || 'Error de red al consultar versiones.';
+  } finally {
+    modalComparativo.cargando = false;
+  }
+}
+
+function cerrarModalComparativo() {
+  modalComparativo.abierto = false;
+  modalComparativo.cargando = false;
+  modalComparativo.procesandoId = null;
+  modalComparativo.versiones = [];
+  modalComparativo.original = null;
+}
+
+function abrirComparativoPrimerRepetido() {
+  if (gruposRepetidos.value.length === 0) {
+    mostrarToast('No hay clientes con modificaciones repetidas en la vista actual.');
+    return;
+  }
+  const primer = gruposRepetidos.value[0];
+  abrirComparativoCliente(primer.cliente_id, primer.cliente, primer.ruta);
+}
+
+function navegarComparativo(direccion) {
+  const nuevoIdx = modalComparativo.indiceRepetidoActual + direccion;
+  if (nuevoIdx >= 0 && nuevoIdx < gruposRepetidos.value.length) {
+    const siguienteGrupo = gruposRepetidos.value[nuevoIdx];
+    abrirComparativoCliente(siguienteGrupo.cliente_id, siguienteGrupo.cliente, siguienteGrupo.ruta);
+  }
+}
+
+async function quedarseConVersion(version) {
+  if (!version || !version.id) return;
+
+  const cid = version.cliente_id;
+  // Identificar todas las demás solicitudes de este cliente que estén pendientes o aprobadas
+  const otrasVersiones = modalComparativo.versiones.filter(v => v.id !== version.id && (v.estado_revision || '').toUpperCase() !== 'RECHAZADO');
+  const rechazarIds = otrasVersiones.map(v => v.id);
+
+  modalComparativo.procesandoId = version.id;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.resolver-duplicados')
+      : '/supervisor/altas-ediciones/resolver-duplicados';
+
+    const res = await axios.post(url, {
+      aprobar_id: version.id,
+      rechazar_ids: rechazarIds,
+      motivo: `Aprobada versión #${version.id} y rechazadas las demás en matriz comparativa`,
+    });
+
+    if (res.data && res.data.success) {
+      // 1. Actualizar estado local en modalComparativo.versiones
+      modalComparativo.versiones.forEach(v => {
+        if (v.id === version.id) {
+          v.estado_revision = 'APROBADO';
+          v.revisado_at = res.data.revisado_at;
+          v.revisor_id = res.data.revisor_id;
+          v.revisor_nombre = res.data.revisor_nombre;
+        } else if (rechazarIds.includes(v.id)) {
+          v.estado_revision = 'RECHAZADO';
+          v.revisado_at = res.data.revisado_at;
+          v.revisor_id = res.data.revisor_id;
+          v.revisor_nombre = res.data.revisor_nombre;
+        }
+      });
+
+      // 2. Sincronizar en registros.value
+      registros.value.forEach(r => {
+        if (r.id === version.id) {
+          r.estado_revision = 'APROBADO';
+          r.revisado_at = res.data.revisado_at;
+          r.revisor_id = res.data.revisor_id;
+          r.revisor_nombre = res.data.revisor_nombre;
+        } else if (rechazarIds.includes(r.id)) {
+          r.estado_revision = 'RECHAZADO';
+          r.revisado_at = res.data.revisado_at;
+          r.revisor_id = res.data.revisor_id;
+          r.revisor_nombre = res.data.revisor_nombre;
+        }
+      });
+
+      // 3. Sincronizar si hay registroSeleccionado
+      if (registroSeleccionado.value) {
+        if (registroSeleccionado.value.id === version.id) {
+          registroSeleccionado.value.estado_revision = 'APROBADO';
+        } else if (rechazarIds.includes(registroSeleccionado.value.id)) {
+          registroSeleccionado.value.estado_revision = 'RECHAZADO';
+        }
+      }
+
+      recalcularKpis();
+      actualizarDobleModificacionCliente(cid);
+      mostrarToast(`Quedado con solicitud #${version.id} (Aprobada) y ${rechazarIds.length} rechazada(s).`);
+    } else {
+      mostrarToast(res.data?.message || 'No fue posible resolver los duplicados.');
+    }
+  } catch (err) {
+    console.error('Error al resolver duplicados:', err);
+    mostrarToast(err.response?.data?.message || 'Error de comunicación al resolver duplicados.');
+  } finally {
+    modalComparativo.procesandoId = null;
+  }
+}
+
+async function quedarseConMasReciente(grupo) {
+  if (!grupo || !grupo.items || grupo.items.length === 0) return;
+
+  const masReciente = grupo.items[0]; // están ordenados por id desc
+  const otrosPendientes = grupo.items.filter(x => x.id !== masReciente.id && (x.estado_revision || '').toUpperCase() === 'PENDIENTE');
+  const rechazarIds = otrosPendientes.map(x => x.id);
+
+  procesandoGrupoKey.value = grupo.key;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.resolver-duplicados')
+      : '/supervisor/altas-ediciones/resolver-duplicados';
+
+    const res = await axios.post(url, {
+      aprobar_id: masReciente.id,
+      rechazar_ids: rechazarIds,
+      motivo: `Aprobada la versión más reciente #${masReciente.id} y rechazadas las demás`,
+    });
+
+    if (res.data && res.data.success) {
+      registros.value.forEach(r => {
+        if (r.id === masReciente.id) {
+          r.estado_revision = 'APROBADO';
+          r.revisado_at = res.data.revisado_at;
+        } else if (rechazarIds.includes(r.id)) {
+          r.estado_revision = 'RECHAZADO';
+          r.revisado_at = res.data.revisado_at;
+        }
+      });
+
+      recalcularKpis();
+      actualizarDobleModificacionCliente(grupo.cliente_id);
+      mostrarToast(`Aprobada versión más reciente #${masReciente.id} y rechazadas ${rechazarIds.length} anteriores.`);
+    }
+  } catch (err) {
+    console.error('Error al resolver más reciente:', err);
+    mostrarToast('Error al procesar resolución.');
+  } finally {
+    procesandoGrupoKey.value = null;
+  }
+}
+
+async function cambiarEstadoEnModal(version, nuevoEstado) {
+  if (!version || !version.id) return;
+
+  modalComparativo.procesandoId = version.id;
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.altas-ediciones.cambiar-estado', version.id)
+      : `/supervisor/altas-ediciones/${version.id}/estado`;
+
+    const res = await axios.post(url, {
+      estado: nuevoEstado,
+    });
+
+    if (res.data && res.data.success) {
+      version.estado_revision = res.data.estado_revision;
+      version.revisado_at = res.data.revisado_at;
+      if (res.data.revisor_id !== undefined) {
+        version.revisor_id = res.data.revisor_id;
+        version.revisor_nombre = res.data.revisor_nombre;
+      }
+
+      const itemEnLista = registros.value.find(r => r.id === version.id);
+      if (itemEnLista) {
+        itemEnLista.estado_revision = res.data.estado_revision;
+        itemEnLista.revisado_at = res.data.revisado_at;
+        if (res.data.revisor_id !== undefined) {
+          itemEnLista.revisor_id = res.data.revisor_id;
+          itemEnLista.revisor_nombre = res.data.revisor_nombre;
+        }
+      }
+
+      if (registroSeleccionado.value && registroSeleccionado.value.id === version.id) {
+        registroSeleccionado.value.estado_revision = res.data.estado_revision;
+        registroSeleccionado.value.revisado_at = res.data.revisado_at;
+      }
+
+      recalcularKpis();
+      actualizarDobleModificacionCliente(version.cliente_id);
+      mostrarToast(`Solicitud #${version.id} actualizada a ${nuevoEstado}.`);
+    }
+  } catch (err) {
+    console.error('Error al cambiar estado en modal:', err);
+    mostrarToast('Error al actualizar el estado de la solicitud.');
+  } finally {
+    modalComparativo.procesandoId = null;
+  }
+}
+
+function abrirFotoDirecto(url, clienteNombre, id) {
+  modalFotos.clienteNombre = clienteNombre;
+  modalFotos.clienteId = id;
+  modalFotos.ruta = '';
+  modalFotos.fotos = [{ url, photo_url: url, caption: `Solicitud #${id}` }];
+  modalFotos.indice = 0;
+  modalFotos.errorMsg = null;
+  modalFotos.cargando = false;
+  modalFotos.abierto = true;
+  modalFotos.open = true;
 }
 
 async function cargarDatos() {
@@ -4236,7 +5237,9 @@ function enfocarCercano(c) {
 
 function manejarTeclasModal(e) {
   if (e.key === 'Escape') {
-    if (modalFotos.abierto || modalFotos.open) {
+    if (modalComparativo.abierto) {
+      cerrarModalComparativo();
+    } else if (modalFotos.abierto || modalFotos.open) {
       cerrarModalFotos();
     } else if (modalCambioMasivoAbierto.value) {
       cerrarModalCambioMasivo();

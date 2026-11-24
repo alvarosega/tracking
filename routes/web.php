@@ -273,6 +273,8 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         Route::post('/data', [SupervisorAltasEdicionesController::class, 'data'])->name('data');
         Route::post('/exportar-padron', [SupervisorAltasEdicionesController::class, 'exportarPadron'])->name('exportar-padron');
         Route::post('/cambiar-estado-masivo', [SupervisorAltasEdicionesController::class, 'cambiarEstadoMasivo'])->name('cambiar-estado-masivo');
+        Route::post('/resolver-duplicados', [SupervisorAltasEdicionesController::class, 'resolverDuplicados'])->name('resolver-duplicados');
+        Route::get('/cliente/{clienteId}/versiones', [SupervisorAltasEdicionesController::class, 'versionesCliente'])->name('cliente-versiones');
         Route::post('/{id}/estado', [SupervisorAltasEdicionesController::class, 'cambiarEstado'])->name('cambiar-estado');
         Route::post('/cercanos', [SupervisorAltasEdicionesController::class, 'cercanos'])->name('cercanos');
     });

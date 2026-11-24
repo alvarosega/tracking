@@ -10,6 +10,8 @@ use App\Actions\Web\Supervisor\AltasEdiciones\ExportarPadronActualizadoAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetAltasEdicionesInitDataAction;
 use App\Actions\Web\Supervisor\AltasEdiciones\GetClientesCercanosAltasAction;
+use App\Actions\Web\Supervisor\AltasEdiciones\GetVersionesClienteAction;
+use App\Actions\Web\Supervisor\AltasEdiciones\ResolverDuplicadosClienteAction;
 use App\Actions\Web\Supervisor\Visitas\GetFotosClienteAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\AltasEdiciones\CambiarEstadoRevisionMasivoRequest;
@@ -244,6 +246,60 @@ class SupervisorAltasEdicionesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Consulta todas las versiones históricas y solicitudes registradas en saneamiento_base para un cliente.
+     */
+    public function versionesCliente(int $clienteId, GetVersionesClienteAction $action): JsonResponse
+    {
+        try {
+            $resultado = $action->execute($clienteId);
+
+            return response()->json([
+                'success' => true,
+                ...$resultado,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("Error al obtener versiones del cliente #{$clienteId}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al consultar versiones del cliente: ' . $e->getMessage(),
+                'versiones' => [],
+            ], 500);
+        }
+    }
+
+    /**
+     * Resuelve duplicados de un cliente aprobando una versión y rechazando las demás de forma atómica.
+     */
+    public function resolverDuplicados(
+        Request $request,
+        ResolverDuplicadosClienteAction $action
+    ): JsonResponse {
+        try {
+            $aprobarId = $request->filled('aprobar_id') ? (int) $request->input('aprobar_id') : null;
+            $rechazarIds = (array) $request->input('rechazar_ids', []);
+            $pendienteIds = (array) $request->input('pendiente_ids', []);
+            $motivo = $request->filled('motivo') ? (string) $request->input('motivo') : null;
+
+            $resultado = $action->execute(
+                aprobarId: $aprobarId,
+                rechazarIds: $rechazarIds,
+                pendienteIds: $pendienteIds,
+                motivo: $motivo
+            );
+
+            return response()->json($resultado);
+        } catch (\Throwable $e) {
+            Log::error('Error al resolver duplicados de cliente: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al resolver duplicados: ' . $e->getMessage(),
             ], 422);
         }
     }
