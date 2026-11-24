@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 select-none font-sans">
+  <div class="flex items-center justify-between select-none font-sans">
     <!-- Pestañas Apple Segmented Control -->
     <div class="apple-glass-card rounded-[12px] p-0.5 flex items-center gap-1 border border-black/[0.06] shadow-2xs self-start sm:self-auto">
       <!-- Submódulo 1: Nuevas Altas -->
@@ -29,18 +29,6 @@
         </svg>
         <span>Modificaciones de Clientes</span>
       </Link>
-    </div>
-
-    <!-- Indicador descriptivo del submódulo activo -->
-    <div class="hidden sm:flex items-center gap-2 text-[11px] font-mono text-[#86868B]">
-      <span v-if="activeTab === 'altas'" class="flex items-center gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-[#248A3D] animate-pulse"></span>
-        <span>Aperturas territoriales y clientes nuevos creados en ruta</span>
-      </span>
-      <span v-else class="flex items-center gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-[#0071E3] animate-pulse"></span>
-        <span>Actualización de datos comerciales y coordenadas de cartera</span>
-      </span>
     </div>
   </div>
 </template>
