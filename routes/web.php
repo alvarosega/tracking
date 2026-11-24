@@ -57,7 +57,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('avance')->name('avance.')->middleware('module.access:avance')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc', 'covers'];
+            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc', 'covers', 'graficos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('avance', $sub)) {
                     return redirect()->route("supervisor.avance.{$sub}");
@@ -119,6 +119,12 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::get('/covers', [SupervisorAvanceController::class, 'covers'])->name('covers');
             Route::post('/covers/data', [SupervisorAvanceController::class, 'coversData'])->name('covers.data');
             Route::post('/covers/detalle-ruta', [SupervisorAvanceController::class, 'coversDetalleRuta'])->name('covers.detalle-ruta');
+        });
+
+        // Gráficos de Avance (Líneas de Volumen y Cobertura)
+        Route::middleware('module.access:avance,graficos')->group(function () {
+            Route::get('/graficos', [SupervisorAvanceController::class, 'graficos'])->name('graficos');
+            Route::post('/graficos/data', [SupervisorAvanceController::class, 'graficosData'])->name('graficos.data');
         });
 
         // Redirección de compatibilidad: Horarios e Itinerario migrado a Cumplimiento

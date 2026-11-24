@@ -147,6 +147,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.covers',
           component: 'Supervisor/Avance/Covers',
           icon: 'SparklesIcon'
+        },
+        {
+          id: 'graficos',
+          name: 'Gráficos de Avance',
+          route: 'supervisor.avance.graficos',
+          component: 'Supervisor/Avance/Graficos',
+          icon: 'ChartPieIcon'
         }
       ]
     },

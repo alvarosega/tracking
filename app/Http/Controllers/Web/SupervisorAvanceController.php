@@ -19,6 +19,7 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosMatrizAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceCoversAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceCoversDetalleRutaAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceGraficosAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosTimelineAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceItinerarioSecuenciaAction;
 use App\Actions\Web\Supervisor\Avance\SaveAvanceItinerarioSecuenciaAction;
@@ -795,6 +796,44 @@ class SupervisorAvanceController extends Controller
             ruta: $ruta,
             fechaInicio: $fechaInicio,
             fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Gráficos de Avance.
+     */
+    public function graficos(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Avance/Graficos', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
+            'fecha_inicio_default' => $initData['fecha_inicio'],
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve las series cronológicas y acumuladas de volumen y cobertura para el gráfico de líneas.
+     */
+    public function graficosData(Request $request, GetAvanceGraficosAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte,
+            canales: $canales,
+            rutas: $rutas
         );
 
         return response()->json($data);
