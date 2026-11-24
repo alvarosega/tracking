@@ -109,23 +109,22 @@
               </span>
             </button>
 
-            <!-- Botón 2: Descargar Padrón Actualizado -->
+            <!-- Botón 2: Descargar Padrón Actualizado (Formato ERP 36 Columnas) -->
             <button
               type="button"
-              @click="exportarPadronActualizado"
-              :disabled="cargando || descargandoPadron"
+              @click="exportarEdicionesExcel"
+              :disabled="cargando || conteoEdiciones === 0"
               class="h-7 px-2.5 bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#005BB5] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-[6px] flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none shrink-0"
-              title="Descargar la totalidad de clientes de las rutas filtradas con correcciones reemplazadas"
+              :title="conteoEdiciones > 0 ? `Descargar ${conteoEdiciones} edición(es) filtrada(s) en formato oficial ERP (36 columnas .xlsx)` : 'No hay ediciones con los filtros actuales'"
             >
-              <svg v-if="descargandoPadron" class="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <svg v-else class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-              </svg>
-              <span class="hidden sm:inline">{{ descargandoPadron ? 'Descargando...' : 'Descargar Padrón Actualizado' }}</span>
-              <span class="sm:hidden">{{ descargandoPadron ? 'Padrón...' : 'Padrón' }}</span>
+              <span class="hidden sm:inline">Descargar Padrón Actualizado (ERP)</span>
+              <span class="sm:hidden">Padrón ERP</span>
+              <span v-if="conteoEdiciones > 0" class="px-1.5 py-0.2 bg-black/20 rounded text-[10px] font-mono font-bold">
+                {{ conteoEdiciones }}
+              </span>
             </button>
 
             <!-- Botón 3: Cambio Masivo de Estado -->
@@ -2851,82 +2850,146 @@ function obtenerDiaDescarga() {
   return dias[new Date().getDay()] || 'Lunes';
 }
 
-function generarFilaErpAlta(r, diaDescarga = null) {
-  const pPaterno = (r.apellido_paterno || '').trim() || extraerApellidoPaterno(r.cliente);
-  const pMaterno = (r.apellido_materno || '').trim() || extraerApellidoMaterno(r.cliente);
-  const pNombres = (r.nombres || '').trim() || extraerNombres(r.cliente);
+function generarFilaErp(r, diaDescarga = null) {
+  const tipoStr = String(r.tipo_registro || '').toUpperCase();
+  const esAlta = tipoStr.includes('ALTA') || (!r.cliente_id && !r.es_edicion);
+  const orig = r.original || {};
 
-  const latStr = (r.latitud !== null && r.latitud !== undefined && r.latitud !== '') ? String(r.latitud) : '';
-  const lngStr = (r.longitud !== null && r.longitud !== undefined && r.longitud !== '') ? String(r.longitud) : '';
+  // 1. IdCliente y Codigo:
+  // Altas: IdCliente = 0, Codigo = ''
+  // Ediciones: IdCliente = cliente_id, Codigo = cliente_id
+  const idCliente = esAlta ? 0 : (r.cliente_id || orig.cliente_id || 0);
+  const codigo = esAlta ? '' : String(r.cliente_id || orig.cliente_id || '');
 
-  const docIdentidad = (r.documento_identidad || r.nit || '').trim();
-  const nitVal = (r.nit || r.documento_identidad || '').trim();
-  const razonSocialVal = (r.razon_social || r.nombre_factura || r.cliente || '').trim();
-  const nombreFacturaVal = (r.nombre_factura || r.razon_social || r.cliente || '').trim();
-  const diaVal = diaDescarga || obtenerDiaDescarga();
+  // 2. Nombres y Apellidos (tomar del registro editado, luego de cliente editado o cliente original)
+  const clienteNombre = (r.cliente || orig.cliente || '').trim();
+  const pPaterno = (r.apellido_paterno || '').trim() || extraerApellidoPaterno(clienteNombre);
+  const pMaterno = (r.apellido_materno || '').trim() || extraerApellidoMaterno(clienteNombre);
+  const pNombres = (r.nombres || '').trim() || extraerNombres(clienteNombre);
+
+  // 3. TipoNegocio
+  const tipoNegocio = r.tipo_negocio || orig.tipo_negocio || '';
+
+  // 4. Coordenadas
+  const latStr = (r.latitud !== null && r.latitud !== undefined && r.latitud !== '')
+    ? String(r.latitud)
+    : (orig.latitud !== null && orig.latitud !== undefined && orig.latitud !== '' ? String(orig.latitud) : '');
+  const lngStr = (r.longitud !== null && r.longitud !== undefined && r.longitud !== '')
+    ? String(r.longitud)
+    : (orig.longitud !== null && orig.longitud !== undefined && orig.longitud !== '' ? String(orig.longitud) : '');
+
+  // 5. Documentos e Identidad
+  const docIdentidad = (r.documento_identidad || r.nit || orig.ci || orig.nit || '').trim();
+  const nitVal = (r.nit || r.documento_identidad || orig.nit || orig.ci || '').trim();
+  const razonSocialVal = (r.razon_social || r.nombre_factura || clienteNombre || orig.nombre_factura || '').trim();
+  const nombreFacturaVal = (r.nombre_factura || r.razon_social || clienteNombre || orig.nombre_factura || '').trim();
+
+  // 6. Día de Ruteo:
+  // Para Altas: día de descarga
+  // Para Ediciones: preservar el día de ruteo original (orig.dia o orig.dia_norm o r.dia)
+  const diaVal = esAlta
+    ? (diaDescarga || obtenerDiaDescarga())
+    : (orig.dia || orig.dia_norm || r.dia || diaDescarga || obtenerDiaDescarga());
+
+  // 7. TipoPago y PrecioLista oficiales
+  const tipoPago = 'Contado';
+  const precioLista = 'TDB';
+
+  // 8. Activo y Ubicaciones
+  const activoVal = 'SI';
+  const direccionVal = r.direccion || orig.direccion || '';
+  const referenciaVal = r.referencia || orig.referencia || '';
+  const zonaVal = r.zona || orig.zona || orig.territorio || orig.zona_venta || '';
+
+  // 9. Contacto y Comunicaciones
+  const telefonoVal = r.telefono || orig.telefono || '';
+  const celularVal = r.celular || orig.celular || '';
+  const expedidoVal = r.expedido || orig.expedido || '';
+  const complementoVal = r.complemento || '';
+  const tipoDocVal = r.tipo_documento || 'CI';
+  const tipoNitVal = r.tipo_nit || 'CI';
+  const rutaVal = r.ruta || orig.ruta || '';
+
+  // 10. Campos preservados del padrón de ruteo original para ediciones
+  const diasPago = !esAlta && orig.dias_credito !== null && orig.dias_credito !== undefined ? String(orig.dias_credito) : '';
+  const topeCredito = !esAlta && orig.limite !== null && orig.limite !== undefined ? String(orig.limite) : '';
+  const uvVal = !esAlta ? (orig.uv || '') : '';
+  const provinciaVal = !esAlta ? (orig.provincia || '') : '';
+  const mercadoVal = !esAlta ? (orig.mercado || '') : '';
+  const emailVal = !esAlta ? (orig.email || '') : '';
+  const paginaWebVal = !esAlta ? (orig.pagina_web || '') : '';
+  const clusterVal = !esAlta ? (orig.cluster_t || orig.cluster_c || '') : '';
+  const secVenta = !esAlta && orig.secuencia_venta !== null && orig.secuencia_venta !== undefined ? String(orig.secuencia_venta) : '';
+  const secDistribuidor = !esAlta && orig.secuencia_distribuidor !== null && orig.secuencia_distribuidor !== undefined ? String(orig.secuencia_distribuidor) : '';
 
   return [
-    0, // 1. IdCliente (0: Nuevos)
-    '', // 2. Codigo (Vacio para altas)
-    pPaterno, // 3. ApellidoPaterno (Obligatorio)
-    pMaterno, // 4. ApellidoMaterno
-    pNombres, // 5. Nombres (Obligatorio)
-    r.tipo_negocio || '', // 6. TipoNegocio (Obligatorio)
-    'Contado', // 7. TipoPago (Obligatorio)
-    '', // 8. DiasPago
-    '', // 9. TopeCredito
-    latStr, // 10. Latitud (Obligatorio)
-    lngStr, // 11. Longitud (Obligatorio)
-    'SI', // 12. Activo (SI/NO)
-    r.direccion || '', // 13. Direccion
-    '', // 14. UV
-    r.referencia || '', // 15. Referencia
-    r.zona || '', // 16. Zona
-    '', // 17. Provincia
-    '', // 18. Mercado
-    docIdentidad, // 19. DocumentoIdentidad
-    r.expedido || '', // 20. Expedido
-    r.telefono || '', // 21. Telefono
-    r.celular || '', // 22. Celular
-    '', // 23. Email
-    '', // 24. PaginaWeb
-    razonSocialVal, // 25. RazonSocial
-    '', // 26. Cluster
-    r.tipo_documento || 'CI', // 27. TipoDocumento
-    r.tipo_nit || 'CI', // 28. TipoNit
-    nombreFacturaVal, // 29. NombreFactura
-    nitVal, // 30. Nit
-    r.complemento || '', // 31. Complemento
-    (r.lista_precios && r.lista_precios !== 'LP01' ? r.lista_precios : 'TDB'), // 32. PrecioLista (Obligatorio)
-    r.ruta || '', // 33. Ruta
-    diaVal, // 34. Dia (Día de descarga)
-    '', // 35. SecuenciaVenta
-    '', // 36. SecuenciaDistribuidor
+    idCliente,          // 1. IdCliente (0: Nuevos, cliente_id para Ediciones)
+    codigo,             // 2. Codigo (Vacio para altas, cliente_id para Ediciones)
+    pPaterno,           // 3. ApellidoPaterno
+    pMaterno,           // 4. ApellidoMaterno
+    pNombres,           // 5. Nombres
+    tipoNegocio,        // 6. TipoNegocio
+    tipoPago,           // 7. TipoPago ('Contado')
+    diasPago,           // 8. DiasPago
+    topeCredito,        // 9. TopeCredito
+    latStr,             // 10. Latitud
+    lngStr,             // 11. Longitud
+    activoVal,          // 12. Activo ('SI')
+    direccionVal,       // 13. Direccion
+    uvVal,              // 14. UV
+    referenciaVal,      // 15. Referencia
+    zonaVal,            // 16. Zona
+    provinciaVal,       // 17. Provincia
+    mercadoVal,         // 18. Mercado
+    docIdentidad,       // 19. DocumentoIdentidad
+    expedidoVal,        // 20. Expedido
+    telefonoVal,        // 21. Telefono
+    celularVal,         // 22. Celular
+    emailVal,           // 23. Email
+    paginaWebVal,       // 24. PaginaWeb
+    razonSocialVal,     // 25. RazonSocial
+    clusterVal,         // 26. Cluster
+    tipoDocVal,         // 27. TipoDocumento
+    tipoNitVal,         // 28. TipoNit
+    nombreFacturaVal,   // 29. NombreFactura
+    nitVal,             // 30. Nit
+    complementoVal,     // 31. Complemento
+    precioLista,        // 32. PrecioLista ('TDB')
+    rutaVal,            // 33. Ruta
+    diaVal,             // 34. Dia (Para altas: día descarga; para ediciones: día original)
+    secVenta,           // 35. SecuenciaVenta
+    secDistribuidor,    // 36. SecuenciaDistribuidor
   ];
 }
 
+const generarFilaErpAlta = generarFilaErp;
+
 function descargarXlsxAltaIndividual(r) {
   if (!r) return;
+  const tipoStr = String(r.tipo_registro || '').toUpperCase();
+  const esAlta = tipoStr.includes('ALTA') || (!r.cliente_id && !r.es_edicion);
   const rows = [
     CABECERAS_ERP_ALTAS,
-    generarFilaErpAlta(r),
+    generarFilaErp(r),
   ];
-  const nombreSeguro = (r.cliente || `alta_${r.id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const nombreArchivo = `alta_${r.id}_${nombreSeguro}.xlsx`;
-  descargarExcelXlsx(rows, nombreArchivo, 'Alta ERP');
-  mostrarToast(`Alta #${r.id} descargada en formato ERP (.xlsx).`);
+  const idRef = esAlta ? r.id : (r.cliente_id || r.id);
+  const nombreSeguro = (r.cliente || `${esAlta ? 'alta' : 'edicion'}_${idRef}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nombreArchivo = `${esAlta ? 'alta' : 'edicion'}_${idRef}_${nombreSeguro}.xlsx`;
+  const nombreHoja = esAlta ? 'Alta ERP' : 'Edicion ERP';
+  descargarExcelXlsx(rows, nombreArchivo, nombreHoja);
+  mostrarToast(`${esAlta ? 'Alta' : 'Edición'} #${idRef} descargada en formato ERP (.xlsx).`);
 }
 
 async function copiarFichaCompleta(registro) {
   if (!registro) return;
-  const fila = generarFilaErpAlta(registro);
+  const fila = generarFilaErp(registro);
   const texto = CABECERAS_ERP_ALTAS.map((col, idx) => `${col}: ${fila[idx] ?? ''}`).join('\n');
   await copiarAlPortapapeles(texto, 'todo', 'Ficha Completa');
 }
 
 async function copiarFilaExcel(registro) {
   if (!registro) return;
-  const fila = generarFilaErpAlta(registro);
+  const fila = generarFilaErp(registro);
   const tsv = fila.join('\t');
   await copiarAlPortapapeles(tsv, 'excel', 'Fila ERP (36 columnas tabuladas)');
 }
@@ -3048,7 +3111,7 @@ const registrosFiltrados = computed(() => {
   );
 });
 
-// Ediciones filtradas para exportación comparativa contra pan_ruteo
+// Ediciones filtradas para exportación comparativa y exportación ERP contra pan_ruteo
 const edicionesFiltradas = computed(() => {
   let lista = registrosFiltrados.value.filter(r => {
     const tipo = (r.tipo_registro || '').toUpperCase();
@@ -3062,10 +3125,38 @@ const edicionesFiltradas = computed(() => {
     });
   }
 
+  if (lista.length === 0 && props.submoduloActivo === 'modificaciones') {
+    lista = registrosFiltrados.value.filter(r => {
+      const tipo = (r.tipo_registro || '').toUpperCase();
+      return !tipo.includes('ALTA');
+    });
+  }
+
   return lista;
 });
 
 const conteoEdiciones = computed(() => edicionesFiltradas.value.length);
+
+// Descarga oficial ERP de Ediciones / Modificaciones (36 Columnas)
+function exportarEdicionesExcel() {
+  const lista = edicionesFiltradas.value;
+
+  if (lista.length === 0) {
+    alert('No se encontraron solicitudes de edición con los filtros actuales para descargar.');
+    return;
+  }
+
+  const rows = [
+    CABECERAS_ERP_ALTAS,
+    ...lista.map(r => generarFilaErp(r)),
+  ];
+
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const nombreArchivo = `ediciones_erp_${fechaHoy}.xlsx`;
+
+  descargarExcelXlsx(rows, nombreArchivo, 'Ediciones ERP');
+  mostrarToast(`Se descargaron ${lista.length} edición(es) en formato oficial ERP (.xlsx).`);
+}
 
 // 1. Descarga Comparativa: IdCliente, Codigo, Cliente Anterior, Cliente Nuevo, etc.
 function exportarComparativoExcel() {
