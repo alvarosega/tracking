@@ -46,6 +46,35 @@ class GetAvanceHorariosDetalleRutaAction
             ? trim((string) $dimInfo->canal)
             : 'GENERAL';
 
+        // Vendedores asociados a la ruta para filtrar marcajes web válidos
+        $vendedoresRuta = [];
+        if ($dimInfo && !empty($dimInfo->vendedor)) {
+            $vendedoresRuta[] = trim((string) $dimInfo->vendedor);
+        }
+        if ($dimInfo && !empty($dimInfo->vendedor_norm)) {
+            $vendedoresRuta[] = trim((string) $dimInfo->vendedor_norm);
+        }
+
+        try {
+            $vendedoresPrev = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '>=', $fechaInicio)
+                ->where('fecha_norm', '<=', $fechaFin)
+                ->whereRaw("TRIM(UPPER(ruta)) = ?", [$rutaClean])
+                ->pluck('vendedor')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            foreach ($vendedoresPrev as $vp) {
+                $vendedoresRuta[] = trim((string) $vp);
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        $vendedoresRuta = array_values(array_unique(array_filter($vendedoresRuta)));
+        $vendedoresRutaNorm = array_map([$this, 'normalizarTexto'], $vendedoresRuta);
+
         // 2. Diccionario de Clientes de la Ruta desde pan_ruteo
         $clientesRutaRaw = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
@@ -88,11 +117,25 @@ class GetAvanceHorariosDetalleRutaAction
             }
         }
 
-        // 3. Obtener marcajes de fact_visitas (Sistema Web ERP) en el rango
-        $visitasWebRaw = DB::connection('supervisor')->table('fact_visitas as fv')
+        // 3. Obtener marcajes de fact_visitas (Sistema Web ERP) en el rango realizados por vendedores de esta ruta
+        $visitasWebQuery = DB::connection('supervisor')->table('fact_visitas as fv')
             ->where('fv.fecha_norm', '>=', $fechaInicio)
-            ->where('fv.fecha_norm', '<=', $fechaFin)
-            ->select([
+            ->where('fv.fecha_norm', '<=', $fechaFin);
+
+        if (!empty($vendedoresRuta)) {
+            $visitasWebQuery->where(function ($q) use ($vendedoresRuta, $vendedoresRutaNorm): void {
+                $q->whereIn('fv.empleado', $vendedoresRuta);
+                foreach ($vendedoresRutaNorm as $vNorm) {
+                    if ($vNorm !== '') {
+                        $q->orWhereRaw("TRIM(LOWER(fv.empleado_norm)) = ?", [$vNorm]);
+                    }
+                }
+            });
+        } else {
+            $visitasWebQuery->whereRaw('1 = 0');
+        }
+
+        $visitasWebRaw = $visitasWebQuery->select([
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
                 DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
@@ -177,12 +220,7 @@ class GetAvanceHorariosDetalleRutaAction
             $filasMovil = DB::connection('mysql')->table('visitas')
                 ->where('visited_at', '>=', $fInicioTime)
                 ->where('visited_at', '<=', $fFinTime)
-                ->where(function ($q) use ($rutaClean, $dictPorId) {
-                    $q->where(DB::raw("TRIM(UPPER(route))"), $rutaClean);
-                    if (!empty($dictPorId)) {
-                        $q->orWhereIn('client_id', array_keys($dictPorId));
-                    }
-                })
+                ->where(DB::raw("TRIM(UPPER(route))"), $rutaClean)
                 ->select([
                     'id',
                     'client_id',

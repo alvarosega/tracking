@@ -161,6 +161,44 @@ class GetCumplimientoDataAction
             Log::debug('Error precargando rutas de clientes en Cumplimiento: ' . $e->getMessage());
         }
 
+        // Mapeo de vendedor a ruta para clasificar marcajes web por el empleado que realizó la visita
+        $vendedorARuta = [];
+        foreach ($catalogoRutas as $cRuta) {
+            $r = strtoupper(trim((string) ($cRuta->ruta ?? ($cRuta['ruta'] ?? ''))));
+            $vNom = trim((string) ($cRuta->vendedor ?? ($cRuta['vendedor'] ?? '')));
+            $vNorm = trim((string) ($cRuta->vendedor_norm ?? ($cRuta['vendedor_norm'] ?? '')));
+            if ($r !== '') {
+                if ($vNom !== '') {
+                    $vendedorARuta[$this->normalizarTexto($vNom)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($vNom)] = $r;
+                }
+                if ($vNorm !== '') {
+                    $vendedorARuta[$this->normalizarTexto($vNorm)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($vNorm)] = $r;
+                }
+            }
+        }
+
+        try {
+            $prevSuplentes = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', $fecha)
+                ->whereNotNull('vendedor')
+                ->where('vendedor', '!=', '')
+                ->select(['ruta', 'vendedor'])
+                ->distinct()
+                ->get();
+            foreach ($prevSuplentes as $ps) {
+                $r = strtoupper(trim((string) $ps->ruta));
+                $v = trim((string) $ps->vendedor);
+                if ($r !== '' && $v !== '') {
+                    $vendedorARuta[$this->normalizarTexto($v)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($v)] = $r;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
         // B. fact_visitas: Marcajes del sistema central (web ERP)
         $factVisitasRaw = collect();
         try {
@@ -171,7 +209,25 @@ class GetCumplimientoDataAction
 
             $rutasTargetSet = array_flip(array_map('strtoupper', array_map('trim', $rutasFiltradas)));
 
-            $factVisitasRaw = $rawVisitas->map(function ($row) use ($clienteARutaNorm, $clienteARutaAlfa) {
+            $factVisitasRaw = $rawVisitas->map(function ($row) use ($vendedorARuta, $clienteARutaNorm, $clienteARutaAlfa) {
+                $e1 = $this->normalizarTexto((string) ($row->empleado ?? ''));
+                $e2 = $this->normalizarTexto((string) ($row->empleado_norm ?? ''));
+                $ea1 = $this->normalizarAlfanumerico((string) ($row->empleado ?? ''));
+                $ea2 = $this->normalizarAlfanumerico((string) ($row->empleado_norm ?? ''));
+
+                // Prioridad 1: Asignar a la ruta del empleado que realizó la visita
+                $rutaEmp = $vendedorARuta[$e1]
+                    ?? $vendedorARuta[$e2]
+                    ?? $vendedorARuta[$ea1]
+                    ?? $vendedorARuta[$ea2]
+                    ?? null;
+
+                if ($rutaEmp) {
+                    $row->ruta = $rutaEmp;
+                    return $row;
+                }
+
+                // Prioridad 2: Si no se reconoce al empleado, cruzar por cliente catalogado
                 $n1 = $this->normalizarTexto((string) $row->cliente);
                 $n2 = $this->normalizarTexto((string) $row->cliente_norm);
                 $a1 = $this->normalizarAlfanumerico((string) $row->cliente);

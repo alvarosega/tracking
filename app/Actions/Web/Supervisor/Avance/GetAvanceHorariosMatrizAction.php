@@ -128,10 +128,32 @@ class GetAvanceHorariosMatrizAction
             $vNorm = $this->normalizarTexto($r->vendedor_norm ?: $vendedor);
             if ($vNorm !== '') {
                 $vendedorMap[$vNorm] = $dimRutas[$ruta];
+                $vendedorMap[$this->normalizarAlfanumerico($r->vendedor_norm ?: $vendedor)] = $dimRutas[$ruta];
             }
         }
 
-        // 3. Diccionario de Clientes de pan_ruteo a Ruta (Cruce estricto por cliente, NUNCA por vendedor)
+        try {
+            $prevSuplentes = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', '>=', $fechaInicio)
+                ->where('fecha_norm', '<=', $fechaFin)
+                ->whereNotNull('vendedor')
+                ->where('vendedor', '!=', '')
+                ->select(['ruta', 'vendedor'])
+                ->distinct()
+                ->get();
+            foreach ($prevSuplentes as $ps) {
+                $r = strtoupper(trim((string) $ps->ruta));
+                $v = trim((string) $ps->vendedor);
+                if ($r !== '' && $v !== '' && isset($dimRutas[$r])) {
+                    $vendedorMap[$this->normalizarTexto($v)] = $dimRutas[$r];
+                    $vendedorMap[$this->normalizarAlfanumerico($v)] = $dimRutas[$r];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        // 3. Diccionario de Clientes de pan_ruteo a Ruta (Cruce por cliente para visitas no atribuidas)
         $clienteARutaNorm = [];
         $clienteARutaAlfa = [];
         try {
@@ -168,6 +190,8 @@ class GetAvanceHorariosMatrizAction
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(fv.cliente, '') as cliente"),
                 DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
+                DB::raw("COALESCE(fv.empleado, '') as empleado"),
+                DB::raw("COALESCE(fv.empleado_norm, '') as empleado_norm"),
                 DB::raw("COALESCE(fv.check_in, '00:00:00') as check_in"),
                 DB::raw("COALESCE(fv.check_out, '00:00:00') as check_out"),
             ])
@@ -178,12 +202,25 @@ class GetAvanceHorariosMatrizAction
         $sisMap = [];
 
         foreach ($filasSistema as $row) {
+            $e1 = $this->normalizarTexto((string) $row->empleado);
+            $e2 = $this->normalizarTexto((string) $row->empleado_norm);
+            $ea1 = $this->normalizarAlfanumerico((string) $row->empleado);
+            $ea2 = $this->normalizarAlfanumerico((string) $row->empleado_norm);
+
+            // Prioridad 1: Asignar a la ruta del empleado que realizó la visita
+            $rutaEmp = $vendedorMap[$e1]['ruta']
+                ?? $vendedorMap[$e2]['ruta']
+                ?? $vendedorMap[$ea1]['ruta']
+                ?? $vendedorMap[$ea2]['ruta']
+                ?? null;
+
             $n1 = $this->normalizarTexto((string) $row->cliente);
             $n2 = $this->normalizarTexto((string) $row->cliente_norm);
             $a1 = $this->normalizarAlfanumerico((string) $row->cliente);
             $a2 = $this->normalizarAlfanumerico((string) $row->cliente_norm);
 
-            $rNombre = $clienteARutaNorm[$n1]
+            $rNombre = $rutaEmp
+                ?? $clienteARutaNorm[$n1]
                 ?? $clienteARutaNorm[$n2]
                 ?? $clienteARutaAlfa[$a1]
                 ?? $clienteARutaAlfa[$a2]

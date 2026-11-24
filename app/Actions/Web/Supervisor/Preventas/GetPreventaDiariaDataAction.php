@@ -286,7 +286,45 @@ class GetPreventaDiariaDataAction
             }
         }
 
-        // 4. Visitas registradas en fact_visitas (Cruce estricto por cliente con pan_ruteo, NUNCA por vendedor)
+        // 4. Visitas registradas en fact_visitas (Prioridad vendedor responsable, fallback cliente de cartera)
+        $vendedorARuta = [];
+        foreach ($universoRutas as $uRuta) {
+            $r = (string) $uRuta->ruta_clean;
+            $vNom = trim((string) ($uRuta->vendedor ?? ''));
+            $vNorm = trim((string) ($uRuta->vendedor_norm ?? ''));
+            if ($r !== '') {
+                if ($vNom !== '') {
+                    $vendedorARuta[$this->normalizarTexto($vNom)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($vNom)] = $r;
+                }
+                if ($vNorm !== '') {
+                    $vendedorARuta[$this->normalizarTexto($vNorm)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($vNorm)] = $r;
+                }
+            }
+        }
+
+        try {
+            $prevSuplentes = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', $fechaNorm)
+                ->whereIn(DB::raw("TRIM(UPPER(ruta))"), $rutasCleanList)
+                ->whereNotNull('vendedor')
+                ->where('vendedor', '!=', '')
+                ->select(['ruta', 'vendedor'])
+                ->distinct()
+                ->get();
+            foreach ($prevSuplentes as $ps) {
+                $r = strtoupper(trim((string) $ps->ruta));
+                $v = trim((string) $ps->vendedor);
+                if ($r !== '' && $v !== '') {
+                    $vendedorARuta[$this->normalizarTexto($v)] = $r;
+                    $vendedorARuta[$this->normalizarAlfanumerico($v)] = $r;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
         $clienteARutaNorm = [];
         $clienteARutaAlfa = [];
         try {
@@ -322,6 +360,8 @@ class GetPreventaDiariaDataAction
             ->select([
                 'cliente',
                 'cliente_norm',
+                'empleado',
+                'empleado_norm',
             ])
             ->distinct()
             ->get();
@@ -329,12 +369,24 @@ class GetPreventaDiariaDataAction
         $visitasPlanPorRuta = [];
         $visitasExtraPorRuta = [];
         foreach ($visitasVendedor as $vv) {
+            $e1 = $this->normalizarTexto((string) ($vv->empleado ?? ''));
+            $e2 = $this->normalizarTexto((string) ($vv->empleado_norm ?? ''));
+            $ea1 = $this->normalizarAlfanumerico((string) ($vv->empleado ?? ''));
+            $ea2 = $this->normalizarAlfanumerico((string) ($vv->empleado_norm ?? ''));
+
+            $rutaEmp = $vendedorARuta[$e1]
+                ?? $vendedorARuta[$e2]
+                ?? $vendedorARuta[$ea1]
+                ?? $vendedorARuta[$ea2]
+                ?? null;
+
             $n1 = $this->normalizarTexto((string) $vv->cliente);
             $n2 = $this->normalizarTexto((string) $vv->cliente_norm);
             $a1 = $this->normalizarAlfanumerico((string) $vv->cliente);
             $a2 = $this->normalizarAlfanumerico((string) $vv->cliente_norm);
 
-            $rClean = $clienteARutaNorm[$n1]
+            $rClean = $rutaEmp
+                ?? $clienteARutaNorm[$n1]
                 ?? $clienteARutaNorm[$n2]
                 ?? $clienteARutaAlfa[$a1]
                 ?? $clienteARutaAlfa[$a2]

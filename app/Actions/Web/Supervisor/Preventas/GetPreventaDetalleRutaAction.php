@@ -66,6 +66,33 @@ class GetPreventaDetalleRutaAction
         $vendedorNombre = $rutaInfo && $rutaInfo->vendedor ? trim($rutaInfo->vendedor) : 'Sin asignar';
         $vendedorNorm = $this->normalizarTexto($vendedorNombre);
 
+        $vendedoresRuta = [];
+        if ($rutaInfo && !empty($rutaInfo->vendedor)) {
+            $vendedoresRuta[] = trim((string) $rutaInfo->vendedor);
+        }
+        if ($rutaInfo && !empty($rutaInfo->vendedor_norm)) {
+            $vendedoresRuta[] = trim((string) $rutaInfo->vendedor_norm);
+        }
+
+        try {
+            $vendedoresPrev = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', $fechaNorm)
+                ->whereRaw("TRIM(UPPER(ruta)) = ?", [$rutaClean])
+                ->pluck('vendedor')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            foreach ($vendedoresPrev as $vp) {
+                $vendedoresRuta[] = trim((string) $vp);
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        $vendedoresRuta = array_values(array_unique(array_filter($vendedoresRuta)));
+        $vendedoresRutaNorm = array_map([$this, 'normalizarTexto'], $vendedoresRuta);
+
         // 2. Clientes en plan para esta ruta y día
         $filasPlan = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
@@ -88,10 +115,24 @@ class GetPreventaDetalleRutaAction
             ->groupBy('cliente_id')
             ->get();
 
-        // 3. Visitas del día en el sistema ERP central (fact_visitas)
-        $todasVisitas = DB::connection('supervisor')->table('fact_visitas')
-            ->where('fecha_norm', $fechaNorm)
-            ->select([
+        // 3. Visitas del día en el sistema ERP central (fact_visitas) realizadas por los vendedores de esta ruta
+        $visitasQuery = DB::connection('supervisor')->table('fact_visitas')
+            ->where('fecha_norm', $fechaNorm);
+
+        if (!empty($vendedoresRuta)) {
+            $visitasQuery->where(function ($q) use ($vendedoresRuta, $vendedoresRutaNorm): void {
+                $q->whereIn('empleado', $vendedoresRuta);
+                foreach ($vendedoresRutaNorm as $vNorm) {
+                    if ($vNorm !== '') {
+                        $q->orWhereRaw("TRIM(LOWER(empleado_norm)) = ?", [$vNorm]);
+                    }
+                }
+            });
+        } else {
+            $visitasQuery->whereRaw('1 = 0');
+        }
+
+        $todasVisitas = $visitasQuery->select([
                 'id as visita_id',
                 DB::raw("COALESCE(TRIM(cliente_norm), TRIM(cliente)) as cliente_raw"),
                 'cliente as cliente_visita',

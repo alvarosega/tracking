@@ -33,7 +33,35 @@ class GetAvanceHorariosTimelineAction
         $vendedorNombre = $rutaInfo ? (string) $rutaInfo->vendedor : 'No Asignado';
         $vendedorNorm = $rutaInfo ? $this->normalizarTexto((string) ($rutaInfo->vendedor_norm ?: $rutaInfo->vendedor)) : '';
 
-        // 2. Obtener clientes de esta ruta desde pan_ruteo para el cruce estricto por cliente (NUNCA por vendedor)
+        // Vendedores válidos asociados a esta ruta en la fecha
+        $vendedoresRuta = [];
+        if ($rutaInfo && !empty($rutaInfo->vendedor)) {
+            $vendedoresRuta[] = trim((string) $rutaInfo->vendedor);
+        }
+        if ($rutaInfo && !empty($rutaInfo->vendedor_norm)) {
+            $vendedoresRuta[] = trim((string) $rutaInfo->vendedor_norm);
+        }
+
+        try {
+            $vendedoresPrev = DB::connection('supervisor')->table('fact_preventas')
+                ->where('fecha_norm', $fecha)
+                ->whereRaw("TRIM(UPPER(ruta)) = ?", [$rutaClean])
+                ->pluck('vendedor')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            foreach ($vendedoresPrev as $vp) {
+                $vendedoresRuta[] = trim((string) $vp);
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        $vendedoresRuta = array_values(array_unique(array_filter($vendedoresRuta)));
+        $vendedoresRutaNorm = array_map([$this, 'normalizarTexto'], $vendedoresRuta);
+
+        // 2. Obtener clientes de esta ruta desde pan_ruteo
         $carteraRuta = DB::connection('supervisor')->table('pan_ruteo')
             ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
             ->where('cliente_id', '>', 0)
@@ -54,10 +82,24 @@ class GetAvanceHorariosTimelineAction
             if ($a2 !== '') $clientesAlfa[$a2] = true;
         }
 
-        // Obtener marcajes de fact_visitas (Sistema Web) del día
-        $rawSistema = DB::connection('supervisor')->table('fact_visitas as fv')
-            ->where('fv.fecha_norm', $fecha)
-            ->select([
+        // Obtener marcajes de fact_visitas (Sistema Web) del día para el vendedor de esta ruta
+        $querySistema = DB::connection('supervisor')->table('fact_visitas as fv')
+            ->where('fv.fecha_norm', $fecha);
+
+        if (!empty($vendedoresRuta)) {
+            $querySistema->where(function ($q) use ($vendedoresRuta, $vendedoresRutaNorm): void {
+                $q->whereIn('fv.empleado', $vendedoresRuta);
+                foreach ($vendedoresRutaNorm as $vNorm) {
+                    if ($vNorm !== '') {
+                        $q->orWhereRaw("TRIM(LOWER(fv.empleado_norm)) = ?", [$vNorm]);
+                    }
+                }
+            });
+        } else {
+            $querySistema->whereRaw('1 = 0');
+        }
+
+        $rawSistema = $querySistema->select([
                 'fv.id',
                 DB::raw("COALESCE(fv.cliente, 'Cliente S/N') as cliente"),
                 DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),

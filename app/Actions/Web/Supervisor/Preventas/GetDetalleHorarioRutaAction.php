@@ -98,6 +98,34 @@ class GetDetalleHorarioRutaAction
                 ? trim((string) $dimInfo->vendedor)
                 : trim((string) ($carteraPlanDia->firstWhere('vendedor', '!=', null)->vendedor ?? 'No Asignado'));
 
+            // Vendedores válidos asociados a la ruta para filtrar visitas reales
+            $vendedoresRuta = [];
+            if ($dimInfo && !empty($dimInfo->vendedor)) {
+                $vendedoresRuta[] = trim((string) $dimInfo->vendedor);
+            }
+            if ($dimInfo && !empty($dimInfo->vendedor_norm)) {
+                $vendedoresRuta[] = trim((string) $dimInfo->vendedor_norm);
+            }
+
+            try {
+                $vendedoresPrev = DB::connection('supervisor')->table('fact_preventas')
+                    ->where('fecha_norm', $fechaNorm)
+                    ->whereRaw("TRIM(UPPER(ruta)) = ?", [$rutaClean])
+                    ->pluck('vendedor')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                foreach ($vendedoresPrev as $vp) {
+                    $vendedoresRuta[] = trim((string) $vp);
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+
+            $vendedoresRuta = array_values(array_unique(array_filter($vendedoresRuta)));
+            $vendedoresRutaNorm = array_map([$this, 'normalizarTexto'], $vendedoresRuta);
+
             // 2. Diccionarios de Cruce por Cliente basados en el Plan del Día y en Cartera Total
             $planIdPorNombreNorm = [];
             $planIdPorNombreAlfa = [];
@@ -136,10 +164,25 @@ class GetDetalleHorarioRutaAction
             }
 
             // 3. Marcajes del sistema central (fact_visitas - Web ERP)
-            // Se cruzan únicamente contra los clientes de esta ruta (sin tomar en cuenta vendedor)
-            $visitasSistema = DB::connection('supervisor')->table('fact_visitas as fv')
-                ->where('fv.fecha_norm', $fechaNorm)
-                ->select([
+            // Se consultan las visitas realizadas por los vendedores asociados a esta ruta en la fecha
+            $visitasSistemaQuery = DB::connection('supervisor')->table('fact_visitas as fv')
+                ->where('fv.fecha_norm', $fechaNorm);
+
+            if (!empty($vendedoresRuta)) {
+                $visitasSistemaQuery->where(function ($q) use ($vendedoresRuta, $vendedoresRutaNorm): void {
+                    $q->whereIn('fv.empleado', $vendedoresRuta);
+                    foreach ($vendedoresRutaNorm as $vNorm) {
+                        if ($vNorm !== '') {
+                            $q->orWhereRaw("TRIM(LOWER(fv.empleado_norm)) = ?", [$vNorm]);
+                        }
+                    }
+                });
+            } else {
+                // Si la ruta no tiene vendedor registrado en absoluto, no se deben atribuir visitas huérfanas
+                $visitasSistemaQuery->whereRaw('1 = 0');
+            }
+
+            $visitasSistema = $visitasSistemaQuery->select([
                     DB::raw("COALESCE(fv.cliente, 'CLIENTE S/N') as cliente"),
                     DB::raw("COALESCE(fv.cliente_norm, '') as cliente_norm"),
                     DB::raw("COALESCE(fv.tipo, '') as tipo"),
@@ -296,11 +339,12 @@ class GetDetalleHorarioRutaAction
                 }
             }
 
-            // 4. Ventas / Preventas del día para montos oficiales
+            // 4. Ventas / Preventas del día para montos oficiales de esta ruta
             $preventasMontoPorCid = [];
             try {
                 $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
                     ->where('fecha_norm', $fechaNorm)
+                    ->whereRaw("TRIM(UPPER(ruta)) = ?", [$rutaClean])
                     ->where('cliente_id', '>', 0)
                     ->select('cliente_id', DB::raw("SUM(monto_final) as total_monto"))
                     ->groupBy('cliente_id')
@@ -314,16 +358,10 @@ class GetDetalleHorarioRutaAction
             }
 
             // 5. Marcajes de la App Móvil (tabla visitas)
-            // Se consultan las visitas ejecutadas por esta ruta en el día
-            $cidsPlan = array_map('intval', array_keys($carteraPlanDia->toArray()));
+            // Se consultan estrictamente las visitas ejecutadas por esta ruta en el día
             $filasMovil = Visita::query()
                 ->whereBetween('visited_at', ["{$fechaNorm} 00:00:00", "{$fechaNorm} 23:59:59"])
-                ->where(function ($q) use ($rutaClean, $cidsPlan): void {
-                    $q->whereRaw("TRIM(UPPER(route)) = ?", [$rutaClean]);
-                    if (!empty($cidsPlan)) {
-                        $q->orWhereIn('client_id', $cidsPlan);
-                    }
-                })
+                ->whereRaw("TRIM(UPPER(route)) = ?", [$rutaClean])
                 ->orderBy('visited_at', 'asc')
                 ->get();
 
