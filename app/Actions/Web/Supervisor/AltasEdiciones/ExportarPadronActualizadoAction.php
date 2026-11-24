@@ -285,10 +285,10 @@ class ExportarPadronActualizadoAction
 
             // 7. TipoPago
             $f7 = [(string)($pr->tipo_pago ?? ''), false];
-            // 8. DiasPago
-            $f8 = [(string)($pr->dias_credito ?? ''), false];
-            // 9. TopeCredito
-            $f9 = [(string)($pr->limite ?? ''), false];
+            // 8. DiasPago (en blanco)
+            $f8 = ['', false];
+            // 9. TopeCredito (en blanco)
+            $f9 = ['', false];
 
             // 10 & 11. GPS Latitud y Longitud
             $origLat = $pr->latitud ?? '';
@@ -360,8 +360,8 @@ class ExportarPadronActualizadoAction
             // 25. RazonSocial
             $modRS = $corr && !empty(trim((string)($corr->razon_social ?? ''))) ? trim((string)$corr->razon_social) : null;
             $f25 = [$modRS ? $this->capitalizar($modRS) : '', $modRS !== null];
-            // 26. Cluster
-            $f26 = [(string)($pr->cluster_t ?: ($pr->cluster_c ?? '')), false];
+            // 26. Cluster (en blanco)
+            $f26 = ['', false];
             // 27. TipoDocumento
             $f27 = ['', false];
             // 28. TipoNit

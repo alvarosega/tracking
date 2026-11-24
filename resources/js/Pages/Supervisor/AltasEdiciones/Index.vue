@@ -3695,15 +3695,15 @@ function generarFilaErp(r, diaDescarga = null) {
   const tipoNitVal = r.tipo_nit || 'CI';
   const rutaVal = r.ruta || orig.ruta || '';
 
-  // 10. Campos preservados del padrón de ruteo original para ediciones
-  const diasPago = !esAlta && orig.dias_credito !== null && orig.dias_credito !== undefined ? String(orig.dias_credito) : '';
-  const topeCredito = !esAlta && orig.limite !== null && orig.limite !== undefined ? String(orig.limite) : '';
+  // 10. Campos preservados del padrón de ruteo original para ediciones (DiasPago, TopeCredito y Cluster en blanco)
+  const diasPago = '';
+  const topeCredito = '';
   const uvVal = !esAlta ? (orig.uv || '') : '';
   const provinciaVal = !esAlta ? (orig.provincia || '') : '';
   const mercadoVal = !esAlta ? (orig.mercado || '') : '';
   const emailVal = !esAlta ? (orig.email || '') : '';
   const paginaWebVal = !esAlta ? (orig.pagina_web || '') : '';
-  const clusterVal = !esAlta ? (orig.cluster_t || orig.cluster_c || '') : '';
+  const clusterVal = '';
   const secVenta = !esAlta && orig.secuencia_venta !== null && orig.secuencia_venta !== undefined ? String(orig.secuencia_venta) : '';
   const secDistribuidor = !esAlta && orig.secuencia_distribuidor !== null && orig.secuencia_distribuidor !== undefined ? String(orig.secuencia_distribuidor) : '';
 
