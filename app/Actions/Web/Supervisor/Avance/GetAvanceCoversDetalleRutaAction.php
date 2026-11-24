@@ -182,8 +182,9 @@ class GetAvanceCoversDetalleRutaAction
 
                     $isC1 = str_contains($escalaSinEspacios, 'COD-SHTDB1126');
                     $isC2 = str_contains($escalaSinEspacios, 'COD-PEPTDB1126');
+                    // Cover 3: SEDAL-SCHT 3-0323 - TDB (Sedal Sachet 40ml)
                     $isC3 = str_contains($escalaSinEspacios, 'SEDAL-SCHT3-0323-TDB')
-                        || (str_contains($escalaNorm, 'SEDAL-SCHT 3-0323') && str_contains($escalaNorm, 'TDB'));
+                        || (str_contains($escalaSinEspacios, 'SEDAL-SCHT') && str_contains($escalaSinEspacios, '0323'));
 
                     $tag = null;
                     $tagTipo = 'regular';
@@ -201,8 +202,8 @@ class GetAvanceCoversDetalleRutaAction
                     }
                     if ($isC3) {
                         $tieneCover3 = true;
-                        $coversDetectados['SEDAL-SCHT 3-0323- TDB'] = true;
-                        $tag = 'SEDAL-SCHT 3-0323- TDB';
+                        $coversDetectados['SEDAL-SCHT 3-0323 - TDB'] = true;
+                        $tag = 'SEDAL-SCHT 3-0323 - TDB';
                         $tagTipo = 'cover3';
                     }
 

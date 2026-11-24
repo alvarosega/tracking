@@ -161,9 +161,9 @@ class GetAvanceCoversAction
             // Cover 2: COD-PEPTDB1126
             $esCover2 = str_contains($escalaSinEspacios, 'COD-PEPTDB1126');
 
-            // Cover 3: SEDAL-SCHT 3-0323- TDB / SEDAL-SCHT 3-0323 - TDB
+            // Cover 3: SEDAL-SCHT 3-0323 - TDB (Sedal Sachet 40ml)
             $esCover3 = str_contains($escalaSinEspacios, 'SEDAL-SCHT3-0323-TDB')
-                || (str_contains($escalaNorm, 'SEDAL-SCHT 3-0323') && str_contains($escalaNorm, 'TDB'));
+                || (str_contains($escalaSinEspacios, 'SEDAL-SCHT') && str_contains($escalaSinEspacios, '0323'));
 
             if ($esCover1) {
                 $rutasMap[$rKey]['clientes'][$cid]['tiene_cover1'] = true;

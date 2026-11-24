@@ -123,7 +123,7 @@
                   Cover 2: COD-PEPTDB1126
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap text-emerald-700 bg-emerald-50/50 cursor-pointer hover:text-emerald-900" @click="ordenarPor('cover3_count')">
-                  Cover 3: SEDAL-SCHT 3-0323- TDB
+                  Cover 3: SEDAL-SCHT 3-0323 - TDB
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap font-extrabold text-[#1D1D1F] cursor-pointer" @click="ordenarPor('clientes_con_cover')">
                   Con Cover
@@ -212,7 +212,7 @@
                     </span>
                   </td>
 
-                  <!-- Cover 3: SEDAL-SCHT 3-0323- TDB -->
+                  <!-- Cover 3: SEDAL-SCHT 3-0323 - TDB -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-emerald-50/20">
                     <span
                       class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
@@ -344,7 +344,7 @@
                               class="px-2 py-1 rounded-[6px] transition-all cursor-pointer font-semibold"
                               :class="getFiltroCoverTienda(r.ruta) === 'cover3' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'"
                             >
-                              SEDAL-SCHT 3-0323- TDB ({{ cacheDetalles[r.ruta].totales.cover3_count }})
+                              SEDAL-SCHT 3-0323 - TDB ({{ cacheDetalles[r.ruta].totales.cover3_count }})
                             </button>
                             <button
                               type="button"
@@ -812,7 +812,7 @@ async function copiarTablaAlPortapapeles() {
 
   const headers = [
     'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
-    'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323- TDB)', 'Con Cover', 'Sin Cover',
+    'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323 - TDB)', 'Con Cover', 'Sin Cover',
     '% Cobertura MTD', 'Inversión Promo (Bs)'
   ]
 
@@ -863,7 +863,7 @@ function exportarExcel() {
   const rows = [
     [
       'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
-      'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323- TDB)', 'Con Cover', 'Sin Cover',
+      'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323 - TDB)', 'Con Cover', 'Sin Cover',
       '% Cobertura MTD', 'Inversión Promo (Bs)'
     ]
   ]
