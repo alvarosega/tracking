@@ -9,101 +9,6 @@
       <!-- ── Barra Superior de Filtros Transversales ── -->
       <AvanceFiltrosBar @consultar="consultarCovers" />
 
-      <!-- ── Tarjetas Resumen MTD (Apple Glass) ── -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-        <!-- Card 1: Rutas Activas -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Rutas Activas</span>
-            <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-[#1D1D1F] font-mono">{{ totales.total_rutas || 0 }}</span>
-            <span class="text-[10px] text-[#86868B]">rutas</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">{{ totales.dias_activos_promedio || 0 }} días prom.</span>
-        </div>
-
-        <!-- Card 2: Clientes Compradores -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Compradores MTD</span>
-            <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-[#1D1D1F] font-mono">{{ fmt(totales.clientes_total) }}</span>
-            <span class="text-[10px] text-[#86868B]">PDVs</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">Cartera compradora</span>
-        </div>
-
-        <!-- Card 3: Clientes con Cover (Tasa Cobertura) -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between" :class="totales.cobertura_pct >= 50 ? 'border-emerald-500/20 bg-emerald-50/10' : ''">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Con Cover MTD</span>
-            <span class="w-2 h-2 rounded-full" :class="totales.cobertura_pct >= 50 ? 'bg-emerald-500' : 'bg-amber-500'"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold font-mono" :class="totales.cobertura_pct >= 50 ? 'text-emerald-700' : 'text-amber-700'">
-              {{ fmtPct(totales.cobertura_pct) }}
-            </span>
-            <span class="text-[10px] text-[#86868B]">({{ fmt(totales.clientes_con_cover) }})</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">Meta &ge; 50.0%</span>
-        </div>
-
-        <!-- Card 4: Cover 1 (Sedal 340ml) -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#0071E3] uppercase tracking-wider">Cover 1: Sedal 340</span>
-            <span class="px-1 py-0.2 rounded text-[8.5px] font-bold bg-blue-100/70 text-[#0071E3]">C1</span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-[#0071E3] font-mono">{{ fmt(totales.cover1_count) }}</span>
-            <span class="text-[10px] text-[#86868B]">tiendas</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">&ge;3 Sedal 340ml</span>
-        </div>
-
-        <!-- Card 5: Cover 2 (Pepsodent) -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-indigo-600 uppercase tracking-wider">Cover 2: Pepsodent</span>
-            <span class="px-1 py-0.2 rounded text-[8.5px] font-bold bg-indigo-100/70 text-indigo-700">C2</span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-indigo-600 font-mono">{{ fmt(totales.cover2_count) }}</span>
-            <span class="text-[10px] text-[#86868B]">tiendas</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">&ge;3 Pepsodent 90/130g</span>
-        </div>
-
-        <!-- Card 6: Cover 3 (Sedal 40ml 2x12) -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-emerald-600 uppercase tracking-wider">Cover 3: Sedal 40ml</span>
-            <span class="px-1 py-0.2 rounded text-[8.5px] font-bold bg-emerald-100/70 text-emerald-700">C3</span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-emerald-600 font-mono">{{ fmt(totales.cover3_count) }}</span>
-            <span class="text-[10px] text-[#86868B]">tiendas</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">2 bonif. x 12 Sedal 40ml</span>
-        </div>
-
-        <!-- Card 7: Inversión en Descuentos -->
-        <div class="apple-glass-card rounded-[14px] p-2.5 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Inversión Promo</span>
-            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-          </div>
-          <div class="mt-1 flex items-baseline gap-1.5">
-            <span class="text-sm font-bold text-[#1D1D1F] font-mono">{{ fmtBs(totales.descuento_total) }}</span>
-          </div>
-          <span class="text-[9px] text-[#86868B] truncate mt-0.5">Descuentos acumulados</span>
-        </div>
-      </div>
-
       <!-- ── Barra de Control y Filtros de la Matriz ── -->
       <div class="apple-glass-card rounded-[14px] p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-2">
@@ -212,13 +117,13 @@
                   Compradores
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap text-[#0071E3] bg-blue-50/50 cursor-pointer hover:text-blue-800" @click="ordenarPor('cover1_count')">
-                  Cover 1 (Sedal 340)
+                  Cover 1: COD-SHTDB1126
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap text-indigo-700 bg-indigo-50/50 cursor-pointer hover:text-indigo-900" @click="ordenarPor('cover2_count')">
-                  Cover 2 (Pepsodent)
+                  Cover 2: COD-PEPTDB1126
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap text-emerald-700 bg-emerald-50/50 cursor-pointer hover:text-emerald-900" @click="ordenarPor('cover3_count')">
-                  Cover 3 (Sedal 40)
+                  Cover 3: SEDAL-SCHT 3-0323- TDB
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap font-extrabold text-[#1D1D1F] cursor-pointer" @click="ordenarPor('clientes_con_cover')">
                   Con Cover
@@ -229,17 +134,8 @@
                 <th class="py-2.5 px-3 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('cobertura_pct')">
                   % Cobertura MTD
                 </th>
-                <th class="py-2.5 px-2 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('dias_activos')">
-                  Días Act.
-                </th>
-                <th class="py-2.5 px-2 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('dias_cumplidos')">
-                  Días Cumple
-                </th>
-                <th class="py-2.5 px-2 text-center whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('pct_dias_cumplidos')">
-                  % Cumplimiento
-                </th>
                 <th class="py-2.5 px-3 text-right whitespace-nowrap cursor-pointer hover:text-[#1D1D1F]" @click="ordenarPor('descuento_total')">
-                  Inversión (Bs)
+                  Inversión Promo (Bs)
                 </th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap">
                   Detalle
@@ -261,7 +157,7 @@
                         @click="toggleExpandir(r.ruta)"
                         class="p-1 rounded hover:bg-black/[0.06] transition-transform text-[#6E6E73] cursor-pointer shrink-0"
                         :class="estaExpandida(r.ruta) ? 'rotate-90 text-[#0071E3]' : ''"
-                        title="Ver detalle de covers por cliente y día a día"
+                        title="Ver clientes y covers de la ruta"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -296,7 +192,7 @@
                     {{ fmt(r.clientes_total) }}
                   </td>
 
-                  <!-- Cover 1: Sedal 340 -->
+                  <!-- Cover 1: COD-SHTDB1126 -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-blue-50/20">
                     <span
                       class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
@@ -306,7 +202,7 @@
                     </span>
                   </td>
 
-                  <!-- Cover 2: Pepsodent -->
+                  <!-- Cover 2: COD-PEPTDB1126 -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-indigo-50/20">
                     <span
                       class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
@@ -316,7 +212,7 @@
                     </span>
                   </td>
 
-                  <!-- Cover 3: Sedal 40ml -->
+                  <!-- Cover 3: SEDAL-SCHT 3-0323- TDB -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-emerald-50/20">
                     <span
                       class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
@@ -355,26 +251,6 @@
                     </div>
                   </td>
 
-                  <!-- Días Activos -->
-                  <td class="py-2 px-2 text-center whitespace-nowrap font-mono text-[11px] text-[#6E6E73]">
-                    {{ r.dias_activos }}
-                  </td>
-
-                  <!-- Días Cumplidos -->
-                  <td class="py-2 px-2 text-center whitespace-nowrap font-mono text-[11px]">
-                    <span :class="r.dias_cumplidos > 0 ? 'font-bold text-emerald-700' : 'text-[#86868B]'">
-                      {{ r.dias_cumplidos }}
-                    </span>
-                    <span class="text-[9.5px] text-[#86868B]"> / {{ r.dias_activos }}</span>
-                  </td>
-
-                  <!-- % Días Cumplidos -->
-                  <td class="py-2 px-2 text-center whitespace-nowrap font-mono font-semibold text-[11px]">
-                    <span :class="r.pct_dias_cumplidos >= 50 ? 'text-emerald-700' : 'text-[#6E6E73]'">
-                      {{ fmtPct(r.pct_dias_cumplidos) }}
-                    </span>
-                  </td>
-
                   <!-- Inversión Total Descuentos (Bs) -->
                   <td class="py-2 px-3 text-right whitespace-nowrap font-mono font-bold text-[#1D1D1F]">
                     {{ fmtBs(r.descuento_total) }}
@@ -395,9 +271,9 @@
                   </td>
                 </tr>
 
-                <!-- ── FILA EXPANDIDA: ACORDEÓN DETALLE POR COVER Y DÍA A DÍA ── -->
+                <!-- ── FILA EXPANDIDA: ACORDEÓN DETALLE POR TIENDA Y PRODUCTO ── -->
                 <tr v-if="estaExpandida(r.ruta)" class="bg-[#F8F9FB] border-y border-blue-200/50">
-                  <td colspan="14" class="p-3 sm:p-4">
+                  <td colspan="11" class="p-3 sm:p-4">
                     <!-- Indicador de Carga del Detalle -->
                     <div v-if="cargandoDetalles[r.ruta]" class="py-8 flex flex-col items-center justify-center gap-2">
                       <div class="w-6 h-6 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
@@ -422,30 +298,10 @@
                             {{ cacheDetalles[r.ruta].totales.clientes_con_cover }} de {{ cacheDetalles[r.ruta].totales.clientes_total }} clientes con cover ({{ fmtPct(cacheDetalles[r.ruta].totales.cobertura_pct) }})
                           </span>
                         </div>
-
-                        <!-- Selector de Subpestaña Interna de la Ruta -->
-                        <div class="inline-flex bg-black/[0.04] p-0.5 rounded-[8px] text-[11px] font-semibold">
-                          <button
-                            type="button"
-                            @click="setSubTabRuta(r.ruta, 'tiendas')"
-                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
-                            :class="getSubTabRuta(r.ruta) === 'tiendas' ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                          >
-                            Detalle por Tiendas ({{ cacheDetalles[r.ruta].tiendas.length }})
-                          </button>
-                          <button
-                            type="button"
-                            @click="setSubTabRuta(r.ruta, 'dias')"
-                            class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer whitespace-nowrap"
-                            :class="getSubTabRuta(r.ruta) === 'dias' ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                          >
-                            Calendario Día a Día ({{ cacheDetalles[r.ruta].dias.length }} días)
-                          </button>
-                        </div>
                       </div>
 
-                      <!-- ──────── SUBTAB 1: DETALLE POR TIENDAS / COVERS ──────── -->
-                      <div v-if="getSubTabRuta(r.ruta) === 'tiendas'" class="space-y-2.5">
+                      <!-- ──────── DETALLE POR TIENDAS / COVERS ──────── -->
+                      <div class="space-y-2.5">
                         <!-- Filtros del Listado de Tiendas -->
                         <div class="flex flex-wrap items-center justify-between gap-2">
                           <!-- Chips de Filtrado por Tipo de Cover -->
@@ -472,7 +328,7 @@
                               class="px-2 py-1 rounded-[6px] transition-all cursor-pointer font-semibold"
                               :class="getFiltroCoverTienda(r.ruta) === 'cover1' ? 'bg-[#0071E3] text-white' : 'bg-blue-50 border border-blue-200 text-[#0071E3] hover:bg-blue-100'"
                             >
-                              Cover 1: Sedal 340 ({{ cacheDetalles[r.ruta].totales.cover1_count }})
+                              COD-SHTDB1126 ({{ cacheDetalles[r.ruta].totales.cover1_count }})
                             </button>
                             <button
                               type="button"
@@ -480,7 +336,7 @@
                               class="px-2 py-1 rounded-[6px] transition-all cursor-pointer font-semibold"
                               :class="getFiltroCoverTienda(r.ruta) === 'cover2' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'"
                             >
-                              Cover 2: Pepsodent ({{ cacheDetalles[r.ruta].totales.cover2_count }})
+                              COD-PEPTDB1126 ({{ cacheDetalles[r.ruta].totales.cover2_count }})
                             </button>
                             <button
                               type="button"
@@ -488,7 +344,7 @@
                               class="px-2 py-1 rounded-[6px] transition-all cursor-pointer font-semibold"
                               :class="getFiltroCoverTienda(r.ruta) === 'cover3' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'"
                             >
-                              Cover 3: Sedal 40ml ({{ cacheDetalles[r.ruta].totales.cover3_count }})
+                              SEDAL-SCHT 3-0323- TDB ({{ cacheDetalles[r.ruta].totales.cover3_count }})
                             </button>
                             <button
                               type="button"
@@ -522,7 +378,7 @@
                                 <th class="py-2 px-2.5">Código / Cliente</th>
                                 <th class="py-2 px-2 text-center">Compras MTD</th>
                                 <th class="py-2 px-2 text-center">Cover Identificado</th>
-                                <th class="py-2 px-3">Detalle de la Promoción</th>
+                                <th class="py-2 px-3">Escala Producto / Promoción</th>
                                 <th class="py-2 px-2 text-right">Descuento (Bs)</th>
                                 <th class="py-2 px-2 text-right">Total Venta (Bs)</th>
                                 <th class="py-2 px-2 text-center">Ítems</th>
@@ -552,28 +408,22 @@
                                         v-if="t.tiene_cover1"
                                         class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-100 text-[#0071E3] border border-blue-200"
                                       >
-                                        Cover 1
+                                        COD-SHTDB1126
                                       </span>
                                       <span
                                         v-if="t.tiene_cover2"
                                         class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200"
                                       >
-                                        Cover 2
+                                        COD-PEPTDB1126
                                       </span>
                                       <span
                                         v-if="t.tiene_cover3"
                                         class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
                                       >
-                                        Cover 3
+                                        SEDAL-SCHT 3-0323
                                       </span>
                                       <span
-                                        v-if="t.tiene_descuento && !t.tiene_cover1 && !t.tiene_cover2 && !t.tiene_cover3"
-                                        class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-800 border border-amber-200"
-                                      >
-                                        Descuento Regular
-                                      </span>
-                                      <span
-                                        v-if="!t.tiene_descuento"
+                                        v-if="!t.tiene_cover"
                                         class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-black/[0.04] text-[#86868B]"
                                       >
                                         Sin Cover
@@ -585,7 +435,7 @@
                                   <td class="py-2 px-3 text-[10.5px]">
                                     <div
                                       class="truncate max-w-[280px] sm:max-w-[400px]"
-                                      :class="t.tiene_descuento ? 'text-[#1D1D1F] font-medium' : 'text-[#86868B]'"
+                                      :class="t.tiene_cover ? 'text-[#1D1D1F] font-medium' : 'text-[#86868B]'"
                                       :title="t.resumen_promo"
                                     >
                                       {{ t.resumen_promo }}
@@ -646,10 +496,10 @@
                                               <tr class="text-[#86868B] uppercase font-bold border-b border-black/[0.04]">
                                                 <th class="py-1">Producto</th>
                                                 <th class="py-1 text-center">Cant</th>
-                                                <th class="py-1 text-right">Precio Lista</th>
+                                                <th class="py-1">Escala Producto</th>
                                                 <th class="py-1 text-right">Descuento</th>
                                                 <th class="py-1 text-right">Monto Final</th>
-                                                <th class="py-1 text-center">Rol en Promo</th>
+                                                <th class="py-1 text-center">Cover</th>
                                               </tr>
                                             </thead>
                                             <tbody class="divide-y divide-black/[0.03]">
@@ -660,7 +510,7 @@
                                               >
                                                 <td class="py-1 text-[#1D1D1F]">{{ it.producto }}</td>
                                                 <td class="py-1 text-center font-mono font-bold">{{ it.cantidad }}</td>
-                                                <td class="py-1 text-right font-mono">{{ fmtBs(it.precio_lista) }}</td>
+                                                <td class="py-1 font-mono text-[9.5px] text-[#0071E3]">{{ it.escala_producto }}</td>
                                                 <td class="py-1 text-right font-mono text-amber-700">{{ fmtBs(it.descuento) }}</td>
                                                 <td class="py-1 text-right font-mono">{{ fmtBs(it.monto_final) }}</td>
                                                 <td class="py-1 text-center whitespace-nowrap">
@@ -668,7 +518,6 @@
                                                     v-if="it.tag"
                                                     class="px-1.5 py-0.2 rounded text-[9px] font-bold"
                                                     :class="getTagClass(it.tag_tipo)"
-                                                    :title="it.tag_texto"
                                                   >
                                                     {{ it.tag }}
                                                   </span>
@@ -693,65 +542,6 @@
                           </table>
                         </div>
                       </div>
-
-                      <!-- ──────── SUBTAB 2: CALENDARIO DÍA A DÍA ──────── -->
-                      <div v-else-if="getSubTabRuta(r.ruta) === 'dias'" class="space-y-2">
-                        <div class="bg-white rounded-[10px] border border-black/[0.08] overflow-hidden shadow-2xs">
-                          <table class="w-full text-left border-collapse text-[11px]">
-                            <thead>
-                              <tr class="bg-[#F5F5F7] border-b border-black/[0.06] text-[10px] font-bold text-[#86868B] uppercase">
-                                <th class="py-2 px-3">Fecha</th>
-                                <th class="py-2 px-2 text-center">Compradores</th>
-                                <th class="py-2 px-2 text-center text-[#0071E3] bg-blue-50/50">Cover 1</th>
-                                <th class="py-2 px-2 text-center text-indigo-700 bg-indigo-50/50">Cover 2</th>
-                                <th class="py-2 px-2 text-center text-emerald-700 bg-emerald-50/50">Cover 3</th>
-                                <th class="py-2 px-2 text-center font-bold">Con Cover</th>
-                                <th class="py-2 px-2 text-center">Sin Cover</th>
-                                <th class="py-2 px-3 text-center">% Covers Día</th>
-                                <th class="py-2 px-2 text-center">Estatus Meta (&ge;50%)</th>
-                                <th class="py-2 px-3 text-right">Descuento (Bs)</th>
-                              </tr>
-                            </thead>
-                            <tbody class="divide-y divide-black/[0.04]">
-                              <tr
-                                v-for="d in cacheDetalles[r.ruta].dias"
-                                :key="d.fecha"
-                                class="hover:bg-black/[0.01] transition-colors"
-                              >
-                                <td class="py-2 px-3 whitespace-nowrap font-mono font-bold text-[#1D1D1F]">
-                                  {{ d.dia_nombre }}
-                                  <span class="text-[9.5px] font-normal text-[#86868B] ml-1">({{ d.fecha }})</span>
-                                </td>
-                                <td class="py-2 px-2 text-center font-mono font-bold">{{ d.compradores }}</td>
-                                <td class="py-2 px-2 text-center font-mono bg-blue-50/20 text-[#0071E3] font-bold">{{ d.cover1_count }}</td>
-                                <td class="py-2 px-2 text-center font-mono bg-indigo-50/20 text-indigo-700 font-bold">{{ d.cover2_count }}</td>
-                                <td class="py-2 px-2 text-center font-mono bg-emerald-50/20 text-emerald-700 font-bold">{{ d.cover3_count }}</td>
-                                <td class="py-2 px-2 text-center font-mono font-extrabold text-[#1D1D1F]">{{ d.con_cover }}</td>
-                                <td class="py-2 px-2 text-center font-mono text-[#86868B]">{{ d.sin_cover }}</td>
-                                <td class="py-2 px-3 text-center whitespace-nowrap">
-                                  <span
-                                    class="px-1.5 py-0.5 rounded text-[10.5px] font-bold font-mono"
-                                    :class="d.cumple ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
-                                  >
-                                    {{ fmtPct(d.cobertura_pct) }}
-                                  </span>
-                                </td>
-                                <td class="py-2 px-2 text-center whitespace-nowrap">
-                                  <span
-                                    class="px-2 py-0.5 rounded-full text-[9px] font-extrabold"
-                                    :class="d.cumple ? 'bg-emerald-600 text-white' : 'bg-rose-500 text-white'"
-                                  >
-                                    {{ d.cumple ? 'CUMPLE' : 'NO CUMPLE' }}
-                                  </span>
-                                </td>
-                                <td class="py-2 px-3 text-right font-mono font-bold text-amber-700">
-                                  {{ fmtBs(d.descuento_total) }}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
                     </div>
                   </td>
                 </tr>
@@ -759,7 +549,7 @@
 
               <!-- Estado Vacío -->
               <tr v-if="rutasFiltradas.length === 0">
-                <td colspan="14" class="py-12 text-center text-[#86868B] text-xs">
+                <td colspan="11" class="py-12 text-center text-[#86868B] text-xs">
                   No se encontraron rutas con los filtros aplicados.
                 </td>
               </tr>
@@ -786,9 +576,6 @@
                     {{ fmtPct(totales.cobertura_pct) }}
                   </span>
                 </td>
-                <td class="py-2.5 px-2 text-center font-mono text-[#6E6E73]">{{ totales.dias_activos_promedio }}</td>
-                <td class="py-2.5 px-2 text-center font-mono text-emerald-700">{{ totales.dias_cumplidos_promedio }}</td>
-                <td class="py-2.5 px-2 text-center font-mono text-[#1D1D1F]">{{ fmtPct(totales.pct_dias_cumplidos_global) }}</td>
                 <td class="py-2.5 px-3 text-right font-mono text-amber-800">{{ fmtBs(totales.descuento_total) }}</td>
                 <td class="py-2.5 px-2 text-center">-</td>
               </tr>
@@ -822,11 +609,12 @@ const props = defineProps({
 
 const store = useAvanceStore()
 
-// Subnavegación de Módulo Avance
-const avanceMenu = navigationConfig.mainMenu.find(m => m.id === 'avance')
-const avanceTabs = avanceMenu ? avanceMenu.submodules : []
+// Tabs del módulo Avance
+const avanceTabs = computed(() => {
+  return navigationConfig.find(m => m.id === 'avance')?.subtabs || []
+})
 
-// Estado principal
+// Estados principales
 const cargando = ref(false)
 const rutasConsolidadas = ref([])
 const totales = ref({})
@@ -843,7 +631,6 @@ const copiadoExitoso = ref(false)
 const filasExpandidas = reactive(new Set())
 const cacheDetalles = reactive({})
 const cargandoDetalles = reactive({})
-const subTabRuta = reactive({}) // ruta => 'tiendas' | 'dias'
 const filtroCoverTienda = reactive({}) // ruta => 'todos' | 'con_cover' | 'cover1' | 'cover2' | 'cover3' | 'sin_cover'
 const busquedaTienda = reactive({}) // ruta => string
 const tiendasExpandidas = reactive({}) // `${ruta}_${cliente_id}` => bool
@@ -859,32 +646,14 @@ function getTagClass(tagTipo) {
       return 'bg-blue-100 text-[#0071E3] border border-blue-200'
     case 'cover2':
       return 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-    case 'cover1_2':
-      return 'bg-purple-100 text-purple-700 border border-purple-200'
     case 'cover3':
       return 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-    case 'bonif':
-      return 'bg-teal-100 text-teal-800 border border-teal-200'
-    case 'req1':
-      return 'bg-blue-50 text-blue-700 border border-blue-200'
-    case 'req2':
-      return 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-    case 'desc':
-      return 'bg-amber-100 text-amber-800 border border-amber-200'
     default:
       return 'bg-black/[0.04] text-[#6E6E73]'
   }
 }
 
-// Subtabs y filtros del acordeón
-function getSubTabRuta(ruta) {
-  return subTabRuta[ruta] || 'tiendas'
-}
-
-function setSubTabRuta(ruta, tab) {
-  subTabRuta[ruta] = tab
-}
-
+// Filtros del acordeón
 function getFiltroCoverTienda(ruta) {
   return filtroCoverTienda[ruta] || 'todos'
 }
@@ -910,7 +679,7 @@ function getTiendasFiltradas(ruta) {
   let list = detalle.tiendas
   const filtro = getFiltroCoverTienda(ruta)
   if (filtro === 'con_cover') {
-    list = list.filter(t => t.tiene_descuento)
+    list = list.filter(t => t.tiene_cover)
   } else if (filtro === 'cover1') {
     list = list.filter(t => t.tiene_cover1)
   } else if (filtro === 'cover2') {
@@ -918,7 +687,7 @@ function getTiendasFiltradas(ruta) {
   } else if (filtro === 'cover3') {
     list = list.filter(t => t.tiene_cover3)
   } else if (filtro === 'sin_cover') {
-    list = list.filter(t => !t.tiene_descuento)
+    list = list.filter(t => !t.tiene_cover)
   }
 
   const query = (busquedaTienda[ruta] || '').trim().toLowerCase()
@@ -1042,9 +811,9 @@ async function copiarTablaAlPortapapeles() {
   if (rutasFiltradas.value.length === 0) return
 
   const headers = [
-    'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (Sedal 340)',
-    'Cover 2 (Pepsodent)', 'Cover 3 (Sedal 40)', 'Con Cover', 'Sin Cover',
-    '% Cobertura MTD', 'Días Activos', 'Días Cumple', '% Cumplimiento', 'Inversión Descuentos (Bs)'
+    'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
+    'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323- TDB)', 'Con Cover', 'Sin Cover',
+    '% Cobertura MTD', 'Inversión Promo (Bs)'
   ]
 
   const lineas = [headers.join('\t')]
@@ -1061,9 +830,6 @@ async function copiarTablaAlPortapapeles() {
       r.clientes_con_cover,
       r.clientes_sin_cover,
       `${r.cobertura_pct}%`,
-      r.dias_activos,
-      r.dias_cumplidos,
-      `${r.pct_dias_cumplidos}%`,
       r.descuento_total
     ].join('\t'))
   })
@@ -1078,9 +844,6 @@ async function copiarTablaAlPortapapeles() {
     totales.value.clientes_con_cover,
     totales.value.clientes_sin_cover,
     `${totales.value.cobertura_pct}%`,
-    totales.value.dias_activos_promedio,
-    totales.value.dias_cumplidos_promedio,
-    `${totales.value.pct_dias_cumplidos_global}%`,
     totales.value.descuento_total
   ].join('\t'))
 
@@ -1099,9 +862,9 @@ function exportarExcel() {
 
   const rows = [
     [
-      'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (Sedal 340)',
-      'Cover 2 (Pepsodent)', 'Cover 3 (Sedal 40)', 'Con Cover', 'Sin Cover',
-      '% Cobertura MTD', 'Días Activos', 'Días Cumple', '% Cumplimiento', 'Inversión Descuentos (Bs)'
+      'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
+      'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323- TDB)', 'Con Cover', 'Sin Cover',
+      '% Cobertura MTD', 'Inversión Promo (Bs)'
     ]
   ]
 
@@ -1117,9 +880,6 @@ function exportarExcel() {
       r.clientes_con_cover,
       r.clientes_sin_cover,
       r.cobertura_pct / 100,
-      r.dias_activos,
-      r.dias_cumplidos,
-      r.pct_dias_cumplidos / 100,
       r.descuento_total
     ])
   })
@@ -1134,9 +894,6 @@ function exportarExcel() {
     totales.value.clientes_con_cover,
     totales.value.clientes_sin_cover,
     (totales.value.cobertura_pct || 0) / 100,
-    totales.value.dias_activos_promedio,
-    totales.value.dias_cumplidos_promedio,
-    (totales.value.pct_dias_cumplidos_global || 0) / 100,
     totales.value.descuento_total
   ])
 

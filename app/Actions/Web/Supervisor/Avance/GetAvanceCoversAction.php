@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Web\Supervisor\Avance;
 
-use App\Actions\Web\Supervisor\Preventas\CoversClassifier;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +12,11 @@ class GetAvanceCoversAction
     private const UMBRAL_COVERS_PCT = 50.0;
 
     /**
-     * Calcula la matriz consolidada de covers por ruta en el rango mensual o personalizado.
+     * Calcula la matriz consolidada de covers por ruta en el rango mensual o personalizado
+     * extrayendo las ventas directamente de la tabla fact_ventas y clasificando por escala_producto:
+     * - Cover 1: COD-SHTDB1126 (Sedal SH)
+     * - Cover 2: COD-PEPTDB1126 (Pepsodent)
+     * - Cover 3: SEDAL-SCHT 3-0323- TDB / SEDAL-SCHT 3-0323 - TDB (Sedal Sachet)
      *
      * @param string|null $fechaInicio
      * @param string|null $fechaCorte
@@ -30,12 +33,15 @@ class GetAvanceCoversAction
         @ini_set('memory_limit', '512M');
         @set_time_limit(180);
 
-        // 1. Fechas del Rango Evaluado
+        // 1. Fechas del Rango Evaluado desde fact_ventas
         if (!$fechaCorte) {
-            $maxFecha = DB::connection('supervisor')->table('fact_preventas')
+            $maxFecha = DB::connection('supervisor')->table('fact_ventas')
                 ->where(function ($q): void {
                     $q->where('monto_final', '>', 0)
                       ->orWhere('descuento', '>', 0);
+                })
+                ->where(function ($q): void {
+                    $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
                 })
                 ->max('fecha_norm');
             $fechaCorte = $maxFecha ?: date('Y-m-d');
@@ -63,28 +69,32 @@ class GetAvanceCoversAction
             ];
         }
 
-        // 3. Consulta de preventas en el rango
-        $query = DB::connection('supervisor')->table('fact_preventas')
+        // 3. Consulta de ventas en el rango desde fact_ventas
+        $query = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
             ->where('fecha_norm', '<=', $fechaCorte)
             ->where(function ($q): void {
                 $q->where('monto_final', '>', 0)
                   ->orWhere('descuento', '>', 0);
             })
+            ->where(function ($q): void {
+                $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
+            })
             ->select([
                 'fecha_norm',
-                'ruta',
+                DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta"),
                 'cliente_id',
-                'codigo_cliente',
                 'cliente',
-                'codigo_producto',
+                'codigo',
                 'producto',
                 'categoria',
                 'cantidad',
-                'precio_lista',
                 'descuento',
-                'monto',
                 'monto_final',
+                'monto',
+                'escala_producto',
+                'canal',
+                'vendedor',
             ]);
 
         $rutasFilterClean = array_values(array_filter(array_map(fn ($r) => strtoupper(trim((string) $r)), $rutas)));
@@ -92,58 +102,84 @@ class GetAvanceCoversAction
             $query->whereIn(DB::raw("TRIM(UPPER(ruta))"), $rutasFilterClean);
         }
 
-        $preventas = $query->orderBy('ruta')->orderBy('cliente_id')->orderBy('fecha_norm')->get();
-
-        // 4. Agrupar por ruta -> cliente_id -> fecha_norm
-        $rutasMap = [];
         $canalesFilterClean = array_values(array_filter(array_map(fn ($c) => strtoupper(trim((string) $c)), $canales)));
         $filtrarCanales = !empty($canalesFilterClean) && !in_array('TODOS', $canalesFilterClean, true) && !in_array('__NINGUNO__', $canalesFilterClean, true);
 
-        foreach ($preventas as $r) {
+        $ventas = $query->orderBy('ruta')->orderBy('cliente_id')->orderBy('fecha_norm')->get();
+
+        // 4. Agrupar por ruta -> cliente_id
+        $rutasMap = [];
+
+        foreach ($ventas as $r) {
             $rKey = strtoupper(trim((string) $r->ruta));
-            $canalRuta = $dimRutas[$rKey]['canal'] ?? 'GENERAL';
+            $canalRuta = $dimRutas[$rKey]['canal'] ?? trim((string) ($r->canal ?: 'GENERAL'));
+            $vendedorRuta = $dimRutas[$rKey]['vendedor'] ?? trim((string) ($r->vendedor ?: 'No Asignado'));
 
             if ($filtrarCanales && !in_array(strtoupper($canalRuta), $canalesFilterClean, true)) {
                 continue;
             }
 
             $cid = (int) $r->cliente_id;
-            $fNorm = (string) $r->fecha_norm;
 
             if (!isset($rutasMap[$rKey])) {
                 $rutasMap[$rKey] = [
                     'ruta' => $rKey,
-                    'vendedor' => $dimRutas[$rKey]['vendedor'] ?? 'No Asignado',
+                    'vendedor' => $vendedorRuta,
                     'canal' => $canalRuta,
                     'clientes' => [],
-                    'dias' => [],
-                ];
-            }
-
-            if (!isset($rutasMap[$rKey]['dias'][$fNorm])) {
-                $rutasMap[$rKey]['dias'][$fNorm] = [
-                    'compradores' => [],
-                    'con_cover' => [],
-                    'cover1' => 0,
-                    'cover2' => 0,
-                    'cover3' => 0,
-                    'descuento' => 0.0,
+                    'descuento_total' => 0.0,
+                    'monto_total' => 0.0,
                 ];
             }
 
             if (!isset($rutasMap[$rKey]['clientes'][$cid])) {
                 $rutasMap[$rKey]['clientes'][$cid] = [
                     'cliente_id' => $cid,
-                    'codigo_cliente' => (string) ($r->codigo_cliente ?: $cid),
                     'cliente' => (string) ($r->cliente ?: 'Cliente #' . $cid),
-                    'fechas' => [],
+                    'tiene_cover1' => false,
+                    'tiene_cover2' => false,
+                    'tiene_cover3' => false,
+                    'tiene_cover' => false,
+                    'descuento' => 0.0,
+                    'monto' => 0.0,
                 ];
             }
 
-            if (!isset($rutasMap[$rKey]['clientes'][$cid]['fechas'][$fNorm])) {
-                $rutasMap[$rKey]['clientes'][$cid]['fechas'][$fNorm] = [];
+            $montoRow = (float) ($r->monto_final ?? ($r->monto ?? 0.0));
+            $descRow = (float) ($r->descuento ?? 0.0);
+
+            $rutasMap[$rKey]['monto_total'] += $montoRow;
+            $rutasMap[$rKey]['clientes'][$cid]['monto'] += $montoRow;
+
+            // Clasificación precisa por escala_producto según los códigos solicitados
+            $escalaNorm = strtoupper(trim((string) ($r->escala_producto ?? '')));
+            $escalaSinEspacios = str_replace(' ', '', $escalaNorm);
+
+            // Cover 1: COD-SHTDB1126
+            $esCover1 = str_contains($escalaSinEspacios, 'COD-SHTDB1126');
+
+            // Cover 2: COD-PEPTDB1126
+            $esCover2 = str_contains($escalaSinEspacios, 'COD-PEPTDB1126');
+
+            // Cover 3: SEDAL-SCHT 3-0323- TDB / SEDAL-SCHT 3-0323 - TDB
+            $esCover3 = str_contains($escalaSinEspacios, 'SEDAL-SCHT3-0323-TDB')
+                || (str_contains($escalaNorm, 'SEDAL-SCHT 3-0323') && str_contains($escalaNorm, 'TDB'));
+
+            if ($esCover1) {
+                $rutasMap[$rKey]['clientes'][$cid]['tiene_cover1'] = true;
             }
-            $rutasMap[$rKey]['clientes'][$cid]['fechas'][$fNorm][] = $r;
+            if ($esCover2) {
+                $rutasMap[$rKey]['clientes'][$cid]['tiene_cover2'] = true;
+            }
+            if ($esCover3) {
+                $rutasMap[$rKey]['clientes'][$cid]['tiene_cover3'] = true;
+            }
+
+            if ($esCover1 || $esCover2 || $esCover3) {
+                $rutasMap[$rKey]['clientes'][$cid]['tiene_cover'] = true;
+                $rutasMap[$rKey]['descuento_total'] += $descRow;
+                $rutasMap[$rKey]['clientes'][$cid]['descuento'] += $descRow;
+            }
         }
 
         // 5. Consolidar métricas por ruta y totales globales
@@ -155,8 +191,6 @@ class GetAvanceCoversAction
         $totalGlobalCover3 = 0;
         $totalGlobalDescuento = 0.0;
         $totalGlobalMonto = 0.0;
-        $totalDiasActivosSuma = 0;
-        $totalDiasCumplidosSuma = 0;
 
         foreach ($rutasMap as $rKey => $rData) {
             $clientesTotal = count($rData['clientes']);
@@ -164,63 +198,23 @@ class GetAvanceCoversAction
             $clientesCover1 = 0;
             $clientesCover2 = 0;
             $clientesCover3 = 0;
-            $descuentoRuta = 0.0;
-            $montoRuta = 0.0;
 
-            foreach ($rData['clientes'] as $cid => $cData) {
-                $clienteTieneCoverEnMes = false;
-                $clienteTieneCover1 = false;
-                $clienteTieneCover2 = false;
-                $clienteTieneCover3 = false;
-
-                foreach ($cData['fechas'] as $fNorm => $items) {
-                    $rData['dias'][$fNorm]['compradores'][$cid] = true;
-
-                    $clasif = CoversClassifier::clasificar($items);
-                    $descuentoRuta += $clasif['descuento_total'];
-                    $rData['dias'][$fNorm]['descuento'] += $clasif['descuento_total'];
-
-                    foreach ($items as $it) {
-                        $montoRuta += (float) ($it->monto_final ?? 0.0);
-                    }
-
-                    if ($clasif['tiene_descuento']) {
-                        $clienteTieneCoverEnMes = true;
-                        $rData['dias'][$fNorm]['con_cover'][$cid] = true;
-                    }
-                    if ($clasif['tiene_cover1']) {
-                        $clienteTieneCover1 = true;
-                        $rData['dias'][$fNorm]['cover1']++;
-                    }
-                    if ($clasif['tiene_cover2']) {
-                        $clienteTieneCover2 = true;
-                        $rData['dias'][$fNorm]['cover2']++;
-                    }
-                    if ($clasif['tiene_cover3']) {
-                        $clienteTieneCover3 = true;
-                        $rData['dias'][$fNorm]['cover3']++;
-                    }
+            foreach ($rData['clientes'] as $c) {
+                if ($c['tiene_cover']) {
+                    $clientesConCover++;
                 }
-
-                if ($clienteTieneCoverEnMes) $clientesConCover++;
-                if ($clienteTieneCover1) $clientesCover1++;
-                if ($clienteTieneCover2) $clientesCover2++;
-                if ($clienteTieneCover3) $clientesCover3++;
-            }
-
-            $diasActivos = count($rData['dias']);
-            $diasCumplidos = 0;
-            foreach ($rData['dias'] as $fNorm => $dInfo) {
-                $comp = count($dInfo['compradores']);
-                $cov = count($dInfo['con_cover']);
-                $pct = $comp > 0 ? ($cov / $comp) * 100 : 0;
-                if ($pct >= self::UMBRAL_COVERS_PCT) {
-                    $diasCumplidos++;
+                if ($c['tiene_cover1']) {
+                    $clientesCover1++;
+                }
+                if ($c['tiene_cover2']) {
+                    $clientesCover2++;
+                }
+                if ($c['tiene_cover3']) {
+                    $clientesCover3++;
                 }
             }
 
             $coberturaPct = $clientesTotal > 0 ? round(($clientesConCover / $clientesTotal) * 100, 1) : 0.0;
-            $pctDiasCumplidos = $diasActivos > 0 ? round(($diasCumplidos / $diasActivos) * 100, 1) : 0.0;
 
             $rutasConsolidadas[] = [
                 'ruta' => $rKey,
@@ -233,12 +227,9 @@ class GetAvanceCoversAction
                 'cover2_count' => $clientesCover2,
                 'cover3_count' => $clientesCover3,
                 'cobertura_pct' => $coberturaPct,
-                'dias_activos' => $diasActivos,
-                'dias_cumplidos' => $diasCumplidos,
-                'pct_dias_cumplidos' => $pctDiasCumplidos,
                 'cumple_mes' => ($coberturaPct >= self::UMBRAL_COVERS_PCT),
-                'descuento_total' => round($descuentoRuta, 2),
-                'monto_total' => round($montoRuta, 2),
+                'descuento_total' => round($rData['descuento_total'], 2),
+                'monto_total' => round($rData['monto_total'], 2),
             ];
 
             $totalGlobalClientes += $clientesTotal;
@@ -246,10 +237,8 @@ class GetAvanceCoversAction
             $totalGlobalCover1 += $clientesCover1;
             $totalGlobalCover2 += $clientesCover2;
             $totalGlobalCover3 += $clientesCover3;
-            $totalGlobalDescuento += $descuentoRuta;
-            $totalGlobalMonto += $montoRuta;
-            $totalDiasActivosSuma += $diasActivos;
-            $totalDiasCumplidosSuma += $diasCumplidos;
+            $totalGlobalDescuento += $rData['descuento_total'];
+            $totalGlobalMonto += $rData['monto_total'];
         }
 
         // Ordenar alfabéticamente por código de ruta
@@ -257,8 +246,6 @@ class GetAvanceCoversAction
 
         $totalRutas = count($rutasConsolidadas);
         $coberturaGlobalPct = $totalGlobalClientes > 0 ? round(($totalGlobalConCover / $totalGlobalClientes) * 100, 1) : 0.0;
-        $diasActivosPromedio = $totalRutas > 0 ? round($totalDiasActivosSuma / $totalRutas, 1) : 0.0;
-        $diasCumplidosPromedio = $totalRutas > 0 ? round($totalDiasCumplidosSuma / $totalRutas, 1) : 0.0;
 
         return [
             'rutas' => $rutasConsolidadas,
@@ -271,9 +258,6 @@ class GetAvanceCoversAction
                 'cover2_count' => $totalGlobalCover2,
                 'cover3_count' => $totalGlobalCover3,
                 'cobertura_pct' => $coberturaGlobalPct,
-                'dias_activos_promedio' => $diasActivosPromedio,
-                'dias_cumplidos_promedio' => $diasCumplidosPromedio,
-                'pct_dias_cumplidos_global' => $totalDiasActivosSuma > 0 ? round(($totalDiasCumplidosSuma / $totalDiasActivosSuma) * 100, 1) : 0.0,
                 'descuento_total' => round($totalGlobalDescuento, 2),
                 'monto_total' => round($totalGlobalMonto, 2),
             ],
