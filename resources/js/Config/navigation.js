@@ -140,6 +140,13 @@ export const navigationConfig = {
           route: 'supervisor.avance.bpc',
           component: 'Supervisor/Avance/Bpc',
           icon: 'SparklesIcon'
+        },
+        {
+          id: 'covers',
+          name: 'Acumulado Covers',
+          route: 'supervisor.avance.covers',
+          component: 'Supervisor/Avance/Covers',
+          icon: 'SparklesIcon'
         }
       ]
     },

@@ -17,6 +17,8 @@ use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasHistoricoAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceEntregasTableroAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosMatrizAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceCoversAction;
+use App\Actions\Web\Supervisor\Avance\GetAvanceCoversDetalleRutaAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceHorariosTimelineAction;
 use App\Actions\Web\Supervisor\Avance\GetAvanceItinerarioSecuenciaAction;
 use App\Actions\Web\Supervisor\Avance\SaveAvanceItinerarioSecuenciaAction;
@@ -736,6 +738,66 @@ class SupervisorAvanceController extends Controller
                 'message' => 'Error al guardar secuencia de itinerario: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Muestra la vista principal de Avance > Acumulado Covers.
+     */
+    public function covers(GetAvanceInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Avance/Covers', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'meses' => $initData['meses'],
+            'fecha_inicio_default' => $initData['fecha_inicio'],
+            'fecha_corte_default' => $initData['fecha_corte'],
+            'mes_default' => $initData['mes'],
+            'dias_calendario' => $initData['dias_calendario'],
+        ]);
+    }
+
+    /**
+     * Devuelve la matriz consolidada de covers por ruta para el rango seleccionado.
+     */
+    public function coversData(Request $request, GetAvanceCoversAction $action): JsonResponse
+    {
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $data = $action->execute(
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte,
+            canales: $canales,
+            rutas: $rutas
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Devuelve el detalle monográfico de clientes y evolución cronológica día a día de una ruta.
+     */
+    public function coversDetalleRuta(Request $request, GetAvanceCoversDetalleRutaAction $action): JsonResponse
+    {
+        $ruta = (string) $request->input('ruta');
+        $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
+        $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
+
+        if (!$ruta) {
+            return response()->json(['message' => 'Ruta no especificada'], 422);
+        }
+
+        $data = $action->execute(
+            ruta: $ruta,
+            fechaInicio: $fechaInicio,
+            fechaCorte: $fechaCorte
+        );
+
+        return response()->json($data);
     }
 }
 

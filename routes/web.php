@@ -57,7 +57,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('avance')->name('avance.')->middleware('module.access:avance')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc'];
+            $submodules = ['cumplimiento', 'historico-preventas', 'cluster', 'paretos', 'entregas', 'bpc', 'covers'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('avance', $sub)) {
                     return redirect()->route("supervisor.avance.{$sub}");
@@ -112,6 +112,13 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::get('/bpc', [SupervisorAvanceController::class, 'bpc'])->name('bpc');
             Route::post('/bpc/clientes', [SupervisorAvanceController::class, 'bpcClientes'])->name('bpc.clientes');
             Route::post('/bpc/sellout', [SupervisorAvanceController::class, 'bpcSellOut'])->name('bpc.sellout');
+        });
+
+        // Acumulado Mensual Covers
+        Route::middleware('module.access:avance,covers')->group(function () {
+            Route::get('/covers', [SupervisorAvanceController::class, 'covers'])->name('covers');
+            Route::post('/covers/data', [SupervisorAvanceController::class, 'coversData'])->name('covers.data');
+            Route::post('/covers/detalle-ruta', [SupervisorAvanceController::class, 'coversDetalleRuta'])->name('covers.detalle-ruta');
         });
 
         // Redirección de compatibilidad: Horarios e Itinerario migrado a Cumplimiento
