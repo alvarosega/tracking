@@ -422,6 +422,7 @@ export function useAvanceStore() {
     guardarEstado,
     recuperarEstado,
     inicializarDesdeStorage,
+    init: inicializarDesdeStorage,
     configurarCanales,
     configurarRutas,
     sincronizarRutasConCanales,

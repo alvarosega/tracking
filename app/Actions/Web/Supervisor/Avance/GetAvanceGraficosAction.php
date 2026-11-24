@@ -56,6 +56,45 @@ class GetAvanceGraficosAction
 
         $mesYm = $carbonCorte->format('Y-m');
 
+        // Limpieza de filtros
+        $canalesFilterClean = array_values(array_filter(array_map(fn ($c) => strtoupper(trim((string) $c)), $canales)));
+        $rutasFilterClean = array_values(array_filter(array_map(fn ($r) => strtoupper(trim((string) $r)), $rutas)));
+
+        // Si se seleccionó "Ninguna" ruta o "Ningún" canal explícitamente, devolver estructura vacía
+        if (in_array('__NINGUNA__', $rutasFilterClean, true) || in_array('__NINGUNO__', $canalesFilterClean, true)) {
+            return [
+                'fechas' => [],
+                'dias_labels' => [],
+                'total_dias' => 0,
+                'rango' => [
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_corte' => $fechaCorte,
+                    'mes' => $mesYm,
+                ],
+                'rutas' => [],
+                'consolidado' => [
+                    'meta_volumen' => 0.0,
+                    'logrado_volumen' => 0.0,
+                    'pct_volumen' => 0.0,
+                    'meta_cobertura' => 0,
+                    'logrado_cobertura' => 0,
+                    'pct_cobertura' => 0.0,
+                    'series' => [
+                        'volumen_diario' => [],
+                        'volumen_acumulado' => [],
+                        'cobertura_diaria' => [],
+                        'cobertura_acumulada' => [],
+                    ],
+                ],
+                'ritmo_ideal' => [
+                    'volumen_acumulado' => [],
+                    'cobertura_acumulada' => [],
+                    'volumen_diario' => 0.0,
+                    'cobertura_diaria' => 0.0,
+                ],
+            ];
+        }
+
         // 2. Catálogo de Rutas desde dim_rutas
         $dimRutasRaw = DB::connection('supervisor')->table('dim_rutas')->get();
         $dimRutas = [];
@@ -111,6 +150,43 @@ class GetAvanceGraficosAction
             ->pluck('total_cartera', 'ruta_clean')
             ->toArray();
 
+        // Enriquecer catálogo dimRutas con rutas de metas y cartera si no existían
+        foreach ($volGenRaw as $rKey => $mVol) {
+            if (!isset($dimRutas[$rKey])) {
+                $dimRutas[$rKey] = ['vendedor' => 'No Asignado', 'canal' => 'SC'];
+            }
+        }
+        foreach ($carteraRaw as $rKey => $mCob) {
+            if (!isset($dimRutas[$rKey])) {
+                $dimRutas[$rKey] = ['vendedor' => 'No Asignado', 'canal' => 'SC'];
+            }
+        }
+
+        // Filtro de canales activo
+        $filtrarCanales = !empty($canalesFilterClean) && !in_array('TODOS', $canalesFilterClean, true);
+        $filtrarRutas = !empty($rutasFilterClean) && !in_array('TODAS', $rutasFilterClean, true);
+
+        // Universo de rutas aplicables
+        $universoRutas = [];
+        foreach ($dimRutas as $rKey => $info) {
+            if ($rKey === 'SIN RUTA' || $rKey === '') {
+                continue;
+            }
+
+            if ($filtrarRutas && !in_array($rKey, $rutasFilterClean, true)) {
+                continue;
+            }
+
+            if ($filtrarCanales) {
+                $canalUpper = strtoupper($info['canal'] ?? 'SC');
+                if (!in_array($canalUpper, $canalesFilterClean, true)) {
+                    continue;
+                }
+            }
+
+            $universoRutas[$rKey] = $info;
+        }
+
         // 5. Ventas en el rango desde fact_ventas
         $queryVentas = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
@@ -126,14 +202,13 @@ class GetAvanceGraficosAction
                 DB::raw("COALESCE(monto_final, 0.0) as monto"),
             ]);
 
-        $rutasFilterClean = array_values(array_filter(array_map(fn ($r) => strtoupper(trim((string) $r)), $rutas)));
-        if (!empty($rutasFilterClean) && !in_array('TODAS', $rutasFilterClean, true) && !in_array('__NINGUNA__', $rutasFilterClean, true)) {
+        if ($filtrarRutas) {
             $queryVentas->whereIn(DB::raw("TRIM(UPPER(ruta))"), $rutasFilterClean);
         }
 
         $ventas = $queryVentas->orderBy('fecha_norm', 'asc')->get();
 
-        // 6. Extraer lista cronológica de fechas con actividad
+        // 6. Extraer lista cronológica de fechas
         $fechasSet = [];
         foreach ($ventas as $v) {
             $f = (string) $v->fecha;
@@ -144,7 +219,7 @@ class GetAvanceGraficosAction
         $fechas = array_keys($fechasSet);
         sort($fechas);
 
-        // Si no hay ventas, crear días del rango
+        // Si no hay ventas, construir días hábiles del rango
         if (empty($fechas)) {
             $curr = Carbon::parse($fechaInicio);
             $end = Carbon::parse($fechaCorte);
@@ -165,17 +240,28 @@ class GetAvanceGraficosAction
 
         $totalDiasHabiles = count($fechas);
 
-        // 7. Agrupar por ruta -> fecha
-        $canalesFilterClean = array_values(array_filter(array_map(fn ($c) => strtoupper(trim((string) $c)), $canales)));
-        $filtrarCanales = !empty($canalesFilterClean) && !in_array('TODOS', $canalesFilterClean, true) && !in_array('__NINGUNO__', $canalesFilterClean, true);
-
+        // 7. Agrupar ventas por ruta -> fecha
         $rutasVentas = [];
         foreach ($ventas as $v) {
             $rKey = (string) $v->ruta;
-            $canalRuta = $dimRutas[$rKey]['canal'] ?? 'SC';
+            if ($rKey === '' || $rKey === 'SIN RUTA') {
+                continue;
+            }
 
+            // Asegurar que si apareció en ventas pero no en dim_rutas, se evalúe canal
+            $canalRuta = $dimRutas[$rKey]['canal'] ?? 'SC';
             if ($filtrarCanales && !in_array(strtoupper($canalRuta), $canalesFilterClean, true)) {
                 continue;
+            }
+            if ($filtrarRutas && !in_array($rKey, $rutasFilterClean, true)) {
+                continue;
+            }
+
+            if (!isset($universoRutas[$rKey])) {
+                $universoRutas[$rKey] = [
+                    'vendedor' => $dimRutas[$rKey]['vendedor'] ?? 'No Asignado',
+                    'canal' => $canalRuta,
+                ];
             }
 
             $f = (string) $v->fecha;
@@ -184,9 +270,6 @@ class GetAvanceGraficosAction
 
             if (!isset($rutasVentas[$rKey])) {
                 $rutasVentas[$rKey] = [
-                    'ruta' => $rKey,
-                    'vendedor' => $dimRutas[$rKey]['vendedor'] ?? 'No Asignado',
-                    'canal' => $canalRuta,
                     'dias' => [],
                 ];
             }
@@ -200,21 +283,22 @@ class GetAvanceGraficosAction
             $rutasVentas[$rKey]['dias'][$f]['clientes'][$cid] = true;
         }
 
-        // 8. Construir series por ruta y acumuladores para el consolidado global
+        // 8. Construir series por ruta para todas las rutas del universo
         $rutasSeries = [];
         $globalMetaVolumen = 0.0;
         $globalMetaCobertura = 0;
         $globalVolumenDiario = array_fill(0, $totalDiasHabiles, 0.0);
         $globalClientesDiarios = array_fill(0, $totalDiasHabiles, 0);
-        $globalClientesVistosPorDia = []; // idx => array de clientes únicos acumulados
+        $globalClientesVistosPorDia = [];
 
         for ($i = 0; $i < $totalDiasHabiles; $i++) {
             $globalClientesVistosPorDia[$i] = [];
         }
 
-        foreach ($rutasVentas as $rKey => $rData) {
+        foreach ($universoRutas as $rKey => $rInfo) {
             $metaVol = (float) ($volGenRaw[$rKey] ?? 0.0);
             $metaCob = (int) ($carteraRaw[$rKey] ?? 0);
+            $rDias = $rutasVentas[$rKey]['dias'] ?? [];
 
             $volAcumulado = 0.0;
             $clientesVistos = [];
@@ -225,13 +309,12 @@ class GetAvanceGraficosAction
             $serieCobAcum = [];
 
             foreach ($fechas as $idx => $f) {
-                $volDia = round((float) ($rData['dias'][$f]['volumen'] ?? 0.0), 2);
-                $clisDia = count($rData['dias'][$f]['clientes'] ?? []);
+                $volDia = round((float) ($rDias[$f]['volumen'] ?? 0.0), 2);
+                $clisDia = count($rDias[$f]['clientes'] ?? []);
 
-                if (isset($rData['dias'][$f]['clientes'])) {
-                    foreach (array_keys($rData['dias'][$f]['clientes']) as $cid) {
+                if (isset($rDias[$f]['clientes'])) {
+                    foreach (array_keys($rDias[$f]['clientes']) as $cid) {
                         $clientesVistos[$cid] = true;
-                        // Agregar a los vistos acumulados globales para esta fecha
                         for ($k = $idx; $k < $totalDiasHabiles; $k++) {
                             $globalClientesVistosPorDia[$k][$cid] = true;
                         }
@@ -255,8 +338,8 @@ class GetAvanceGraficosAction
 
             $rutasSeries[] = [
                 'ruta' => $rKey,
-                'vendedor' => $rData['vendedor'],
-                'canal' => $rData['canal'],
+                'vendedor' => $rInfo['vendedor'] ?? 'No Asignado',
+                'canal' => $rInfo['canal'] ?? 'SC',
                 'meta_volumen' => $metaVol,
                 'logrado_volumen' => round($volAcumulado, 2),
                 'pct_volumen' => $pctAvanceVol,
@@ -275,7 +358,7 @@ class GetAvanceGraficosAction
             $globalMetaCobertura += $metaCob;
         }
 
-        // Ordenar rutas por código alfabéticamente
+        // Ordenar alfabéticamente por código de ruta
         usort($rutasSeries, fn ($a, $b) => strcmp($a['ruta'], $b['ruta']));
 
         // 9. Consolidado Global de Series

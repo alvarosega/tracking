@@ -590,8 +590,13 @@ function formatEjeY(val) {
 // Margins del gráfico SVG (viewBox 1000x420)
 const padding = { top: 20, right: 30, bottom: 40, left: 70 }
 
-// Rutas disponibles
-const rutasDisponibles = computed(() => rutasData.value || [])
+// Rutas disponibles (filtrables también por el buscador transversal)
+const rutasDisponibles = computed(() => {
+  const b = (store.busqueda || '').toLowerCase().trim()
+  const list = rutasData.value || []
+  if (!b) return list
+  return list.filter(r => (r.ruta && r.ruta.toLowerCase().includes(b)) || (r.vendedor && r.vendedor.toLowerCase().includes(b)))
+})
 
 const rutasActivasVisibles = computed(() => {
   if (rutasSeleccionadasGrafico.size === 0) return []
@@ -839,12 +844,17 @@ const rutasFiltradasTabla = computed(() => {
 // Consulta API
 async function consultarGraficos() {
   cargando.value = true
+  store.cargandoCumplimiento = true
   try {
     const payload = {
-      fecha_inicio: store.fechaInicio,
-      fecha_corte: store.fechaCorte,
-      canales: store.canalesSeleccionados,
-      rutas: store.rutasSeleccionadas,
+      fecha_inicio: store.filtrosAplicados?.fechaInicio || store.fechaInicio,
+      fecha_corte: store.filtrosAplicados?.fechaCorte || store.fechaCorte,
+      canales: Array.isArray(store.filtrosAplicados?.canalesSeleccionados)
+        ? store.filtrosAplicados.canalesSeleccionados
+        : (store.canalesSeleccionados || []),
+      rutas: Array.isArray(store.filtrosAplicados?.rutasSeleccionadas)
+        ? store.filtrosAplicados.rutasSeleccionadas
+        : (store.rutasSeleccionadas || []),
     }
     const res = await axios.post(route('supervisor.avance.graficos.data'), payload)
     fechas.value = res.data.fechas || []
@@ -858,6 +868,7 @@ async function consultarGraficos() {
     console.error('Error al consultar datos de gráficos de avance:', e)
   } finally {
     cargando.value = false
+    store.cargandoCumplimiento = false
   }
 }
 
@@ -924,7 +935,7 @@ function exportarExcel() {
 }
 
 onMounted(() => {
-  store.init(props)
+  store.inicializarDesdeStorage(props)
   consultarGraficos()
 })
 </script>
