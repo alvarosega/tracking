@@ -30,6 +30,37 @@ class GetAltasEdicionesInitDataAction
 
         $canales = $catalogo->pluck('canal')->filter()->unique()->values()->toArray();
 
+        // Agregar rutas presentes en saneamiento_base que no estén en dim_rutas
+        $rutasExistentes = $catalogo->pluck('ruta')->toArray();
+        $rutasSb = DB::connection('supervisor')->table('saneamiento_base')
+            ->select('route')
+            ->distinct()
+            ->whereNotNull('route')
+            ->where('route', '!=', '')
+            ->pluck('route')
+            ->toArray();
+
+        $rutasFaltantes = [];
+        foreach ($rutasSb as $rsb) {
+            if (!in_array($rsb, $rutasExistentes, true)) {
+                $canalDeducido = 'TDB';
+                foreach ($canales as $cn) {
+                    if (str_starts_with(strtoupper(trim((string) $rsb)), strtoupper(trim((string) $cn)))) {
+                        $canalDeducido = $cn;
+                        break;
+                    }
+                }
+                $rutasFaltantes[] = (object) [
+                    'ruta' => $rsb,
+                    'canal' => $canalDeducido,
+                    'vendedor' => 'Sin asignar',
+                ];
+            }
+        }
+        if (!empty($rutasFaltantes)) {
+            $catalogo = $catalogo->concat($rutasFaltantes)->sortBy('ruta')->values();
+        }
+
         // 2. Extraer dinámicamente los tipos de registro existentes
         $tiposRegistro = DB::connection('supervisor')->table('saneamiento_base')
             ->select('tipo_registro')
@@ -40,8 +71,9 @@ class GetAltasEdicionesInitDataAction
             ->values()
             ->toArray();
 
-        // 3. Extraer dinámicamente los estados de revisión existentes
-        $estadosRevision = DB::connection('supervisor')->table('saneamiento_base')
+        // 3. Extraer dinámicamente los estados de revisión asegurando PENDIENTE, APROBADO, RECHAZADO
+        $estadosBase = ['PENDIENTE', 'APROBADO', 'RECHAZADO'];
+        $estadosExistentes = DB::connection('supervisor')->table('saneamiento_base')
             ->select('estado_revision')
             ->distinct()
             ->whereNotNull('estado_revision')
@@ -49,6 +81,8 @@ class GetAltasEdicionesInitDataAction
             ->pluck('estado_revision')
             ->values()
             ->toArray();
+
+        $estadosRevision = array_values(array_unique(array_merge($estadosBase, $estadosExistentes)));
 
         return [
             'catalogo_rutas' => $catalogo,

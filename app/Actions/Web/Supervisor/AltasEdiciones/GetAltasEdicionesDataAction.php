@@ -41,15 +41,35 @@ class GetAltasEdicionesDataAction
         array $estados = []
     ): array {
         // 1. Filtrar rutas por canal si corresponde
-        $rutasFiltradas = $rutas;
-        if (!empty($canales)) {
+        $canalesFiltrados = array_values(array_filter($canales, fn ($c) => strtoupper(trim((string) $c)) !== 'TODOS'));
+        $rutasFiltradas = array_values(array_filter($rutas, fn ($r) => strtoupper(trim((string) $r)) !== 'TODAS'));
+
+        if (!empty($canalesFiltrados)) {
             $rutasPorCanal = DB::connection('supervisor')->table('dim_rutas')
-                ->whereIn('canal', $canales)
+                ->whereIn('canal', $canalesFiltrados)
                 ->pluck('ruta')
                 ->toArray();
 
-            $rutasFiltradas = !empty($rutas)
-                ? array_values(array_intersect($rutas, $rutasPorCanal))
+            // Incluir también rutas de saneamiento_base cuyo prefijo coincida con el canal
+            $sbRutas = DB::connection('supervisor')->table('saneamiento_base')
+                ->select('route')
+                ->distinct()
+                ->whereNotNull('route')
+                ->where('route', '!=', '')
+                ->pluck('route')
+                ->toArray();
+
+            foreach ($sbRutas as $sbr) {
+                foreach ($canalesFiltrados as $cn) {
+                    if (str_starts_with(strtoupper(trim((string) $sbr)), strtoupper(trim((string) $cn)))) {
+                        $rutasPorCanal[] = $sbr;
+                    }
+                }
+            }
+            $rutasPorCanal = array_values(array_unique($rutasPorCanal));
+
+            $rutasFiltradas = !empty($rutasFiltradas)
+                ? array_values(array_intersect($rutasFiltradas, $rutasPorCanal))
                 : $rutasPorCanal;
         }
 
@@ -128,8 +148,9 @@ class GetAltasEdicionesDataAction
             });
         }
 
-        if (!empty($estados)) {
-            $query->whereIn('sb.estado_revision', $estados);
+        $estadosFiltrados = array_values(array_filter($estados, fn ($e) => strtoupper(trim((string) $e)) !== 'TODOS'));
+        if (!empty($estadosFiltrados)) {
+            $query->whereIn('sb.estado_revision', $estadosFiltrados);
         }
 
         if ($fechaInicio && $fechaFin) {

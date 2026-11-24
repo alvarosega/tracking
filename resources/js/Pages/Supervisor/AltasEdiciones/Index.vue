@@ -17,8 +17,8 @@
           class="fixed inset-0 z-[99990]"
         ></div>
 
-        <!-- Filtros con Scroll Horizontal -->
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <!-- Filtros Visibles y Directos: Canal, Ruta y Estado -->
+        <div class="flex flex-wrap items-center gap-1.5 py-0.5 shrink-0">
           
           <!-- Filtro / Badge de Tipo de Registro -->
           <div
@@ -29,56 +29,58 @@
             <span class="text-[#86868B]">Módulo:</span>
             <span class="font-bold">{{ submoduloActivo === 'altas' ? 'Nuevas Altas' : 'Modificaciones' }}</span>
           </div>
-          <button
-            v-else
-            type="button"
-            @click.stop="toggleMenu('tipos', $event)"
-            class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
-          >
-            <span class="text-[#86868B]">Tipo:</span>
-            <span class="font-semibold">{{ labelTipos }}</span>
-            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
 
-          <!-- Filtro: Estado de Revisión -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('estados', $event)"
-            class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
-          >
-            <span class="text-[#86868B]">Estado:</span>
-            <span class="font-semibold">{{ labelEstados }}</span>
-            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <!-- Filtro 1: Canal -->
+          <div class="flex items-center gap-1 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] px-2 h-7 text-xs shadow-2xs hover:border-[#86868B] transition-colors shrink-0">
+            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Canal:</span>
+            <select
+              v-model="canalSeleccionado"
+              @change="alCambiarCanal"
+              class="bg-transparent text-xs font-bold text-[#0071E3] focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="TODOS">Todos los Canales</option>
+              <option v-for="c in props.canales" :key="c" :value="c">Canal {{ c }}</option>
+            </select>
+          </div>
 
-          <!-- Filtro: Canales -->
-          <button
-            type="button"
-            @click.stop="toggleMenu('canales', $event)"
-            class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
-          >
-            <span class="text-[#86868B]">Canal:</span>
-            <span class="font-semibold">{{ labelCanales }}</span>
-            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <!-- Filtro 2: Ruta -->
+          <div class="flex items-center gap-1 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] px-2 h-7 text-xs shadow-2xs hover:border-[#86868B] transition-colors shrink-0">
+            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Ruta:</span>
+            <select
+              v-model="rutaSeleccionada"
+              @change="alCambiarRuta"
+              class="bg-transparent text-xs font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer max-w-[155px] truncate pr-1"
+            >
+              <option value="TODAS">Todas las Rutas ({{ rutasDisponibles.length }})</option>
+              <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">
+                {{ r.ruta }} {{ r.canal ? `(${r.canal})` : '' }}
+              </option>
+            </select>
+          </div>
 
-          <!-- Filtro: Rutas -->
+          <!-- Filtro 3: Estado de Revisión -->
+          <div class="flex items-center gap-1 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] px-2 h-7 text-xs shadow-2xs hover:border-[#86868B] transition-colors shrink-0">
+            <span class="text-[9.5px] font-bold text-[#86868B] uppercase tracking-wider">Estado:</span>
+            <select
+              v-model="estadoSeleccionado"
+              @change="alCambiarEstado"
+              class="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+              :class="estadoSeleccionado === 'APROBADO' ? 'text-[#248A3D] font-bold' : (estadoSeleccionado === 'RECHAZADO' ? 'text-[#C9342C] font-bold' : (estadoSeleccionado === 'PENDIENTE' ? 'text-[#B25E00] font-bold' : 'text-[#1D1D1F]'))"
+            >
+              <option value="TODOS">Todos los Estados</option>
+              <option v-for="e in props.estados_revision" :key="e" :value="e">{{ e }}</option>
+            </select>
+          </div>
+
+          <!-- Reset Rápido si hay filtros aplicados -->
           <button
+            v-if="canalSeleccionado !== 'TODOS' || rutaSeleccionada !== 'TODAS' || estadoSeleccionado !== 'TODOS'"
             type="button"
-            @click.stop="toggleMenu('rutas', $event)"
-            class="h-7 px-2.5 bg-[#FBFBFD] border border-[#E5E5EA] rounded-[6px] text-xs font-medium text-[#1D1D1F] hover:bg-[#F2F2F7] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap select-none shrink-0"
+            @click="limpiarFiltrosRapidos"
+            class="h-7 px-2 text-[11px] text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#E5E5EA] rounded-[6px] transition-colors font-semibold cursor-pointer shrink-0"
+            title="Restablecer filtros a valores por defecto"
           >
-            <span class="text-[#86868B]">Rutas:</span>
-            <span class="font-semibold">{{ labelRutas }}</span>
-            <svg class="w-3 h-3 text-[#86868B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            Limpiar filtros
           </button>
         </div>
 
@@ -409,7 +411,7 @@
         >
           <!-- MODO 1: LISTADO GENERAL -->
           <template v-if="!registroSeleccionado">
-            <!-- Buscador Rápido -->
+            <!-- Buscador Rápido y Filtros en Panel -->
             <div class="p-2 border-b border-[#E5E5EA] bg-[#FBFBFD] space-y-1.5 shrink-0">
               <input
                 v-model="busquedaTexto"
@@ -417,6 +419,40 @@
                 placeholder="Buscar cliente, código, ruta o dirección..."
                 class="w-full h-7 px-2.5 bg-white border border-[#E5E5EA] rounded-[6px] text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#86868B]"
               />
+
+              <!-- Selector rápido sincronizado en panel de listado -->
+              <div class="grid grid-cols-3 gap-1.5 pt-0.5">
+                <select
+                  v-model="canalSeleccionado"
+                  @change="alCambiarCanal"
+                  class="h-6 px-1.5 bg-white border border-[#E5E5EA] rounded-[5px] text-[10.5px] font-semibold text-[#0071E3] focus:outline-none cursor-pointer truncate"
+                  title="Filtrar por Canal"
+                >
+                  <option value="TODOS">Canal: Todos</option>
+                  <option v-for="c in props.canales" :key="c" :value="c">{{ c }}</option>
+                </select>
+
+                <select
+                  v-model="rutaSeleccionada"
+                  @change="alCambiarRuta"
+                  class="h-6 px-1.5 bg-white border border-[#E5E5EA] rounded-[5px] text-[10.5px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer truncate"
+                  title="Filtrar por Ruta"
+                >
+                  <option value="TODAS">Ruta: Todas ({{ rutasDisponibles.length }})</option>
+                  <option v-for="r in rutasDisponibles" :key="r.ruta" :value="r.ruta">{{ r.ruta }}</option>
+                </select>
+
+                <select
+                  v-model="estadoSeleccionado"
+                  @change="alCambiarEstado"
+                  class="h-6 px-1.5 bg-white border border-[#E5E5EA] rounded-[5px] text-[10.5px] font-semibold focus:outline-none cursor-pointer truncate"
+                  :class="estadoSeleccionado === 'APROBADO' ? 'text-[#248A3D] font-bold' : (estadoSeleccionado === 'RECHAZADO' ? 'text-[#C9342C] font-bold' : (estadoSeleccionado === 'PENDIENTE' ? 'text-[#B25E00] font-bold' : 'text-[#1D1D1F]'))"
+                  title="Filtrar por Estado de Revisión"
+                >
+                  <option value="TODOS">Estado: Todos</option>
+                  <option v-for="e in props.estados_revision" :key="e" :value="e">{{ e }}</option>
+                </select>
+              </div>
             </div>
 
             <!-- Listado Densa de Solicitudes -->
@@ -2690,6 +2726,53 @@ const filtroRutas = ref(props.catalogo_rutas.map(r => r.ruta));
 const busquedaTexto = ref('');
 const busquedaRuta = ref('');
 
+// Selectores directos para barra y panel de listado (Canal, Ruta, Estado)
+const canalSeleccionado = ref('TODOS');
+const rutaSeleccionada = ref('TODAS');
+const estadoSeleccionado = ref(
+  (props.submoduloActivo === 'altas' || (tipoFijoUpper && tipoFijoUpper.includes('ALTA'))) ? 'PENDIENTE' : 'TODOS'
+);
+
+function alCambiarCanal() {
+  if (canalSeleccionado.value === 'TODOS') {
+    filtroCanales.value = [...props.canales];
+  } else {
+    filtroCanales.value = [canalSeleccionado.value];
+  }
+  rutaSeleccionada.value = 'TODAS';
+  filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
+  cargarDatos();
+}
+
+function alCambiarRuta() {
+  if (rutaSeleccionada.value === 'TODAS') {
+    filtroRutas.value = rutasDisponibles.value.map(r => r.ruta);
+  } else {
+    filtroRutas.value = [rutaSeleccionada.value];
+  }
+  cargarDatos();
+}
+
+function alCambiarEstado() {
+  if (estadoSeleccionado.value === 'TODOS') {
+    filtroEstados.value = [...props.estados_revision];
+  } else {
+    filtroEstados.value = [estadoSeleccionado.value];
+  }
+  cargarDatos();
+}
+
+function limpiarFiltrosRapidos() {
+  canalSeleccionado.value = 'TODOS';
+  rutaSeleccionada.value = 'TODAS';
+  estadoSeleccionado.value = 'TODOS';
+  filtroCanales.value = [...props.canales];
+  filtroRutas.value = props.catalogo_rutas.map(r => r.ruta);
+  filtroEstados.value = [...props.estados_revision];
+  busquedaTexto.value = '';
+  cargarDatos();
+}
+
 // UI
 const menuAbierto = ref(null);
 const posicionMenu = ref({ top: 0, left: 0 });
@@ -3048,8 +3131,13 @@ const markersMap = new Map();
 
 const rutasDisponibles = computed(() => {
   if (!props.catalogo_rutas) return [];
-  if (filtroCanales.value.length === 0) return props.catalogo_rutas;
-  return props.catalogo_rutas.filter(r => filtroCanales.value.includes(r.canal));
+  if (canalSeleccionado.value === 'TODOS') return props.catalogo_rutas;
+  const cSel = String(canalSeleccionado.value).trim().toUpperCase();
+  return props.catalogo_rutas.filter(r => {
+    const rc = r.canal ? String(r.canal).trim().toUpperCase() : '';
+    const rr = r.ruta ? String(r.ruta).trim().toUpperCase() : '';
+    return rc === cSel || rr.startsWith(cSel);
+  });
 });
 
 const rutasFiltradasEnDropdown = computed(() => {
@@ -3257,12 +3345,12 @@ async function exportarPadronActualizado() {
 
   try {
     const url = typeof route === 'function' ? route('supervisor.altas-ediciones.exportar-padron') : '/supervisor/altas-ediciones/exportar-padron';
-    const canalFiltrado = filtroCanales.value.length > 0 && filtroCanales.value.length < props.canales.length;
+    const canalFiltrado = canalSeleccionado.value !== 'TODOS';
     const res = await axios.post(url, {
-      canales: filtroCanales.value,
-      rutas: filtroRutas.value,
+      canales: canalSeleccionado.value === 'TODOS' ? [] : [canalSeleccionado.value],
+      rutas: rutaSeleccionada.value === 'TODAS' ? [] : [rutaSeleccionada.value],
       tipos: filtroTipos.value,
-      estados: filtroEstados.value,
+      estados: estadoSeleccionado.value === 'TODOS' ? [] : [estadoSeleccionado.value],
       solo_modificados: canalFiltrado,
     }, {
       responseType: 'blob',
@@ -3551,9 +3639,9 @@ async function cargarDatos() {
   try {
     const res = await axios.post(route('supervisor.altas-ediciones.data'), {
       tipos: filtroTipos.value,
-      estados: filtroEstados.value,
-      canales: filtroCanales.value,
-      rutas: filtroRutas.value,
+      estados: estadoSeleccionado.value === 'TODOS' ? [] : [estadoSeleccionado.value],
+      canales: canalSeleccionado.value === 'TODOS' ? [] : [canalSeleccionado.value],
+      rutas: rutaSeleccionada.value === 'TODAS' ? [] : [rutaSeleccionada.value],
     });
 
     registros.value = res.data.registros || [];
