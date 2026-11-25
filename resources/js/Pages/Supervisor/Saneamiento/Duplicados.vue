@@ -435,7 +435,7 @@
             <div
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
-              @click="seleccionarGrupo(grupo)"
+              @click="seleccionarGrupo(grupo, true)"
               class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-2 relative group"
               :class="[
                 grupoSeleccionadoId === grupo.cluster_id
@@ -460,58 +460,84 @@
                   <span
                     v-if="tienePropuestaPendiente(grupo)"
                     class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9px] font-bold font-mono"
-                    title="Propuesta pendiente"
+                    title="Propuesta pendiente de resolución"
                   >
                     Propuesta
                   </span>
                   <span
                     class="font-mono text-[10px] px-1.5 py-0.2 rounded font-bold"
-                    :class="grupo.distancia_minima_m <= radioMetros ? 'bg-slate-100 text-slate-800 border border-slate-200' : 'bg-slate-50 text-slate-500'"
+                    :class="(grupo.distancia_minima_m ?? 999) <= radioMetros ? 'bg-slate-100 text-slate-800 border border-slate-200' : 'bg-slate-50 text-slate-500'"
                   >
                     {{ formatearDistancia(grupo.distancia_minima_m) }}
                   </span>
                 </div>
               </div>
 
-              <!-- Fila 2: Dato Coincidente Principal (Línea sobria sin recargar) -->
-              <div class="flex items-center justify-between text-[11px] font-mono min-w-0 gap-1.5">
-                <div class="flex items-center gap-1 min-w-0 truncate text-slate-700">
-                  <span class="text-slate-400 font-sans text-[10px] uppercase font-bold shrink-0">
-                    {{ obtenerResumenCoincidencias(grupo).principal?.titulo || 'Conflicto' }}:
+              <!-- Fila 2: Dato(s) Coincidente(s) -->
+              <div v-if="obtenerCoincidenciasLegibles(grupo).length > 0" class="p-2 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
+                <div class="flex items-center justify-between text-[10px] font-mono">
+                  <span class="font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
+                    <span>Dato(s) Coincidente(s):</span>
                   </span>
-                  <span class="font-semibold text-slate-900 truncate">
-                    {{ obtenerResumenCoincidencias(grupo).principal?.valor || '-' }}
+                  <span class="text-slate-400 font-sans text-[9.5px]">{{ (grupo.clientes || []).length }} clientes</span>
+                </div>
+
+                <div class="flex flex-col gap-1 text-[11px] font-mono">
+                  <div
+                    v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
+                    :key="idxC"
+                    class="px-2 py-0.5 rounded bg-white border border-slate-200 flex items-center justify-between gap-1 shadow-2xs leading-tight"
+                  >
+                    <div class="flex items-center gap-1 min-w-0 flex-wrap">
+                      <span class="text-[9.5px] uppercase font-bold text-slate-500 shrink-0">{{ coinc.titulo }}:</span>
+                      <span class="font-bold text-slate-900 break-words select-all">{{ coinc.valor }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Indicador de Inter-Rutas si difieren -->
+                <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-0.5 text-[9.5px] font-mono">
+                  <span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <span>Inter-Rutas: {{ grupo.rutas.join(' vs ') }}</span>
                   </span>
                 </div>
-                <span
-                  v-if="obtenerResumenCoincidencias(grupo).total > 1"
-                  class="text-[9px] font-mono text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.2 rounded"
-                >
-                  +{{ obtenerResumenCoincidencias(grupo).total - 1 }} más
-                </span>
               </div>
 
-              <!-- Fila 3: Rutas en conflicto y Métricas (Venta & Clientes) -->
-              <div class="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-100 gap-1">
-                <div class="flex items-center gap-1 min-w-0 truncate">
-                  <span
-                    v-if="grupo.rutas.length > 1"
-                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold truncate"
-                    title="Rutas en conflicto"
-                  >
-                    {{ grupo.rutas.join(' vs ') }}
-                  </span>
-                  <span
-                    v-else-if="grupo.rutas.length === 1"
-                    class="text-slate-500 truncate"
-                  >
-                    Ruta {{ grupo.rutas[0] }}
-                  </span>
-                  <span class="text-slate-400 text-[9.5px]">({{ grupo.clientes.length }} clis)</span>
+              <!-- Fila 3: Clientes del Grupo (Mini comparativa legible y sobria) -->
+              <div class="space-y-1 text-xs">
+                <div
+                  v-for="cli in (grupo.clientes || [])"
+                  :key="cli.cliente_id"
+                  class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1.5 transition-colors bg-white border-slate-200"
+                >
+                  <div class="min-w-0 flex-1 truncate">
+                    <div class="flex items-center gap-1.5">
+                      <span
+                        class="w-2 h-2 rounded-full shrink-0"
+                        :class="cli.es_master_sugerido ? 'bg-slate-900 ring-1 ring-slate-400' : 'bg-slate-300'"
+                        :title="cli.es_master_sugerido ? 'Master Sugerido' : 'Posible Duplicado'"
+                      ></span>
+                      <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
+                    </div>
+                    <div class="text-[10px] font-mono text-slate-500 truncate pl-3.5">
+                      ID {{ cli.cliente_id }} &bull; {{ cli.ruta }} ({{ cli.canal }}) &bull; {{ cli.dia }}
+                    </div>
+                  </div>
+                  <div class="text-right font-mono text-[10px] shrink-0">
+                    <div class="font-bold text-slate-900">
+                      Bs. {{ cli.venta_mtd }}
+                    </div>
+                    <div class="text-slate-400 text-[9px]">{{ cli.es_master_sugerido ? 'Master' : 'Duplicado' }}</div>
+                  </div>
                 </div>
-                <div class="text-right shrink-0">
-                  <span class="font-bold text-slate-900">Bs. {{ (grupo.venta_mtd_total || 0).toFixed(2) }}</span>
-                </div>
+              </div>
+
+              <!-- Fila 4: Pie de Tarjeta con Venta Total MTD -->
+              <div class="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-100 text-slate-500">
+                <span>Venta Total Grupo MTD:</span>
+                <span class="font-bold text-slate-900">Bs. {{ formatearMonto(grupo.venta_mtd_total) }}</span>
               </div>
             </div>
           </div>
@@ -1734,7 +1760,7 @@ const totalClientesImplicados = computed(() => {
 })
 
 const ventaMtdTotalAuditada = computed(() => {
-  const total = clustersFiltrados.value.reduce((acc, c) => acc + (c.venta_mtd_total || 0), 0)
+  const total = clustersFiltrados.value.reduce((acc, c) => acc + (parseFloat(c.venta_mtd_total) || 0), 0)
   return total.toFixed(2)
 })
 
@@ -1772,13 +1798,13 @@ const clustersFiltrados = computed(() => {
       const peso = { 'MISMA_UBICACION_Y_DATOS': 1, 'MISMOS_DATOS': 2, 'MISMA_UBICACION': 3 }
       const diff = (peso[a.clasificacion] || 9) - (peso[b.clasificacion] || 9)
       if (diff !== 0) return diff
-      return b.venta_mtd_total - a.venta_mtd_total
+      return (parseFloat(b.venta_mtd_total) || 0) - (parseFloat(a.venta_mtd_total) || 0)
     }
     if (criterioOrden.value === 'venta') {
-      return b.venta_mtd_total - a.venta_mtd_total
+      return (parseFloat(b.venta_mtd_total) || 0) - (parseFloat(a.venta_mtd_total) || 0)
     }
     if (criterioOrden.value === 'distancia') {
-      return a.distancia_minima_m - b.distancia_minima_m
+      return (a.distancia_minima_m ?? 999999) - (b.distancia_minima_m ?? 999999)
     }
     return a.cluster_id - b.cluster_id
   })
@@ -1801,11 +1827,12 @@ function navegarGrupo(direccion) {
   if (idx === -1) return
   const nuevoIdx = idx + direccion
   if (nuevoIdx >= 0 && nuevoIdx < clustersFiltrados.value.length) {
-    seleccionarGrupo(clustersFiltrados.value[nuevoIdx])
+    seleccionarGrupo(clustersFiltrados.value[nuevoIdx], false)
   }
 }
 
-function seleccionarGrupo(grupo) {
+function seleccionarGrupo(grupo, desdeClickUsuario = false) {
+  if (!grupo) return
   grupoSeleccionadoId.value = grupo.cluster_id
   clienteFocoId.value = null
   cambiosExpandidos.value = new Set()
@@ -1813,8 +1840,8 @@ function seleccionarGrupo(grupo) {
   // Calcular quien es el mas antiguo en el grupo para badge visual
   marcarAntiguedadGrupo(grupo)
 
-  // En movil cambiar automaticamente a la vista de comparador
-  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+  // En movil cambiar automaticamente a la vista de comparador SOLO por accion directa del usuario
+  if (desdeClickUsuario && typeof window !== 'undefined' && window.innerWidth < 1024) {
     vistaMovil.value = 'comparador'
   }
 
@@ -1827,6 +1854,12 @@ function seleccionarGrupo(grupo) {
       enfocarGrupoEnMapa(grupo)
     }
   })
+}
+
+function formatearMonto(val) {
+  if (val === null || val === undefined || val === '') return '0.00'
+  const num = typeof val === 'number' ? val : parseFloat(String(val))
+  return isNaN(num) ? '0.00' : num.toFixed(2)
 }
 
 function marcarAntiguedadGrupo(grupo) {
@@ -2333,7 +2366,7 @@ async function ejecutarAuditoriaDuplicados() {
     clusters.value = res.data.clusters || []
 
     if (clusters.value.length > 0) {
-      seleccionarGrupo(clusters.value[0])
+      seleccionarGrupo(clusters.value[0], false)
     } else {
       grupoSeleccionadoId.value = null
       if (collisionLayerGroup) collisionLayerGroup.clearLayers()
