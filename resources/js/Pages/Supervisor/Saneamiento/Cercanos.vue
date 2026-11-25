@@ -105,6 +105,19 @@
           >
             <option v-for="r in opcionesRadio" :key="r.valor" :value="r.valor">{{ r.etiqueta }}</option>
           </select>
+
+          <!-- Chip Punto de Referencia Movil -->
+          <button
+            v-if="origenConsulta"
+            type="button"
+            @click="enfocarPuntoReferencia"
+            class="h-8 px-2 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 rounded-lg text-xs font-mono font-bold flex items-center gap-1 shrink-0 shadow-2xs cursor-pointer"
+            title="Centrar mapa en punto de referencia"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
+            <span class="text-[9.5px] font-sans font-bold text-rose-600 uppercase">Ref:</span>
+            <span class="text-[10px] tabular-nums">{{ Number(origenConsulta.lat).toFixed(4) }}, {{ Number(origenConsulta.lng).toFixed(4) }}</span>
+          </button>
         </div>
 
         <!-- Fila 3: Quick Bar Tactil (Canal, Rutas, Fronteras Rutas) -->
@@ -221,6 +234,23 @@
             <span>{{ mensajeEnlace.texto }}</span>
             <button type="button" @click="mensajeEnlace = null" class="ml-1 text-slate-400 hover:text-slate-600 font-bold cursor-pointer">&times;</button>
           </div>
+
+          <!-- Chip Punto de Referencia Activo en Desktop -->
+          <button
+            v-if="origenConsulta"
+            type="button"
+            @click="enfocarPuntoReferencia"
+            class="h-8 px-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200/90 text-rose-900 rounded-lg text-xs font-mono flex items-center gap-1.5 shadow-2xs shrink-0 cursor-pointer transition-colors"
+            title="Punto de referencia activo. Clic para centrar mapa aquí."
+          >
+            <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+            <span class="text-rose-600 font-sans text-[10px] uppercase font-bold tracking-wider">Ref:</span>
+            <span class="font-bold tabular-nums">{{ Number(origenConsulta.lat).toFixed(5) }}, {{ Number(origenConsulta.lng).toFixed(5) }}</span>
+            <svg class="w-3.5 h-3.5 text-rose-500 hover:text-rose-700 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
+          </button>
 
           <!-- Selector Radio -->
           <div class="flex items-center h-8 px-2 bg-slate-50 border border-slate-200/90 rounded-lg text-xs text-slate-800 shrink-0">
@@ -1863,6 +1893,22 @@ function obtenerUbicacionActual() {
   );
 }
 
+function enfocarPuntoReferencia() {
+  if (!map || !origenConsulta.value) return;
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    vistaMovil.value = 'mapa';
+  }
+  nextTick(() => {
+    if (map) {
+      map.invalidateSize();
+      map.flyTo([Number(origenConsulta.value.lat), Number(origenConsulta.value.lng)], 16, { duration: 0.6 });
+      if (centerMarker) {
+        centerMarker.openTooltip();
+      }
+    }
+  });
+}
+
 async function resolverEnlaceMaps() {
   const val = inputEnlaceMaps.value.trim();
   if (!val) return;
@@ -2094,6 +2140,62 @@ function renderizarEnMapa() {
   if (highlightLayer) highlightLayer.clearLayers();
   clientMarkersMap.clear();
 
+  const centerLat = Number(origenConsulta.value.lat);
+  const centerLng = Number(origenConsulta.value.lng);
+  const center = [centerLat, centerLng];
+
+  // 1. Círculo perimetral del radio de búsqueda
+  radiusCircle = L.circle(center, {
+    radius: Number(radioSeleccionado.value || 200),
+    color: '#0284C7',
+    weight: 2,
+    dashArray: '6, 6',
+    fillColor: '#38BDF8',
+    fillOpacity: 0.08,
+    interactive: false,
+  }).addTo(map);
+
+  // 2. Marcador distintivo de Punto de Referencia (Ubicación Seleccionada / Enlace Maps)
+  const centerIconHtml = `
+    <div class="relative flex items-center justify-center cursor-pointer select-none" style="width: 32px; height: 38px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));">
+      <span class="absolute bottom-0 w-8 h-8 rounded-full bg-rose-500/40 animate-ping -translate-y-1"></span>
+      <div class="relative z-10 flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full bg-rose-600 border-2 border-white flex items-center justify-center text-white shadow-md">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+        <div class="w-2 h-2 bg-rose-700 rounded-full -mt-1 shadow-xs border border-white"></div>
+      </div>
+    </div>
+  `;
+
+  centerMarker = L.marker(center, {
+    zIndexOffset: 1500,
+    icon: L.divIcon({
+      className: 'custom-center-reference-pin !bg-transparent !border-0',
+      html: centerIconHtml,
+      iconSize: [32, 38],
+      iconAnchor: [16, 38],
+      tooltipAnchor: [0, -38],
+    }),
+  }).addTo(map);
+
+  centerMarker.bindTooltip(`
+    <div class="font-sans text-xs p-1">
+      <div class="font-bold text-slate-900 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-rose-600"></span>
+        <span>Punto de Referencia</span>
+      </div>
+      <div class="text-[10px] font-mono text-slate-600 mt-0.5">
+        ${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}
+      </div>
+      <div class="text-[10px] text-sky-600 font-semibold mt-0.5">
+        Radio activo: ${radioSeleccionado.value} metros
+      </div>
+    </div>
+  `, { direction: 'top', offset: [0, -38], opacity: 0.98 });
+
   clientesFiltrados.value.forEach(c => {
     const markerColor = getMarkerColor(c);
 
@@ -2224,3 +2326,10 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style>
+.custom-center-reference-pin {
+  background: transparent !important;
+  border: none !important;
+}
+</style>
