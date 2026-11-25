@@ -1,13 +1,15 @@
 <template>
-  <SupervisorLayout title="Saneamiento | Clientes Duplicados">
-    <div class="space-y-3 font-sans text-slate-900 select-none pb-12">
+  <SupervisorLayout full-bleed title="Saneamiento | Clientes Duplicados">
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-100/60 font-sans text-slate-900 select-none">
       <!-- Navegacion de Submodulos Saneamiento Padron -->
-      <AuditoriaSaneamientoSubTabs active-tab="duplicados" :compact="true" />
+      <div class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-4 py-1.5 shrink-0 relative z-30">
+        <AuditoriaSaneamientoSubTabs active-tab="duplicados" :compact="true" />
+      </div>
 
       <!-- ============================================================== -->
       <!-- CABECERA PRINCIPAL: FILTROS, MODOS Y METRICAS                  -->
       <!-- ============================================================== -->
-      <div class="apple-glass-card rounded-2xl p-3 border border-slate-200/90 shadow-2xs space-y-2.5 relative z-30">
+      <div class="bg-white border-b border-slate-200/90 px-3 sm:px-4 py-2 shrink-0 relative z-20 space-y-2">
         <!-- Fila 1: Selector de Modo Segmentado + Metricas Resumen -->
         <div class="flex flex-wrap items-center justify-between gap-2.5">
           <!-- Segmented Tab de Modo (Desktop y Scroll en Movil) -->
@@ -344,7 +346,7 @@
       <!-- ============================================================== -->
       <!-- SELECTOR DE VISTA MOVIL (< lg)                                  -->
       <!-- ============================================================== -->
-      <div class="flex lg:hidden items-center justify-between p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs gap-0.5">
+      <div class="flex lg:hidden items-center justify-between p-1 bg-slate-100 border-b border-slate-200 text-xs gap-0.5 shrink-0">
         <button
           type="button"
           @click="setVistaMovil('grupos')"
@@ -382,12 +384,12 @@
       <!-- ============================================================== -->
       <!-- ESTRUCTURA PRINCIPAL: COLUMNA GRUPOS + PANEL DE RESOLUCION      -->
       <!-- ============================================================== -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-[640px]">
+      <div class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden relative z-10">
         
-        <!-- Columna 1: Listado de Grupos Detectados (4 cols en desktop) -->
+        <!-- Columna 1: Listado de Grupos Detectados (Ocupa 100% del alto disponible) -->
         <div
-          class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col overflow-hidden max-h-[780px]"
-          :class="vistaMovil === 'grupos' ? 'flex' : 'hidden lg:flex'"
+          class="w-full lg:w-[410px] xl:w-[450px] bg-white lg:border-r border-slate-200/90 flex flex-col shrink-0 min-h-0 overflow-hidden transition-all"
+          :class="vistaMovil === 'grupos' ? 'flex-1 lg:flex-initial flex h-full' : 'hidden lg:flex'"
         >
           <!-- Encabezado de la Columna y Ordenamiento -->
           <div class="px-3 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0 gap-2">
@@ -496,16 +498,23 @@
                   </div>
                 </div>
 
-                <!-- Indicador de Inter-Rutas si difieren -->
-                <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-0.5 text-[9.5px] font-mono">
-                  <span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <span>Inter-Rutas: {{ grupo.rutas.join(' vs ') }}</span>
+                <!-- Indicador de Inter-Rutas con Verde (Antiguo) y Rojo (Posterior) -->
+                <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-0.5 text-[9.5px] font-mono flex items-center gap-1 flex-wrap">
+                  <span class="text-slate-500 font-bold uppercase text-[9px]">Inter-Rutas:</span>
+                  <span
+                    v-for="cli in (grupo.clientes || [])"
+                    :key="'rt-badge-' + cli.cliente_id"
+                    class="px-1.5 py-0.2 rounded font-bold border flex items-center gap-1 shadow-2xs"
+                    :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
+                    :title="cli.es_mas_antiguo ? 'Ruta del cliente original (primer ingreso)' : 'Ruta del cliente que ingresó después'"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
+                    <span>Ruta {{ cli.ruta }} ({{ cli.es_mas_antiguo ? 'Original' : 'Posterior' }})</span>
                   </span>
                 </div>
               </div>
 
-              <!-- Fila 3: Clientes del Grupo (Mini comparativa legible y sobria) -->
+              <!-- Fila 3: Clientes del Grupo (Mini comparativa legible y sobria con rutas coloreadas) -->
               <div class="space-y-1 text-xs">
                 <div
                   v-for="cli in (grupo.clientes || [])"
@@ -516,20 +525,40 @@
                     <div class="flex items-center gap-1.5">
                       <span
                         class="w-2 h-2 rounded-full shrink-0"
-                        :class="cli.es_master_sugerido ? 'bg-slate-900 ring-1 ring-slate-400' : 'bg-slate-300'"
-                        :title="cli.es_master_sugerido ? 'Master Sugerido' : 'Posible Duplicado'"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-rose-500 ring-2 ring-rose-200'"
+                        :title="cli.es_mas_antiguo ? 'Cliente Original (Primer Ingreso)' : 'Posible Duplicado (Ingresó Después)'"
                       ></span>
                       <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
+                      <span
+                        v-if="cli.es_master_sugerido"
+                        class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-slate-900 text-white font-bold ml-auto shrink-0"
+                      >
+                        Master
+                      </span>
                     </div>
-                    <div class="text-[10px] font-mono text-slate-500 truncate pl-3.5">
-                      ID {{ cli.cliente_id }} &bull; {{ cli.ruta }} ({{ cli.canal }}) &bull; {{ cli.dia }}
+                    <div class="text-[10px] font-mono text-slate-500 truncate flex items-center gap-1 pt-0.5 pl-3.5 flex-wrap">
+                      <span class="text-slate-400">ID {{ cli.cliente_id }} &bull;</span>
+                      <span
+                        class="px-1.5 py-0.2 rounded font-bold border inline-flex items-center gap-1"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
+                        :title="cli.es_mas_antiguo ? 'Ruta del cliente original (primer ingreso)' : 'Ruta del cliente que ingresó después'"
+                      >
+                        <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
+                        <span>Ruta {{ cli.ruta }}</span>
+                      </span>
+                      <span class="text-slate-400">&bull; {{ cli.canal }} &bull; {{ cli.dia }}</span>
                     </div>
                   </div>
-                  <div class="text-right font-mono text-[10px] shrink-0">
+                  <div class="text-right font-mono text-[10px] shrink-0 pl-1">
                     <div class="font-bold text-slate-900">
                       Bs. {{ cli.venta_mtd }}
                     </div>
-                    <div class="text-slate-400 text-[9px]">{{ cli.es_master_sugerido ? 'Master' : 'Duplicado' }}</div>
+                    <div
+                      class="text-[9px] font-bold"
+                      :class="cli.es_mas_antiguo ? 'text-emerald-700' : 'text-rose-600'"
+                    >
+                      {{ cli.es_mas_antiguo ? 'Original' : 'Posterior' }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -543,10 +572,10 @@
           </div>
         </div>
 
-        <!-- Columna 2: Panel de Inspeccion, Comparador y Mapa (8 cols en desktop) -->
+        <!-- Columna 2: Panel de Inspeccion, Comparador y Mapa -->
         <div
-          class="lg:col-span-7 xl:col-span-8 flex flex-col gap-3 min-h-[640px]"
-          :class="(vistaMovil === 'comparador' || vistaMovil === 'mapa') ? 'flex' : 'hidden lg:flex'"
+          class="flex-1 h-full min-h-0 flex flex-col overflow-y-auto custom-scroll p-3 sm:p-4 space-y-3 bg-slate-50/50"
+          :class="(vistaMovil === 'comparador' || vistaMovil === 'mapa' || vistaMovil === 'propuestas') ? 'flex' : 'hidden lg:flex'"
         >
           <!-- 1. Encabezado de la Inspeccion y Control de Modos de Vista -->
           <div class="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
@@ -890,20 +919,25 @@
                     </div>
 
                     <!-- Seccion: Historial de Ingreso al Padron -->
-                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 text-xs font-mono space-y-1 shadow-2xs">
+                    <div
+                      class="p-2.5 rounded-xl border text-xs font-mono space-y-1 shadow-2xs"
+                      :class="cli.es_mas_antiguo ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'"
+                    >
                       <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-slate-400 font-sans uppercase font-bold tracking-wider">Antigüedad en Padrón:</span>
+                        <span class="text-slate-500 font-sans uppercase font-bold tracking-wider">Antigüedad en Padrón:</span>
                         <span
                           v-if="cli.es_mas_antiguo"
-                          class="px-2 py-0.2 rounded bg-slate-200 text-slate-800 font-bold text-[9.5px]"
+                          class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[9.5px] flex items-center gap-1"
                         >
-                          Padrón Más Antiguo
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                          Padrón Más Antiguo (Original)
                         </span>
                         <span
                           v-else
-                          class="px-2 py-0.2 rounded bg-slate-100 text-slate-600 font-medium text-[9.5px]"
+                          class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 font-bold text-[9.5px] flex items-center gap-1"
                         >
-                          Ingreso Posterior
+                          <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                          Ingreso Posterior (Duplicado)
                         </span>
                       </div>
                       <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5 pt-0.5">
@@ -934,17 +968,25 @@
                       </div>
                     </div>
 
-                    <!-- Seccion: Atributos de Ruteo con Alertas de Diferencias -->
+                    <!-- Seccion: Atributos de Ruteo con Rutas en Verde (Original) y Rojo (Posterior) -->
                     <div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
                       <div
-                        class="p-1.5 rounded-lg border transition-colors"
-                        :class="sonRutasDistintas() ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/80'"
+                        class="p-2 rounded-xl border transition-colors shadow-2xs"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-50/70 border-emerald-300' : 'bg-rose-50/70 border-rose-300'"
                       >
-                        <div class="flex items-center justify-between">
-                          <span class="text-slate-400 block text-[9.5px]">Ruta:</span>
-                          <span v-if="sonRutasDistintas()" class="text-[8.5px] font-bold text-amber-800 bg-amber-100 px-1 rounded">DISTINTA</span>
+                        <div class="flex items-center justify-between mb-0.5">
+                          <span class="text-[9.5px] font-bold uppercase" :class="cli.es_mas_antiguo ? 'text-emerald-700' : 'text-rose-700'">Ruta:</span>
+                          <span
+                            class="text-[8.5px] font-bold px-1.5 py-0.2 rounded uppercase border"
+                            :class="cli.es_mas_antiguo ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'"
+                          >
+                            {{ cli.es_mas_antiguo ? 'Original' : 'Ingresó Después' }}
+                          </span>
                         </div>
-                        <span class="font-bold text-slate-800">{{ cli.ruta }}</span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="w-2 h-2 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
+                          <span class="font-mono font-bold text-sm" :class="cli.es_mas_antiguo ? 'text-emerald-950' : 'text-rose-950'">{{ cli.ruta }}</span>
+                        </div>
                       </div>
                       <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
                         <span class="text-slate-400 block text-[9.5px]">Canal:</span>
@@ -1209,119 +1251,119 @@
               </div>
             </template>
           </div>
-        </div>
 
-      </div>
-
-      <!-- ============================================================== -->
-      <!-- BANDEJA INFERIOR: PROPUESTAS PENDIENTES DE RESOLUCION          -->
-      <!-- ============================================================== -->
-      <div
-        class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden mt-3"
-        :class="vistaMovil === 'propuestas' ? 'block' : 'hidden lg:block'"
-      >
-        <div
-          class="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 cursor-pointer select-none transition-colors hover:bg-slate-100/70"
-          @click="mostrarPanelPropuestas = !mostrarPanelPropuestas"
-        >
-          <div class="flex items-center gap-2">
-            <span class="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">
-              Bandeja de Propuestas Pendientes
-            </span>
-            <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-              {{ propuestasPendientes.length }} pendientes
-            </span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-slate-400 font-medium">
-              {{ mostrarPanelPropuestas ? 'Ocultar tabla' : 'Ver tabla de propuestas' }}
-            </span>
-            <svg
-              class="w-4 h-4 text-slate-400 transition-transform duration-200"
-              :class="mostrarPanelPropuestas ? 'rotate-180' : ''"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <!-- ============================================================== -->
+          <!-- BANDEJA INFERIOR: PROPUESTAS PENDIENTES DE RESOLUCION          -->
+          <!-- ============================================================== -->
+          <div
+            class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden mt-1"
+            :class="vistaMovil === 'propuestas' ? 'block' : 'hidden lg:block'"
+          >
+            <div
+              class="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 cursor-pointer select-none transition-colors hover:bg-slate-100/70"
+              @click="mostrarPanelPropuestas = !mostrarPanelPropuestas"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">
+                  Bandeja de Propuestas Pendientes
+                </span>
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  {{ propuestasPendientes.length }} pendientes
+                </span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400 font-medium">
+                  {{ mostrarPanelPropuestas ? 'Ocultar tabla' : 'Ver tabla de propuestas' }}
+                </span>
+                <svg
+                  class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                  :class="mostrarPanelPropuestas ? 'rotate-180' : ''"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            <div v-show="mostrarPanelPropuestas || vistaMovil === 'propuestas'" class="overflow-x-auto max-h-72 custom-scroll">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-slate-100 text-slate-700 uppercase text-[9.5px] font-mono font-bold tracking-wider border-b border-slate-200 z-10 shadow-2xs">
+                  <tr>
+                    <th class="py-2.5 px-3 whitespace-nowrap">Cliente Origen</th>
+                    <th class="py-2.5 px-3 whitespace-nowrap">ID Origen</th>
+                    <th class="py-2.5 px-3 whitespace-nowrap">Cliente Vinculado (Master)</th>
+                    <th class="py-2.5 px-3 whitespace-nowrap">Ruta</th>
+                    <th class="py-2.5 px-3 whitespace-nowrap">Acción Propuesta</th>
+                    <th class="py-2.5 px-3 whitespace-nowrap">Observaciones</th>
+                    <th class="py-2.5 px-3 text-center whitespace-nowrap">Estado</th>
+                    <th class="py-2.5 px-3 text-right whitespace-nowrap">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-if="propuestasPendientes.length === 0">
+                    <td colspan="8" class="py-8 text-center text-slate-400 font-medium text-xs">
+                      No hay propuestas pendientes de resolución de duplicados.
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="p in propuestasPendientes"
+                    :key="p.id"
+                    class="hover:bg-slate-50/80 transition-colors"
+                  >
+                    <td class="py-2 px-3 font-bold text-slate-900">{{ p.cliente_nombre }}</td>
+                    <td class="py-2 px-3 font-mono text-slate-600">{{ p.cliente_id_origen }}</td>
+                    <td class="py-2 px-3 font-mono text-emerald-700 font-bold">{{ p.cliente_id_vinculado ? `#${p.cliente_id_vinculado}` : '-' }}</td>
+                    <td class="py-2 px-3 font-mono">{{ p.ruta_actual }}</td>
+                    <td class="py-2 px-3 font-mono">
+                      <span
+                        class="px-2 py-0.5 rounded text-[10px] font-bold border"
+                        :class="p.accion_propuesta === 'INACTIVAR_DUPLICADO' ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-sky-50 text-sky-800 border-sky-200'"
+                      >
+                        {{ p.accion_propuesta }}
+                      </span>
+                    </td>
+                    <td class="py-2 px-3 text-slate-500 truncate max-w-xs">{{ p.observaciones }}</td>
+                    <td class="py-2 px-3 text-center">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                        {{ p.estado }}
+                      </span>
+                    </td>
+                    <td class="py-2 px-3 text-right space-x-1 whitespace-nowrap">
+                      <button
+                        type="button"
+                        @click="cambiarEstadoPropuesta(p.id, 'APLICADO')"
+                        :disabled="filaEnProceso === p.id"
+                        class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs cursor-pointer disabled:opacity-50"
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        type="button"
+                        @click="cambiarEstadoPropuesta(p.id, 'DESCARTADO')"
+                        :disabled="filaEnProceso === p.id"
+                        class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold shadow-2xs cursor-pointer disabled:opacity-50"
+                      >
+                        Descartar
+                      </button>
+                      <button
+                        type="button"
+                        @click="revertirPropuesta(p.id)"
+                        :disabled="filaEnProceso === p.id"
+                        class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        Revertir
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div v-show="mostrarPanelPropuestas || vistaMovil === 'propuestas'" class="overflow-x-auto max-h-72 custom-scroll">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead class="sticky top-0 bg-slate-100 text-slate-700 uppercase text-[9.5px] font-mono font-bold tracking-wider border-b border-slate-200 z-10 shadow-2xs">
-              <tr>
-                <th class="py-2.5 px-3 whitespace-nowrap">Cliente Origen</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">ID Origen</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">Cliente Vinculado (Master)</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">Ruta</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">Acción Propuesta</th>
-                <th class="py-2.5 px-3 whitespace-nowrap">Observaciones</th>
-                <th class="py-2.5 px-3 text-center whitespace-nowrap">Estado</th>
-                <th class="py-2.5 px-3 text-right whitespace-nowrap">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr v-if="propuestasPendientes.length === 0">
-                <td colspan="8" class="py-8 text-center text-slate-400 font-medium text-xs">
-                  No hay propuestas pendientes de resolución de duplicados.
-                </td>
-              </tr>
-              <tr
-                v-for="p in propuestasPendientes"
-                :key="p.id"
-                class="hover:bg-slate-50/80 transition-colors"
-              >
-                <td class="py-2 px-3 font-bold text-slate-900">{{ p.cliente_nombre }}</td>
-                <td class="py-2 px-3 font-mono text-slate-600">{{ p.cliente_id_origen }}</td>
-                <td class="py-2 px-3 font-mono text-emerald-700 font-bold">{{ p.cliente_id_vinculado ? `#${p.cliente_id_vinculado}` : '-' }}</td>
-                <td class="py-2 px-3 font-mono">{{ p.ruta_actual }}</td>
-                <td class="py-2 px-3 font-mono">
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] font-bold border"
-                    :class="p.accion_propuesta === 'INACTIVAR_DUPLICADO' ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-sky-50 text-sky-800 border-sky-200'"
-                  >
-                    {{ p.accion_propuesta }}
-                  </span>
-                </td>
-                <td class="py-2 px-3 text-slate-500 truncate max-w-xs">{{ p.observaciones }}</td>
-                <td class="py-2 px-3 text-center">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                    {{ p.estado }}
-                  </span>
-                </td>
-                <td class="py-2 px-3 text-right space-x-1 whitespace-nowrap">
-                  <button
-                    type="button"
-                    @click="cambiarEstadoPropuesta(p.id, 'APLICADO')"
-                    :disabled="filaEnProceso === p.id"
-                    class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs cursor-pointer disabled:opacity-50"
-                  >
-                    Aprobar
-                  </button>
-                  <button
-                    type="button"
-                    @click="cambiarEstadoPropuesta(p.id, 'DESCARTADO')"
-                    :disabled="filaEnProceso === p.id"
-                    class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold shadow-2xs cursor-pointer disabled:opacity-50"
-                  >
-                    Descartar
-                  </button>
-                  <button
-                    type="button"
-                    @click="revertirPropuesta(p.id)"
-                    :disabled="filaEnProceso === p.id"
-                    class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer disabled:opacity-50"
-                  >
-                    Revertir
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
 
       <!-- ============================================================== -->
@@ -1863,21 +1905,27 @@ function formatearMonto(val) {
 }
 
 function marcarAntiguedadGrupo(grupo) {
-  if (!grupo || !grupo.clientes) return
+  if (!grupo || !grupo.clientes || grupo.clientes.length === 0) return
   let minFecha = null
-  let minId = null
+  let minIdConFecha = null
+  let minIdGlobal = null
 
   grupo.clientes.forEach(c => {
+    const cid = Number(c.cliente_id) || c.cliente_id
+    if (minIdGlobal === null || cid < minIdGlobal) {
+      minIdGlobal = cid
+    }
     if (c.fecha_ingreso) {
       if (!minFecha || c.fecha_ingreso < minFecha) {
         minFecha = c.fecha_ingreso
-        minId = c.cliente_id
+        minIdConFecha = c.cliente_id
       }
     }
   })
 
+  const targetId = minIdConFecha !== null ? minIdConFecha : minIdGlobal
   grupo.clientes.forEach(c => {
-    c.es_mas_antiguo = minId ? (c.cliente_id === minId) : c.es_master_sugerido
+    c.es_mas_antiguo = (c.cliente_id === targetId)
   })
 }
 
@@ -2323,10 +2371,10 @@ function enfocarGrupoEnMapa(grupo) {
       const latlng = [Number(cli.latitud), Number(cli.longitud)]
       latLngs.push(latlng)
 
-      const markerColor = cli.es_master_sugerido ? '#059669' : '#DC2626'
+      const markerColor = cli.es_mas_antiguo ? '#059669' : '#DC2626'
 
       const marker = L.circleMarker(latlng, {
-        radius: cli.es_master_sugerido ? 8.5 : 7.5,
+        radius: cli.es_mas_antiguo ? 8.5 : 7.5,
         fillColor: markerColor,
         color: '#FFFFFF',
         weight: 2,
@@ -2364,6 +2412,7 @@ async function ejecutarAuditoriaDuplicados() {
     })
 
     clusters.value = res.data.clusters || []
+    clusters.value.forEach(g => marcarAntiguedadGrupo(g))
 
     if (clusters.value.length > 0) {
       seleccionarGrupo(clusters.value[0], false)
