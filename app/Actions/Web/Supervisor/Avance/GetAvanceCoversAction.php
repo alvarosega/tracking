@@ -129,6 +129,11 @@ class GetAvanceCoversAction
                     'clientes' => [],
                     'descuento_total' => 0.0,
                     'monto_total' => 0.0,
+                    'cover1_cantidad' => 0,
+                    'cover2_cantidad' => 0,
+                    'cover3_cantidad' => 0,
+                    'cantidad_total_covers' => 0,
+                    'cantidad_total' => 0,
                 ];
             }
 
@@ -140,6 +145,11 @@ class GetAvanceCoversAction
                     'tiene_cover2' => false,
                     'tiene_cover3' => false,
                     'tiene_cover' => false,
+                    'cantidad_cover1' => 0,
+                    'cantidad_cover2' => 0,
+                    'cantidad_cover3' => 0,
+                    'cantidad_covers' => 0,
+                    'cantidad_total' => 0,
                     'descuento' => 0.0,
                     'monto' => 0.0,
                 ];
@@ -147,9 +157,12 @@ class GetAvanceCoversAction
 
             $montoRow = (float) ($r->monto_final ?? ($r->monto ?? 0.0));
             $descRow = (float) ($r->descuento ?? 0.0);
+            $cantRow = (int) ($r->cantidad ?? 0);
 
             $rutasMap[$rKey]['monto_total'] += $montoRow;
+            $rutasMap[$rKey]['cantidad_total'] += $cantRow;
             $rutasMap[$rKey]['clientes'][$cid]['monto'] += $montoRow;
+            $rutasMap[$rKey]['clientes'][$cid]['cantidad_total'] += $cantRow;
 
             // Clasificación precisa por escala_producto según los códigos solicitados
             $escalaNorm = strtoupper(trim((string) ($r->escala_producto ?? '')));
@@ -167,16 +180,24 @@ class GetAvanceCoversAction
 
             if ($esCover1) {
                 $rutasMap[$rKey]['clientes'][$cid]['tiene_cover1'] = true;
+                $rutasMap[$rKey]['clientes'][$cid]['cantidad_cover1'] += $cantRow;
+                $rutasMap[$rKey]['cover1_cantidad'] += $cantRow;
             }
             if ($esCover2) {
                 $rutasMap[$rKey]['clientes'][$cid]['tiene_cover2'] = true;
+                $rutasMap[$rKey]['clientes'][$cid]['cantidad_cover2'] += $cantRow;
+                $rutasMap[$rKey]['cover2_cantidad'] += $cantRow;
             }
             if ($esCover3) {
                 $rutasMap[$rKey]['clientes'][$cid]['tiene_cover3'] = true;
+                $rutasMap[$rKey]['clientes'][$cid]['cantidad_cover3'] += $cantRow;
+                $rutasMap[$rKey]['cover3_cantidad'] += $cantRow;
             }
 
             if ($esCover1 || $esCover2 || $esCover3) {
                 $rutasMap[$rKey]['clientes'][$cid]['tiene_cover'] = true;
+                $rutasMap[$rKey]['clientes'][$cid]['cantidad_covers'] += $cantRow;
+                $rutasMap[$rKey]['cantidad_total_covers'] += $cantRow;
                 $rutasMap[$rKey]['descuento_total'] += $descRow;
                 $rutasMap[$rKey]['clientes'][$cid]['descuento'] += $descRow;
             }
@@ -189,6 +210,11 @@ class GetAvanceCoversAction
         $totalGlobalCover1 = 0;
         $totalGlobalCover2 = 0;
         $totalGlobalCover3 = 0;
+        $totalGlobalCover1Cantidad = 0;
+        $totalGlobalCover2Cantidad = 0;
+        $totalGlobalCover3Cantidad = 0;
+        $totalGlobalCantidadCovers = 0;
+        $totalGlobalCantidad = 0;
         $totalGlobalDescuento = 0.0;
         $totalGlobalMonto = 0.0;
 
@@ -224,8 +250,13 @@ class GetAvanceCoversAction
                 'clientes_con_cover' => $clientesConCover,
                 'clientes_sin_cover' => $clientesTotal - $clientesConCover,
                 'cover1_count' => $clientesCover1,
+                'cover1_cantidad' => $rData['cover1_cantidad'],
                 'cover2_count' => $clientesCover2,
+                'cover2_cantidad' => $rData['cover2_cantidad'],
                 'cover3_count' => $clientesCover3,
+                'cover3_cantidad' => $rData['cover3_cantidad'],
+                'cantidad_total_covers' => $rData['cantidad_total_covers'],
+                'cantidad_total' => $rData['cantidad_total'],
                 'cobertura_pct' => $coberturaPct,
                 'cumple_mes' => ($coberturaPct >= self::UMBRAL_COVERS_PCT),
                 'descuento_total' => round($rData['descuento_total'], 2),
@@ -237,6 +268,11 @@ class GetAvanceCoversAction
             $totalGlobalCover1 += $clientesCover1;
             $totalGlobalCover2 += $clientesCover2;
             $totalGlobalCover3 += $clientesCover3;
+            $totalGlobalCover1Cantidad += $rData['cover1_cantidad'];
+            $totalGlobalCover2Cantidad += $rData['cover2_cantidad'];
+            $totalGlobalCover3Cantidad += $rData['cover3_cantidad'];
+            $totalGlobalCantidadCovers += $rData['cantidad_total_covers'];
+            $totalGlobalCantidad += $rData['cantidad_total'];
             $totalGlobalDescuento += $rData['descuento_total'];
             $totalGlobalMonto += $rData['monto_total'];
         }
@@ -255,8 +291,13 @@ class GetAvanceCoversAction
                 'clientes_con_cover' => $totalGlobalConCover,
                 'clientes_sin_cover' => $totalGlobalClientes - $totalGlobalConCover,
                 'cover1_count' => $totalGlobalCover1,
+                'cover1_cantidad' => $totalGlobalCover1Cantidad,
                 'cover2_count' => $totalGlobalCover2,
+                'cover2_cantidad' => $totalGlobalCover2Cantidad,
                 'cover3_count' => $totalGlobalCover3,
+                'cover3_cantidad' => $totalGlobalCover3Cantidad,
+                'cantidad_total_covers' => $totalGlobalCantidadCovers,
+                'cantidad_total' => $totalGlobalCantidad,
                 'cobertura_pct' => $coberturaGlobalPct,
                 'descuento_total' => round($totalGlobalDescuento, 2),
                 'monto_total' => round($totalGlobalMonto, 2),

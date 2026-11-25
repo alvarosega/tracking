@@ -194,37 +194,62 @@
 
                   <!-- Cover 1: COD-SHTDB1126 -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-blue-50/20">
-                    <span
-                      class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
-                      :class="r.cover1_count > 0 ? 'bg-blue-100/80 text-[#0071E3]' : 'text-[#86868B]'"
-                    >
-                      {{ r.cover1_count }}
-                    </span>
+                    <div class="flex flex-col items-center">
+                      <span
+                        class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
+                        :class="r.cover1_count > 0 ? 'bg-blue-100/80 text-[#0071E3]' : 'text-[#86868B]'"
+                        title="Clientes con Cover 1"
+                      >
+                        {{ r.cover1_count }} <span class="text-[9px] font-normal font-sans">cli</span>
+                      </span>
+                      <span v-if="r.cover1_cantidad > 0" class="text-[9.5px] font-mono font-semibold text-[#0071E3] mt-0.5" title="Unidades de Cover 1">
+                        {{ fmt(r.cover1_cantidad) }} u.
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Cover 2: COD-PEPTDB1126 -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-indigo-50/20">
-                    <span
-                      class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
-                      :class="r.cover2_count > 0 ? 'bg-indigo-100/80 text-indigo-700' : 'text-[#86868B]'"
-                    >
-                      {{ r.cover2_count }}
-                    </span>
+                    <div class="flex flex-col items-center">
+                      <span
+                        class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
+                        :class="r.cover2_count > 0 ? 'bg-indigo-100/80 text-indigo-700' : 'text-[#86868B]'"
+                        title="Clientes con Cover 2"
+                      >
+                        {{ r.cover2_count }} <span class="text-[9px] font-normal font-sans">cli</span>
+                      </span>
+                      <span v-if="r.cover2_cantidad > 0" class="text-[9.5px] font-mono font-semibold text-indigo-700 mt-0.5" title="Unidades de Cover 2">
+                        {{ fmt(r.cover2_cantidad) }} u.
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Cover 3: SEDAL-SCHT 3-0323 - TDB -->
                   <td class="py-2 px-2 text-center whitespace-nowrap bg-emerald-50/20">
-                    <span
-                      class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
-                      :class="r.cover3_count > 0 ? 'bg-emerald-100/80 text-emerald-700' : 'text-[#86868B]'"
-                    >
-                      {{ r.cover3_count }}
-                    </span>
+                    <div class="flex flex-col items-center">
+                      <span
+                        class="px-1.5 py-0.5 rounded text-[11px] font-bold font-mono"
+                        :class="r.cover3_count > 0 ? 'bg-emerald-100/80 text-emerald-700' : 'text-[#86868B]'"
+                        title="Clientes con Cover 3"
+                      >
+                        {{ r.cover3_count }} <span class="text-[9px] font-normal font-sans">cli</span>
+                      </span>
+                      <span v-if="r.cover3_cantidad > 0" class="text-[9.5px] font-mono font-semibold text-emerald-700 mt-0.5" title="Unidades de Cover 3">
+                        {{ fmt(r.cover3_cantidad) }} u.
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Con Cover Total -->
-                  <td class="py-2 px-2 text-center whitespace-nowrap font-mono font-extrabold text-[#1D1D1F]">
-                    {{ fmt(r.clientes_con_cover) }}
+                  <td class="py-2 px-2 text-center whitespace-nowrap">
+                    <div class="flex flex-col items-center">
+                      <span class="font-mono font-extrabold text-[#1D1D1F]">
+                        {{ fmt(r.clientes_con_cover) }} <span class="text-[9px] font-normal text-[#86868B]">cli</span>
+                      </span>
+                      <span v-if="r.cantidad_total_covers > 0" class="text-[9.5px] font-mono font-bold text-emerald-800 mt-0.5" title="Total unidades de covers">
+                        {{ fmt(r.cantidad_total_covers) }} u.
+                      </span>
+                    </div>
                   </td>
 
                   <!-- Sin Cover -->
@@ -379,6 +404,7 @@
                                 <th class="py-2 px-2 text-center">Compras MTD</th>
                                 <th class="py-2 px-2 text-center">Cover Identificado</th>
                                 <th class="py-2 px-3">Escala Producto / Promoción</th>
+                                <th class="py-2 px-2 text-center">Cant. Covers (u.)</th>
                                 <th class="py-2 px-2 text-right">Descuento (Bs)</th>
                                 <th class="py-2 px-2 text-right">Total Venta (Bs)</th>
                                 <th class="py-2 px-2 text-center">Ítems</th>
@@ -442,6 +468,11 @@
                                     </div>
                                   </td>
 
+                                  <!-- Cantidad de Covers (u.) -->
+                                  <td class="py-2 px-2 text-center font-mono font-bold whitespace-nowrap" :class="t.cantidad_covers > 0 ? 'text-emerald-700' : 'text-[#86868B]'">
+                                    {{ t.cantidad_covers > 0 ? `${fmt(t.cantidad_covers)} u.` : '-' }}
+                                  </td>
+
                                   <!-- Descuento Otorgado (Bs) -->
                                   <td class="py-2 px-2 text-right font-mono font-bold whitespace-nowrap" :class="t.descuento_total > 0 ? 'text-amber-700' : 'text-[#86868B]'">
                                     {{ fmtBs(t.descuento_total) }}
@@ -469,7 +500,7 @@
 
                                 <!-- Desglose de Productos / Transacciones de la Tienda -->
                                 <tr v-if="estaTiendaExpandida(r.ruta, t.cliente_id)" class="bg-[#F0F2F5]/70">
-                                  <td colspan="7" class="p-3">
+                                  <td colspan="8" class="p-3">
                                     <div class="space-y-2">
                                       <div
                                         v-for="tx in t.transacciones"
@@ -484,6 +515,9 @@
                                             <span class="text-[#1D1D1F] font-semibold">{{ tx.resumen_promo }}</span>
                                           </div>
                                           <div class="flex items-center gap-2 text-[10px] font-mono">
+                                            <span v-if="tx.cantidad_covers > 0" class="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                              Covers: {{ fmt(tx.cantidad_covers) }} u.
+                                            </span>
                                             <span class="text-amber-700 font-bold">Desc: {{ fmtBs(tx.descuento) }}</span>
                                             <span class="text-[#6E6E73]">Total: {{ fmtBs(tx.monto) }}</span>
                                           </div>
@@ -534,7 +568,7 @@
                               </template>
 
                               <tr v-if="getTiendasFiltradas(r.ruta).length === 0">
-                                <td colspan="7" class="py-6 text-center text-[#86868B] text-xs">
+                                <td colspan="8" class="py-6 text-center text-[#86868B] text-xs">
                                   No se encontraron clientes para el filtro seleccionado.
                                 </td>
                               </tr>
@@ -563,10 +597,30 @@
                 </td>
                 <td class="py-2.5 px-2 text-center text-[10px] text-[#86868B]">TODOS</td>
                 <td class="py-2.5 px-2 text-center font-mono text-[#1D1D1F]">{{ fmt(totales.clientes_total) }}</td>
-                <td class="py-2.5 px-2 text-center font-mono text-[#0071E3] bg-blue-50/50">{{ fmt(totales.cover1_count) }}</td>
-                <td class="py-2.5 px-2 text-center font-mono text-indigo-700 bg-indigo-50/50">{{ fmt(totales.cover2_count) }}</td>
-                <td class="py-2.5 px-2 text-center font-mono text-emerald-700 bg-emerald-50/50">{{ fmt(totales.cover3_count) }}</td>
-                <td class="py-2.5 px-2 text-center font-mono font-extrabold text-[#1D1D1F]">{{ fmt(totales.clientes_con_cover) }}</td>
+                <td class="py-2.5 px-2 text-center bg-blue-50/50">
+                  <div class="flex flex-col items-center font-mono text-[#0071E3]">
+                    <span>{{ fmt(totales.cover1_count) }} cli</span>
+                    <span v-if="totales.cover1_cantidad > 0" class="text-[9.5px] font-semibold">{{ fmt(totales.cover1_cantidad) }} u.</span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-2 text-center bg-indigo-50/50">
+                  <div class="flex flex-col items-center font-mono text-indigo-700">
+                    <span>{{ fmt(totales.cover2_count) }} cli</span>
+                    <span v-if="totales.cover2_cantidad > 0" class="text-[9.5px] font-semibold">{{ fmt(totales.cover2_cantidad) }} u.</span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-2 text-center bg-emerald-50/50">
+                  <div class="flex flex-col items-center font-mono text-emerald-700">
+                    <span>{{ fmt(totales.cover3_count) }} cli</span>
+                    <span v-if="totales.cover3_cantidad > 0" class="text-[9.5px] font-semibold">{{ fmt(totales.cover3_cantidad) }} u.</span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-2 text-center">
+                  <div class="flex flex-col items-center font-mono font-extrabold text-[#1D1D1F]">
+                    <span>{{ fmt(totales.clientes_con_cover) }} cli</span>
+                    <span v-if="totales.cantidad_total_covers > 0" class="text-[9.5px] text-emerald-800">{{ fmt(totales.cantidad_total_covers) }} u.</span>
+                  </div>
+                </td>
                 <td class="py-2.5 px-2 text-center font-mono text-[#86868B]">{{ fmt(totales.clientes_sin_cover) }}</td>
                 <td class="py-2.5 px-3 text-center font-mono">
                   <span
@@ -810,8 +864,11 @@ async function copiarTablaAlPortapapeles() {
   if (rutasFiltradas.value.length === 0) return
 
   const headers = [
-    'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
-    'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323 - TDB)', 'Con Cover', 'Sin Cover',
+    'Ruta', 'Vendedor', 'Canal', 'Compradores MTD',
+    'Cover 1 Clientes', 'Cover 1 Cantidad (u.)',
+    'Cover 2 Clientes', 'Cover 2 Cantidad (u.)',
+    'Cover 3 Clientes', 'Cover 3 Cantidad (u.)',
+    'Clientes Con Cover', 'Cant. Total Covers (u.)', 'Clientes Sin Cover',
     '% Cobertura MTD', 'Inversión Promo (Bs)'
   ]
 
@@ -824,9 +881,13 @@ async function copiarTablaAlPortapapeles() {
       r.canal,
       r.clientes_total,
       r.cover1_count,
+      r.cover1_cantidad || 0,
       r.cover2_count,
+      r.cover2_cantidad || 0,
       r.cover3_count,
+      r.cover3_cantidad || 0,
       r.clientes_con_cover,
+      r.cantidad_total_covers || 0,
       r.clientes_sin_cover,
       `${r.cobertura_pct}%`,
       r.descuento_total
@@ -838,9 +899,13 @@ async function copiarTablaAlPortapapeles() {
     'CONSOLIDADO', 'TODOS', 'TODOS',
     totales.value.clientes_total,
     totales.value.cover1_count,
+    totales.value.cover1_cantidad || 0,
     totales.value.cover2_count,
+    totales.value.cover2_cantidad || 0,
     totales.value.cover3_count,
+    totales.value.cover3_cantidad || 0,
     totales.value.clientes_con_cover,
+    totales.value.cantidad_total_covers || 0,
     totales.value.clientes_sin_cover,
     `${totales.value.cobertura_pct}%`,
     totales.value.descuento_total
@@ -861,8 +926,11 @@ function exportarExcel() {
 
   const rows = [
     [
-      'Ruta', 'Vendedor', 'Canal', 'Compradores MTD', 'Cover 1 (COD-SHTDB1126)',
-      'Cover 2 (COD-PEPTDB1126)', 'Cover 3 (SEDAL-SCHT 3-0323 - TDB)', 'Con Cover', 'Sin Cover',
+      'Ruta', 'Vendedor', 'Canal', 'Compradores MTD',
+      'Cover 1 Clientes', 'Cover 1 Cantidad (u.)',
+      'Cover 2 Clientes', 'Cover 2 Cantidad (u.)',
+      'Cover 3 Clientes', 'Cover 3 Cantidad (u.)',
+      'Clientes Con Cover', 'Cant. Total Covers (u.)', 'Clientes Sin Cover',
       '% Cobertura MTD', 'Inversión Promo (Bs)'
     ]
   ]
@@ -874,9 +942,13 @@ function exportarExcel() {
       r.canal,
       r.clientes_total,
       r.cover1_count,
+      r.cover1_cantidad || 0,
       r.cover2_count,
+      r.cover2_cantidad || 0,
       r.cover3_count,
+      r.cover3_cantidad || 0,
       r.clientes_con_cover,
+      r.cantidad_total_covers || 0,
       r.clientes_sin_cover,
       r.cobertura_pct / 100,
       r.descuento_total
@@ -888,9 +960,13 @@ function exportarExcel() {
     'CONSOLIDADO', 'TODOS', 'TODOS',
     totales.value.clientes_total,
     totales.value.cover1_count,
+    totales.value.cover1_cantidad || 0,
     totales.value.cover2_count,
+    totales.value.cover2_cantidad || 0,
     totales.value.cover3_count,
+    totales.value.cover3_cantidad || 0,
     totales.value.clientes_con_cover,
+    totales.value.cantidad_total_covers || 0,
     totales.value.clientes_sin_cover,
     (totales.value.cobertura_pct || 0) / 100,
     totales.value.descuento_total

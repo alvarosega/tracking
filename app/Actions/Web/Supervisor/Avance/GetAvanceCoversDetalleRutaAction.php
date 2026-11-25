@@ -151,6 +151,11 @@ class GetAvanceCoversDetalleRutaAction
         $cover1Total = 0;
         $cover2Total = 0;
         $cover3Total = 0;
+        $cover1CantidadTotal = 0;
+        $cover2CantidadTotal = 0;
+        $cover3CantidadTotal = 0;
+        $cantidadTotalCovers = 0;
+        $cantidadTotalRuta = 0;
         $descuentoRutaTotal = 0.0;
         $montoRutaTotal = 0.0;
 
@@ -161,6 +166,11 @@ class GetAvanceCoversDetalleRutaAction
             $tieneCover2 = false;
             $tieneCover3 = false;
             $tieneCover = false;
+            $cliCantCover1 = 0;
+            $cliCantCover2 = 0;
+            $cliCantCover3 = 0;
+            $cliCantCovers = 0;
+            $cliCantTotal = 0;
             $descuentoTotalCli = 0.0;
             $montoTotalCli = 0.0;
             $coversDetectados = [];
@@ -170,12 +180,16 @@ class GetAvanceCoversDetalleRutaAction
                 $txTieneCover = false;
                 $txDescuento = 0.0;
                 $txMonto = 0.0;
+                $txCantCovers = 0;
+                $txCantTotal = 0;
                 $txItemsEtiquetados = [];
 
                 foreach ($items as $it) {
                     $montoRow = (float) ($it->monto_final ?? ($it->monto ?? 0.0));
                     $descRow = (float) ($it->descuento ?? 0.0);
+                    $cantRow = (int) ($it->cantidad ?? 0);
                     $txMonto += $montoRow;
+                    $txCantTotal += $cantRow;
 
                     $escalaNorm = strtoupper(trim((string) ($it->escala_producto ?? '')));
                     $escalaSinEspacios = str_replace(' ', '', $escalaNorm);
@@ -190,18 +204,21 @@ class GetAvanceCoversDetalleRutaAction
                     $tagTipo = 'regular';
                     if ($isC1) {
                         $tieneCover1 = true;
+                        $cliCantCover1 += $cantRow;
                         $coversDetectados['COD-SHTDB1126'] = true;
                         $tag = 'COD-SHTDB1126';
                         $tagTipo = 'cover1';
                     }
                     if ($isC2) {
                         $tieneCover2 = true;
+                        $cliCantCover2 += $cantRow;
                         $coversDetectados['COD-PEPTDB1126'] = true;
                         $tag = 'COD-PEPTDB1126';
                         $tagTipo = 'cover2';
                     }
                     if ($isC3) {
                         $tieneCover3 = true;
+                        $cliCantCover3 += $cantRow;
                         $coversDetectados['SEDAL-SCHT 3-0323 - TDB'] = true;
                         $tag = 'SEDAL-SCHT 3-0323 - TDB';
                         $tagTipo = 'cover3';
@@ -211,12 +228,14 @@ class GetAvanceCoversDetalleRutaAction
                         $txTieneCover = true;
                         $txDescuento += $descRow;
                         $descuentoTotalCli += $descRow;
+                        $txCantCovers += $cantRow;
+                        $cliCantCovers += $cantRow;
                     }
 
                     $txItemsEtiquetados[] = [
                         'codigo' => $it->codigo,
                         'producto' => $it->producto,
-                        'cantidad' => $it->cantidad,
+                        'cantidad' => $cantRow,
                         'descuento' => round($descRow, 2),
                         'monto_final' => round($montoRow, 2),
                         'escala_producto' => $it->escala_producto ?: '-',
@@ -232,6 +251,7 @@ class GetAvanceCoversDetalleRutaAction
                 }
 
                 $montoTotalCli += $txMonto;
+                $cliCantTotal += $txCantTotal;
 
                 $resumenTx = !empty($coversDetectados)
                     ? implode(', ', array_keys($coversDetectados))
@@ -242,6 +262,8 @@ class GetAvanceCoversDetalleRutaAction
                     'resumen_promo' => $resumenTx,
                     'descuento' => round($txDescuento, 2),
                     'monto' => round($txMonto, 2),
+                    'cantidad_covers' => $txCantCovers,
+                    'cantidad_total' => $txCantTotal,
                     'items_etiquetados' => $txItemsEtiquetados,
                 ];
             }
@@ -252,6 +274,12 @@ class GetAvanceCoversDetalleRutaAction
             if ($tieneCover1) $cover1Total++;
             if ($tieneCover2) $cover2Total++;
             if ($tieneCover3) $cover3Total++;
+
+            $cover1CantidadTotal += $cliCantCover1;
+            $cover2CantidadTotal += $cliCantCover2;
+            $cover3CantidadTotal += $cliCantCover3;
+            $cantidadTotalCovers += $cliCantCovers;
+            $cantidadTotalRuta += $cliCantTotal;
             $descuentoRutaTotal += $descuentoTotalCli;
             $montoRutaTotal += $montoTotalCli;
 
@@ -266,6 +294,11 @@ class GetAvanceCoversDetalleRutaAction
                 'tiene_cover1' => $tieneCover1,
                 'tiene_cover2' => $tieneCover2,
                 'tiene_cover3' => $tieneCover3,
+                'cantidad_cover1' => $cliCantCover1,
+                'cantidad_cover2' => $cliCantCover2,
+                'cantidad_cover3' => $cliCantCover3,
+                'cantidad_covers' => $cliCantCovers,
+                'cantidad_total' => $cliCantTotal,
                 'covers' => array_keys($coversDetectados),
                 'resumen_promo' => !empty($coversDetectados)
                     ? implode(', ', array_keys($coversDetectados))
@@ -301,8 +334,13 @@ class GetAvanceCoversDetalleRutaAction
                 'clientes_con_cover' => $clientesConCoverTotal,
                 'clientes_sin_cover' => $clientesTotal - $clientesConCoverTotal,
                 'cover1_count' => $cover1Total,
+                'cover1_cantidad' => $cover1CantidadTotal,
                 'cover2_count' => $cover2Total,
+                'cover2_cantidad' => $cover2CantidadTotal,
                 'cover3_count' => $cover3Total,
+                'cover3_cantidad' => $cover3CantidadTotal,
+                'cantidad_total_covers' => $cantidadTotalCovers,
+                'cantidad_total' => $cantidadTotalRuta,
                 'cobertura_pct' => $coberturaPct,
                 'descuento_total' => round($descuentoRutaTotal, 2),
                 'monto_total' => round($montoRutaTotal, 2),
