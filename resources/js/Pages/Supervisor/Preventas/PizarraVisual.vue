@@ -54,8 +54,11 @@
           @abrir-foto="abrirModalFoto"
         />
 
-        <!-- KPI 2: VISITAS - MAPA Y GRÁFICOS ANALÍTICOS -->
-        <div v-else-if="tabActivo === 'visitas'" class="flex-1 flex flex-col md:flex-row min-h-0 rounded-[18px] overflow-hidden apple-glass-card border border-black/[0.08] shadow-sm bg-white">
+        <!-- KPI 2: VISITAS - MAPA Y GRÁFICOS ANALÍTICOS (v-show preserva la instancia de Leaflet sin destruir el DOM) -->
+        <div
+          v-show="tabActivo === 'visitas'"
+          class="flex-1 flex flex-col md:flex-row min-h-0 rounded-[18px] overflow-hidden apple-glass-card border border-black/[0.08] shadow-sm bg-white"
+        >
           
           <!-- PANEL LATERAL: GRÁFICOS Y CONTROLES (IZQUIERDA) -->
           <aside
@@ -499,7 +502,7 @@
 
         <!-- KPI 3: OBJETIVO DIARIO - BULLET CHARTS Y MIX FINANCIERO -->
         <ObjetivoVisualDashboard
-          v-else-if="tabActivo === 'objetivo'"
+          v-if="tabActivo === 'objetivo'"
           :fecha="store.fecha"
           :canales="store.filtrosAplicados?.canales?.length ? store.filtrosAplicados.canales : store.canalesSeleccionados"
           :rutas="store.filtrosAplicados?.rutas?.length ? store.filtrosAplicados.rutas : store.rutasSeleccionadas"
@@ -507,7 +510,7 @@
 
         <!-- AVISO PARA OTROS KPIs EN DESARROLLO -->
         <div
-          v-else
+          v-if="!['horario', 'visitas', 'objetivo'].includes(tabActivo)"
           class="flex-1 flex items-center justify-center p-6 text-center"
         >
           <div class="apple-glass-card max-w-md w-full p-8 rounded-2xl space-y-3 bg-white/90 shadow-lg border border-black/[0.06]">
@@ -734,7 +737,25 @@ const rutasEvaluadasCount = computed(() => {
 
 // Inicialización del Mapa Leaflet
 function inicializarMapa() {
-  if (!mapaContainerRef.value || mapInstance) return
+  if (!mapaContainerRef.value) return
+
+  // Si ya existía una instancia de mapa en memoria, limpiarla de forma segura
+  if (mapInstance) {
+    try {
+      mapInstance.remove()
+    } catch (e) {
+      console.warn('[PizarraVisual] Limpiando mapa previo:', e)
+    }
+    mapInstance = null
+    tileLayerActual = null
+    markersGroup = null
+    recorridosGroup = null
+  }
+
+  // Prevenir colisión de _leaflet_id en el nodo DOM si quedó huérfano
+  if (mapaContainerRef.value && mapaContainerRef.value._leaflet_id) {
+    mapaContainerRef.value._leaflet_id = null
+  }
 
   const defaultLoc = mapsConfig.defaultLocation
 
@@ -1018,6 +1039,9 @@ async function onConsultar() {
   store.aplicarFiltros()
   if (tabActivo.value === 'visitas') {
     await cargarDatos()
+  } else {
+    // Si no estamos en visitas, vaciamos para recargar cuando el usuario entre a visitas
+    clientes.value = []
   }
 }
 
@@ -1039,26 +1063,47 @@ watch(
   }
 )
 
-watch(tabActivo, (tab) => {
+watch(tabActivo, async (tab) => {
   if (tab === 'visitas') {
-    nextTick(async () => {
-      if (!mapInstance) {
-        inicializarMapa()
-      } else {
+    await nextTick()
+
+    // Verificar si el mapa ya está montado y su contenedor sigue en el DOM
+    const contenedorValido = mapInstance && mapInstance.getContainer() && document.body.contains(mapInstance.getContainer())
+    if (!mapInstance || !contenedorValido) {
+      inicializarMapa()
+    }
+
+    // Leaflet necesita invalidateSize cuando el contenedor pasa de display:none a visible
+    setTimeout(() => {
+      if (mapInstance) {
         mapInstance.invalidateSize()
       }
+    }, 50)
+
+    // Si aún no tenemos clientes cargados (o se limpiaron por cambio de fecha), cargar
+    if (clientes.value.length === 0) {
       await cargarDatos()
-    })
+    } else {
+      // Si ya hay clientes cargados, re-renderizar marcadores y ajustar tamaño
+      setTimeout(() => {
+        if (mapInstance) {
+          mapInstance.invalidateSize()
+          renderizarCapaMapa()
+        }
+      }, 100)
+    }
   }
 })
 
 watch(vistaMovil, (val) => {
   if (val === 'mapa' && tabActivo.value === 'visitas') {
     nextTick(() => {
-      if (mapInstance) {
-        mapInstance.invalidateSize()
-        ajustarVistaMapa()
-      }
+      setTimeout(() => {
+        if (mapInstance) {
+          mapInstance.invalidateSize()
+          ajustarVistaMapa()
+        }
+      }, 50)
     })
   }
 })
@@ -1074,8 +1119,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (mapInstance) {
-    mapInstance.remove()
+    try {
+      mapInstance.remove()
+    } catch (e) {}
     mapInstance = null
+    tileLayerActual = null
+    markersGroup = null
+    recorridosGroup = null
   }
 })
 </script>
