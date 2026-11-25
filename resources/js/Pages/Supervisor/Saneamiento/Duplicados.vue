@@ -530,6 +530,13 @@
                       ></span>
                       <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
                       <span
+                        v-if="cli.tiene_cambio_nombre"
+                        class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300 font-bold shrink-0"
+                        title="Nombre modificado en auditoría de ruteo"
+                      >
+                        Renombrado
+                      </span>
+                      <span
                         v-if="cli.es_master_sugerido"
                         class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-slate-900 text-white font-bold ml-auto shrink-0"
                       >
@@ -901,7 +908,15 @@
                       <div class="flex items-start justify-between gap-1">
                         <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
                         <span
-                          v-if="nombreEsIdenticoEnGrupo()"
+                          v-if="cli.tiene_cambio_nombre"
+                          class="shrink-0 px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9.5px] font-bold font-mono flex items-center gap-1"
+                          :title="cli.detalle_cambio_nombre"
+                        >
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                          Nombre Modificado
+                        </span>
+                        <span
+                          v-else-if="nombreEsIdenticoEnGrupo()"
                           class="shrink-0 px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[9px] font-bold font-mono"
                           title="Nombre comercial idéntico en este grupo"
                         >
@@ -914,6 +929,17 @@
                         >
                           Nombre Similar
                         </span>
+                      </div>
+                      <div v-if="cli.tiene_cambio_nombre && cli.detalle_cambio_nombre" class="px-2.5 py-1.5 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-[11px] font-sans flex items-start gap-1.5 shadow-2xs">
+                        <svg class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                        <div class="min-w-0">
+                          <span class="font-bold text-[10px] uppercase tracking-wide text-amber-800">Alerta de Auditoría:</span>
+                          <div class="font-mono text-[10.5px] leading-snug text-amber-950 font-medium">
+                            {{ cli.detalle_cambio_nombre }}
+                          </div>
+                        </div>
                       </div>
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin dirección registrada' }}</p>
                     </div>
@@ -930,7 +956,7 @@
                           class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[9.5px] flex items-center gap-1"
                         >
                           <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                          Padrón Más Antiguo (Original)
+                          Padrón Original (Más Antiguo)
                         </span>
                         <span
                           v-else
@@ -944,7 +970,7 @@
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                         </svg>
-                        <span>{{ cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Sin fecha registrada' }}</span>
+                        <span>{{ cli.fecha_ingreso ? formatearFecha(cli.fecha_ingreso) : 'Padrón Inicial (Sin cambios)' }}</span>
                       </div>
                       <div v-if="cli.origen_ingreso" class="text-[10px] text-slate-500 font-sans truncate">
                         Origen: {{ cli.origen_ingreso }}
@@ -1906,24 +1932,48 @@ function formatearMonto(val) {
 
 function marcarAntiguedadGrupo(grupo) {
   if (!grupo || !grupo.clientes || grupo.clientes.length === 0) return
-  let minFecha = null
-  let minIdConFecha = null
-  let minIdGlobal = null
+
+  // Si el backend ya determinó es_mas_antiguo con las reglas de auditoría y al menos uno está marcado, respetarlo
+  const tieneCalculoBackend = grupo.clientes.some(c => c.es_mas_antiguo === true)
+  if (tieneCalculoBackend) {
+    return
+  }
+
+  // Regla de Negocio para determinar el original vs duplicado posterior / incorrecto:
+  // 1. Clientes de Padrón Inicial (!c.fecha_ingreso) son los más antiguos (Tier 1).
+  //    Entre varios en Padrón Inicial, desempata el menor cliente_id.
+  // 2. Si todos tienen fecha_ingreso (altas o renombres), gana la fecha más antigua (menor timestamp).
+  //    Si hay empate en fecha, desempata el menor cliente_id.
+  let menorIdInicial = null
+  let tieneInicial = false
 
   grupo.clientes.forEach(c => {
     const cid = Number(c.cliente_id) || c.cliente_id
-    if (minIdGlobal === null || cid < minIdGlobal) {
-      minIdGlobal = cid
-    }
-    if (c.fecha_ingreso) {
-      if (!minFecha || c.fecha_ingreso < minFecha) {
-        minFecha = c.fecha_ingreso
-        minIdConFecha = c.cliente_id
+    if (!c.fecha_ingreso) {
+      tieneInicial = true
+      if (menorIdInicial === null || cid < menorIdInicial) {
+        menorIdInicial = cid
       }
     }
   })
 
-  const targetId = minIdConFecha !== null ? minIdConFecha : minIdGlobal
+  let targetId = null
+  if (tieneInicial && menorIdInicial !== null) {
+    targetId = menorIdInicial
+  } else {
+    let minTimestamp = null
+    let minCid = null
+    grupo.clientes.forEach(c => {
+      const cid = Number(c.cliente_id) || c.cliente_id
+      const f = c.fecha_ingreso ? new Date(c.fecha_ingreso).getTime() : 0
+      if (minTimestamp === null || f < minTimestamp || (f === minTimestamp && cid < minCid)) {
+        minTimestamp = f
+        minCid = cid
+        targetId = c.cliente_id
+      }
+    })
+  }
+
   grupo.clientes.forEach(c => {
     c.es_mas_antiguo = (c.cliente_id === targetId)
   })

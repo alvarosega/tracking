@@ -611,6 +611,7 @@ class AuditarDuplicadosAction
         // Consultar historial completo de modificaciones y altas en auditoria_ruteo_cambios
         $mapaCambios = [];
         $mapaAltasRuteo = [];
+        $mapaCambiosNombre = [];
         if (!empty($todosCids)) {
             $cambiosDb = $conn->table('auditoria_ruteo_cambios')
                 ->whereIn('cliente_id', $todosCids)
@@ -651,26 +652,25 @@ class AuditarDuplicadosAction
                     'fecha_resolucion' => (string) ($c->fecha_resolucion ?? ''),
                 ];
 
-                // Identificar fecha y origen de alta
+                // Identificar si tuvo cambio de nombre (campo_afectado === 'cliente')
+                // Como $cambiosDb viene ordenado DESC por fecha_auditoria, el primero es el cambio más reciente
+                if ($c->campo_afectado === 'cliente' && !isset($mapaCambiosNombre[$cidInt])) {
+                    $mapaCambiosNombre[$cidInt] = [
+                        'fecha' => (string) $c->fecha_auditoria,
+                        'fecha_fmt' => (string) ($c->fecha_auditoria_fmt ?: $c->fecha_auditoria),
+                        'valor_anterior' => (string) ($c->valor_anterior ?? '-'),
+                        'valor_nuevo' => (string) ($c->valor_nuevo ?? '-'),
+                        'archivo_origen' => (string) ($c->archivo_origen ?: 'Ruteo'),
+                    ];
+                }
+
+                // Identificar fecha y origen de alta en pan_ruteo
                 if ($c->tipo_evento === 'NUEVO' || $c->campo_afectado === 'cliente_alta_total') {
                     if (!isset($mapaAltasRuteo[$cidInt]) || strcmp((string) $c->fecha_auditoria, $mapaAltasRuteo[$cidInt]['fecha']) < 0) {
                         $mapaAltasRuteo[$cidInt] = [
                             'fecha' => (string) $c->fecha_auditoria,
+                            'fecha_fmt' => (string) ($c->fecha_auditoria_fmt ?: $c->fecha_auditoria),
                             'origen' => 'Alta en ' . (string) ($c->archivo_origen ?: 'Ruteo'),
-                        ];
-                    }
-                }
-            }
-
-            // Para los clientes que no tuvieron evento explícito 'NUEVO', tomar el evento más antiguo disponible
-            foreach ($todosCids as $cid) {
-                if (!isset($mapaAltasRuteo[$cid]) && !empty($mapaCambios[$cid])) {
-                    $lista = $mapaCambios[$cid];
-                    $primerEvento = end($lista);
-                    if (!empty($primerEvento['fecha_auditoria'])) {
-                        $mapaAltasRuteo[$cid] = [
-                            'fecha' => (string) $primerEvento['fecha_auditoria'],
-                            'origen' => 'Histórico en ' . (string) ($primerEvento['archivo_origen'] ?: 'Ruteo'),
                         ];
                     }
                 }
@@ -705,18 +705,22 @@ class AuditarDuplicadosAction
 
                 $prop = $mapaPendientes[$cId] ?? null;
                 $infoAlta = $mapaAltasRuteo[$cId] ?? null;
-                $fechaIngreso = null;
-                $origenIngreso = null;
+                $infoNombre = $mapaCambiosNombre[$cId] ?? null;
 
-                if ($infoAlta && !empty($infoAlta['fecha'])) {
+                $fechaIngreso = null;
+                $origenIngreso = 'Padrón Inicial';
+                $tieneCambioNombre = false;
+                $detalleCambioNombre = null;
+
+                // Regla de Negocio: Si se cambió de nombre, se toma como ingreso nuevo a partir de esa fecha
+                if ($infoNombre !== null) {
+                    $tieneCambioNombre = true;
+                    $fechaIngreso = $infoNombre['fecha'];
+                    $origenIngreso = 'Nombre modificado (antes: "' . $infoNombre['valor_anterior'] . '")';
+                    $detalleCambioNombre = 'Renombrado el ' . $infoNombre['fecha_fmt'] . ' (Nombre anterior: "' . $infoNombre['valor_anterior'] . '")';
+                } elseif ($infoAlta !== null && !empty($infoAlta['fecha'])) {
                     $fechaIngreso = $infoAlta['fecha'];
                     $origenIngreso = $infoAlta['origen'];
-                } elseif (!empty($pt['fecha_servidor'])) {
-                    $fechaIngreso = (string) $pt['fecha_servidor'];
-                    $origenIngreso = 'Servidor Ruteo';
-                } elseif (!empty($pt['fecha_dispositivo'])) {
-                    $fechaIngreso = (string) $pt['fecha_dispositivo'];
-                    $origenIngreso = 'Dispositivo';
                 }
 
                 $items[] = [
@@ -738,6 +742,8 @@ class AuditarDuplicadosAction
                     'venta_mtd' => round($vMtd, 2),
                     'fecha_ingreso' => $fechaIngreso,
                     'origen_ingreso' => $origenIngreso,
+                    'tiene_cambio_nombre' => $tieneCambioNombre,
+                    'detalle_cambio_nombre' => $detalleCambioNombre,
                     'tiene_propuesta_pendiente' => $prop !== null,
                     'propuesta_id' => $prop ? (int) $prop['id'] : null,
                     'accion_propuesta_pendiente' => $prop ? $prop['accion_propuesta'] : null,
@@ -745,6 +751,41 @@ class AuditarDuplicadosAction
                     'total_cambios' => count($mapaCambios[$cId] ?? []),
                 ];
             }
+
+            // Determinar cuál cliente es el original (más antiguo) y cuál es el duplicado posterior / incorrecto
+            // Regla:
+            // 1. Clientes de Padrón Inicial (fecha_ingreso === null) son los más antiguos (Tier 1).
+            //    Si hay varios, desempata el menor cliente_id.
+            // 2. Si no hay de Padrón Inicial (o todos tienen fecha de alta/renombre), gana la fecha_ingreso más antigua.
+            //    Si hay empate en fecha, desempata el menor cliente_id.
+            $menorIdInicial = null;
+            foreach ($items as $it) {
+                if ($it['fecha_ingreso'] === null) {
+                    if ($menorIdInicial === null || $it['cliente_id'] < $menorIdInicial) {
+                        $menorIdInicial = $it['cliente_id'];
+                    }
+                }
+            }
+
+            if ($menorIdInicial !== null) {
+                $idOriginal = $menorIdInicial;
+            } else {
+                $candidatoId = null;
+                $candidatoFecha = null;
+                foreach ($items as $it) {
+                    $f = (string) ($it['fecha_ingreso'] ?? '');
+                    if ($candidatoFecha === null || strcmp($f, $candidatoFecha) < 0 || (strcmp($f, $candidatoFecha) === 0 && $it['cliente_id'] < $candidatoId)) {
+                        $candidatoFecha = $f;
+                        $candidatoId = $it['cliente_id'];
+                    }
+                }
+                $idOriginal = $candidatoId;
+            }
+
+            foreach ($items as &$cliItem) {
+                $cliItem['es_mas_antiguo'] = ($cliItem['cliente_id'] === $idOriginal);
+            }
+            unset($cliItem);
 
             // Ordenar clientes dentro del grupo: 1° mayor venta MTD, 2° más antiguo en ruteo si hay fecha, 3° menor ID
             usort($items, function ($a, $b) {
