@@ -84,6 +84,12 @@ function isTabAllowed(tab) {
     if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
       return perms.value.submodules[fullKey] === true;
     }
+    // Compatibilidad para submódulo Pizarra Visual si tiene permiso para cumplimiento o mapa
+    if (moduleKey === 'preventas' && submoduleKey === 'pizarra-visual') {
+      if (perms.value.submodules?.['preventas.cumplimiento'] === true || perms.value.submodules?.['preventas.mapa'] === true) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -99,12 +105,16 @@ const resolveTabHref = (tab) => {
   if (!tab.route) return '#';
   try {
     if (typeof route === 'function') {
-      return route(tab.route);
+      const url = route(tab.route);
+      if (url && url !== '#') return url;
     }
   } catch (e) {
     console.warn(`[SubNavTabs] Error resolviendo ruta '${tab.route}':`, e);
   }
-  return '#';
+  if (tab.route === 'supervisor.preventas.pizarra-visual') {
+    return '/supervisor/preventas/pizarra-visual';
+  }
+  return tab.route.startsWith('/') ? tab.route : `/${tab.route.replace(/\./g, '/')}`;
 };
 
 const isTabActive = (tab) => {
@@ -116,6 +126,9 @@ const isTabActive = (tab) => {
   }
   if (tab.componentPrefix) {
     return page.component.startsWith(tab.componentPrefix);
+  }
+  if (tab.id === 'pizarra-visual' && page.component === 'Supervisor/Preventas/PizarraVisual') {
+    return true;
   }
   if (tab.route) {
     try {

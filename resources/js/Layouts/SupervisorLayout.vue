@@ -439,20 +439,24 @@ function getRouteHref(item) {
     }
   }
   try {
-    return route(item.route);
+    const url = route(item.route);
+    if (url && url !== '#') return url;
   } catch {
-    return item.route.startsWith('/') ? item.route : `/${item.route.replace('.', '/')}`;
+    // ignore
   }
+  return item.route.startsWith('/') ? item.route : `/${item.route.replace(/\./g, '/')}`;
 }
 
 function resolveSubRoute(sub) {
   if (sub.href) return sub.href;
   if (!sub.route) return '#';
   try {
-    return route(sub.route);
+    const url = route(sub.route);
+    if (url && url !== '#') return url;
   } catch {
-    return sub.route.startsWith('/') ? sub.route : `/${sub.route.replace('.', '/')}`;
+    // ignore
   }
+  return sub.route.startsWith('/') ? sub.route : `/${sub.route.replace(/\./g, '/')}`;
 }
 
 function isItemActive(item) {
@@ -540,6 +544,11 @@ function getVisibleSubmodules(item) {
     const key = `${parentModule}.${sub.id}`;
     if (perms.submodules && Object.prototype.hasOwnProperty.call(perms.submodules, key)) {
       return perms.submodules[key] === true;
+    }
+    if (parentModule === 'preventas' && sub.id === 'pizarra-visual') {
+      if (perms.submodules?.['preventas.cumplimiento'] === true || perms.submodules?.['preventas.mapa'] === true) {
+        return true;
+      }
     }
     return false;
   });
