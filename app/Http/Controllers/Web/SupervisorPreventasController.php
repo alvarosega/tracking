@@ -14,6 +14,7 @@ use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualHorarioDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualVisitasDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaCategoriasAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaDetalleRutaAction;
@@ -132,6 +133,21 @@ class SupervisorPreventasController extends Controller
         $rutas = (array) $request->input('rutas', []);
 
         $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve los datos analíticos y el histórico cronológico de visitas para el KPI 1 (Horario).
+     */
+    public function pizarraVisualHorarioData(Request $request, GetPizarraVisualHorarioDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+        $horaLimite = $request->input('hora_limite') ? (string) $request->input('hora_limite') : GetPizarraVisualHorarioDataAction::HORA_LIMITE_DEFAULT;
+
+        $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas, horaLimite: $horaLimite);
 
         return response()->json($resultado);
     }

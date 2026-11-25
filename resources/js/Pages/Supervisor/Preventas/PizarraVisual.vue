@@ -45,33 +45,17 @@
       <!-- 3. Contenido Principal según Pestaña -->
       <main class="flex-1 flex min-h-0 relative overflow-hidden p-2 sm:p-3 pt-2">
 
-        <!-- AVISO PARA KPIs EN DESARROLLO -->
-        <div
-          v-if="tabActivo !== 'visitas'"
-          class="flex-1 flex items-center justify-center p-6 text-center"
-        >
-          <div class="apple-glass-card max-w-md w-full p-8 rounded-2xl space-y-3 bg-white/90 shadow-lg border border-black/[0.06]">
-            <div class="w-12 h-12 mx-auto rounded-full bg-sky-50 text-[#0071E3] flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </div>
-            <h4 class="text-base font-bold text-[#1D1D1F]">Módulo en Expansión Visual</h4>
-            <p class="text-xs text-[#6E6E73] leading-relaxed">
-              La Pizarra Visual está comenzando con el <strong class="text-[#0071E3]">KPI 2: Visitas</strong>. Los mapas y analíticas para este indicador se integrarán en las siguientes fases.
-            </p>
-            <button
-              type="button"
-              @click="tabActivo = 'visitas'"
-              class="apple-control-pill px-4 py-2 rounded-xl text-xs font-bold text-[#0071E3] hover:bg-[#0071E3] hover:text-white transition-all cursor-pointer shadow-xs"
-            >
-              Ir a Mapa de Visitas (KPI 2)
-            </button>
-          </div>
-        </div>
+        <!-- KPI 1: HORARIO - HISTÓRICO Y GANTT CRONOLÓGICO DE VISITAS -->
+        <HorarioVisualDashboard
+          v-if="tabActivo === 'horario'"
+          :fecha="store.fecha"
+          :canales="store.filtrosAplicados?.canales?.length ? store.filtrosAplicados.canales : store.canalesSeleccionados"
+          :rutas="store.filtrosAplicados?.rutas?.length ? store.filtrosAplicados.rutas : store.rutasSeleccionadas"
+          @abrir-foto="abrirModalFoto"
+        />
 
         <!-- KPI 2: VISITAS - MAPA Y GRÁFICOS ANALÍTICOS -->
-        <div v-else class="flex-1 flex flex-col md:flex-row min-h-0 rounded-[18px] overflow-hidden apple-glass-card border border-black/[0.08] shadow-sm bg-white">
+        <div v-else-if="tabActivo === 'visitas'" class="flex-1 flex flex-col md:flex-row min-h-0 rounded-[18px] overflow-hidden apple-glass-card border border-black/[0.08] shadow-sm bg-white">
           
           <!-- PANEL LATERAL: GRÁFICOS Y CONTROLES (IZQUIERDA) -->
           <aside
@@ -498,6 +482,40 @@
 
         </div>
 
+        <!-- AVISO PARA OTROS KPIs EN DESARROLLO -->
+        <div
+          v-else
+          class="flex-1 flex items-center justify-center p-6 text-center"
+        >
+          <div class="apple-glass-card max-w-md w-full p-8 rounded-2xl space-y-3 bg-white/90 shadow-lg border border-black/[0.06]">
+            <div class="w-12 h-12 mx-auto rounded-full bg-sky-50 text-[#0071E3] flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </div>
+            <h4 class="text-base font-bold text-[#1D1D1F]">Módulo en Expansión Visual</h4>
+            <p class="text-xs text-[#6E6E73] leading-relaxed">
+              Actualmente están activos los módulos de <strong class="text-[#0071E3]">1. Horario (Gantt & Timeline)</strong> y <strong class="text-[#0071E3]">2. Visitas (Mapa)</strong>. Los siguientes KPIs se integrarán progresivamente.
+            </p>
+            <div class="flex items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                @click="tabActivo = 'horario'"
+                class="apple-control-pill px-3 py-1.5 rounded-xl text-xs font-bold text-[#1D1D1F] hover:bg-black/[0.05] transition-all cursor-pointer shadow-xs"
+              >
+                Ir a Horario (KPI 1)
+              </button>
+              <button
+                type="button"
+                @click="tabActivo = 'visitas'"
+                class="apple-control-pill px-3 py-1.5 rounded-xl text-xs font-bold text-[#0071E3] hover:bg-[#0071E3] hover:text-white transition-all cursor-pointer shadow-xs"
+              >
+                Ir a Mapa Visitas (KPI 2)
+              </button>
+            </div>
+          </div>
+        </div>
+
       </main>
 
       <!-- MODAL DE EVIDENCIA FOTOGRÁFICA -->
@@ -518,6 +536,7 @@ import SupervisorLayout from '@/Layouts/SupervisorLayout.vue'
 import { usePreventaStore } from '@/Stores/preventaStore'
 import PreventaFiltrosBar from './Cumplimiento/PreventaFiltrosBar.vue'
 import ClienteFotosModal from './ClienteFotosModal.vue'
+import HorarioVisualDashboard from './Horario/HorarioVisualDashboard.vue'
 import { mapsConfig } from '@/Config/maps'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -540,10 +559,10 @@ const props = defineProps({
 const store = usePreventaStore()
 
 // Pestañas de KPIs
-const tabActivo = ref('visitas')
+const tabActivo = ref('horario')
 const kpiTabs = [
   { id: 'general', label: 'Pizarra Unilever (7 KPIs)' },
-  { id: 'horario', label: '1. Horario (10)' },
+  { id: 'horario', label: '1. Horario (10)', badge: 'GANTT' },
   { id: 'visitas', label: '2. Visitas (5)', badge: 'MAPA' },
   { id: 'objetivo', label: '3. Objetivo Diario (10)' },
   { id: 'efectividad', label: '4. Efectividad (30)' },
@@ -956,7 +975,9 @@ async function cargarDatos() {
 
 async function onConsultar() {
   store.aplicarFiltros()
-  await cargarDatos()
+  if (tabActivo.value === 'visitas') {
+    await cargarDatos()
+  }
 }
 
 // Reactividad de Filtros del Mapa
@@ -971,12 +992,27 @@ watch(
     () => busquedaCliente.value,
   ],
   () => {
-    renderizarCapaMapa()
+    if (tabActivo.value === 'visitas') {
+      renderizarCapaMapa()
+    }
   }
 )
 
+watch(tabActivo, (tab) => {
+  if (tab === 'visitas') {
+    nextTick(async () => {
+      if (!mapInstance) {
+        inicializarMapa()
+      } else {
+        mapInstance.invalidateSize()
+      }
+      await cargarDatos()
+    })
+  }
+})
+
 watch(vistaMovil, (val) => {
-  if (val === 'mapa') {
+  if (val === 'mapa' && tabActivo.value === 'visitas') {
     nextTick(() => {
       if (mapInstance) {
         mapInstance.invalidateSize()
@@ -989,8 +1025,10 @@ watch(vistaMovil, (val) => {
 onMounted(async () => {
   store.inicializarDesdeStorage(props)
   await nextTick()
-  inicializarMapa()
-  await cargarDatos()
+  if (tabActivo.value === 'visitas') {
+    inicializarMapa()
+    await cargarDatos()
+  }
 })
 
 onUnmounted(() => {
