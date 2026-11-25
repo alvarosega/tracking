@@ -88,13 +88,18 @@ class GetAvanceClusterMatrizAction
 
         // Construir Base Query
         $subPan = DB::connection('supervisor')->table('pan_ruteo')
-            ->select('cliente_id', DB::raw('MAX(TRIM(ruta)) as ruta_pan'))
+            ->select(
+                'cliente_id',
+                DB::raw('MAX(TRIM(ruta)) as ruta_pan'),
+                DB::raw('MAX(TRIM(cliente)) as cliente_pan')
+            )
             ->where('cliente_id', '>', 0)
             ->whereNotNull('ruta')
             ->where('ruta', '!=', '')
             ->groupBy('cliente_id');
 
         $exprRuta = "COALESCE(NULLIF(TRIM(pan.ruta_pan), ''), NULLIF(TRIM(fv.ruta), ''), 'SIN RUTA')";
+        $exprCliente = "COALESCE(NULLIF(TRIM(pan.cliente_pan), ''), NULLIF(TRIM(fv.cliente), ''), 'CLIENTE S/N')";
 
         $baseQuery = DB::connection('supervisor')->table('fact_ventas as fv')
             ->leftJoinSub($subPan, 'pan', 'fv.cliente_id', '=', 'pan.cliente_id')
@@ -143,7 +148,7 @@ class GetAvanceClusterMatrizAction
                 DB::raw("COALESCE(NULLIF(TRIM(fv.cluster_t), ''), 'SIN CLUSTER') as cluster"),
                 DB::raw("{$exprRuta} as ruta"),
                 DB::raw("COALESCE(fv.cliente_id, 0) as cliente_id"),
-                DB::raw("COALESCE(NULLIF(TRIM(fv.cliente), ''), 'CLIENTE S/N') as cliente"),
+                DB::raw("{$exprCliente} as cliente"),
                 DB::raw("CAST(fv.fecha_norm AS CHAR) as fecha_norm"),
                 'fv.monto_final as valor',
             ]);
