@@ -14,6 +14,7 @@ use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualVisitasDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaCategoriasAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaDetalleRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaDiariaDataAction;
@@ -105,6 +106,34 @@ class SupervisorPreventasController extends Controller
             'canales' => $initData['canales'],
             'fecha_default' => $initData['fecha_default'],
         ]);
+    }
+
+    /**
+     * Muestra la vista de Pizarra Visual (Geográfica y Analítica) de Preventas.
+     */
+    public function pizarraVisual(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/PizarraVisual', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
+    }
+
+    /**
+     * Devuelve los datos geolocalizados, recorridos y estadísticas horarias para el KPI 2 (Visitas).
+     */
+    public function pizarraVisualVisitasData(Request $request, GetPizarraVisualVisitasDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas);
+
+        return response()->json($resultado);
     }
 
     /**

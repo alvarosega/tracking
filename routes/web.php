@@ -137,7 +137,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('preventas')->name('preventas.')->middleware('module.access:preventas')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['cumplimiento', 'productos'];
+            $submodules = ['cumplimiento', 'pizarra-visual', 'productos'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('preventas', $sub)) {
                     return redirect()->route("supervisor.preventas.{$sub}");
@@ -161,6 +161,12 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/cumplimiento/covers/detalle', [SupervisorPreventasController::class, 'cumplimientoCoversDetalle'])->name('cumplimiento.covers.detalle');
         });
 
+        // Pizarra Visual
+        Route::middleware('module.access:preventas,pizarra-visual')->group(function () {
+            Route::get('/pizarra-visual', [SupervisorPreventasController::class, 'pizarraVisual'])->name('pizarra-visual');
+            Route::post('/pizarra-visual/visitas-data', [SupervisorPreventasController::class, 'pizarraVisualVisitasData'])->name('pizarra-visual.visitas-data');
+        });
+
         // Productos
         Route::middleware('module.access:preventas,productos')->group(function () {
             Route::get('/productos', [SupervisorPreventasController::class, 'productos'])->name('productos');
@@ -176,7 +182,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
         })->name('diaria');
 
         Route::get('/mapa', function () {
-            return redirect()->route('supervisor.preventas.cumplimiento');
+            return redirect()->route('supervisor.preventas.pizarra-visual');
         })->name('mapa');
 
         Route::get('/comparativos', function () {

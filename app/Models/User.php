@@ -138,7 +138,17 @@ class User extends Authenticatable
         // 2. Verificar submódulo si fue provisto
         if ($subKey !== '') {
             $subPerm = $permissions->first(function ($p) use ($moduleKey, $subKey) {
-                return $p->module_key === $moduleKey && (string)($p->submodule_key ?? '') === $subKey;
+                if ($p->module_key !== $moduleKey) {
+                    return false;
+                }
+                $itemSub = (string)($p->submodule_key ?? '');
+                if ($itemSub === $subKey) {
+                    return true;
+                }
+                if ($moduleKey === 'preventas' && $subKey === 'pizarra-visual' && in_array($itemSub, ['mapa', 'cumplimiento'], true)) {
+                    return true;
+                }
+                return false;
             });
 
             // Si el submódulo no está explícitamente concedido o está deshabilitado, denegar acceso
@@ -223,6 +233,11 @@ class User extends Authenticatable
                 $canWriteMap[$compositeKey] = (bool)$p->can_write;
                 $expiresAtMap[$compositeKey] = $p->expires_at?->toIso8601String();
             }
+        }
+
+        if (isset($submodulesMap['preventas.cumplimiento']) && !isset($submodulesMap['preventas.pizarra-visual'])) {
+            $submodulesMap['preventas.pizarra-visual'] = $submodulesMap['preventas.cumplimiento'];
+            $canWriteMap['preventas.pizarra-visual'] = $canWriteMap['preventas.cumplimiento'] ?? false;
         }
 
         return [

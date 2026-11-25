@@ -176,6 +176,13 @@ export const navigationConfig = {
           icon: 'ChartBarIcon'
         },
         {
+          id: 'pizarra-visual',
+          name: 'Pizarra Visual',
+          route: 'supervisor.preventas.pizarra-visual',
+          component: 'Supervisor/Preventas/PizarraVisual',
+          icon: 'MapIcon'
+        },
+        {
           id: 'productos',
           name: 'Productos & Heatmap',
           route: 'supervisor.preventas.productos',
@@ -494,6 +501,7 @@ export const navigationConfig = {
 
 export const preventasSubTabs = [
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
+  { id: 'pizarra-visual', name: 'Pizarra Visual', route: 'supervisor.preventas.pizarra-visual' },
   { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' }
 ];
 

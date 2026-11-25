@@ -7,7 +7,7 @@
     <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
       
       <!-- SubNavTabs para cambiar entre submódulos de Preventas -->
-      <SubNavTabs :tabs="preventasSubTabs" currentTab="cumplimiento" />
+      <SubNavTabs :tabs="preventasSubTabs" :currentTab="currentSubTab" />
 
       <div class="h-5 w-px bg-black/[0.08] hidden sm:block shrink-0"></div>
 
@@ -250,6 +250,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePreventaStore } from '@/Stores/preventaStore'
 import SubNavTabs from '@/Components/UI/SubNavTabs.vue'
 import { preventasSubTabs } from '@/Config/navigation'
+
+const props = defineProps({
+  currentSubTab: {
+    type: String,
+    default: 'cumplimiento'
+  }
+})
 
 const store = usePreventaStore()
 const emit = defineEmits(['consultar', 'cambio-filtro', 'cambio-fecha'])
