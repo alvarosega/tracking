@@ -9,17 +9,17 @@
       <!-- ============================================================== -->
       <div class="apple-glass-card rounded-2xl p-3 border border-slate-200/90 shadow-2xs space-y-2.5 relative z-30">
         <!-- Fila 1: Selector de Modo Segmentado + Metricas Resumen -->
-        <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-2.5">
           <!-- Segmented Tab de Modo (Desktop y Scroll en Movil) -->
-          <div class="inline-flex p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs shrink-0 max-w-full overflow-x-auto custom-scroll">
+          <div class="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 text-xs shrink-0 max-w-full overflow-x-auto custom-scroll gap-0.5">
             <button
               type="button"
               @click="cambiarModo('TODOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-              :class="filtroModo === 'TODOS' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+              :class="filtroModo === 'TODOS' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'"
             >
               <span>Todos</span>
-              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'TODOS' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'">
+              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'TODOS' ? 'bg-slate-900 text-white' : 'bg-slate-200/70 text-slate-600'">
                 {{ totalGruposTodos }}
               </span>
             </button>
@@ -27,13 +27,13 @@
             <button
               type="button"
               @click="cambiarModo('CRITICOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-              :class="filtroModo === 'CRITICOS' ? 'bg-purple-600 text-white shadow-2xs font-bold' : 'text-purple-700 hover:text-purple-900'"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+              :class="filtroModo === 'CRITICOS' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'"
               title="Misma ubicación física y coincidencia de datos (NIT/Nombre/Tel)"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="filtroModo === 'CRITICOS' ? 'bg-white' : 'bg-purple-600'"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               <span>Críticos</span>
-              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'CRITICOS' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'">
+              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'CRITICOS' ? 'bg-slate-900 text-white' : 'bg-slate-200/70 text-slate-600'">
                 {{ conteoMismaUbicacionYDatos }}
               </span>
             </button>
@@ -41,13 +41,13 @@
             <button
               type="button"
               @click="cambiarModo('DATOS')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-              :class="filtroModo === 'DATOS' ? 'bg-amber-600 text-white shadow-2xs font-bold' : 'text-amber-700 hover:text-amber-900'"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+              :class="filtroModo === 'DATOS' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'"
               title="Coincidencia de Nombre, NIT, CI, Teléfono o Factura"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="filtroModo === 'DATOS' ? 'bg-white' : 'bg-amber-600'"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               <span>Por Datos</span>
-              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'DATOS' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'">
+              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'DATOS' ? 'bg-slate-900 text-white' : 'bg-slate-200/70 text-slate-600'">
                 {{ conteoMismosDatos }}
               </span>
             </button>
@@ -55,13 +55,13 @@
             <button
               type="button"
               @click="cambiarModo('UBICACION')"
-              class="px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-              :class="filtroModo === 'UBICACION' ? 'bg-blue-600 text-white shadow-2xs font-bold' : 'text-blue-700 hover:text-blue-900'"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+              :class="filtroModo === 'UBICACION' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'"
               title="Colisiones de coordenadas en el radio establecido"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="filtroModo === 'UBICACION' ? 'bg-white' : 'bg-blue-600'"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
               <span>Por Geolocalización</span>
-              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'UBICACION' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'">
+              <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold" :class="filtroModo === 'UBICACION' ? 'bg-slate-900 text-white' : 'bg-slate-200/70 text-slate-600'">
                 {{ conteoMismaUbicacion }}
               </span>
             </button>
@@ -69,23 +69,23 @@
 
           <!-- Metricas Resumen -->
           <div class="flex items-center gap-2 text-xs font-mono">
-            <div class="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
+            <div class="px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center gap-1.5 shadow-2xs text-slate-700">
               <span class="text-slate-400">Clientes:</span>
               <span class="font-bold text-slate-900 tabular-nums">{{ totalClientesImplicados }}</span>
             </div>
-            <div class="px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5 shadow-2xs text-emerald-800">
-              <span class="text-emerald-600">Venta MTD:</span>
-              <span class="font-bold tabular-nums">Bs. {{ ventaMtdTotalAuditada }}</span>
+            <div class="px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center gap-1.5 shadow-2xs text-slate-700">
+              <span class="text-slate-400">Venta MTD:</span>
+              <span class="font-bold text-emerald-700 tabular-nums">Bs. {{ ventaMtdTotalAuditada }}</span>
             </div>
             <div
               v-if="propuestasPendientes.length > 0"
               @click="mostrarPanelPropuestas = true"
-              class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1.5 shadow-2xs text-amber-800 cursor-pointer transition-colors"
+              class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg flex items-center gap-1.5 shadow-2xs text-slate-700 cursor-pointer transition-colors"
               title="Ver bandeja de propuestas"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-              <span class="text-amber-700 font-bold tabular-nums">{{ propuestasPendientes.length }}</span>
-              <span class="text-amber-600 text-[10px]">propuestas</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span class="font-bold text-slate-900 tabular-nums">{{ propuestasPendientes.length }}</span>
+              <span class="text-slate-400 text-[10px]">propuestas</span>
             </div>
           </div>
         </div>
@@ -344,12 +344,12 @@
       <!-- ============================================================== -->
       <!-- SELECTOR DE VISTA MOVIL (< lg)                                  -->
       <!-- ============================================================== -->
-      <div class="flex lg:hidden items-center justify-between p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs">
+      <div class="flex lg:hidden items-center justify-between p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs gap-0.5">
         <button
           type="button"
           @click="setVistaMovil('grupos')"
           class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
-          :class="vistaMovil === 'grupos' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+          :class="vistaMovil === 'grupos' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600'"
         >
           <span>Grupos ({{ clustersFiltrados.length }})</span>
         </button>
@@ -357,7 +357,7 @@
           type="button"
           @click="setVistaMovil('comparador')"
           class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
-          :class="vistaMovil === 'comparador' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+          :class="vistaMovil === 'comparador' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600'"
         >
           <span>Comparador</span>
         </button>
@@ -365,7 +365,7 @@
           type="button"
           @click="setVistaMovil('mapa')"
           class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
-          :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+          :class="vistaMovil === 'mapa' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600'"
         >
           <span>Mapa</span>
         </button>
@@ -373,7 +373,7 @@
           type="button"
           @click="setVistaMovil('propuestas')"
           class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
-          :class="vistaMovil === 'propuestas' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'"
+          :class="vistaMovil === 'propuestas' ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/50' : 'text-slate-600'"
         >
           <span>Propuestas ({{ propuestasPendientes.length }})</span>
         </button>
@@ -392,9 +392,9 @@
           <!-- Encabezado de la Columna y Ordenamiento -->
           <div class="px-3 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0 gap-2">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+              <span class="w-2 h-2 rounded-full bg-slate-800 shrink-0"></span>
               <span class="font-bold text-xs text-slate-800 truncate">Grupos Identificados</span>
-              <span class="font-mono text-[10px] text-slate-500 font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200 shadow-2xs">
+              <span class="font-mono text-[10px] text-slate-600 font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200 shadow-2xs">
                 {{ clustersFiltrados.length }}
               </span>
             </div>
@@ -417,12 +417,12 @@
           <!-- Listado de Grupos con Scroll -->
           <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-2">
             <div v-if="cargando" class="text-center py-28 text-xs text-slate-400 animate-pulse font-mono flex flex-col items-center justify-center gap-2">
-              <span class="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></span>
+              <span class="w-6 h-6 border-2 border-slate-600 border-t-transparent rounded-full animate-spin"></span>
               <span>Auditando colisiones territoriales y datos duplicados...</span>
             </div>
 
             <div v-else-if="clustersFiltrados.length === 0" class="text-center py-28 text-xs text-slate-400 p-4">
-              <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mb-2">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 mb-2">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
@@ -431,7 +431,7 @@
               <p class="text-slate-500">No se encontraron conflictos bajo los filtros y tolerancia de radio seleccionados.</p>
             </div>
 
-            <!-- Tarjeta de Grupo Refinada y Destacada -->
+            <!-- Tarjeta de Grupo Refinada, Sobria y Escaneable -->
             <div
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
@@ -439,12 +439,12 @@
               class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-2 relative group"
               :class="[
                 grupoSeleccionadoId === grupo.cluster_id
-                  ? 'bg-sky-50/70 border-sky-400 ring-2 ring-sky-200 shadow-sm'
-                  : 'bg-white hover:bg-slate-50/90 border-slate-200/90 shadow-2xs'
+                  ? 'bg-slate-50/90 border-slate-900 ring-1 ring-slate-900 shadow-xs border-l-4 border-l-slate-900'
+                  : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
               ]"
             >
-              <!-- Cabecera de la Tarjeta -->
-              <div class="flex items-center justify-between gap-1 pb-1.5 border-b border-slate-100">
+              <!-- Fila 1: ID, Clasificacion, Distancia y Estado -->
+              <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-slate-100">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <span class="font-mono font-bold text-xs text-slate-900 shrink-0">
                     #{{ grupo.cluster_id }}
@@ -459,99 +459,58 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span
                     v-if="tienePropuestaPendiente(grupo)"
-                    class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9.5px] font-bold font-mono"
-                    title="Propuesta pendiente de aprobación"
+                    class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9px] font-bold font-mono"
+                    title="Propuesta pendiente"
                   >
-                    En Propuesta
+                    Propuesta
                   </span>
                   <span
-                    class="font-mono text-[10px] px-2 py-0.2 rounded font-bold"
-                    :class="grupo.distancia_minima_m <= radioMetros ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'"
+                    class="font-mono text-[10px] px-1.5 py-0.2 rounded font-bold"
+                    :class="grupo.distancia_minima_m <= radioMetros ? 'bg-slate-100 text-slate-800 border border-slate-200' : 'bg-slate-50 text-slate-500'"
                   >
                     {{ formatearDistancia(grupo.distancia_minima_m) }}
                   </span>
                 </div>
               </div>
 
-              <!-- BLOQUE DESTACADO: ¿QUÉ ESTÁ REPETIDO EXACTAMENTE? -->
-              <div class="p-2 rounded-lg bg-slate-50/90 border border-slate-200/80 space-y-1.5">
-                <div class="flex items-center justify-between text-[10px] font-mono">
-                  <span class="font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    <span>Dato(s) Repetido(s):</span>
+              <!-- Fila 2: Dato Coincidente Principal (Línea sobria sin recargar) -->
+              <div class="flex items-center justify-between text-[11px] font-mono min-w-0 gap-1.5">
+                <div class="flex items-center gap-1 min-w-0 truncate text-slate-700">
+                  <span class="text-slate-400 font-sans text-[10px] uppercase font-bold shrink-0">
+                    {{ obtenerResumenCoincidencias(grupo).principal?.titulo || 'Conflicto' }}:
                   </span>
-                  <span class="text-slate-400 font-sans text-[9.5px]">{{ grupo.clientes.length }} clientes</span>
+                  <span class="font-semibold text-slate-900 truncate">
+                    {{ obtenerResumenCoincidencias(grupo).principal?.valor || '-' }}
+                  </span>
                 </div>
+                <span
+                  v-if="obtenerResumenCoincidencias(grupo).total > 1"
+                  class="text-[9px] font-mono text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.2 rounded"
+                >
+                  +{{ obtenerResumenCoincidencias(grupo).total - 1 }} más
+                </span>
+              </div>
 
-                <!-- Lista de Coincidencias Exactas Sin Truncar -->
-                <div class="flex flex-col gap-1 text-[11px] font-mono">
-                  <div
-                    v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
-                    :key="idxC"
-                    class="px-2 py-1 rounded-md border flex items-center justify-between gap-1 shadow-2xs leading-tight"
-                    :class="coinc.clase"
-                  >
-                    <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
-                      <span class="text-[9.5px] uppercase font-bold text-slate-500 shrink-0">{{ coinc.titulo }}:</span>
-                      <span class="font-extrabold text-slate-900 break-words select-all">{{ coinc.valor }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Indicador de Rutas y Canales en Conflicto -->
-                <div class="flex items-center gap-1.5 text-[9.5px] font-mono pt-0.5 flex-wrap">
+              <!-- Fila 3: Rutas en conflicto y Métricas (Venta & Clientes) -->
+              <div class="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-100 gap-1">
+                <div class="flex items-center gap-1 min-w-0 truncate">
                   <span
                     v-if="grupo.rutas.length > 1"
-                    class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
-                    title="Los clientes pertenecen a rutas distintas"
+                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold truncate"
+                    title="Rutas en conflicto"
                   >
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <span>Inter-Rutas: {{ grupo.rutas.join(' vs ') }}</span>
+                    {{ grupo.rutas.join(' vs ') }}
                   </span>
                   <span
                     v-else-if="grupo.rutas.length === 1"
-                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium"
+                    class="text-slate-500 truncate"
                   >
-                    Ruta: {{ grupo.rutas[0] }}
+                    Ruta {{ grupo.rutas[0] }}
                   </span>
-
-                  <span
-                    v-if="grupo.canales.length > 1"
-                    class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-bold"
-                    title="Los clientes pertenecen a canales distintos"
-                  >
-                    Inter-Canal: {{ grupo.canales.join('/') }}
-                  </span>
+                  <span class="text-slate-400 text-[9.5px]">({{ grupo.clientes.length }} clis)</span>
                 </div>
-              </div>
-
-              <!-- Clientes del Grupo (Mini Comparativa Escaneable) -->
-              <div class="space-y-1 text-xs">
-                <div
-                  v-for="cli in grupo.clientes"
-                  :key="cli.cliente_id"
-                  class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1.5 transition-colors"
-                  :class="cli.es_master_sugerido ? 'bg-emerald-50/60 border-emerald-200/90' : 'bg-slate-50/60 border-slate-200/80'"
-                >
-                  <div class="min-w-0 flex-1 truncate">
-                    <div class="flex items-center gap-1.5">
-                      <span
-                        class="w-2 h-2 rounded-full shrink-0"
-                        :class="cli.es_master_sugerido ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-rose-500'"
-                        :title="cli.es_master_sugerido ? 'Master Sugerido' : 'Posible Duplicado'"
-                      ></span>
-                      <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
-                    </div>
-                    <div class="text-[10px] font-mono text-slate-500 truncate pl-3.5">
-                      ID {{ cli.cliente_id }} &bull; {{ cli.ruta }} ({{ cli.canal }}) &bull; {{ cli.dia }}
-                    </div>
-                  </div>
-                  <div class="text-right font-mono text-[10px] shrink-0">
-                    <div class="font-bold" :class="cli.es_master_sugerido ? 'text-emerald-700' : 'text-slate-700'">
-                      Bs. {{ cli.venta_mtd }}
-                    </div>
-                    <div class="text-slate-400 text-[9px]">{{ cli.es_master_sugerido ? 'Master' : 'Duplicado' }}</div>
-                  </div>
+                <div class="text-right shrink-0">
+                  <span class="font-bold text-slate-900">Bs. {{ (grupo.venta_mtd_total || 0).toFixed(2) }}</span>
                 </div>
               </div>
             </div>
@@ -569,14 +528,17 @@
               <button
                 type="button"
                 @click="setVistaMovil('grupos')"
-                class="lg:hidden text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer bg-slate-100 px-2 py-1 rounded-lg shrink-0"
+                class="lg:hidden text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg shrink-0 transition-colors"
               >
-                &larr; Grupos
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                <span>Grupos</span>
               </button>
               
               <div class="flex items-center gap-2 truncate">
                 <span class="font-bold text-xs text-slate-900 font-mono truncate">
-                  {{ grupoActivo ? `Conflicto Grupo #${grupoActivo.cluster_id}` : 'Inspección de Conflicto' }}
+                  {{ grupoActivo ? `Grupo #${grupoActivo.cluster_id}` : 'Inspección de Conflicto' }}
                 </span>
                 <span
                   v-if="grupoActivo"
@@ -587,7 +549,7 @@
                 </span>
                 <span
                   v-if="grupoActivo"
-                  class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 shrink-0"
+                  class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 shrink-0"
                 >
                   Distancia: {{ formatearDistancia(grupoActivo.distancia_minima_m) }}
                 </span>
@@ -748,12 +710,12 @@
             <template v-else>
               <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3">
                 <!-- Resumen de Coincidencias en la Cabecera del Comparador -->
-                <div class="p-3 bg-gradient-to-r from-slate-50 via-sky-50/40 to-slate-50 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
+                <div class="p-3 bg-slate-50/90 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
                   <div class="flex items-center justify-between gap-2 flex-wrap">
                     <div class="flex items-center gap-1.5 font-mono">
-                      <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                      <span class="w-2 h-2 rounded-full bg-slate-800"></span>
                       <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        ¿Qué datos coinciden exactamente en este grupo?
+                        Coincidencias Identificadas en Conflicto
                       </span>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
@@ -763,7 +725,7 @@
                         @click="desglosarCambiosAmbos"
                         class="px-2.5 py-1 rounded-lg border text-[10.5px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                         :class="sonTodosCambiosExpandidos
-                          ? 'bg-sky-50 text-sky-800 border-sky-300'
+                          ? 'bg-slate-200 text-slate-900 border-slate-300'
                           : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'"
                         title="Desglosar o replegar historial de cambios de ambos clientes a la vez"
                       >
@@ -774,7 +736,7 @@
                       </button>
 
                       <div class="text-[11px] font-mono text-slate-600">
-                        Distancia física: <strong class="text-slate-900 font-bold">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
+                        Distancia: <strong class="text-slate-900 font-bold">{{ formatearDistancia(grupoActivo.distancia_minima_m) }}</strong>
                       </div>
                     </div>
                   </div>
@@ -788,7 +750,7 @@
                       :class="coinc.clase"
                     >
                       <span class="font-bold opacity-75 text-[10px] uppercase">{{ coinc.titulo }}:</span>
-                      <span class="font-extrabold tracking-tight select-all">{{ coinc.valor }}</span>
+                      <span class="font-bold tracking-tight select-all text-slate-900">{{ coinc.valor }}</span>
                     </div>
                   </div>
 
@@ -799,11 +761,11 @@
                       class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold flex items-center gap-1"
                     >
                       <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                      <span>Inter-Ruta (Rutas Diferentes: {{ grupoActivo.rutas.join(' vs ') }})</span>
+                      <span>Inter-Ruta: {{ grupoActivo.rutas.join(' vs ') }}</span>
                     </span>
                     <span
                       v-else
-                      class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
+                      class="px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
                     >
                       <span>Misma Ruta: {{ grupoActivo.rutas[0] }}</span>
                     </span>
@@ -817,7 +779,7 @@
                     </span>
                     <span
                       v-else
-                      class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
+                      class="px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200 font-medium flex items-center gap-1"
                     >
                       <span>Mismo Día de Visita</span>
                     </span>
@@ -829,23 +791,23 @@
                   <div
                     v-for="(cli, idx) in grupoActivo.clientes"
                     :key="cli.cliente_id"
-                    class="p-3.5 rounded-xl border flex flex-col justify-between space-y-3 transition-all relative"
+                    class="p-3.5 rounded-xl border flex flex-col justify-between space-y-3 transition-all relative bg-white"
                     :class="[
                       cli.es_master_sugerido
-                        ? 'bg-emerald-50/25 border-emerald-300 ring-2 ring-emerald-200/90 shadow-sm'
-                        : 'bg-rose-50/15 border-rose-200/80 shadow-2xs',
-                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-sky-500' : ''
+                        ? 'border-slate-800 ring-1 ring-slate-800 shadow-xs'
+                        : 'border-slate-200 shadow-2xs',
+                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-slate-900' : ''
                     ]"
                   >
                     <!-- Cabecera de la Ficha con Boton para Fijar como Master -->
-                    <div class="space-y-1.5 pb-2.5 border-b border-slate-200/80">
+                    <div class="space-y-1.5 pb-2.5 border-b border-slate-100">
                       <div class="flex items-center justify-between gap-1 flex-wrap">
                         <div class="flex items-center gap-1.5">
                           <span
                             class="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase shadow-2xs flex items-center gap-1"
-                            :class="cli.es_master_sugerido ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
+                            :class="cli.es_master_sugerido ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'"
                           >
-                            <svg v-if="cli.es_master_sugerido" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <svg v-if="cli.es_master_sugerido" class="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                             </svg>
                             <span>{{ cli.es_master_sugerido ? 'Master (A Conservar)' : `Duplicado #${idx + 1}` }}</span>
@@ -870,9 +832,9 @@
                             type="button"
                             @click="enfocarClienteEnMapa(cli)"
                             title="Hacer zoom directo en el mapa"
-                            class="px-2 py-0.5 rounded bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            class="px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                           >
-                            <svg class="w-3 h-3 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg class="w-3 h-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                             </svg>
@@ -902,18 +864,18 @@
                     </div>
 
                     <!-- Seccion: Historial de Ingreso al Padron -->
-                    <div class="p-2.5 rounded-xl bg-white border border-slate-200/90 text-xs font-mono space-y-1 shadow-2xs">
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 text-xs font-mono space-y-1 shadow-2xs">
                       <div class="flex items-center justify-between text-[10px]">
                         <span class="text-slate-400 font-sans uppercase font-bold tracking-wider">Antigüedad en Padrón:</span>
                         <span
                           v-if="cli.es_mas_antiguo"
-                          class="px-2 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9.5px]"
+                          class="px-2 py-0.2 rounded bg-slate-200 text-slate-800 font-bold text-[9.5px]"
                         >
                           Padrón Más Antiguo
                         </span>
                         <span
                           v-else
-                          class="px-2 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9.5px]"
+                          class="px-2 py-0.2 rounded bg-slate-100 text-slate-600 font-medium text-[9.5px]"
                         >
                           Ingreso Posterior
                         </span>
@@ -930,17 +892,17 @@
                     </div>
 
                     <!-- Seccion: Venta MTD con barra de progreso comparativa -->
-                    <div class="p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5 font-mono">
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 shadow-2xs space-y-1.5 font-mono">
                       <div class="flex items-center justify-between text-xs">
                         <span class="text-slate-500 font-sans">Venta Acumulada MTD:</span>
-                        <span class="font-bold text-sm" :class="cli.venta_mtd > 0 ? 'text-emerald-700' : 'text-slate-500'">
+                        <span class="font-bold text-sm" :class="cli.venta_mtd > 0 ? 'text-slate-900' : 'text-slate-500'">
                           Bs. {{ cli.venta_mtd }}
                         </span>
                       </div>
-                      <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
                         <div
                           class="h-full rounded-full transition-all duration-300"
-                          :class="cli.es_master_sugerido ? 'bg-emerald-500' : 'bg-rose-400'"
+                          :class="cli.es_master_sugerido ? 'bg-slate-900' : 'bg-slate-400'"
                           :style="{ width: calcularPorcentajeVenta(cli.venta_mtd, grupoActivo.venta_mtd_total) + '%' }"
                         ></div>
                       </div>
@@ -1193,18 +1155,18 @@
               </div>
 
               <!-- Barra Inferior de Resolucion Directa -->
-              <div class="p-3 border-t border-slate-100 bg-slate-50/90 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div class="p-3 border-t border-slate-100 bg-slate-50/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 rounded-b-2xl">
                 <div class="text-xs text-slate-600 font-mono">
-                  Conservar: <strong class="text-emerald-700">#{{ getMasterCliente(grupoActivo)?.cliente_id }}</strong> ({{ getMasterCliente(grupoActivo)?.cliente }})
-                  &bull; Inactivar: <strong class="text-rose-700">#{{ getDuplicadoCliente(grupoActivo)?.cliente_id }}</strong>
+                  Conservar: <strong class="text-slate-900 font-bold">#{{ getMasterCliente(grupoActivo)?.cliente_id }}</strong> ({{ getMasterCliente(grupoActivo)?.cliente }})
+                  &bull; Inactivar: <strong class="text-slate-600">#{{ getDuplicadoCliente(grupoActivo)?.cliente_id }}</strong>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     @click="abrirModalConfirmacion('INACTIVAR')"
                     :disabled="procesandoPropuesta"
-                    class="px-3.5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    class="flex-1 sm:flex-none px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <span>Conservar Master e Inactivar Duplicado</span>
                   </button>
@@ -1213,7 +1175,7 @@
                     type="button"
                     @click="abrirModalConfirmacion('FUSIONAR')"
                     :disabled="procesandoPropuesta"
-                    class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    class="flex-1 sm:flex-none px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <span>Fusionar Cuentas</span>
                   </button>
@@ -1536,7 +1498,7 @@
                 type="button"
                 @click="radioMetros = r"
                 class="py-1.5 rounded-lg border transition-all cursor-pointer"
-                :class="radioMetros === r ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200'"
+                :class="radioMetros === r ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200'"
               >
                 {{ r }}m
               </button>
@@ -1914,15 +1876,24 @@ function calcularPorcentajeVenta(venta, total) {
 }
 
 function getClasificacionBadge(clasif) {
-  if (clasif === 'MISMA_UBICACION_Y_DATOS') return 'bg-purple-100 text-purple-800 border border-purple-200'
-  if (clasif === 'MISMOS_DATOS') return 'bg-amber-100 text-amber-800 border border-amber-200'
-  return 'bg-blue-100 text-blue-800 border border-blue-200'
+  if (clasif === 'MISMA_UBICACION_Y_DATOS') return 'bg-rose-50 text-rose-800 border border-rose-200/80'
+  if (clasif === 'MISMOS_DATOS') return 'bg-amber-50 text-amber-800 border border-amber-200/80'
+  return 'bg-sky-50 text-sky-800 border border-sky-200/80'
 }
 
 function getClasificacionTexto(clasif) {
   if (clasif === 'MISMA_UBICACION_Y_DATOS') return 'Crítico: Ubic & Datos'
   if (clasif === 'MISMOS_DATOS') return 'Mismos Datos'
   return 'Misma Ubicación'
+}
+
+function obtenerResumenCoincidencias(grupo) {
+  const matches = obtenerCoincidenciasLegibles(grupo)
+  if (!matches || matches.length === 0) return { principal: null, total: 0 }
+  return {
+    principal: matches[0],
+    total: matches.length,
+  }
 }
 
 function formatearDistancia(metros) {
@@ -1956,9 +1927,9 @@ function obtenerCoincidenciasLegibles(grupo) {
     const textoDist = d <= 0.5 ? 'Misma coordenada GPS (0 m)' : `Misma ubicación física a ${formatearDistancia(d)}`
     res.push({
       campo: 'Ubicación',
-      titulo: 'Ubicación Física',
+      titulo: 'Ubicación',
       valor: textoDist,
-      clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+      clase: 'bg-white text-slate-800 border-slate-200 font-mono',
     })
   }
 
@@ -1974,9 +1945,9 @@ function obtenerCoincidenciasLegibles(grupo) {
         if (!res.some(r => r.campo === 'Ubicación')) {
           res.push({
             campo: 'Ubicación',
-            titulo: 'Ubicación Física',
+            titulo: 'Ubicación',
             valor: `Distancia a ${valorStr}`,
-            clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+            clase: 'bg-white text-slate-800 border-slate-200 font-mono',
           })
         }
         continue
@@ -1987,63 +1958,63 @@ function obtenerCoincidenciasLegibles(grupo) {
           campo: 'NIT',
           titulo: 'NIT Idéntico',
           valor: valorStr,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'ci') {
         res.push({
           campo: 'CI',
           titulo: 'CI Idéntico',
           valor: valorStr,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm.includes('doc') || campoNorm.includes('nit/ci')) {
         res.push({
           campo: 'Documento (NIT/CI)',
           titulo: 'Doc. Identidad Coincidente',
           valor: valorStr,
-          clase: 'bg-indigo-50 text-indigo-900 border-indigo-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm.includes('tel') || campoNorm.includes('cel')) {
         res.push({
           campo: 'Teléfono',
           titulo: 'Tel/Cel Idéntico',
           valor: valorStr,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'nombre') {
         res.push({
           campo: 'Nombre',
-          titulo: 'Nombre Comercial Idéntico',
+          titulo: 'Nombre Idéntico',
           valor: `"${valorStr}"`,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm.includes('similar')) {
         res.push({
           campo: 'Nombre Similar',
           titulo: 'Nombre Similar',
           valor: valorStr,
-          clase: 'bg-amber-50 text-amber-900 border-amber-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm === 'factura') {
         res.push({
           campo: 'Factura',
           titulo: 'Razón Social Idéntica',
           valor: `"${valorStr}"`,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else if (campoNorm.includes('factura') && campoNorm.includes('nombre')) {
         res.push({
           campo: 'Nombre / Factura',
           titulo: 'Nombre vs Razón Social',
           valor: valorStr,
-          clase: 'bg-emerald-50 text-emerald-900 border-emerald-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       } else {
         res.push({
           campo: campo,
           titulo: campo.includes('Similar') ? campo : `${campo} Coincidente`,
           valor: valorStr,
-          clase: 'bg-slate-50 text-slate-800 border-slate-200 font-mono',
+          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
       }
     }
