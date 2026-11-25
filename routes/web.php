@@ -166,6 +166,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::get('/pizarra-visual', [SupervisorPreventasController::class, 'pizarraVisual'])->name('pizarra-visual');
             Route::post('/pizarra-visual/visitas-data', [SupervisorPreventasController::class, 'pizarraVisualVisitasData'])->name('pizarra-visual.visitas-data');
             Route::post('/pizarra-visual/horario-data', [SupervisorPreventasController::class, 'pizarraVisualHorarioData'])->name('pizarra-visual.horario-data');
+            Route::post('/pizarra-visual/objetivo-data', [SupervisorPreventasController::class, 'pizarraVisualObjetivoData'])->name('pizarra-visual.objetivo-data');
         });
 
         // Productos

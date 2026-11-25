@@ -15,6 +15,7 @@ use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualHorarioDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualObjetivoDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualVisitasDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaCategoriasAction;
 use App\Actions\Web\Supervisor\Preventas\GetPreventaDetalleRutaAction;
@@ -148,6 +149,20 @@ class SupervisorPreventasController extends Controller
         $horaLimite = $request->input('hora_limite') ? (string) $request->input('hora_limite') : GetPizarraVisualHorarioDataAction::HORA_LIMITE_DEFAULT;
 
         $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas, horaLimite: $horaLimite);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve los datos analíticos, bullet charts, mix de categorías y tickets para el KPI 3 (Objetivo Diario de Venta).
+     */
+    public function pizarraVisualObjetivoData(Request $request, GetPizarraVisualObjetivoDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas);
 
         return response()->json($resultado);
     }

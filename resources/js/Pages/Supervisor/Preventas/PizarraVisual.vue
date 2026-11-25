@@ -482,6 +482,14 @@
 
         </div>
 
+        <!-- KPI 3: OBJETIVO DIARIO - BULLET CHARTS Y MIX FINANCIERO -->
+        <ObjetivoVisualDashboard
+          v-else-if="tabActivo === 'objetivo'"
+          :fecha="store.fecha"
+          :canales="store.filtrosAplicados?.canales?.length ? store.filtrosAplicados.canales : store.canalesSeleccionados"
+          :rutas="store.filtrosAplicados?.rutas?.length ? store.filtrosAplicados.rutas : store.rutasSeleccionadas"
+        />
+
         <!-- AVISO PARA OTROS KPIs EN DESARROLLO -->
         <div
           v-else
@@ -495,9 +503,9 @@
             </div>
             <h4 class="text-base font-bold text-[#1D1D1F]">Módulo en Expansión Visual</h4>
             <p class="text-xs text-[#6E6E73] leading-relaxed">
-              Actualmente están activos los módulos de <strong class="text-[#0071E3]">1. Horario (Gantt & Timeline)</strong> y <strong class="text-[#0071E3]">2. Visitas (Mapa)</strong>. Los siguientes KPIs se integrarán progresivamente.
+              Actualmente están activos los módulos de <strong class="text-[#0071E3]">1. Horario (Gantt)</strong>, <strong class="text-[#0071E3]">2. Visitas (Mapa)</strong> y <strong class="text-[#0071E3]">3. Objetivo Diario (Bullet Chart)</strong>. Los siguientes KPIs se integrarán progresivamente.
             </p>
-            <div class="flex items-center justify-center gap-2 pt-1">
+            <div class="flex items-center justify-center gap-2 pt-1 flex-wrap">
               <button
                 type="button"
                 @click="tabActivo = 'horario'"
@@ -508,9 +516,16 @@
               <button
                 type="button"
                 @click="tabActivo = 'visitas'"
-                class="apple-control-pill px-3 py-1.5 rounded-xl text-xs font-bold text-[#0071E3] hover:bg-[#0071E3] hover:text-white transition-all cursor-pointer shadow-xs"
+                class="apple-control-pill px-3 py-1.5 rounded-xl text-xs font-bold text-[#1D1D1F] hover:bg-black/[0.05] transition-all cursor-pointer shadow-xs"
               >
                 Ir a Mapa Visitas (KPI 2)
+              </button>
+              <button
+                type="button"
+                @click="tabActivo = 'objetivo'"
+                class="apple-control-pill px-3 py-1.5 rounded-xl text-xs font-bold text-[#0071E3] hover:bg-[#0071E3] hover:text-white transition-all cursor-pointer shadow-xs"
+              >
+                Ir a Objetivo (KPI 3)
               </button>
             </div>
           </div>
@@ -537,6 +552,7 @@ import { usePreventaStore } from '@/Stores/preventaStore'
 import PreventaFiltrosBar from './Cumplimiento/PreventaFiltrosBar.vue'
 import ClienteFotosModal from './ClienteFotosModal.vue'
 import HorarioVisualDashboard from './Horario/HorarioVisualDashboard.vue'
+import ObjetivoVisualDashboard from './Objetivo/ObjetivoVisualDashboard.vue'
 import { mapsConfig } from '@/Config/maps'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -564,7 +580,7 @@ const kpiTabs = [
   { id: 'general', label: 'Pizarra Unilever (7 KPIs)' },
   { id: 'horario', label: '1. Horario (10)', badge: 'GANTT' },
   { id: 'visitas', label: '2. Visitas (5)', badge: 'MAPA' },
-  { id: 'objetivo', label: '3. Objetivo Diario (10)' },
+  { id: 'objetivo', label: '3. Objetivo Diario (10)', badge: 'BULLET' },
   { id: 'efectividad', label: '4. Efectividad (30)' },
   { id: 'compra_minima', label: '5. Mín 70 (5)' },
   { id: 'reposicion', label: '6. Reposición (15)' },
