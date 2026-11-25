@@ -610,9 +610,8 @@ const props = defineProps({
 const store = useAvanceStore()
 
 // Tabs del módulo Avance
-const avanceTabs = computed(() => {
-  return navigationConfig.find(m => m.id === 'avance')?.subtabs || []
-})
+const avanceMenu = navigationConfig.mainMenu.find(m => m.id === 'avance')
+const avanceTabs = avanceMenu ? avanceMenu.submodules : []
 
 // Estados principales
 const cargando = ref(false)
