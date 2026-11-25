@@ -365,7 +365,15 @@ class AuditarDuplicadosAction
         // C) Grupos por Razón Social / Factura Idéntica
         foreach ($indexFactura as $factVal => $cids) {
             $cids = array_values(array_unique($cids));
-            if (count($cids) >= 2 && count($cids) <= 20 && mb_strlen($factVal) >= 5) {
+            if (count($cids) < 2) {
+                continue;
+            }
+            $esMonopalabra = !str_contains(trim($factVal), ' ');
+            // Si es una sola palabra (ej: un apellido común como Flores, Choque), solo agrupar si son pocos candidatos (<= 3)
+            if ($esMonopalabra && (count($cids) > 3 || mb_strlen($factVal) < 6)) {
+                continue;
+            }
+            if (count($cids) <= 20 && mb_strlen($factVal) >= 5) {
                 $p0 = $puntosMap[$cids[0]];
                 $nombreFact = $p0['nombre_factura'] ?: $factVal;
                 $registrarGrupo($cids, ['Factura' => $nombreFact]);
@@ -514,30 +522,38 @@ class AuditarDuplicadosAction
                     $minD = $calcularMinDistancia($clusterIds);
                     $crits = ['Ubicación' => round($minD, 1) . ' m'];
                     
-                    // En colisión espacial, comprobar si además tienen nombres idénticos o similares
+                    // En colisión espacial: si todos en el grupo espacial tienen idéntico nombre
                     $p0 = $puntosMap[$clusterIds[0]];
                     $nomC = $p0['cliente_norm'];
                     $todosMismoNombre = ($nomC !== '') && array_reduce($clusterIds, fn($acc, $id) => $acc && ($puntosMap[$id]['cliente_norm'] === $nomC), true);
                     if ($todosMismoNombre) {
                         $crits['Nombre'] = $p0['cliente'];
+                        $registrarGrupo($clusterIds, $crits);
                     } else {
-                        // Buscar si al menos dos clientes en la misma ubicación tienen nombres parecidos
+                        // El grupo espacial completo solo tiene el criterio de Ubicación (NO contamina con nombres de terceros)
+                        $registrarGrupo($clusterIds, $crits);
+
+                        // Registrar como subgrupo atómico SOLO a las parejas que realmente tienen nombres idénticos o similares
                         for ($ci = 0; $ci < count($clusterIds); $ci++) {
                             for ($cj = $ci + 1; $cj < count($clusterIds); $cj++) {
-                                $pA = $puntosMap[$clusterIds[$ci]];
-                                $pB = $puntosMap[$clusterIds[$cj]];
+                                $idA = $clusterIds[$ci];
+                                $idB = $clusterIds[$cj];
+                                $pA = $puntosMap[$idA];
+                                $pB = $puntosMap[$idB];
                                 if ($pA['nucleo'] !== '' && $pB['nucleo'] !== '') {
                                     similar_text($pA['nucleo'], $pB['nucleo'], $simSpa);
                                     $tokInter = array_intersect($pA['tokens'], $pB['tokens']);
                                     if ($simSpa >= 65.0 || count($tokInter) >= 1) {
-                                        $crits['Nombre Similar'] = strtoupper($pA['cliente']) . ' ~ ' . strtoupper($pB['cliente']);
-                                        break 2;
+                                        $dPar = round(GeometryHelper::haversineDistance($pA['latitud'], $pA['longitud'], $pB['latitud'], $pB['longitud']), 1);
+                                        $registrarGrupo([$idA, $idB], [
+                                            'Ubicación' => $dPar . ' m',
+                                            'Nombre Similar' => strtoupper($pA['cliente']) . ' ~ ' . strtoupper($pB['cliente']),
+                                        ]);
                                     }
                                 }
                             }
                         }
                     }
-                    $registrarGrupo($clusterIds, $crits);
                 }
             }
         }
