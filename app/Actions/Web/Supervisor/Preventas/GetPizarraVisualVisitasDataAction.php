@@ -105,7 +105,6 @@ class GetPizarraVisualVisitasDataAction
             ->select([
                 'cliente_id',
                 'ruta',
-                'canal',
                 DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), NULLIF(TRIM(cliente_norm), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
                 DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente_norm"),
                 DB::raw("MAX(COALESCE(TRIM(territorio), '-')) as territorio"),
@@ -115,7 +114,7 @@ class GetPizarraVisualVisitasDataAction
                 DB::raw("MAX(longitud) as longitud"),
                 DB::raw("MAX(vendedor) as vendedor"),
             ])
-            ->groupBy('cliente_id', 'ruta', 'canal')
+            ->groupBy('cliente_id', 'ruta')
             ->get();
 
         // Agrupación por clave única ruta + cliente_id
@@ -209,20 +208,47 @@ class GetPizarraVisualVisitasDataAction
         }
 
         // 5. Visitas de App Móvil (tabla visitas)
-        $visitasMovilRaw = Visita::query()
-            ->whereBetween('visited_at', ["{$fechaNorm} 00:00:00", "{$fechaNorm} 23:59:59"])
-            ->whereIn(DB::raw("TRIM(UPPER(route))"), $rutasObjetivo)
-            ->orderBy('visited_at', 'asc')
+        $visitasMovilRaw = DB::table('visitas as v')
+            ->leftJoin('users as u', 'v.user_id', '=', 'u.id')
+            ->whereBetween('v.visited_at', ["{$fechaNorm} 00:00:00", "{$fechaNorm} 23:59:59"])
+            ->where(function ($q) use ($rutasObjetivo): void {
+                $q->whereIn(DB::raw("TRIM(UPPER(v.route))"), $rutasObjetivo);
+                $q->orWhereIn(DB::raw("TRIM(UPPER(COALESCE(u.ruta, '')))"), $rutasObjetivo);
+            })
+            ->select([
+                'v.id',
+                'v.client_id',
+                'v.route',
+                'u.ruta as user_ruta',
+                'v.status',
+                'v.comments',
+                'v.latitude',
+                'v.longitude',
+                'v.accuracy',
+                'v.photo_path',
+                'v.visited_at',
+                'v.is_opportunity',
+                'v.opportunity_client_name',
+            ])
+            ->orderBy('v.visited_at', 'asc')
             ->get();
 
         $visitasMovilPorRutaCliente = [];
         $visitasMovilFueraPlan = [];
 
         foreach ($visitasMovilRaw as $vm) {
-            $rUpper = strtoupper(trim((string)$vm->route));
+            $rUpper = strtoupper(trim((string)($vm->route ?: ($vm->user_ruta ?? ''))));
+            if (!isset($catalogoRutas[$rUpper])) {
+                continue;
+            }
             $cid = (int)($vm->client_id ?? 0);
 
-            $horaStr = $vm->visited_at ? $vm->visited_at->format('H:i:s') : null;
+            $horaStr = null;
+            if ($vm->visited_at) {
+                $horaStr = is_string($vm->visited_at)
+                    ? substr($vm->visited_at, 11, 8)
+                    : ($vm->visited_at instanceof \DateTimeInterface ? $vm->visited_at->format('H:i:s') : (string)$vm->visited_at);
+            }
             $fotoUrl = $this->formatearUrlFoto($vm->photo_path);
 
             $item = [
@@ -252,7 +278,6 @@ class GetPizarraVisualVisitasDataAction
 
         // 6. Procesar y clasificar clientes
         $clientesResultado = [];
-        $recorridosPorRuta = [];
         $distribucionHoras = $this->inicializarDistribucionHoraria();
 
         // Inicializar métricas por ruta
@@ -273,13 +298,6 @@ class GetPizarraVisualVisitasDataAction
                 'monto_total' => 0.0,
                 'cobertura_pct' => 0.0,
                 'efectividad_pct' => 0.0,
-            ];
-            $recorridosPorRuta[$r] = [
-                'ruta' => $r,
-                'canal' => $dim ? (string)$dim->canal : '-',
-                'vendedor' => $dim ? (string)$dim->vendedor : 'No Asignado',
-                'color' => $coloresRuta[$r],
-                'puntos' => [],
             ];
         }
 
@@ -332,19 +350,6 @@ class GetPizarraVisualVisitasDataAction
                 if ($horaVisita) {
                     $this->acumularHora($distribucionHoras, $horaVisita, $tieneVenta);
                 }
-
-                // Agregar al recorrido cronológico si tiene coordenadas válidas
-                if ($lat && $lng && $this->coordenadasValidas($lat, $lng)) {
-                    $recorridosPorRuta[$rUpper]['puntos'][] = [
-                        'lat' => $lat,
-                        'lng' => $lng,
-                        'hora' => $horaVisita ?: 'Sin hora',
-                        'cliente' => (string)$p->cliente,
-                        'cliente_id' => $cid,
-                        'con_venta' => $tieneVenta,
-                        'monto' => $montoFinal,
-                    ];
-                }
             } else {
                 $estadoVisita = 'pendiente';
                 $rutasStats[$rUpper]['pendientes']++;
@@ -363,7 +368,7 @@ class GetPizarraVisualVisitasDataAction
                 'cliente_id' => $cid,
                 'cliente' => (string)$p->cliente,
                 'ruta' => $rUpper,
-                'canal' => (string)($p->canal ?: ($rutasStats[$rUpper]['canal'] ?? '-')),
+                'canal' => (string)($rutasStats[$rUpper]['canal'] ?? '-'),
                 'vendedor' => (string)($p->vendedor ?: ($rutasStats[$rUpper]['vendedor'] ?? '-')),
                 'color_ruta' => $coloresRuta[$rUpper] ?? '#0071E3',
                 'lat' => $lat,
@@ -374,6 +379,7 @@ class GetPizarraVisualVisitasDataAction
                 'tipo_motivo' => $motivoTipo,
                 'monto' => $montoFinal,
                 'hora_visita' => $horaVisita,
+                'parada_num' => null,
                 'foto_url' => $movil['foto_url'] ?? null,
                 'direccion' => (string)($p->direccion ?: '-'),
                 'referencia' => (string)($p->referencia ?: '-'),
@@ -404,19 +410,6 @@ class GetPizarraVisualVisitasDataAction
                 $this->acumularHora($distribucionHoras, $horaVisita, $tieneVenta);
             }
 
-            if ($lat && $lng && $this->coordenadasValidas($lat, $lng)) {
-                $recorridosPorRuta[$rUpper]['puntos'][] = [
-                    'lat' => $lat,
-                    'lng' => $lng,
-                    'hora' => $horaVisita ?: 'Sin hora',
-                    'cliente' => $fp['cliente_nombre'] ?: "Cliente #{$cid}",
-                    'cliente_id' => $cid,
-                    'con_venta' => $tieneVenta,
-                    'monto' => $montoPrev,
-                    'fuera_plan' => true,
-                ];
-            }
-
             $motivoTipo = $this->determinarTipoVisita(
                 true,
                 $montoPrev,
@@ -442,6 +435,7 @@ class GetPizarraVisualVisitasDataAction
                 'tipo_motivo' => $motivoTipo,
                 'monto' => $montoPrev,
                 'hora_visita' => $horaVisita,
+                'parada_num' => null,
                 'foto_url' => $fp['foto_url'],
                 'direccion' => '-',
                 'referencia' => '-',
@@ -449,12 +443,57 @@ class GetPizarraVisualVisitasDataAction
             ];
         }
 
-        // 7. Ordenar cronológicamente puntos de recorrido de cada ruta
+        // 7. Numerar paradas cronológicamente por ruta y construir recorridos
+        $visitasPorRutaIndices = [];
+        foreach ($clientesResultado as $idx => $c) {
+            if ($c['estado_visita'] !== 'pendiente') {
+                $visitasPorRutaIndices[$c['ruta']][] = $idx;
+            }
+        }
+
         $recorridosFinales = [];
-        foreach ($recorridosPorRuta as $r => $rec) {
-            if (!empty($rec['puntos'])) {
-                usort($rec['puntos'], fn($a, $b) => strcmp((string)$a['hora'], (string)$b['hora']));
-                $recorridosFinales[] = $rec;
+        foreach ($rutasObjetivo as $r) {
+            $indices = $visitasPorRutaIndices[$r] ?? [];
+            if (empty($indices)) {
+                continue;
+            }
+
+            // Ordenar índices por hora_visita ascendente
+            usort($indices, function ($idxA, $idxB) use ($clientesResultado) {
+                $hA = $clientesResultado[$idxA]['hora_visita'] ?? '99:99:99';
+                $hB = $clientesResultado[$idxB]['hora_visita'] ?? '99:99:99';
+                return strcmp((string)$hA, (string)$hB);
+            });
+
+            $puntosRecorrido = [];
+            foreach ($indices as $seq => $cIdx) {
+                $paradaNum = $seq + 1;
+                $clientesResultado[$cIdx]['parada_num'] = $paradaNum;
+
+                $cRef = $clientesResultado[$cIdx];
+                if ($cRef['tiene_coords']) {
+                    $puntosRecorrido[] = [
+                        'parada_num' => $paradaNum,
+                        'lat' => $cRef['lat'],
+                        'lng' => $cRef['lng'],
+                        'hora' => $cRef['hora_visita'] ?: 'Sin hora',
+                        'cliente' => $cRef['cliente'],
+                        'cliente_id' => $cRef['cliente_id'],
+                        'con_venta' => ($cRef['monto'] > 0),
+                        'monto' => $cRef['monto'],
+                        'fuera_plan' => ($cRef['estado_visita'] === 'fuera_plan'),
+                    ];
+                }
+            }
+
+            if (!empty($puntosRecorrido)) {
+                $recorridosFinales[] = [
+                    'ruta' => $r,
+                    'canal' => $rutasStats[$r]['canal'] ?? '-',
+                    'vendedor' => $rutasStats[$r]['vendedor'] ?? '-',
+                    'color' => $coloresRuta[$r],
+                    'puntos' => $puntosRecorrido,
+                ];
             }
         }
 

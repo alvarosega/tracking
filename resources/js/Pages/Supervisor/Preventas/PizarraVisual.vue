@@ -728,6 +728,7 @@ function cambiarCapaMapa(tipo) {
 function renderizarCapaMapa() {
   if (!mapInstance || !markersGroup || !recorridosGroup) return
 
+  mapInstance.invalidateSize()
   markersGroup.clearLayers()
   recorridosGroup.clearLayers()
 
@@ -737,27 +738,9 @@ function renderizarCapaMapa() {
   if (capas.recorrido) {
     recorridosVisibles.value.forEach(rec => {
       const latlngs = []
-      rec.puntos.forEach((p, idx) => {
+      rec.puntos.forEach(p => {
         latlngs.push([p.lat, p.lng])
         bounds.push([p.lat, p.lng])
-
-        // Pequeño marcador de parada numerada
-        const numIcon = L.divIcon({
-          className: 'custom-recorrido-stop',
-          html: `<div style="background-color: ${rec.color}; color: white; width: 16px; height: 16px; border-radius: 50%; font-size: 8px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 1.5px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">${idx + 1}</div>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        })
-
-        const stopMarker = L.marker([p.lat, p.lng], { icon: numIcon, zIndexOffset: 200 })
-        stopMarker.bindPopup(`
-          <div style="font-family: -apple-system, sans-serif; font-size: 11px; min-width: 160px;">
-            <p style="font-weight: 800; color: #1D1D1F; margin: 0;">Parada #${idx + 1} · ${p.hora}</p>
-            <p style="font-weight: 600; color: ${rec.color}; margin: 2px 0 0 0;">${rec.ruta} - ${p.cliente}</p>
-            <p style="color: #6E6E73; margin: 2px 0 0 0;">${p.con_venta ? `Venta: Bs ${p.monto.toFixed(2)}` : 'Sin Venta'}</p>
-          </div>
-        `)
-        recorridosGroup.addLayer(stopMarker)
       })
 
       if (latlngs.length > 1) {
@@ -768,7 +751,7 @@ function renderizarCapaMapa() {
           dashArray: '6, 6',
           lineCap: 'round',
         })
-        poly.bindTooltip(`${rec.ruta} (${rec.vendedor})`, { sticky: true })
+        poly.bindTooltip(`${rec.ruta} (${rec.vendedor}) · ${latlngs.length} paradas`, { sticky: true })
         recorridosGroup.addLayer(poly)
       }
     })
@@ -778,52 +761,74 @@ function renderizarCapaMapa() {
   puntosConCoordenadasVisibles.value.forEach(c => {
     bounds.push([c.lat, c.lng])
 
-    // Determinar estilo del marcador según estado
+    const esVisitado = (c.estado_visita !== 'pendiente')
     let colorFondo = '#FF3B30' // Pendiente (Rojo)
     let textoBadge = 'PENDIENTE'
     let badgeBg = '#FDF0EF'
     let badgeText = '#C9342C'
+    let zIndex = 50
 
     if (c.estado_visita === 'visitado_con_venta') {
       colorFondo = '#34C759' // Verde
       textoBadge = 'CON VENTA'
       badgeBg = '#EBF9EF'
       badgeText = '#1E6B37'
+      zIndex = 200
     } else if (c.estado_visita === 'visitado_sin_venta') {
       colorFondo = '#0071E3' // Azul
       textoBadge = 'SIN VENTA'
       badgeBg = '#EBF4FE'
       badgeText = '#0071E3'
+      zIndex = 150
     } else if (c.estado_visita === 'fuera_plan') {
       colorFondo = '#FF9500' // Naranja
       textoBadge = 'FUERA DE PLAN'
       badgeBg = '#FFF5E5'
       badgeText = '#B25E00'
+      zIndex = 180
     }
 
-    const htmlMarker = `
-      <div style="position: relative; width: 14px; height: 14px;">
-        <span style="display: block; width: 14px; height: 14px; border-radius: 50%; background-color: ${colorFondo}; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.35);"></span>
-      </div>
-    `
+    let htmlMarker = ''
+    let iconSize = [12, 12]
+    let iconAnchor = [6, 6]
+
+    if (esVisitado) {
+      iconSize = [18, 18]
+      iconAnchor = [9, 9]
+      const numLabel = c.parada_num ? String(c.parada_num) : ''
+      htmlMarker = `
+        <div style="width: 18px; height: 18px; border-radius: 50%; background-color: ${colorFondo}; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; color: white; font-size: ${numLabel.length > 2 ? '7.5px' : '9px'}; font-weight: 800; font-family: -apple-system, sans-serif;">
+          ${numLabel}
+        </div>
+      `
+    } else {
+      iconSize = [10, 10]
+      iconAnchor = [5, 5]
+      htmlMarker = `
+        <div style="width: 10px; height: 10px; border-radius: 50%; background-color: ${colorFondo}; border: 1.5px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.25);"></div>
+      `
+    }
 
     const iconPin = L.divIcon({
       className: 'custom-client-marker',
       html: htmlMarker,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
+      iconSize: iconSize,
+      iconAnchor: iconAnchor,
     })
 
-    const marker = L.marker([c.lat, c.lng], { icon: iconPin })
+    const marker = L.marker([c.lat, c.lng], { icon: iconPin, zIndexOffset: zIndex })
 
     // Popup interactivo con estética Apple
     const popupHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; min-width: 220px; max-width: 260px; line-height: 1.35; padding: 2px;">
         <!-- Cabecera -->
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 4px;">
-          <span style="font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; background-color: ${badgeBg}; color: ${badgeText};">
-            ${textoBadge}
-          </span>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            ${c.parada_num ? `<span style="font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; background-color: #1D1D1F; color: white;">#${c.parada_num}</span>` : ''}
+            <span style="font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; background-color: ${badgeBg}; color: ${badgeText};">
+              ${textoBadge}
+            </span>
+          </div>
           <span style="font-size: 9px; font-family: monospace; font-weight: 700; color: #86868B;">
             Cód: ${c.cliente_id || 'S/N'}
           </span>
@@ -920,10 +925,17 @@ function abrirModalFoto(cliente) {
 async function cargarDatos() {
   cargando.value = true
   try {
+    const canales = (store.filtrosAplicados?.canales && store.filtrosAplicados.canales.length > 0)
+      ? store.filtrosAplicados.canales
+      : (store.canalesSeleccionados || [])
+    const rutas = (store.filtrosAplicados?.rutas && store.filtrosAplicados.rutas.length > 0)
+      ? store.filtrosAplicados.rutas
+      : (store.rutasSeleccionadas || [])
+
     const res = await axios.post(route('supervisor.preventas.pizarra-visual.visitas-data'), {
       fecha: store.fecha,
-      canales: store.canalesSeleccionados,
-      rutas: store.rutasSeleccionadas,
+      canales,
+      rutas,
     })
 
     const d = res.data || {}
@@ -963,6 +975,17 @@ watch(
   }
 )
 
+watch(vistaMovil, (val) => {
+  if (val === 'mapa') {
+    nextTick(() => {
+      if (mapInstance) {
+        mapInstance.invalidateSize()
+        ajustarVistaMapa()
+      }
+    })
+  }
+})
+
 onMounted(async () => {
   store.inicializarDesdeStorage(props)
   await nextTick()
@@ -979,6 +1002,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+:deep(.custom-client-marker),
+:deep(.custom-recorrido-stop) {
+  background: transparent !important;
+  border: none !important;
+}
+
 :deep(.leaflet-popup-content-wrapper) {
   border-radius: 14px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
