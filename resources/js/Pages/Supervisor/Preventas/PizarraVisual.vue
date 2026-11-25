@@ -86,26 +86,6 @@
               </button>
             </div>
 
-            <!-- Resumen Rápido de Métricas -->
-            <div class="p-2.5 bg-white border-b border-black/[0.05] grid grid-cols-4 gap-1.5 text-center text-xs shrink-0">
-              <div class="p-1.5 rounded-lg bg-[#F5F5F7] border border-black/[0.04]">
-                <div class="text-[9px] font-bold text-[#86868B] uppercase">Plan</div>
-                <div class="text-xs font-extrabold font-mono text-[#1D1D1F]">{{ totales.total_cartera_plan }}</div>
-              </div>
-              <div class="p-1.5 rounded-lg bg-[#EBF9EF] border border-[#D1F2D9]">
-                <div class="text-[9px] font-bold text-[#1E6B37] uppercase">Visitados</div>
-                <div class="text-xs font-extrabold font-mono text-[#1E6B37]">{{ totales.total_visitados }}</div>
-              </div>
-              <div class="p-1.5 rounded-lg bg-[#FDF0EF] border border-[#FADCD5]">
-                <div class="text-[9px] font-bold text-[#C9342C] uppercase">Pendientes</div>
-                <div class="text-xs font-extrabold font-mono text-[#C9342C]">{{ totales.pendientes }}</div>
-              </div>
-              <div class="p-1.5 rounded-lg bg-[#FFF5E5] border border-amber-200">
-                <div class="text-[9px] font-bold text-[#B25E00] uppercase">Fuera Plan</div>
-                <div class="text-xs font-extrabold font-mono text-[#B25E00]">{{ totales.fuera_plan }}</div>
-              </div>
-            </div>
-
             <!-- Contenido Scrolleable del Panel -->
             <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3 text-xs">
 
@@ -172,57 +152,96 @@
                 </div>
               </div>
 
-              <!-- GRÁFICO 2: HISTOGRAMA DE VISITAS POR HORA -->
+              <!-- GRÁFICO 2: HISTOGRAMA DE VISITAS POR HORA CON LÍNEAS VERTICALES DE HORARIOS -->
               <div class="p-3 rounded-[14px] bg-white border border-black/[0.06] shadow-2xs space-y-2">
                 <div class="flex items-center justify-between">
                   <span class="text-[11px] font-bold text-[#1D1D1F]">Ritmo Horario de Visitas</span>
                   <span class="text-[9.5px] text-[#86868B] font-mono">07:00 – 18:00+</span>
                 </div>
 
-                <!-- Canvas / SVG Bars -->
-                <div class="relative h-28 w-full pt-2 flex items-end justify-between gap-1">
-                  <div
-                    v-for="(h, idx) in distribucionHoraria"
-                    :key="h.rango"
-                    class="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer"
-                  >
-                    <!-- Tooltip flotante en hover -->
+                <!-- Canvas / SVG Bars con rejilla de líneas verticales -->
+                <div class="relative h-32 w-full pt-4 pb-1 rounded-lg overflow-hidden bg-slate-50/50 border border-black/[0.04]">
+                  
+                  <!-- Líneas verticales de fondo para cada franja horaria -->
+                  <div class="absolute inset-0 flex divide-x divide-black/[0.06] pointer-events-none">
                     <div
-                      class="absolute bottom-full mb-1 hidden group-hover:flex flex-col items-center z-20 pointer-events-none"
-                    >
-                      <div class="bg-slate-900 text-white text-[9px] font-mono px-2 py-1 rounded shadow-lg whitespace-nowrap">
-                        <p class="font-bold">{{ h.rango }}</p>
-                        <p class="text-emerald-400">Venta: {{ h.con_venta }}</p>
-                        <p class="text-sky-300">Sin venta: {{ h.sin_venta }}</p>
-                        <p class="border-t border-slate-700 mt-0.5 pt-0.5">Total: {{ h.total }}</p>
-                      </div>
-                    </div>
+                      v-for="(h, idx) in distribucionHoraria"
+                      :key="`grid-col-${idx}`"
+                      class="flex-1 h-full"
+                      :class="idx % 2 === 0 ? 'bg-black/[0.015]' : 'bg-transparent'"
+                    ></div>
+                  </div>
 
-                    <!-- Barra Apilada -->
-                    <div class="w-full max-w-[16px] rounded-t-[3px] overflow-hidden flex flex-col justify-end bg-slate-100 h-full">
-                      <div
-                        :style="{ height: `${maxVisitasHora > 0 ? (h.con_venta / maxVisitasHora) * 100 : 0}%` }"
-                        class="bg-[#34C759] transition-all duration-200"
-                      ></div>
-                      <div
-                        :style="{ height: `${maxVisitasHora > 0 ? (h.sin_venta / maxVisitasHora) * 100 : 0}%` }"
-                        class="bg-[#0071E3] transition-all duration-200"
-                      ></div>
-                    </div>
-
-                    <!-- Etiqueta de Hora -->
-                    <span class="text-[8px] font-mono text-[#86868B] mt-1 shrink-0">
-                      {{ formatoHoraEtiqueta(h.rango) }}
+                  <!-- Línea roja vertical de corte a las 08:10 -->
+                  <div
+                    class="absolute top-0 bottom-5 w-px bg-rose-500 z-10 border-l border-dashed border-rose-500"
+                    style="left: calc((100% / 12) * 1.16);"
+                    title="08:10 Límite de inicio"
+                  >
+                    <span class="absolute -top-3.5 -left-3 text-[7.5px] font-black font-mono text-rose-600 bg-rose-50 px-1 rounded shadow-2xs">
+                      08:10
                     </span>
+                  </div>
+
+                  <!-- Columnas y Barras del Histograma -->
+                  <div class="relative h-full flex items-end justify-between z-10">
+                    <div
+                      v-for="(h, idx) in distribucionHoraria"
+                      :key="h.rango"
+                      class="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer border-r border-black/[0.05] last:border-r-0 hover:bg-blue-50/50 transition-colors"
+                    >
+                      <!-- Conteo numérico sobre la barra si hay visitas -->
+                      <span
+                        v-if="h.total > 0"
+                        class="text-[8px] font-mono font-extrabold text-[#1D1D1F] mb-0.5 group-hover:scale-110 transition-transform"
+                      >
+                        {{ h.total }}
+                      </span>
+
+                      <!-- Tooltip flotante en hover -->
+                      <div
+                        class="absolute bottom-full mb-1 hidden group-hover:flex flex-col items-center z-30 pointer-events-none"
+                      >
+                        <div class="bg-slate-900 text-white text-[9px] font-mono px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap">
+                          <p class="font-extrabold text-white text-[10px] mb-0.5">{{ h.rango }}</p>
+                          <p class="text-emerald-400 font-semibold flex items-center justify-between gap-2">
+                            <span>Con Preventa:</span> <strong>{{ h.con_venta }}</strong>
+                          </p>
+                          <p class="text-sky-300 font-semibold flex items-center justify-between gap-2">
+                            <span>Sin Preventa:</span> <strong>{{ h.sin_venta }}</strong>
+                          </p>
+                          <div class="border-t border-slate-700 mt-1 pt-1 flex items-center justify-between gap-2 text-white font-bold">
+                            <span>Total Visitas:</span> <span>{{ h.total }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Barra Apilada Proporcional -->
+                      <div class="w-full max-w-[14px] rounded-t-[3px] overflow-hidden flex flex-col justify-end bg-slate-200/60 h-20">
+                        <div
+                          :style="{ height: `${maxVisitasHora > 0 ? (h.con_venta / maxVisitasHora) * 100 : 0}%` }"
+                          class="bg-[#34C759] transition-all duration-300"
+                        ></div>
+                        <div
+                          :style="{ height: `${maxVisitasHora > 0 ? (h.sin_venta / maxVisitasHora) * 100 : 0}%` }"
+                          class="bg-[#0071E3] transition-all duration-300"
+                        ></div>
+                      </div>
+
+                      <!-- Etiqueta de Hora con Línea Guía Vertical -->
+                      <span class="text-[7.5px] sm:text-[8px] font-mono text-[#86868B] group-hover:text-[#1D1D1F] group-hover:font-bold mt-1 shrink-0">
+                        {{ formatoHoraEtiqueta(h.rango) }}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div class="flex items-center justify-center gap-3 text-[9px] text-[#86868B] pt-1">
                   <span class="flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-[#34C759]"></span> Visita con Venta
+                    <span class="w-2 h-2 rounded-full bg-[#34C759]"></span> Con Preventa
                   </span>
                   <span class="flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span> Visita sin Venta
+                    <span class="w-2 h-2 rounded-full bg-[#0071E3]"></span> Sin Preventa
                   </span>
                 </div>
               </div>
@@ -232,7 +251,7 @@
                 <span class="text-[11px] font-bold text-[#1D1D1F] block">Capas Visibles en el Mapa</span>
                 
                 <div class="grid grid-cols-2 gap-1.5 text-[10px]">
-                  <!-- Toggle Con Venta -->
+                  <!-- Toggle Con Preventa -->
                   <button
                     type="button"
                     @click="capas.conVenta = !capas.conVenta"
@@ -241,12 +260,12 @@
                   >
                     <span class="flex items-center gap-1">
                       <span class="w-2 h-2 rounded-full" :class="capas.conVenta ? 'bg-[#34C759]' : 'bg-gray-400'"></span>
-                      <span>Con Venta</span>
+                      <span>Con Preventa</span>
                     </span>
                     <span class="font-mono">{{ totales.visitados_con_venta }}</span>
                   </button>
 
-                  <!-- Toggle Sin Venta -->
+                  <!-- Toggle Sin Preventa -->
                   <button
                     type="button"
                     @click="capas.sinVenta = !capas.sinVenta"
@@ -255,7 +274,7 @@
                   >
                     <span class="flex items-center gap-1">
                       <span class="w-2 h-2 rounded-full" :class="capas.sinVenta ? 'bg-[#0071E3]' : 'bg-gray-400'"></span>
-                      <span>Sin Venta</span>
+                      <span>Sin Preventa</span>
                     </span>
                     <span class="font-mono">{{ totales.visitados_sin_venta }}</span>
                   </button>
@@ -460,21 +479,17 @@
             <div
               class="absolute bottom-2 left-2 z-[400] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-md border border-black/[0.08] flex items-center gap-3 text-[10px] font-semibold text-[#6E6E73] select-none"
             >
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-[#34C759] border border-white shadow-2xs"></span>
-                <span>Con Venta</span>
+                <span>Visitado con Preventa</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3] border border-white shadow-2xs"></span>
-                <span>Sin Venta</span>
+                <span>Visitado sin Preventa</span>
               </div>
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-[#FF3B30] border border-white shadow-2xs"></span>
                 <span>Pendiente</span>
-              </div>
-              <div class="flex items-center gap-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-[#FF9500] border border-white shadow-2xs"></span>
-                <span>Fuera de Plan</span>
               </div>
             </div>
 
@@ -797,30 +812,26 @@ function renderizarCapaMapa() {
     bounds.push([c.lat, c.lng])
 
     const esVisitado = (c.estado_visita !== 'pendiente')
+    const tienePreventa = (c.monto > 0) || (c.estado_visita === 'visitado_con_venta')
+
     let colorFondo = '#FF3B30' // Pendiente (Rojo)
     let textoBadge = 'PENDIENTE'
     let badgeBg = '#FDF0EF'
     let badgeText = '#C9342C'
     let zIndex = 50
 
-    if (c.estado_visita === 'visitado_con_venta') {
-      colorFondo = '#34C759' // Verde
-      textoBadge = 'CON VENTA'
+    if (tienePreventa) {
+      colorFondo = '#34C759' // Verde para visitados con preventa
+      textoBadge = c.en_plan ? 'CON PREVENTA' : 'FUERA PLAN (CON PREVENTA)'
       badgeBg = '#EBF9EF'
       badgeText = '#1E6B37'
       zIndex = 200
-    } else if (c.estado_visita === 'visitado_sin_venta') {
-      colorFondo = '#0071E3' // Azul
-      textoBadge = 'SIN VENTA'
+    } else if (esVisitado) {
+      colorFondo = '#0071E3' // Azul para visitados sin preventa
+      textoBadge = c.en_plan ? 'SIN PREVENTA' : 'FUERA PLAN (SIN PREVENTA)'
       badgeBg = '#EBF4FE'
       badgeText = '#0071E3'
       zIndex = 150
-    } else if (c.estado_visita === 'fuera_plan') {
-      colorFondo = '#FF9500' // Naranja
-      textoBadge = 'FUERA DE PLAN'
-      badgeBg = '#FFF5E5'
-      badgeText = '#B25E00'
-      zIndex = 180
     }
 
     let htmlMarker = ''
@@ -852,6 +863,13 @@ function renderizarCapaMapa() {
     })
 
     const marker = L.marker([c.lat, c.lng], { icon: iconPin, zIndexOffset: zIndex })
+
+    // Tooltip flotante con número de parada, hora exacta y cliente
+    const tooltipText = esVisitado
+      ? `<strong>#${c.parada_num || '-'}</strong> · ⏰ ${c.hora_visita || 'Sin hora'} · ${c.cliente} <span style="color: ${colorFondo}; font-weight: 800;">(${tienePreventa ? `Con Preventa: Bs ${Number(c.monto).toFixed(2)}` : 'Sin Preventa'})</span>`
+      : `<strong>Pendiente:</strong> ${c.cliente} (${c.ruta})`
+
+    marker.bindTooltip(tooltipText, { direction: 'top', offset: [0, -9], sticky: true })
 
     // Popup interactivo con estética Apple
     const popupHtml = `
@@ -885,10 +903,17 @@ function renderizarCapaMapa() {
           </div>
         </div>
 
+        <!-- Horario Destacado -->
+        ${c.hora_visita ? `
+          <div style="background-color: #F8F8FA; border: 1px solid rgba(0,0,0,0.06); border-radius: 6px; padding: 4px 6px; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 10px; color: #86868B; font-weight: 600;">Hora de Visita:</span>
+            <span style="font-family: monospace; font-size: 11px; font-weight: 800; color: #1D1D1F;">⏰ ${c.hora_visita}</span>
+          </div>
+        ` : ''}
+
         <!-- Detalles de Visita -->
         <div style="display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: #6E6E73; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 4px;">
           <div><strong>Motivo:</strong> ${c.tipo_motivo || 'Visita'}</div>
-          ${c.hora_visita ? `<div><strong>Hora:</strong> <span style="font-family: monospace; font-weight: 700; color: #1D1D1F;">${c.hora_visita}</span></div>` : ''}
           ${c.monto > 0 ? `<div><strong>Preventa:</strong> <span style="font-family: monospace; font-weight: 800; color: #1E6B37;">Bs ${c.monto.toFixed(2)}</span></div>` : ''}
           <div style="font-size: 9.5px; color: #86868B; margin-top: 2px;">${c.direccion || '-'}</div>
         </div>
