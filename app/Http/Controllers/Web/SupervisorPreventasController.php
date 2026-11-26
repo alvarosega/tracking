@@ -13,6 +13,7 @@ use App\Actions\Web\Supervisor\Preventas\GetDetalleHorarioRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
+use App\Actions\Web\Supervisor\Preventas\GetEntregaPreventasMapDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualEfectividadDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualHorarioDataAction;
@@ -178,6 +179,42 @@ class SupervisorPreventasController extends Controller
         $rutas = (array) $request->input('rutas', []);
 
         $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Muestra la vista de Entrega Preventas (Mapa y Detalle Logístico de Entregas).
+     */
+    public function entregaPreventas(GetPreventasInitDataAction $action): Response
+    {
+        $initData = $action->execute();
+
+        return Inertia::render('Supervisor/Preventas/EntregaPreventas', [
+            'catalogo_rutas' => $initData['catalogo_rutas'],
+            'canales' => $initData['canales'],
+            'fecha_default' => $initData['fecha_default'],
+        ]);
+    }
+
+    /**
+     * Devuelve los datos geolocalizados de preventas y el detalle de lo que se debió entregar.
+     */
+    public function entregaPreventasData(Request $request, GetEntregaPreventasMapDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+        $estadoFiltro = (string) $request->input('estado_filtro', 'TODOS');
+        $criterioFecha = (string) $request->input('criterio_fecha', 'preventa');
+
+        $resultado = $action->execute(
+            fecha: $fecha,
+            canales: $canales,
+            rutas: $rutas,
+            estadoFiltro: $estadoFiltro,
+            criterioFecha: $criterioFecha
+        );
 
         return response()->json($resultado);
     }

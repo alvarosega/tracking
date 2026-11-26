@@ -145,7 +145,7 @@ class User extends Authenticatable
                 if ($itemSub === $subKey) {
                     return true;
                 }
-                if ($moduleKey === 'preventas' && $subKey === 'pizarra-visual' && in_array($itemSub, ['mapa', 'cumplimiento'], true)) {
+                if ($moduleKey === 'preventas' && in_array($subKey, ['pizarra-visual', 'entrega-preventas'], true) && in_array($itemSub, ['mapa', 'cumplimiento', 'pizarra-visual'], true)) {
                     return true;
                 }
                 return false;
@@ -238,6 +238,11 @@ class User extends Authenticatable
         if (isset($submodulesMap['preventas.cumplimiento']) && !isset($submodulesMap['preventas.pizarra-visual'])) {
             $submodulesMap['preventas.pizarra-visual'] = $submodulesMap['preventas.cumplimiento'];
             $canWriteMap['preventas.pizarra-visual'] = $canWriteMap['preventas.cumplimiento'] ?? false;
+        }
+
+        if (isset($submodulesMap['preventas.cumplimiento']) && !isset($submodulesMap['preventas.entrega-preventas'])) {
+            $submodulesMap['preventas.entrega-preventas'] = $submodulesMap['preventas.cumplimiento'];
+            $canWriteMap['preventas.entrega-preventas'] = $canWriteMap['preventas.cumplimiento'] ?? false;
         }
 
         return [

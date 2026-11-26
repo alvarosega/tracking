@@ -137,7 +137,7 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
     Route::prefix('preventas')->name('preventas.')->middleware('module.access:preventas')->group(function () {
         Route::get('/', function (\Illuminate\Http\Request $request) {
             $user = $request->user();
-            $submodules = ['cumplimiento', 'pizarra-visual', 'productos'];
+            $submodules = ['cumplimiento', 'pizarra-visual', 'productos', 'entrega-preventas'];
             foreach ($submodules as $sub) {
                 if ($user->hasModuleAccess('preventas', $sub)) {
                     return redirect()->route("supervisor.preventas.{$sub}");
@@ -177,6 +177,12 @@ Route::middleware(['auth', 'supervisor'])->prefix('supervisor')->name('superviso
             Route::post('/productos/ranking', [SupervisorPreventasController::class, 'productosRanking'])->name('productos.ranking');
             Route::post('/productos/detalle', [SupervisorPreventasController::class, 'productosDetalleRutas'])->name('productos.detalle');
             Route::post('/productos/heatmap', [SupervisorPreventasController::class, 'productosHeatmap'])->name('productos.heatmap');
+        });
+
+        // Entrega Preventas
+        Route::middleware('module.access:preventas,entrega-preventas')->group(function () {
+            Route::get('/entrega-preventas', [SupervisorPreventasController::class, 'entregaPreventas'])->name('entrega-preventas');
+            Route::post('/entrega-preventas/data', [SupervisorPreventasController::class, 'entregaPreventasData'])->name('entrega-preventas.data');
         });
 
         // Redirecciones de submódulos obsoletos / migrados

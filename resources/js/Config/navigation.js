@@ -188,6 +188,13 @@ export const navigationConfig = {
           route: 'supervisor.preventas.productos',
           component: 'Supervisor/Preventas/Productos',
           icon: 'TagIcon'
+        },
+        {
+          id: 'entrega-preventas',
+          name: 'Entrega Preventas',
+          route: 'supervisor.preventas.entrega-preventas',
+          component: 'Supervisor/Preventas/EntregaPreventas',
+          icon: 'TruckIcon'
         }
       ]
     },
@@ -502,7 +509,8 @@ export const navigationConfig = {
 export const preventasSubTabs = [
   { id: 'cumplimiento', name: 'Cumplimiento Unilever', route: 'supervisor.preventas.cumplimiento' },
   { id: 'pizarra-visual', name: 'Pizarra Visual', route: 'supervisor.preventas.pizarra-visual' },
-  { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' }
+  { id: 'productos', name: 'Productos & Heatmap', route: 'supervisor.preventas.productos' },
+  { id: 'entrega-preventas', name: 'Entrega Preventas', route: 'supervisor.preventas.entrega-preventas' }
 ];
 
 export const auditoriaSubTabs = [

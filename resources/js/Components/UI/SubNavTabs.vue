@@ -84,9 +84,9 @@ function isTabAllowed(tab) {
     if (perms.value.submodules && Object.prototype.hasOwnProperty.call(perms.value.submodules, fullKey)) {
       return perms.value.submodules[fullKey] === true;
     }
-    // Compatibilidad para submódulo Pizarra Visual si tiene permiso para cumplimiento o mapa
-    if (moduleKey === 'preventas' && submoduleKey === 'pizarra-visual') {
-      if (perms.value.submodules?.['preventas.cumplimiento'] === true || perms.value.submodules?.['preventas.mapa'] === true) {
+    // Compatibilidad para submódulos de Preventas si tiene permiso para cumplimiento o mapa
+    if (moduleKey === 'preventas' && (submoduleKey === 'pizarra-visual' || submoduleKey === 'entrega-preventas')) {
+      if (perms.value.submodules?.['preventas.cumplimiento'] === true || perms.value.submodules?.['preventas.mapa'] === true || perms.value.submodules?.['preventas.pizarra-visual'] === true) {
         return true;
       }
     }
@@ -114,6 +114,9 @@ const resolveTabHref = (tab) => {
   if (tab.route === 'supervisor.preventas.pizarra-visual') {
     return '/supervisor/preventas/pizarra-visual';
   }
+  if (tab.route === 'supervisor.preventas.entrega-preventas') {
+    return '/supervisor/preventas/entrega-preventas';
+  }
   return tab.route.startsWith('/') ? tab.route : `/${tab.route.replace(/\./g, '/')}`;
 };
 
@@ -128,6 +131,9 @@ const isTabActive = (tab) => {
     return page.component.startsWith(tab.componentPrefix);
   }
   if (tab.id === 'pizarra-visual' && page.component === 'Supervisor/Preventas/PizarraVisual') {
+    return true;
+  }
+  if (tab.id === 'entrega-preventas' && page.component === 'Supervisor/Preventas/EntregaPreventas') {
     return true;
   }
   if (tab.route) {
