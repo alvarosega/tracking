@@ -43,7 +43,8 @@ class GetPizarraVisualHorarioDataAction
     public const HORA_LIMITE_DEFAULT = '08:10:00';
 
     /**
-     * Consulta consolidada analítica y temporal del KPI 1 (Horario) para múltiples rutas.
+     * Consulta consolidada analítica y temporal del KPI 1 (Horario / Puntualidad)
+     * con DOBLE CHECK auditado entre Web ERP (fact_visitas) y App Móvil (visitas + user_workdays en BD alva).
      *
      * @param string|null $fecha
      * @param array<int, string> $canales
@@ -68,7 +69,7 @@ class GetPizarraVisualHorarioDataAction
         $canalesClean = array_values(array_filter(array_map(fn($c) => strtoupper(trim((string)$c)), $canales)));
         $rutasClean = array_values(array_filter(array_map(fn($r) => strtoupper(trim((string)$r)), $rutas)));
 
-        // 1. Obtener catálogo y rutas objetivo
+        // 1. Catálogo de Rutas Objetivo
         $rutasQuery = DB::connection('supervisor')->table('dim_rutas')->select([
             'ruta',
             'canal',
@@ -96,7 +97,17 @@ class GetPizarraVisualHorarioDataAction
             $coloresRuta[$r] = self::ROUTE_PALETTE[$idx % count(self::ROUTE_PALETTE)];
         }
 
-        // 2. Clientes en Cartera Plan desde pan_ruteo
+        // 2. Diccionario de Vendedores a Ruta
+        $vendedorARuta = [];
+        foreach ($catalogoRutas as $dim) {
+            $r = strtoupper(trim((string)$dim->ruta));
+            $v1 = $this->normalizarTexto((string)$dim->vendedor);
+            $v2 = $this->normalizarTexto((string)$dim->vendedor_norm);
+            if ($v1 !== '') $vendedorARuta[$v1] = $r;
+            if ($v2 !== '') $vendedorARuta[$v2] = $r;
+        }
+
+        // 3. Clientes en Cartera Plan desde pan_ruteo
         $carteraPlan = DB::connection('supervisor')->table('pan_ruteo')
             ->whereIn(DB::raw("TRIM(UPPER(ruta))"), $rutasObjetivo)
             ->where(function ($q) use ($diasFiltro): void {
@@ -122,10 +133,12 @@ class GetPizarraVisualHorarioDataAction
 
         $planPorRutaCliente = [];
         $planClientesPorNombreAlfa = [];
+        $clienteIdARuta = [];
         foreach ($carteraPlan as $p) {
             $rUpper = strtoupper(trim((string)$p->ruta));
             $cid = (int)$p->cliente_id;
             $planPorRutaCliente["{$rUpper}_{$cid}"] = $p;
+            $clienteIdARuta[$cid] = $rUpper;
 
             $alfa1 = $this->normalizarAlfanumerico((string)$p->cliente);
             $alfa2 = $this->normalizarAlfanumerico((string)$p->cliente_norm);
@@ -133,7 +146,7 @@ class GetPizarraVisualHorarioDataAction
             if ($alfa2 !== '') $planClientesPorNombreAlfa[$rUpper][$alfa2] = $cid;
         }
 
-        // 3. Montos de preventa del día (fact_preventas)
+        // 4. Montos de preventa del día (fact_preventas)
         $preventasMontoPorClave = [];
         try {
             $preventasHoy = DB::connection('supervisor')->table('fact_preventas')
@@ -156,16 +169,7 @@ class GetPizarraVisualHorarioDataAction
             Log::debug('[PizarraVisualHorario] Error consultando fact_preventas: ' . $e->getMessage());
         }
 
-        // 4. Marcajes Web ERP (fact_visitas)
-        $vendedorARuta = [];
-        foreach ($catalogoRutas as $dim) {
-            $r = strtoupper(trim((string)$dim->ruta));
-            $v1 = $this->normalizarTexto((string)$dim->vendedor);
-            $v2 = $this->normalizarTexto((string)$dim->vendedor_norm);
-            if ($v1 !== '') $vendedorARuta[$v1] = $r;
-            if ($v2 !== '') $vendedorARuta[$v2] = $r;
-        }
-
+        // 5. Marcajes Web ERP (fact_visitas en conexión supervisor)
         $visitasWebPorRuta = [];
         try {
             $visitasWeb = DB::connection('supervisor')->table('fact_visitas')
@@ -178,7 +182,7 @@ class GetPizarraVisualHorarioDataAction
                 $e2 = $this->normalizarTexto((string)($vw->empleado_norm ?? ''));
                 $rutaAsignada = $vendedorARuta[$e1] ?? ($vendedorARuta[$e2] ?? null);
 
-                // Si no se asignó por vendedor, cruzar por cliente
+                // Si no se asignó por vendedor, cruzar por cliente alfanumérico
                 if (!$rutaAsignada) {
                     $alfaCli = $this->normalizarAlfanumerico((string)$vw->cliente);
                     foreach ($rutasObjetivo as $rObj) {
@@ -198,8 +202,8 @@ class GetPizarraVisualHorarioDataAction
                     $visitasWebPorRuta[$rutaAsignada][] = [
                         'cliente' => (string)$vw->cliente,
                         'cliente_norm' => (string)$vw->cliente_norm,
-                        'check_in' => ($hIn !== '' && $hIn !== '00:00:00') ? $hIn : null,
-                        'check_out' => ($hOut !== '' && $hOut !== '00:00:00') ? $hOut : null,
+                        'check_in' => ($hIn !== '' && $hIn !== '00:00:00' && $hIn !== '00:00') ? $hIn : null,
+                        'check_out' => ($hOut !== '' && $hOut !== '00:00:00' && $hOut !== '00:00') ? $hOut : null,
                         'tiempo_pdv' => (string)($vw->tiempo_pdv ?: '00:00:00'),
                         'tipo' => (string)$vw->tipo,
                         'motivo' => (string)$vw->motivo,
@@ -211,21 +215,56 @@ class GetPizarraVisualHorarioDataAction
             Log::debug('[PizarraVisualHorario] Error consultando fact_visitas: ' . $e->getMessage());
         }
 
-        // 5. Visitas de App Móvil (visitas)
+        // 6. DOBLE CHECK: Marcajes App Móvil (BD alva / conexión mysql)
+        // 6.A Inicio de Jornada Laboral en App (user_workdays)
+        $workdaysMovilPorRuta = [];
+        try {
+            $workdaysRaw = DB::connection('mysql')->table('user_workdays as uw')
+                ->join('users as u', 'uw.user_id', '=', 'u.id')
+                ->whereDate('uw.work_date', $fechaNorm)
+                ->whereNotNull('uw.started_at')
+                ->select([
+                    'uw.id',
+                    'uw.user_id',
+                    'uw.started_at',
+                    'u.username',
+                    'u.ruta',
+                ])
+                ->orderBy('uw.started_at', 'asc')
+                ->get();
+
+            foreach ($workdaysRaw as $w) {
+                $rUser = strtoupper(trim((string)($w->ruta ?: ($w->username ?? ''))));
+                if (in_array($rUser, $rutasObjetivo, true)) {
+                    $hStr = null;
+                    if ($w->started_at) {
+                        $hStr = is_string($w->started_at)
+                            ? substr($w->started_at, 11, 8)
+                            : ($w->started_at instanceof \DateTimeInterface ? $w->started_at->format('H:i:s') : (string)$w->started_at);
+                    }
+                    if ($hStr && $hStr !== '00:00:00' && $hStr !== '00:00') {
+                        if (!isset($workdaysMovilPorRuta[$rUser]) || strcmp($hStr, $workdaysMovilPorRuta[$rUser]) < 0) {
+                            $workdaysMovilPorRuta[$rUser] = $hStr;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::debug('[PizarraVisualHorario] Error consultando user_workdays en BD alva: ' . $e->getMessage());
+        }
+
+        // 6.B Visitas a Clientes en App Móvil (visitas en BD alva)
         $visitasMovilPorRuta = [];
         try {
-            $visitasMovilRaw = DB::table('visitas as v')
+            $visitasMovilRaw = DB::connection('mysql')->table('visitas as v')
                 ->leftJoin('users as u', 'v.user_id', '=', 'u.id')
                 ->whereBetween('v.visited_at', ["{$fechaNorm} 00:00:00", "{$fechaNorm} 23:59:59"])
-                ->where(function ($q) use ($rutasObjetivo): void {
-                    $q->whereIn(DB::raw("TRIM(UPPER(v.route))"), $rutasObjetivo);
-                    $q->orWhereIn(DB::raw("TRIM(UPPER(COALESCE(u.ruta, '')))"), $rutasObjetivo);
-                })
                 ->select([
                     'v.id',
                     'v.client_id',
                     'v.route',
                     'u.ruta as user_ruta',
+                    'u.username',
                     'v.status',
                     'v.comments',
                     'v.latitude',
@@ -239,7 +278,14 @@ class GetPizarraVisualHorarioDataAction
                 ->get();
 
             foreach ($visitasMovilRaw as $vm) {
-                $rUpper = strtoupper(trim((string)($vm->route ?: ($vm->user_ruta ?? ''))));
+                // Asignar ruta: por v.route, por u.ruta/u.username, o por client_id en la cartera del día
+                $rUpper = strtoupper(trim((string)($vm->route ?: ($vm->user_ruta ?: ($vm->username ?? '')))));
+                $cid = (int)($vm->client_id ?? 0);
+
+                if (!in_array($rUpper, $rutasObjetivo, true) && $cid > 0 && isset($clienteIdARuta[$cid])) {
+                    $rUpper = $clienteIdARuta[$cid];
+                }
+
                 if (!in_array($rUpper, $rutasObjetivo, true)) {
                     continue;
                 }
@@ -253,7 +299,7 @@ class GetPizarraVisualHorarioDataAction
 
                 $visitasMovilPorRuta[$rUpper][] = [
                     'id' => $vm->id,
-                    'client_id' => (int)($vm->client_id ?? 0),
+                    'client_id' => $cid > 0 ? $cid : null,
                     'cliente_nombre' => (string)($vm->opportunity_client_name ?: ''),
                     'status' => (string)($vm->status ?? ''),
                     'comments' => (string)($vm->comments ?? ''),
@@ -265,10 +311,10 @@ class GetPizarraVisualHorarioDataAction
                 ];
             }
         } catch (\Throwable $e) {
-            Log::debug('[PizarraVisualHorario] Error consultando visitas móvil: ' . $e->getMessage());
+            Log::debug('[PizarraVisualHorario] Error consultando visitas móvil en BD alva: ' . $e->getMessage());
         }
 
-        // 6. Consolidar cronograma de paradas y tiempos por ruta
+        // 7. Consolidar cronograma de paradas, Doble Check y métricas por ruta
         $rutasHorario = [];
         $segundosLimite = $this->horaASegundos($horaLimite);
 
@@ -285,6 +331,9 @@ class GetPizarraVisualHorarioDataAction
             'total_paradas' => 0,
             'total_pausas_largas' => 0,
             'hora_limite' => substr($horaLimite, 0, 5),
+            'auditados_ambos' => 0,
+            'salvados_por_app' => 0,
+            'salvados_por_web' => 0,
         ];
 
         $acumPdvSegTotal = 0;
@@ -299,11 +348,144 @@ class GetPizarraVisualHorarioDataAction
 
             $movilList = $visitasMovilPorRuta[$r] ?? [];
             $webList = $visitasWebPorRuta[$r] ?? [];
+            $workdayAppInicio = $workdaysMovilPorRuta[$r] ?? null;
 
-            // Fusionar todas las visitas de la ruta en un array unificado cronológico
+            // 7.A DOBLE CHECK A NIVEL DE RUTA:
+            // 1. Primer check-in Web ERP
+            $primerCheckinWeb = null;
+            $primerClienteWeb = null;
+            $segundosWeb = null;
+            foreach ($webList as $w) {
+                if (!empty($w['check_in'])) {
+                    $sec = $this->horaASegundos($w['check_in']);
+                    if ($sec >= 18000) { // >= 05:00:00
+                        if ($segundosWeb === null || $sec < $segundosWeb) {
+                            $segundosWeb = $sec;
+                            $primerCheckinWeb = $w['check_in'];
+                            $primerClienteWeb = $w['cliente'];
+                        }
+                    }
+                }
+            }
+
+            // 2. Primer marcaje App Móvil (visitas + user_workdays en BD alva)
+            $primerCheckinApp = null;
+            $primerClienteApp = null;
+            $segundosApp = null;
+            $appOrigenDetalle = null;
+
+            // Revisar inicio de jornada en app
+            if ($workdayAppInicio) {
+                $secWd = $this->horaASegundos($workdayAppInicio);
+                if ($secWd >= 18000) {
+                    $segundosApp = $secWd;
+                    $primerCheckinApp = $workdayAppInicio;
+                    $primerClienteApp = 'Inicio de Jornada en App Móvil';
+                    $appOrigenDetalle = 'Inicio Jornada';
+                }
+            }
+
+            // Revisar visitas registradas en la app
+            foreach ($movilList as $m) {
+                if (!empty($m['hora'])) {
+                    $secM = $this->horaASegundos($m['hora']);
+                    if ($secM >= 18000) {
+                        if ($segundosApp === null || $secM < $segundosApp) {
+                            $segundosApp = $secM;
+                            $primerCheckinApp = $m['hora'];
+                            $cid = $m['client_id'];
+                            $pItem = $cid ? ($planPorRutaCliente["{$r}_{$cid}"] ?? null) : null;
+                            $primerClienteApp = $pItem ? (string)$pItem->cliente : ($m['cliente_nombre'] ?: ($cid ? "Cliente #{$cid}" : "Primer PDV App"));
+                            $appOrigenDetalle = 'Primera Visita';
+                        }
+                    }
+                }
+            }
+
+            // 3. Fusión y arbitraje Doble Check
+            $primerContacto = null;
+            $primerClienteNombre = null;
+            $origenPrimerContacto = 'SIN_INICIO';
+            $fuenteGanadora = 'NINGUNO';
+            $diferenciaMinutos = null;
+            $salvadoPorApp = false;
+            $salvadoPorWeb = false;
+
+            if ($segundosWeb !== null && $segundosApp !== null) {
+                $origenPrimerContacto = 'AMBOS';
+                $totalesGlobales['auditados_ambos']++;
+                $diferenciaMinutos = (int)round(($segundosWeb - $segundosApp) / 60);
+
+                if ($segundosApp <= $segundosWeb) {
+                    $primerContacto = $primerCheckinApp;
+                    $primerClienteNombre = $primerClienteApp;
+                    $fuenteGanadora = ($segundosApp === $segundosWeb) ? 'AMBOS_IGUAL' : 'APP';
+                } else {
+                    $primerContacto = $primerCheckinWeb;
+                    $primerClienteNombre = $primerClienteWeb;
+                    $fuenteGanadora = 'WEB';
+                }
+            } elseif ($segundosApp !== null) {
+                $primerContacto = $primerCheckinApp;
+                $primerClienteNombre = $primerClienteApp;
+                $origenPrimerContacto = 'SOLO_APP';
+                $fuenteGanadora = 'APP';
+            } elseif ($segundosWeb !== null) {
+                $primerContacto = $primerCheckinWeb;
+                $primerClienteNombre = $primerClienteWeb;
+                $origenPrimerContacto = 'SOLO_WEB';
+                $fuenteGanadora = 'WEB';
+            }
+
+            // 4. Evaluación de Puntualidad (Hora Límite 08:10:00 · 10 Puntos)
+            $cumpleHorario = false;
+            $minutosDesviacion = 0;
+            $estatusPuntualidad = 'SIN_INICIO';
+            $puntos = 0;
+            $auditoriaLabel = 'Sin Marcación';
+
+            if ($primerContacto !== null) {
+                $segPrimer = $this->horaASegundos($primerContacto);
+                $minutosDesviacion = (int)round(($segPrimer - $segundosLimite) / 60);
+
+                if ($segPrimer <= $segundosLimite) {
+                    $cumpleHorario = true;
+                    $estatusPuntualidad = 'PUNTUAL';
+                    $puntos = 10;
+                    $totalesGlobales['rutas_puntuales']++;
+
+                    if ($segundosWeb !== null && $segundosApp !== null) {
+                        if ($segundosApp <= $segundosLimite && $segundosWeb <= $segundosLimite) {
+                            $auditoriaLabel = 'Puntual en Ambos Sistemas';
+                        } elseif ($segundosApp <= $segundosLimite && $segundosWeb > $segundosLimite) {
+                            $auditoriaLabel = 'Puntual Validado por App Móvil';
+                            $salvadoPorApp = true;
+                            $totalesGlobales['salvados_por_app']++;
+                        } elseif ($segundosWeb <= $segundosLimite && $segundosApp > $segundosLimite) {
+                            $auditoriaLabel = 'Puntual Validado por Web ERP';
+                            $salvadoPorWeb = true;
+                            $totalesGlobales['salvados_por_web']++;
+                        }
+                    } elseif ($segundosApp !== null) {
+                        $auditoriaLabel = 'Puntual (Solo App Móvil)';
+                    } else {
+                        $auditoriaLabel = 'Puntual (Solo Web ERP)';
+                    }
+                } else {
+                    $cumpleHorario = false;
+                    $estatusPuntualidad = 'RETRASO';
+                    $puntos = 0;
+                    $totalesGlobales['rutas_retraso']++;
+                    $auditoriaLabel = 'Retraso en marcación';
+                }
+            } else {
+                $totalesGlobales['rutas_sin_inicio']++;
+            }
+
+            // 7.B FUSIÓN DE PARADAS (GANTT Y TIMELINE PASO A PASO)
             $paradasRuta = [];
 
-            // Indexar visitas web por cliente alfanumérico para enriquecer
+            // Indexar visitas web por cliente alfanumérico
             $webPorAlfa = [];
             foreach ($webList as $w) {
                 $a = $this->normalizarAlfanumerico($w['cliente']);
@@ -314,28 +496,41 @@ class GetPizarraVisualHorarioDataAction
 
             // Procesar visitas móviles de la ruta
             $cidsProcesados = [];
+            $alfasProcesados = [];
             foreach ($movilList as $m) {
                 $cid = $m['client_id'];
-                $planItem = $cid > 0 ? ($planPorRutaCliente["{$r}_{$cid}"] ?? null) : null;
-                $nomCliente = $planItem ? (string)$planItem->cliente : ($m['cliente_nombre'] ?: ($cid > 0 ? "Cliente #{$cid}" : "Cliente Ad-hoc"));
+                $planItem = $cid ? ($planPorRutaCliente["{$r}_{$cid}"] ?? null) : null;
+                $nomCliente = $planItem ? (string)$planItem->cliente : ($m['cliente_nombre'] ?: ($cid ? "Cliente #{$cid}" : "Cliente Ad-hoc"));
                 $alfaCli = $this->normalizarAlfanumerico($nomCliente);
                 $wItem = $webPorAlfa[$alfaCli] ?? null;
 
-                $montoPrev = $cid > 0 ? ($preventasMontoPorClave["{$r}_{$cid}"] ?? 0.0) : 0.0;
-                $montoWeb = $wItem ? $wItem['monto'] : 0.0;
+                $montoPrev = $cid ? ($preventasMontoPorClave["{$r}_{$cid}"] ?? 0.0) : 0.0;
+                $montoWeb = $wItem ? (float)$wItem['monto'] : 0.0;
                 $montoFinal = max($montoPrev, $montoWeb);
 
-                $horaIn = $m['hora'] ?? ($wItem['check_in'] ?? null);
-                $horaOut = $wItem['check_out'] ?? null;
+                $hApp = $m['hora'];
+                $hWeb = $wItem['check_in'] ?? null;
+
+                // Doble check en la parada: hora_in es el mínimo real entre Web y App
+                $hIn = null;
+                if ($hApp && $hWeb) {
+                    $hIn = ($this->horaASegundos($hApp) <= $this->horaASegundos($hWeb)) ? $hApp : $hWeb;
+                } else {
+                    $hIn = $hApp ?: $hWeb;
+                }
+
+                $hOut = $wItem['check_out'] ?? null;
                 $tiempoPdv = $wItem ? $wItem['tiempo_pdv'] : null;
 
                 $paradasRuta[] = [
-                    'cliente_id' => $cid > 0 ? $cid : null,
+                    'cliente_id' => $cid,
                     'cliente' => $nomCliente,
                     'direccion' => $planItem ? (string)$planItem->direccion : '-',
                     'territorio' => $planItem ? (string)$planItem->territorio : '-',
-                    'hora_in' => $horaIn,
-                    'hora_out' => $horaOut,
+                    'hora_in' => $hIn,
+                    'hora_web' => $hWeb,
+                    'hora_app' => $hApp,
+                    'hora_out' => $hOut,
                     'tiempo_pdv_raw' => $tiempoPdv,
                     'segundos_pdv' => $this->horaASegundos($tiempoPdv ?: '00:03:00'),
                     'monto' => $montoFinal,
@@ -343,21 +538,24 @@ class GetPizarraVisualHorarioDataAction
                     'status' => $m['status'],
                     'foto_url' => $m['foto_url'],
                     'en_plan' => ($planItem !== null),
-                    'origen' => $wItem ? 'Web + App' : 'App Móvil',
+                    'origen' => $wItem ? 'Web + App' : 'Solo App',
+                    'origen_key' => $wItem ? 'AMBOS' : 'APP',
                 ];
 
-                if ($cid > 0) {
-                    $cidsProcesados[$cid] = true;
-                }
+                if ($cid) $cidsProcesados[$cid] = true;
+                if ($alfaCli !== '') $alfasProcesados[$alfaCli] = true;
             }
 
             // Agregar visitas web que no estuvieron en la app móvil
             foreach ($webList as $w) {
                 $alfaCli = $this->normalizarAlfanumerico($w['cliente']);
-                $cidEncontrado = $planClientesPorNombreAlfa[$r][$alfaCli] ?? null;
-
-                if ($cidEncontrado && isset($cidsProcesados[$cidEncontrado])) {
+                if (isset($alfasProcesados[$alfaCli])) {
                     continue; // Ya procesado con la app
+                }
+
+                $cidEncontrado = $planClientesPorNombreAlfa[$r][$alfaCli] ?? null;
+                if ($cidEncontrado && isset($cidsProcesados[$cidEncontrado])) {
+                    continue;
                 }
 
                 $planItem = $cidEncontrado ? ($planPorRutaCliente["{$r}_{$cidEncontrado}"] ?? null) : null;
@@ -370,6 +568,8 @@ class GetPizarraVisualHorarioDataAction
                     'direccion' => $planItem ? (string)$planItem->direccion : '-',
                     'territorio' => $planItem ? (string)$planItem->territorio : '-',
                     'hora_in' => $w['check_in'],
+                    'hora_web' => $w['check_in'],
+                    'hora_app' => null,
                     'hora_out' => $w['check_out'],
                     'tiempo_pdv_raw' => $w['tiempo_pdv'],
                     'segundos_pdv' => $this->horaASegundos($w['tiempo_pdv'] ?: '00:03:00'),
@@ -378,11 +578,12 @@ class GetPizarraVisualHorarioDataAction
                     'status' => null,
                     'foto_url' => null,
                     'en_plan' => ($planItem !== null),
-                    'origen' => 'Web ERP',
+                    'origen' => 'Solo Web',
+                    'origen_key' => 'WEB',
                 ];
             }
 
-            // Filtrar y ordenar cronológicamente las paradas que tengan hora de inicio
+            // Filtrar y ordenar cronológicamente las paradas con hora_in válida
             $paradasValidas = array_filter($paradasRuta, fn($p) => !empty($p['hora_in']));
             usort($paradasValidas, fn($a, $b) => strcmp((string)$a['hora_in'], (string)$b['hora_in']));
             $paradasValidas = array_values($paradasValidas);
@@ -431,33 +632,7 @@ class GetPizarraVisualHorarioDataAction
             }
             unset($pv);
 
-            // Métricas de inicio de jornada
-            $primerContacto = !empty($paradasValidas) ? $paradasValidas[0]['hora_in'] : null;
             $ultimoContacto = !empty($paradasValidas) ? $paradasValidas[count($paradasValidas) - 1]['hora_in'] : null;
-
-            $cumpleHorario = false;
-            $minutosDesviacion = 0;
-            $estatusPuntualidad = 'SIN_INICIO';
-            $puntos = 0;
-
-            if ($primerContacto) {
-                $segPrimer = $this->horaASegundos($primerContacto);
-                $minutosDesviacion = round(($segPrimer - $segundosLimite) / 60);
-
-                if ($segPrimer <= $segundosLimite) {
-                    $cumpleHorario = true;
-                    $estatusPuntualidad = 'PUNTUAL';
-                    $puntos = 10;
-                    $totalesGlobales['rutas_puntuales']++;
-                } else {
-                    $cumpleHorario = false;
-                    $estatusPuntualidad = 'RETRASO';
-                    $puntos = 0;
-                    $totalesGlobales['rutas_retraso']++;
-                }
-            } else {
-                $totalesGlobales['rutas_sin_inicio']++;
-            }
 
             $duracionJornadaMin = 0;
             if ($primerContacto && $ultimoContacto) {
@@ -482,7 +657,7 @@ class GetPizarraVisualHorarioDataAction
                 'color' => $coloresRuta[$r],
                 'primer_contacto' => $primerContacto ? substr($primerContacto, 0, 5) : null,
                 'primer_contacto_completo' => $primerContacto,
-                'primer_cliente' => !empty($paradasValidas) ? $paradasValidas[0]['cliente'] : null,
+                'primer_cliente' => $primerClienteNombre ?: (!empty($paradasValidas) ? $paradasValidas[0]['cliente'] : null),
                 'ultimo_contacto' => $ultimoContacto ? substr($ultimoContacto, 0, 5) : null,
                 'duracion_jornada_min' => $duracionJornadaMin,
                 'duracion_jornada_fmt' => $this->minutosAHorasFmt($duracionJornadaMin),
@@ -494,11 +669,26 @@ class GetPizarraVisualHorarioDataAction
                 'promedio_pdv_min' => $promPdvRuta,
                 'promedio_traslado_min' => $promTrasladoRuta,
                 'pausas_largas' => $pausasLargasRuta,
+                'doble_check' => [
+                    'origen' => $origenPrimerContacto, // 'AMBOS', 'SOLO_APP', 'SOLO_WEB', 'SIN_INICIO'
+                    'auditoria_label' => $auditoriaLabel,
+                    'fuente_ganadora' => $fuenteGanadora, // 'APP', 'WEB', 'AMBOS_IGUAL', 'NINGUNO'
+                    'hora_web' => $primerCheckinWeb ? substr($primerCheckinWeb, 0, 5) : null,
+                    'hora_web_completa' => $primerCheckinWeb,
+                    'hora_app' => $primerCheckinApp ? substr($primerCheckinApp, 0, 5) : null,
+                    'hora_app_completa' => $primerCheckinApp,
+                    'hora_workday_app' => $workdayAppInicio ? substr($workdayAppInicio, 0, 5) : null,
+                    'hora_visita_app' => $primerCheckinApp && $appOrigenDetalle === 'Primera Visita' ? substr($primerCheckinApp, 0, 5) : null,
+                    'app_origen_detalle' => $appOrigenDetalle,
+                    'diferencia_min' => $diferenciaMinutos,
+                    'salvado_por_app' => $salvadoPorApp,
+                    'salvado_por_web' => $salvadoPorWeb,
+                ],
                 'paradas' => $paradasValidas,
             ];
         }
 
-        // Ordenar rutas: primero las evaluadas por hora de inicio ascendente, luego sin inicio
+        // Ordenar rutas: primero evaluadas por hora de inicio ascendente, luego sin inicio
         usort($rutasHorario, function ($a, $b) {
             $hA = $a['primer_contacto_completo'] ?? '99:99:99';
             $hB = $b['primer_contacto_completo'] ?? '99:99:99';
@@ -639,6 +829,9 @@ class GetPizarraVisualHorarioDataAction
                 'total_paradas' => 0,
                 'total_pausas_largas' => 0,
                 'hora_limite' => substr($horaLimite, 0, 5),
+                'auditados_ambos' => 0,
+                'salvados_por_app' => 0,
+                'salvados_por_web' => 0,
             ],
             'rutas' => [],
         ];

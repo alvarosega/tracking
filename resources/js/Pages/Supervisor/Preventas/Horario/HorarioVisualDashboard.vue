@@ -32,7 +32,7 @@
           </button>
         </div>
 
-        <!-- Filtro Rápido de Puntualidad -->
+        <!-- Filtro Rápido de Puntualidad y Doble Check -->
         <div class="flex items-center gap-1.5 text-[11px]">
           <span class="text-[#86868B] text-[10px] font-bold uppercase">Filtrar:</span>
           <button
@@ -61,6 +61,18 @@
             <span class="w-1.5 h-1.5 rounded-full bg-[#FF3B30]" :class="filtroPuntualidad === 'retraso' ? 'bg-white' : ''"></span>
             <span>Con Retraso ({{ totales.rutas_retraso }})</span>
           </button>
+
+          <!-- Pastilla Informativa de Doble Check -->
+          <span
+            v-if="totales.auditados_ambos > 0 || totales.salvados_por_app > 0"
+            class="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 border border-sky-200 text-sky-800 text-[10px] font-bold"
+            title="Doble check auditado entre fact_visitas (Web ERP) y visitas/user_workdays (App Móvil en BD alva)"
+          >
+            <span>📱+💻 Doble Check Activo</span>
+            <span v-if="totales.salvados_por_app > 0" class="text-emerald-700">
+              ({{ totales.salvados_por_app }} validadas por App)
+            </span>
+          </span>
         </div>
 
       </div>
@@ -73,7 +85,7 @@
       <div v-if="cargando" class="flex-1 flex items-center justify-center p-8">
         <div class="flex items-center gap-2.5 text-xs text-[#6E6E73] font-bold">
           <span class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></span>
-          <span>Analizando cronograma y tiempos de rutas...</span>
+          <span>Auditando doble check (Web ERP vs App Móvil alva) y tiempos...</span>
         </div>
       </div>
 
@@ -92,13 +104,14 @@
       >
         <!-- Cabecera de la Escala de Tiempo (07:00 a 16:00) -->
         <div class="p-2.5 border-b border-black/[0.06] bg-[#FAFBFD] flex items-center text-[10px] font-bold text-[#86868B] shrink-0">
-          <div class="w-48 sm:w-60 md:w-64 shrink-0 px-2 uppercase">
-            Ruta / Preventista
+          <div class="w-56 sm:w-64 md:w-72 shrink-0 px-2 uppercase flex items-center justify-between">
+            <span>Ruta / Vendedor</span>
+            <span class="text-[9px] text-[#86868B] font-mono lowercase">doble check</span>
           </div>
           <div class="flex-1 relative flex justify-between px-2 font-mono">
             <span>07:00</span>
             <span>08:00</span>
-            <span class="text-[#FF3B30] font-extrabold flex items-center gap-0.5" title="Hora Límite 08:10">
+            <span class="text-[#FF3B30] font-extrabold flex items-center gap-0.5" title="Hora Límite 08:10 AM">
               <span>08:10</span>
               <span class="w-1.5 h-1.5 rounded-full bg-[#FF3B30]"></span>
             </span>
@@ -121,8 +134,8 @@
             @click="verDetalleRuta(r)"
             class="p-2.5 flex items-center hover:bg-blue-50/30 transition-colors cursor-pointer group"
           >
-            <!-- Columna Fija: Información de Ruta -->
-            <div class="w-48 sm:w-60 md:w-64 shrink-0 pr-3 space-y-1">
+            <!-- Columna Fija: Información de Ruta y Doble Check -->
+            <div class="w-56 sm:w-64 md:w-72 shrink-0 pr-3 space-y-1">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-1.5 truncate">
                   <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" :style="{ backgroundColor: r.color }"></span>
@@ -132,7 +145,7 @@
                   <span class="text-[10px] text-[#86868B]">({{ r.canal }})</span>
                 </div>
                 
-                <!-- Badge de Puntualidad -->
+                <!-- Badge de Puntualidad Oficial -->
                 <span
                   class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md font-mono shrink-0"
                   :class="r.cumple ? 'bg-[#EBF9EF] text-[#1E6B37]' : (r.primer_contacto ? 'bg-[#FDF0EF] text-[#C9342C]' : 'bg-gray-100 text-gray-500')"
@@ -141,6 +154,7 @@
                 </span>
               </div>
 
+              <!-- Vendedor y Rango Horario -->
               <div class="text-[10.5px] text-[#6E6E73] truncate flex items-center justify-between">
                 <span class="truncate">{{ r.vendedor }}</span>
                 <span class="font-mono text-[9.5px] font-bold text-[#1D1D1F] shrink-0 ml-1">
@@ -148,7 +162,50 @@
                 </span>
               </div>
 
-              <!-- Mini Métricas de la Ruta -->
+              <!-- Pastillas de DOBLE CHECK (Web ERP vs App Móvil) -->
+              <div class="flex items-center gap-1.5 text-[9px] font-mono">
+                <!-- Origen AMBOS -->
+                <template v-if="r.doble_check?.origen === 'AMBOS'">
+                  <span
+                    class="px-1.5 py-0.2 rounded font-bold flex items-center gap-1"
+                    :class="r.doble_check.salvado_por_app ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-slate-100 text-slate-700'"
+                    :title="`Web: ${r.doble_check.hora_web} | App: ${r.doble_check.hora_app} (Diferencia: ${r.doble_check.diferencia_min}m)`"
+                  >
+                    <span>📱 App {{ r.doble_check.hora_app }}</span>
+                    <span>&bull;</span>
+                    <span>💻 Web {{ r.doble_check.hora_web }}</span>
+                  </span>
+                  <span v-if="r.doble_check.salvado_por_app" class="text-[8.5px] font-extrabold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded">
+                    Salvado por App
+                  </span>
+                  <span v-else-if="r.doble_check.salvado_por_web" class="text-[8.5px] font-extrabold text-blue-700 bg-blue-50 px-1 py-0.2 rounded">
+                    Validado Web
+                  </span>
+                </template>
+
+                <!-- Origen SOLO APP -->
+                <template v-else-if="r.doble_check?.origen === 'SOLO_APP'">
+                  <span class="px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 font-bold border border-sky-200" title="Marcaje registrado exclusivamente en la App Móvil (alva)">
+                    📱 Solo App {{ r.doble_check.hora_app }}
+                  </span>
+                </template>
+
+                <!-- Origen SOLO WEB -->
+                <template v-else-if="r.doble_check?.origen === 'SOLO_WEB'">
+                  <span class="px-1.5 py-0.2 rounded bg-purple-50 text-purple-800 font-bold border border-purple-200" title="Marcaje registrado exclusivamente en fact_visitas (Web ERP)">
+                    💻 Solo Web {{ r.doble_check.hora_web }}
+                  </span>
+                </template>
+
+                <!-- Sin Marcación -->
+                <template v-else>
+                  <span class="px-1.5 py-0.2 rounded bg-gray-100 text-gray-500 font-semibold">
+                    Sin Marcación
+                  </span>
+                </template>
+              </div>
+
+              <!-- Mini Métricas de Paradas -->
               <div class="flex items-center gap-2 text-[9px] text-[#86868B] font-mono">
                 <span>{{ r.total_paradas }} paradas</span>
                 <span>&bull;</span>
@@ -160,9 +217,17 @@
               </div>
             </div>
 
-            <!-- Gráfico Horizontal de Tiempo (Gantt) -->
+            <!-- Gráfico Horizontal de Tiempo (Gantt) con Líneas Verticales Guía -->
             <div class="flex-1 relative h-7 bg-[#F5F5F7] rounded-lg overflow-hidden border border-black/[0.04]">
               
+              <!-- Líneas Guía Verticales para cada hora (08:00, 09:00, etc.) -->
+              <div
+                v-for="horaGuia in horasGuiaGantt"
+                :key="horaGuia"
+                class="absolute top-0 bottom-0 w-px bg-black/[0.06] pointer-events-none z-0"
+                :style="{ left: `${porcentajeTiempo(horaGuia)}%` }"
+              ></div>
+
               <!-- Línea Roja de Corte a las 08:10 -->
               <div
                 class="absolute top-0 bottom-0 w-0.5 bg-[#FF3B30] z-20 shadow-[0_0_4px_rgba(255,59,48,0.5)]"
@@ -190,7 +255,7 @@
                   left: `${porcentajeTiempo(p.hora_in)}%`,
                   backgroundColor: p.monto > 0 ? '#34C759' : (p.en_plan ? '#0071E3' : '#FF9500')
                 }"
-                :title="`#${p.parada_num} · ${p.hora_in} - ${p.cliente} (${p.tipo})`"
+                :title="`#${p.parada_num} · ${p.hora_in} - ${p.cliente} (${p.tipo}) · Origen: ${p.origen}`"
               ></div>
 
               <!-- Marcador de Inicio de Jornada -->
@@ -202,7 +267,7 @@
                 <span
                   class="block w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[7px] text-white font-black"
                   :class="r.cumple ? 'bg-[#34C759]' : 'bg-[#FF3B30]'"
-                  :title="`Inicio: ${r.primer_contacto} (${r.cumple ? 'Puntual' : `Retraso +${r.desviacion_min}m`})`"
+                  :title="`Inicio Oficial: ${r.primer_contacto} (${r.doble_check?.auditoria_label || (r.cumple ? 'Puntual' : 'Retraso')})`"
                 >
                   &#9679;
                 </span>
@@ -255,10 +320,10 @@
             </div>
           </div>
 
-          <!-- Resumen de la Ruta Seleccionada -->
+          <!-- Resumen Rápido de la Ruta Seleccionada -->
           <div v-if="rutaActual" class="flex items-center gap-3 text-xs">
             <div class="flex items-center gap-1">
-              <span class="text-[#86868B]">Inicio:</span>
+              <span class="text-[#86868B]">Inicio Oficial:</span>
               <span class="font-extrabold font-mono text-[#1D1D1F]">{{ rutaActual.primer_contacto || 'Sin inicio' }}</span>
               <span
                 class="text-[9.5px] font-bold px-1.5 py-0.2 rounded font-mono ml-1"
@@ -281,6 +346,48 @@
 
         </div>
 
+        <!-- PANEL DE AUDITORÍA DOBLE CHECK PARA LA RUTA ACTUAL -->
+        <div
+          v-if="rutaActual && rutaActual.doble_check"
+          class="px-4 py-2 bg-gradient-to-r from-blue-50/50 via-indigo-50/30 to-purple-50/40 border-b border-black/[0.05] flex flex-wrap items-center justify-between gap-3 text-xs"
+        >
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#0071E3] animate-pulse"></span>
+            <span class="font-extrabold text-[#1D1D1F]">Auditoría Doble Check:</span>
+            <span class="px-2 py-0.5 rounded-md font-bold text-[10.5px]" :class="rutaActual.cumple ? 'bg-[#EBF9EF] text-[#1E6B37]' : 'bg-[#FDF0EF] text-[#C9342C]'">
+              {{ rutaActual.doble_check.auditoria_label }}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-4 text-[11px] font-mono">
+            <!-- Marcaje Web ERP -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-[#86868B]">💻 Web ERP:</span>
+              <strong class="text-[#1D1D1F]">{{ rutaActual.doble_check.hora_web || 'Sin registro' }}</strong>
+            </div>
+
+            <!-- Marcaje App Móvil -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-[#86868B]">📱 App Móvil (alva):</span>
+              <strong class="text-[#1D1D1F]">{{ rutaActual.doble_check.hora_app || 'Sin registro' }}</strong>
+              <span v-if="rutaActual.doble_check.app_origen_detalle" class="text-[9px] text-[#86868B]">
+                ({{ rutaActual.doble_check.app_origen_detalle }})
+              </span>
+            </div>
+
+            <!-- Discrepancia entre sistemas -->
+            <div v-if="rutaActual.doble_check.diferencia_min !== null" class="flex items-center gap-1">
+              <span class="text-[#86868B]">Delta:</span>
+              <span
+                class="px-1.5 py-0.2 rounded font-bold text-[10px]"
+                :class="Math.abs(rutaActual.doble_check.diferencia_min) > 10 ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-700'"
+              >
+                {{ Math.abs(rutaActual.doble_check.diferencia_min) }} min dif
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Flujo Cronológico de Paradas (Timeline Vertical) -->
         <div v-if="rutaActual && rutaActual.paradas.length > 0" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-0">
           
@@ -292,19 +399,24 @@
               </div>
               <div class="w-0.5 flex-1 bg-black/[0.08] min-h-[20px]"></div>
             </div>
-            <div class="pt-0.5">
+            <div class="pt-0.5 space-y-1">
               <div class="text-[11px] font-extrabold text-[#1D1D1F] flex items-center gap-2">
-                <span>INICIO DE JORNADA / PRIMER CONTACTO</span>
+                <span>INICIO DE JORNADA / PRIMER CONTACTO OFICIAL</span>
                 <span
                   class="px-2 py-0.5 rounded-full text-[9px] font-extrabold font-mono"
                   :class="rutaActual.cumple ? 'bg-[#EBF9EF] text-[#1E6B37]' : 'bg-[#FDF0EF] text-[#C9342C]'"
                 >
-                  {{ rutaActual.cumple ? 'A TIEMPO &le; 08:10' : `TARDE (+${rutaActual.desviacion_min} min)` }}
+                  {{ rutaActual.cumple ? 'A TIEMPO &le; 08:10 AM' : `TARDE (+${rutaActual.desviacion_min} min)` }}
                 </span>
               </div>
-              <p class="text-[10px] text-[#86868B]">
-                Hora límite oficial: <strong class="font-mono text-[#0071E3]">{{ totales.hora_limite }} AM</strong> &bull; Primer registro: <strong class="font-mono text-[#1D1D1F]">{{ rutaActual.primer_contacto_completo }}</strong>
-              </p>
+              <div class="text-[10px] text-[#86868B] flex flex-wrap items-center gap-2">
+                <span>Hora límite oficial: <strong class="font-mono text-[#0071E3]">{{ totales.hora_limite }} AM</strong></span>
+                <span>&bull;</span>
+                <span>Primer marcaje validado: <strong class="font-mono text-[#1D1D1F]">{{ rutaActual.primer_contacto_completo }}</strong></span>
+                <span v-if="rutaActual.doble_check?.hora_workday_app">
+                  &bull; Apertura en App: <strong class="font-mono text-sky-700">{{ rutaActual.doble_check.hora_workday_app }}</strong>
+                </span>
+              </div>
             </div>
           </div>
 
@@ -362,6 +474,14 @@
                       >
                         Fuera de Plan
                       </span>
+
+                      <!-- Badge de Origen Doble Check -->
+                      <span
+                        class="text-[9px] font-extrabold px-1.5 py-0.2 rounded font-mono"
+                        :class="p.origen_key === 'AMBOS' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : (p.origen_key === 'APP' ? 'bg-sky-50 text-sky-800 border border-sky-200' : 'bg-purple-50 text-purple-800 border border-purple-200')"
+                      >
+                        {{ p.origen }}
+                      </span>
                     </div>
                     <p class="text-[10px] text-[#6E6E73]">
                       {{ p.direccion }} &bull; {{ p.territorio }}
@@ -384,7 +504,7 @@
                   </div>
                 </div>
 
-                <!-- Detalle de Tiempos y Foto -->
+                <!-- Detalle de Tiempos, Doble Check y Foto -->
                 <div class="pt-1 border-t border-black/[0.04] flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#6E6E73]">
                   <div class="flex items-center gap-3">
                     <span class="flex items-center gap-1">
@@ -392,8 +512,13 @@
                       <strong class="font-mono text-[#1D1D1F]">{{ p.tiempo_pdv_fmt }}</strong>
                     </span>
                     <span class="text-[#86868B]">&bull;</span>
-                    <span class="text-[9.5px] text-[#86868B]">
-                      Origen: {{ p.origen }}
+                    
+                    <!-- Desglose de horas individuales si existen ambas -->
+                    <span v-if="p.hora_app && p.hora_web" class="text-[9.5px] font-mono text-[#86868B]">
+                      App: <strong class="text-slate-800">{{ p.hora_app }}</strong> | Web: <strong class="text-slate-800">{{ p.hora_web }}</strong>
+                    </span>
+                    <span v-else class="text-[9.5px] text-[#86868B]">
+                      Marcaje: {{ p.origen }}
                     </span>
                   </div>
 
@@ -469,6 +594,18 @@ const modoVista = ref('gantt') // 'gantt' | 'detalle'
 const filtroPuntualidad = ref('todas') // 'todas' | 'puntuales' | 'retraso'
 const rutaSeleccionadaDetalle = ref(null)
 
+const horasGuiaGantt = [
+  '08:00:00',
+  '09:00:00',
+  '10:00:00',
+  '11:00:00',
+  '12:00:00',
+  '13:00:00',
+  '14:00:00',
+  '15:00:00',
+  '16:00:00',
+]
+
 const totales = ref({
   total_rutas: 0,
   rutas_puntuales: 0,
@@ -482,6 +619,9 @@ const totales = ref({
   total_paradas: 0,
   total_pausas_largas: 0,
   hora_limite: '08:10',
+  auditados_ambos: 0,
+  salvados_por_app: 0,
+  salvados_por_web: 0,
 })
 
 const rutas = ref([])
