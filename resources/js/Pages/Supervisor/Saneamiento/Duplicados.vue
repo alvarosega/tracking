@@ -76,7 +76,7 @@
               <span class="font-bold text-slate-900 tabular-nums">{{ totalClientesImplicados }}</span>
             </div>
             <div class="px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center gap-1.5 shadow-2xs text-slate-700">
-              <span class="text-slate-400">Venta MTD:</span>
+              <span class="text-slate-400">Ventas {{ periodoLabel ? `(${periodoLabel})` : 'Mes' }}:</span>
               <span class="font-bold text-emerald-700 tabular-nums">Bs. {{ ventaMtdTotalAuditada }}</span>
             </div>
             <div
@@ -238,6 +238,21 @@
                 <option :value="20">20 m (Estándar)</option>
                 <option :value="50">50 m</option>
                 <option :value="100">100 m</option>
+              </select>
+            </div>
+
+            <!-- Selector de Periodo de Ventas (Referencial) -->
+            <div v-if="mesesDisponibles.length > 0" class="flex items-center h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono shadow-2xs">
+              <span class="text-slate-400 mr-1.5 font-sans text-[10px] uppercase font-bold tracking-wider">Ventas:</span>
+              <select
+                v-model="periodoSeleccionado"
+                @change="ejecutarAuditoriaDuplicados"
+                class="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer text-xs"
+                title="Periodo referencial de ventas desde fact_ventas"
+              >
+                <option v-for="m in mesesDisponibles" :key="m.periodo" :value="m.periodo">
+                  {{ m.label }}
+                </option>
               </select>
             </div>
 
@@ -433,7 +448,7 @@
               <p class="text-slate-500">No se encontraron conflictos bajo los filtros y tolerancia de radio seleccionados.</p>
             </div>
 
-            <!-- Tarjeta de Grupo Refinada, Sobria y Escaneable -->
+            <!-- Tarjeta de Grupo Minimalista, Sobria y Sin Redundancia -->
             <div
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
@@ -445,7 +460,7 @@
                   : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
               ]"
             >
-              <!-- Fila 1: ID, Clasificacion, Distancia y Estado -->
+              <!-- Fila 1: Cabecera con ID, Clasificación y Distancia -->
               <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-slate-100">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <span class="font-mono font-bold text-xs text-slate-900 shrink-0">
@@ -462,7 +477,7 @@
                   <span
                     v-if="tienePropuestaPendiente(grupo)"
                     class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9px] font-bold font-mono"
-                    title="Propuesta pendiente de resolución"
+                    title="Propuesta pendiente"
                   >
                     Propuesta
                   </span>
@@ -475,93 +490,55 @@
                 </div>
               </div>
 
-              <!-- Fila 2: Dato(s) Coincidente(s) -->
-              <div v-if="obtenerCoincidenciasLegibles(grupo).length > 0" class="p-2 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
-                <div class="flex items-center justify-between text-[10px] font-mono">
-                  <span class="font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
-                    <span>Dato(s) Coincidente(s):</span>
-                  </span>
-                  <span class="text-slate-400 font-sans text-[9.5px]">{{ (grupo.clientes || []).length }} clientes</span>
-                </div>
-
-                <div class="flex flex-col gap-1 text-[11px] font-mono">
-                  <div
-                    v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
-                    :key="idxC"
-                    class="px-2 py-0.5 rounded bg-white border border-slate-200 flex items-center justify-between gap-1 shadow-2xs leading-tight"
-                  >
-                    <div class="flex items-center gap-1 min-w-0 flex-wrap">
-                      <span class="text-[9.5px] uppercase font-bold text-slate-500 shrink-0">{{ coinc.titulo }}:</span>
-                      <span class="font-bold text-slate-900 break-words select-all">{{ coinc.valor }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Indicador de Inter-Rutas con Verde (Antiguo) y Rojo (Posterior) -->
-                <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-0.5 text-[9.5px] font-mono flex items-center gap-1 flex-wrap">
-                  <span class="text-slate-500 font-bold uppercase text-[9px]">Inter-Rutas:</span>
-                  <span
-                    v-for="cli in (grupo.clientes || [])"
-                    :key="'rt-badge-' + cli.cliente_id"
-                    class="px-1.5 py-0.2 rounded font-bold border flex items-center gap-1 shadow-2xs"
-                    :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
-                    :title="cli.es_mas_antiguo ? 'Ruta del cliente original (primer ingreso)' : 'Ruta del cliente que ingresó después'"
-                  >
-                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
-                    <span>Ruta {{ cli.ruta }} ({{ cli.es_mas_antiguo ? 'Original' : 'Posterior' }})</span>
-                  </span>
+              <!-- Fila 2: El Detalle (Coincidencia clave simplificada) -->
+              <div v-if="obtenerCoincidenciasLegibles(grupo).length > 0" class="flex flex-wrap gap-1 text-[10px] font-mono">
+                <div
+                  v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
+                  :key="idxC"
+                  class="px-2 py-0.5 rounded bg-slate-50 border border-slate-200 flex items-center gap-1 text-slate-700 leading-tight"
+                >
+                  <span class="text-slate-400 font-bold uppercase text-[9px]">{{ coinc.titulo }}:</span>
+                  <span class="font-bold text-slate-900 truncate max-w-[260px]">{{ coinc.valor }}</span>
                 </div>
               </div>
 
-              <!-- Fila 3: Clientes del Grupo (Mini comparativa legible y sobria con rutas coloreadas) -->
-              <div class="space-y-1 text-xs">
+              <!-- Fila 3: Clientes (Nombre, Código ID, Ruta con verde/rojo, MTD) -->
+              <div class="space-y-1">
                 <div
                   v-for="cli in (grupo.clientes || [])"
                   :key="cli.cliente_id"
-                  class="p-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-1.5 transition-colors bg-white border-slate-200"
+                  class="p-1.5 rounded-lg border text-xs flex items-center justify-between gap-1.5 transition-colors bg-white border-slate-200/90"
                 >
+                  <!-- Izquierda: Indicador punto + Nombre + Código ID -->
                   <div class="min-w-0 flex-1 truncate">
                     <div class="flex items-center gap-1.5">
                       <span
                         class="w-2 h-2 rounded-full shrink-0"
-                        :class="cli.es_mas_antiguo ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-rose-500 ring-2 ring-rose-200'"
-                        :title="cli.es_mas_antiguo ? 'Cliente Original (Primer Ingreso)' : 'Posible Duplicado (Ingresó Después)'"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-500' : 'bg-rose-500'"
+                        :title="cli.es_mas_antiguo ? 'Original (Primer ingreso)' : 'Ingreso posterior'"
                       ></span>
                       <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
-                      <span
-                        v-if="cli.tiene_cambio_nombre"
-                        class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300 font-bold shrink-0"
-                        title="Nombre modificado en auditoría de ruteo"
-                      >
-                        Renombrado
-                      </span>
-                      <span
-                        v-if="cli.es_master_sugerido"
-                        class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-slate-900 text-white font-bold ml-auto shrink-0"
-                      >
-                        Master
-                      </span>
                     </div>
-                    <div class="text-[10px] font-mono text-slate-500 truncate flex items-center gap-1 pt-0.5 pl-3.5 flex-wrap">
-                      <span class="text-slate-400">ID {{ cli.cliente_id }} &bull;</span>
+                    <div class="text-[10px] font-mono text-slate-500 pt-0.5 pl-3.5 flex items-center gap-1.5">
+                      <span>ID: <strong class="text-slate-800">{{ cli.cliente_id }}</strong></span>
+                      <span class="text-slate-300">&bull;</span>
                       <span
-                        class="px-1.5 py-0.2 rounded font-bold border inline-flex items-center gap-1"
+                        class="px-1.5 py-0.2 rounded font-bold border text-[9.5px] inline-flex items-center gap-1"
                         :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
-                        :title="cli.es_mas_antiguo ? 'Ruta del cliente original (primer ingreso)' : 'Ruta del cliente que ingresó después'"
                       >
                         <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
                         <span>Ruta {{ cli.ruta }}</span>
                       </span>
-                      <span class="text-slate-400">&bull; {{ cli.canal }} &bull; {{ cli.dia }}</span>
                     </div>
                   </div>
-                  <div class="text-right font-mono text-[10px] shrink-0 pl-1">
+
+                  <!-- Derecha: Venta MTD y Original/Posterior -->
+                  <div class="text-right font-mono text-[10.5px] shrink-0 pl-1">
                     <div class="font-bold text-slate-900">
                       Bs. {{ cli.venta_mtd }}
                     </div>
                     <div
-                      class="text-[9px] font-bold"
+                      class="text-[9px] font-bold uppercase"
                       :class="cli.es_mas_antiguo ? 'text-emerald-700' : 'text-rose-600'"
                     >
                       {{ cli.es_mas_antiguo ? 'Original' : 'Posterior' }}
@@ -570,10 +547,21 @@
                 </div>
               </div>
 
-              <!-- Fila 4: Pie de Tarjeta con Venta Total MTD -->
-              <div class="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-100 text-slate-500">
-                <span>Venta Total Grupo MTD:</span>
-                <span class="font-bold text-slate-900">Bs. {{ formatearMonto(grupo.venta_mtd_total) }}</span>
+              <!-- Fila 4: Debajo, Inter-Rutas (Solo si hay rutas distintas en el grupo) -->
+              <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
+                <span class="text-slate-400 font-bold uppercase text-[9px]">Inter-Rutas:</span>
+                <div class="flex items-center gap-1">
+                  <span
+                    v-for="cli in (grupo.clientes || [])"
+                    :key="'rt-badge-' + cli.cliente_id"
+                    class="px-1.5 py-0.2 rounded font-bold border text-[9.5px] flex items-center gap-1 shadow-2xs"
+                    :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
+                    :title="cli.es_mas_antiguo ? 'Ruta del cliente original' : 'Ruta del cliente posterior'"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
+                    <span>Ruta {{ cli.ruta }}</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -918,16 +906,9 @@
                         <span
                           v-else-if="nombreEsIdenticoEnGrupo()"
                           class="shrink-0 px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[9px] font-bold font-mono"
-                          title="Nombre comercial idéntico en este grupo"
+                          title="Nombre comercial coincidente en este grupo"
                         >
                           Nombre Idéntico
-                        </span>
-                        <span
-                          v-else-if="nombreSimilarEnGrupo()"
-                          class="shrink-0 px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9px] font-bold font-mono"
-                          title="Nombre comercial similar detectado en este grupo"
-                        >
-                          Nombre Similar
                         </span>
                       </div>
                       <div v-if="cli.tiene_cambio_nombre && cli.detalle_cambio_nombre" class="px-2.5 py-1.5 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-[11px] font-sans flex items-start gap-1.5 shadow-2xs">
@@ -977,10 +958,13 @@
                       </div>
                     </div>
 
-                    <!-- Seccion: Venta MTD con barra de progreso comparativa -->
+                    <!-- Seccion: Venta MTD con barra de progreso comparativa (Referencial) -->
                     <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 shadow-2xs space-y-1.5 font-mono">
                       <div class="flex items-center justify-between text-xs">
-                        <span class="text-slate-500 font-sans">Venta Acumulada MTD:</span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-slate-500 font-sans">Venta {{ periodoLabel || 'Mes' }}:</span>
+                          <span class="text-[9px] px-1 py-0.2 rounded bg-slate-200/80 text-slate-600 font-bold uppercase tracking-wider font-sans">Referencial</span>
+                        </div>
                         <span class="font-bold text-sm" :class="cli.venta_mtd > 0 ? 'text-slate-900' : 'text-slate-500'">
                           Bs. {{ cli.venta_mtd }}
                         </span>
@@ -1430,7 +1414,7 @@
                 </div>
                 <div class="font-bold text-slate-900">{{ clienteMasterModal?.cliente }}</div>
                 <div class="text-[11px] text-slate-600 font-mono">
-                  Ruta: {{ clienteMasterModal?.ruta }} &bull; Canal: {{ clienteMasterModal?.canal }} &bull; Venta MTD: Bs. {{ clienteMasterModal?.venta_mtd }}
+                  Ruta: {{ clienteMasterModal?.ruta }} &bull; Canal: {{ clienteMasterModal?.canal }} &bull; Ventas {{ periodoLabel || 'Mes' }}: Bs. {{ clienteMasterModal?.venta_mtd }}
                 </div>
               </div>
 
@@ -1441,7 +1425,7 @@
                 </div>
                 <div class="font-bold text-slate-900">{{ clienteDuplicadoModal?.cliente }}</div>
                 <div class="text-[11px] text-slate-600 font-mono">
-                  Ruta: {{ clienteDuplicadoModal?.ruta }} &bull; Canal: {{ clienteDuplicadoModal?.canal }} &bull; Venta MTD: Bs. {{ clienteDuplicadoModal?.venta_mtd }}
+                  Ruta: {{ clienteDuplicadoModal?.ruta }} &bull; Canal: {{ clienteDuplicadoModal?.canal }} &bull; Ventas {{ periodoLabel || 'Mes' }}: Bs. {{ clienteDuplicadoModal?.venta_mtd }}
                 </div>
               </div>
             </div>
@@ -1599,6 +1583,19 @@
             </div>
           </div>
 
+          <!-- Mes de Ventas (Referencial) en Movil -->
+          <div v-if="mesesDisponibles.length > 0" class="space-y-1.5">
+            <span class="font-bold text-slate-700 uppercase font-mono text-[10.5px]">Mes de Ventas (Referencial)</span>
+            <select
+              v-model="periodoSeleccionado"
+              class="w-full h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none"
+            >
+              <option v-for="m in mesesDisponibles" :key="m.periodo" :value="m.periodo">
+                {{ m.label }}
+              </option>
+            </select>
+          </div>
+
           <!-- Boton Aplicar -->
           <div class="pt-2">
             <button
@@ -1692,6 +1689,11 @@ const filtroModo = ref('TODOS')
 
 // Selector de Radio en Metros
 const radioMetros = ref(20)
+
+// Filtro de Periodo de Ventas (Referencial)
+const periodoSeleccionado = ref(null)
+const periodoLabel = ref('')
+const mesesDisponibles = ref([])
 
 // Buscador de texto en memoria
 const busquedaTexto = ref('')
@@ -2112,20 +2114,16 @@ function obtenerCoincidenciasLegibles(grupo) {
           valor: valorStr,
           clase: 'bg-white text-slate-800 border-slate-200 font-mono',
         })
-      } else if (campoNorm === 'nombre') {
-        res.push({
-          campo: 'Nombre',
-          titulo: 'Nombre Idéntico',
-          valor: `"${valorStr}"`,
-          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
-        })
-      } else if (campoNorm.includes('similar')) {
-        res.push({
-          campo: 'Nombre Similar',
-          titulo: 'Nombre Similar',
-          valor: valorStr,
-          clase: 'bg-white text-slate-800 border-slate-200 font-mono',
-        })
+      } else if (campoNorm === 'nombre' || campoNorm.includes('similar')) {
+        if (!res.some(r => r.campo === 'Nombre')) {
+          const valLimpio = valorStr.includes('~') ? (grupo.clientes?.[0]?.cliente || valorStr) : valorStr
+          res.push({
+            campo: 'Nombre',
+            titulo: 'Nombre Idéntico',
+            valor: `"${valLimpio}"`,
+            clase: 'bg-white text-slate-800 border-slate-200 font-mono',
+          })
+        }
       } else if (campoNorm === 'factura') {
         res.push({
           campo: 'Factura',
@@ -2200,16 +2198,9 @@ function telefonoEsIdenticoEnGrupo() {
 function nombreEsIdenticoEnGrupo() {
   if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
   const grupo = grupoActivo.value
-  const crit = grupo.criterios?.find(cr => (cr.campo || '').toLowerCase() === 'nombre')
-  return !!crit
-}
-
-function nombreSimilarEnGrupo() {
-  if (!grupoActivo.value || !grupoActivo.value.clientes || grupoActivo.value.clientes.length < 2) return false
-  const grupo = grupoActivo.value
   const crit = grupo.criterios?.find(cr => {
     const cNorm = (cr.campo || '').toLowerCase()
-    return cNorm.includes('similar') || (cNorm.includes('nombre') && cNorm !== 'nombre')
+    return cNorm === 'nombre' || cNorm.includes('similar')
   })
   return !!crit
 }
@@ -2459,9 +2450,16 @@ async function ejecutarAuditoriaDuplicados() {
       rutas: rutasSeleccionadas.value.length > 0 ? rutasSeleccionadas.value : null,
       radio_metros: radioMetros.value,
       tipo_grupo: filtroModo.value,
+      periodo: periodoSeleccionado.value || null,
     })
 
     clusters.value = res.data.clusters || []
+    mesesDisponibles.value = res.data.meses_disponibles || []
+    periodoLabel.value = res.data.periodo_label || ''
+    if (!periodoSeleccionado.value && res.data.periodo_evaluado) {
+      periodoSeleccionado.value = res.data.periodo_evaluado
+    }
+
     clusters.value.forEach(g => marcarAntiguedadGrupo(g))
 
     if (clusters.value.length > 0) {
@@ -2493,8 +2491,9 @@ function abrirModalConfirmacion(tipo) {
   clienteMasterModal.value = getMasterCliente(grupoActivo.value)
   clienteDuplicadoModal.value = getDuplicadoCliente(grupoActivo.value)
 
+  const labelPeriodo = periodoLabel.value || 'Mes'
   if (tipo === 'INACTIVAR') {
-    observacionModal.value = `Cliente ID #${clienteDuplicadoModal.value?.cliente_id} duplicado de ID #${clienteMasterModal.value?.cliente_id} (menor venta MTD: Bs. ${clienteDuplicadoModal.value?.venta_mtd} vs Bs. ${clienteMasterModal.value?.venta_mtd})`
+    observacionModal.value = `Cliente ID #${clienteDuplicadoModal.value?.cliente_id} duplicado de ID #${clienteMasterModal.value?.cliente_id} (Ventas ${labelPeriodo}: Bs. ${clienteDuplicadoModal.value?.venta_mtd} vs Bs. ${clienteMasterModal.value?.venta_mtd})`
   } else {
     observacionModal.value = `Fusión de cuentas entre cliente duplicado ID #${clienteDuplicadoModal.value?.cliente_id} y master ID #${clienteMasterModal.value?.cliente_id}`
   }

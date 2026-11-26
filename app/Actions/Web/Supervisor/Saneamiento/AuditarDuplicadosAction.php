@@ -24,7 +24,8 @@ class AuditarDuplicadosAction
         ?array $rutas = null,
         float $radioMetros = 20.0,
         ?string $tipoGrupo = null,
-        ?array $canales = null
+        ?array $canales = null,
+        ?string $periodo = null
     ): array {
         $conn = DB::connection('supervisor');
 
@@ -357,7 +358,7 @@ class AuditarDuplicadosAction
                 $p0 = $puntosMap[$cids[0]];
                 $todosMismoNom = array_reduce($cids, fn($acc, $id) => $acc && ($puntosMap[$id]['cliente_norm'] === $p0['cliente_norm']), true);
                 if (!$todosMismoNom) {
-                    $registrarGrupo($cids, ['Nombre Similar' => strtoupper($nucVal)]);
+                    $registrarGrupo($cids, ['Nombre' => strtoupper($nucVal)]);
                 }
             }
         }
@@ -458,7 +459,8 @@ class AuditarDuplicadosAction
                     }
 
                     if ($esSimilar) {
-                        $registrarGrupo([$idA, $idB], ['Nombre Similar' => $descSimilar]);
+                        $nomVal = $pA['cliente_norm'] === $pB['cliente_norm'] ? $pA['cliente'] : (mb_strlen($pA['nucleo']) >= 4 ? strtoupper($pA['nucleo']) : $pA['cliente']);
+                        $registrarGrupo([$idA, $idB], ['Nombre' => $nomVal]);
                     }
                 }
             }
@@ -489,7 +491,7 @@ class AuditarDuplicadosAction
                             if ($mismoNombre) {
                                 $crits['Nombre'] = $p1['cliente'];
                             } elseif ($mismoNucleo || $simNuc >= 70.0) {
-                                $crits['Nombre Similar'] = strtoupper($p1['nucleo'] ?: $p1['cliente']);
+                                $crits['Nombre'] = strtoupper($p1['nucleo'] ?: $p1['cliente']);
                             }
                             if ($mismaFactura) {
                                 $crits['Factura'] = $p1['nombre_factura'] ?: $p1['_factura_norm'];
@@ -545,9 +547,10 @@ class AuditarDuplicadosAction
                                     $tokInter = array_intersect($pA['tokens'], $pB['tokens']);
                                     if ($simSpa >= 65.0 || count($tokInter) >= 1) {
                                         $dPar = round(GeometryHelper::haversineDistance($pA['latitud'], $pA['longitud'], $pB['latitud'], $pB['longitud']), 1);
+                                        $nomComun = mb_strlen($pA['nucleo']) >= 4 ? strtoupper($pA['nucleo']) : strtoupper($pA['cliente']);
                                         $registrarGrupo([$idA, $idB], [
                                             'Ubicación' => $dPar . ' m',
-                                            'Nombre Similar' => strtoupper($pA['cliente']) . ' ~ ' . strtoupper($pB['cliente']),
+                                            'Nombre' => $nomComun,
                                         ]);
                                     }
                                 }
@@ -571,7 +574,7 @@ class AuditarDuplicadosAction
                 }
 
                 $valoresUnicos = array_keys($valsMap);
-                if (count($valoresUnicos) === 1 || in_array($campo, ['Nombre Similar', 'Documento (NIT/CI)', 'Nombre / Factura'], true)) {
+                if (count($valoresUnicos) === 1 || in_array($campo, ['Nombre', 'Documento (NIT/CI)', 'Nombre / Factura'], true)) {
                     $criteriosFiltrados[$campo] = $valsMap;
                 }
             }
@@ -606,7 +609,8 @@ class AuditarDuplicadosAction
         }
         $todosCids = array_values(array_unique($todosCids));
 
-        $mapaVentas = $this->obtenerVentasMtd($todosCids);
+        $infoVentas = $this->obtenerVentasMtd($todosCids, $periodo);
+        $mapaVentas = $infoVentas['ventas'];
 
         // Consultar historial completo de modificaciones y altas en auditoria_ruteo_cambios
         $mapaCambios = [];
@@ -653,15 +657,22 @@ class AuditarDuplicadosAction
                 ];
 
                 // Identificar si tuvo cambio de nombre (campo_afectado === 'cliente')
-                // Como $cambiosDb viene ordenado DESC por fecha_auditoria, el primero es el cambio más reciente
+                // Regla (Punto 2): Si tuvo corrección mínima o parcial es ajuste; si es cambio total de cliente/dueño se considera nuevo
                 if ($c->campo_afectado === 'cliente' && !isset($mapaCambiosNombre[$cidInt])) {
-                    $mapaCambiosNombre[$cidInt] = [
-                        'fecha' => (string) $c->fecha_auditoria,
-                        'fecha_fmt' => (string) ($c->fecha_auditoria_fmt ?: $c->fecha_auditoria),
-                        'valor_anterior' => (string) ($c->valor_anterior ?? '-'),
-                        'valor_nuevo' => (string) ($c->valor_nuevo ?? '-'),
-                        'archivo_origen' => (string) ($c->archivo_origen ?: 'Ruteo'),
-                    ];
+                    $antVal = (string) $c->valor_anterior;
+                    $nueVal = (string) $c->valor_nuevo;
+                    $esTotal = $this->esCambioTotalNombre($antVal, $nueVal);
+
+                    if ($esTotal) {
+                        $mapaCambiosNombre[$cidInt] = [
+                            'fecha' => (string) $c->fecha_auditoria,
+                            'fecha_fmt' => (string) ($c->fecha_auditoria_fmt ?: $c->fecha_auditoria),
+                            'valor_anterior' => $antVal,
+                            'valor_nuevo' => $nueVal,
+                            'archivo_origen' => (string) ($c->archivo_origen ?: 'Ruteo'),
+                            'es_cambio_total' => true,
+                        ];
+                    }
                 }
 
                 // Identificar fecha y origen de alta en pan_ruteo
@@ -712,11 +723,11 @@ class AuditarDuplicadosAction
                 $tieneCambioNombre = false;
                 $detalleCambioNombre = null;
 
-                // Regla de Negocio: Si se cambió de nombre, se toma como ingreso nuevo a partir de esa fecha
-                if ($infoNombre !== null) {
+                // Regla (Punto 2): Solo si el cambio de nombre fue total pasa a ser nuevo a partir de esa fecha
+                if ($infoNombre !== null && !empty($infoNombre['es_cambio_total'])) {
                     $tieneCambioNombre = true;
                     $fechaIngreso = $infoNombre['fecha'];
-                    $origenIngreso = 'Nombre modificado (antes: "' . $infoNombre['valor_anterior'] . '")';
+                    $origenIngreso = 'Cambio total de nombre (antes: "' . $infoNombre['valor_anterior'] . '")';
                     $detalleCambioNombre = 'Renombrado el ' . $infoNombre['fecha_fmt'] . ' (Nombre anterior: "' . $infoNombre['valor_anterior'] . '")';
                 } elseif ($infoAlta !== null && !empty($infoAlta['fecha'])) {
                     $fechaIngreso = $infoAlta['fecha'];
@@ -753,11 +764,12 @@ class AuditarDuplicadosAction
             }
 
             // Determinar cuál cliente es el original (más antiguo) y cuál es el duplicado posterior / incorrecto
-            // Regla:
+            // Reglas validadas (Puntos 1, 2, 3, 5):
             // 1. Clientes de Padrón Inicial (fecha_ingreso === null) son los más antiguos (Tier 1).
-            //    Si hay varios, desempata el menor cliente_id.
-            // 2. Si no hay de Padrón Inicial (o todos tienen fecha de alta/renombre), gana la fecha_ingreso más antigua.
-            //    Si hay empate en fecha, desempata el menor cliente_id.
+            //    Entre varios en Padrón Inicial, desempata el menor cliente_id (Punto 1).
+            // 2. Si no hay de Padrón Inicial (o ambos tienen fecha de alta/renombre con fecha_ingreso):
+            //    Se compara la fecha_ingreso: el que cambió/ingresó en la fecha más antigua es el original (Punto 3).
+            //    A igualdad de fecha: desempata el menor cliente_id (Punto 1 y 5).
             $menorIdInicial = null;
             foreach ($items as $it) {
                 if ($it['fecha_ingreso'] === null) {
@@ -784,25 +796,21 @@ class AuditarDuplicadosAction
 
             foreach ($items as &$cliItem) {
                 $cliItem['es_mas_antiguo'] = ($cliItem['cliente_id'] === $idOriginal);
+                // Punto 4: La venta MTD es solo referencial, el master sugerido por defecto es el cliente original legítimo
+                $cliItem['es_master_sugerido'] = ($cliItem['cliente_id'] === $idOriginal);
             }
             unset($cliItem);
 
-            // Ordenar clientes dentro del grupo: 1° mayor venta MTD, 2° más antiguo en ruteo si hay fecha, 3° menor ID
+            // Ordenar clientes dentro del grupo: 1° Original primero, 2° mayor venta MTD referencial, 3° menor ID
             usort($items, function ($a, $b) {
+                if ($a['es_mas_antiguo'] !== $b['es_mas_antiguo']) {
+                    return $a['es_mas_antiguo'] ? -1 : 1;
+                }
                 if ($b['venta_mtd'] !== $a['venta_mtd']) {
                     return $b['venta_mtd'] <=> $a['venta_mtd'];
                 }
-                if (!empty($a['fecha_ingreso']) && !empty($b['fecha_ingreso'])) {
-                    $cmp = strcmp($a['fecha_ingreso'], $b['fecha_ingreso']);
-                    if ($cmp !== 0) return $cmp;
-                }
                 return $a['cliente_id'] <=> $b['cliente_id'];
             });
-
-            foreach ($items as $idx => &$cliItem) {
-                $cliItem['es_master_sugerido'] = ($idx === 0);
-            }
-            unset($cliItem);
 
             $ordenCampos = [
                 'Ubicación' => 1,
@@ -811,9 +819,8 @@ class AuditarDuplicadosAction
                 'Documento (NIT/CI)' => 4,
                 'Teléfono' => 5,
                 'Nombre' => 6,
-                'Nombre Similar' => 7,
-                'Factura' => 8,
-                'Nombre / Factura' => 9,
+                'Factura' => 7,
+                'Nombre / Factura' => 8,
             ];
 
             $criteriosFinales = [];
@@ -821,8 +828,11 @@ class AuditarDuplicadosAction
                 $vals = array_keys($valsMap);
                 sort($vals);
                 // En un criterio de duplicidad por datos, un valor solo es idéntico si es único en el grupo, salvo criterios multievaluados controlados
-                if ($campo !== 'Ubicación' && !in_array($campo, ['Nombre Similar', 'Documento (NIT/CI)', 'Nombre / Factura'], true) && count($vals) > 1) {
+                if ($campo !== 'Ubicación' && !in_array($campo, ['Nombre', 'Documento (NIT/CI)', 'Nombre / Factura'], true) && count($vals) > 1) {
                     continue;
+                }
+                if ($campo === 'Nombre' && count($vals) > 1) {
+                    $vals = [reset($vals)];
                 }
                 $criteriosFinales[] = [
                     'campo' => $campo,
@@ -921,6 +931,9 @@ class AuditarDuplicadosAction
             'canales_auditados' => $canales ?: [],
             'radio_metros_evaluado' => $radioMetros,
             'tipo_grupo_evaluado' => $tipoGrupo ?: 'TODOS',
+            'periodo_evaluado' => $infoVentas['periodo_evaluado'] ?? date('Y-m'),
+            'periodo_label' => $infoVentas['periodo_label'] ?? 'Mes Actual',
+            'meses_disponibles' => $infoVentas['meses_disponibles'] ?? [],
             'total_puntos_evaluados' => count($puntos),
             'total_clusters' => count($resultadoClusters),
             'conteo_misma_ubicacion' => $conteoMismaUbicacion,
@@ -1004,33 +1017,139 @@ class AuditarDuplicadosAction
         return trim($txt);
     }
 
-    protected function obtenerVentasMtd(array $clienteIds): array
+    /**
+     * Evalúa si una modificación en el campo nombre corresponde a un cambio total de cliente/dueño
+     * o si únicamente fue un ajuste ortográfico, mayúsculas o corrección menor (Punto 2).
+     */
+    protected function esCambioTotalNombre(string $anterior, string $nuevo): bool
     {
-        if (empty($clienteIds)) {
-            return [];
+        $antNorm = $this->normalizarTexto($anterior);
+        $nueNorm = $this->normalizarTexto($nuevo);
+
+        if ($antNorm === '' || $nueNorm === '') {
+            return false;
         }
 
+        if ($antNorm === $nueNorm) {
+            return false;
+        }
+
+        $nucAnt = $this->obtenerNucleoOrdenado($anterior);
+        $nucNue = $this->obtenerNucleoOrdenado($nuevo);
+
+        if ($nucAnt !== '' && $nucAnt === $nucNue) {
+            return false;
+        }
+
+        // Calcular similitud de caracteres
+        similar_text($antNorm, $nueNorm, $simNorm);
+        if ($simNorm >= 70.0) {
+            return false; // Corrección menor / parcial
+        }
+
+        if ($nucAnt !== '' && $nucNue !== '') {
+            similar_text($nucAnt, $nucNue, $simNuc);
+            if ($simNuc >= 65.0) {
+                return false; // Núcleo muy similar
+            }
+        }
+
+        // Evaluar tokens significativos compartidos
+        $toksAnt = $this->extraerTokensSignificativos($anterior);
+        $toksNue = $this->extraerTokensSignificativos($nuevo);
+        $inter = array_intersect($toksAnt, $toksNue);
+
+        if (count($inter) >= 2) {
+            return false; // Conserva al menos 2 nombres/palabras clave
+        }
+
+        if (count($inter) === 1) {
+            $tokComun = reset($inter);
+            if (mb_strlen($tokComun) >= 5 && (count($toksAnt) <= 2 || count($toksNue) <= 2)) {
+                return false; // Nombre propio distintivo común
+            }
+        }
+
+        // Si no superó los criterios de similitud, es un cambio total de cliente/dueño
+        return true;
+    }
+
+    /**
+     * Obtiene el acumulado de ventas para cada cliente_id desde fact_ventas según el mes/año seleccionado (Punto 4).
+     * Retorna también el catálogo de meses disponibles para alimentar el filtro superior.
+     *
+     * @param array<int> $clienteIds
+     * @param string|null $periodo 'YYYY-MM'
+     * @return array{ventas: array<int, float>, periodo_evaluado: string, periodo_label: string, meses_disponibles: array<array{periodo: string, anio: int, mes: int, label: string}>}
+     */
+    protected function obtenerVentasMtd(array $clienteIds, ?string $periodo = null): array
+    {
         $conn = DB::connection('supervisor');
 
-        $reciente = $conn->table('fact_ventas')
+        // Catálogo de meses disponibles en fact_ventas
+        $mesesRaw = $conn->table('fact_ventas')
+            ->whereNotNull(DB::raw("COALESCE(fecha_norm, fecha)"))
             ->where(function ($w) {
                 $w->whereNull('revertida')
                     ->orWhereNotIn(DB::raw("LOWER(TRIM(revertida))"), ['si', 'true', '1']);
             })
-            ->whereNotNull(DB::raw("COALESCE(fecha_norm, fecha)"))
             ->select([
-                DB::raw("YEAR(COALESCE(fecha_norm, fecha)) as anio_max"),
-                DB::raw("MONTH(COALESCE(fecha_norm, fecha)) as mes_max"),
+                DB::raw("YEAR(COALESCE(fecha_norm, fecha)) as anio"),
+                DB::raw("MONTH(COALESCE(fecha_norm, fecha)) as mes"),
             ])
-            ->orderByDesc(DB::raw("COALESCE(fecha_norm, fecha)"))
-            ->first();
+            ->distinct()
+            ->orderByDesc('anio')
+            ->orderByDesc('mes')
+            ->limit(12)
+            ->get();
 
-        if (!$reciente || empty($reciente->anio_max)) {
-            return [];
+        $nombresMes = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+
+        $mesesDisponibles = [];
+        foreach ($mesesRaw as $m) {
+            $a = (int) $m->anio;
+            $me = (int) $m->mes;
+            if ($a > 2000 && $me >= 1 && $me <= 12) {
+                $pStr = sprintf("%04d-%02d", $a, $me);
+                $mesesDisponibles[] = [
+                    'periodo' => $pStr,
+                    'anio' => $a,
+                    'mes' => $me,
+                    'label' => ($nombresMes[$me] ?? "Mes {$me}") . " {$a}",
+                ];
+            }
         }
 
-        $anioTarget = (int) $reciente->anio_max;
-        $mesTarget = (int) $reciente->mes_max;
+        // Determinar año y mes objetivo
+        $anioTarget = null;
+        $mesTarget = null;
+        $periodoTarget = null;
+        $labelTarget = '';
+
+        if (!empty($periodo) && preg_match('/^(\d{4})-(\d{1,2})$/', trim($periodo), $matches)) {
+            $anioTarget = (int) $matches[1];
+            $mesTarget = (int) $matches[2];
+            $periodoTarget = sprintf("%04d-%02d", $anioTarget, $mesTarget);
+            $labelTarget = ($nombresMes[$mesTarget] ?? "Mes {$mesTarget}") . " {$anioTarget}";
+        } elseif (!empty($mesesDisponibles)) {
+            $anioTarget = $mesesDisponibles[0]['anio'];
+            $mesTarget = $mesesDisponibles[0]['mes'];
+            $periodoTarget = $mesesDisponibles[0]['periodo'];
+            $labelTarget = $mesesDisponibles[0]['label'];
+        }
+
+        if (!$anioTarget || !$mesTarget || empty($clienteIds)) {
+            return [
+                'ventas' => [],
+                'periodo_evaluado' => $periodoTarget ?: date('Y-m'),
+                'periodo_label' => $labelTarget ?: 'Mes Actual',
+                'meses_disponibles' => $mesesDisponibles,
+            ];
+        }
 
         $rows = $conn->table('fact_ventas')
             ->whereIn('cliente_id', $clienteIds)
@@ -1052,6 +1171,11 @@ class AuditarDuplicadosAction
             $mapa[(int) $r->cliente_id] = (float) $r->venta_mtd;
         }
 
-        return $mapa;
+        return [
+            'ventas' => $mapa,
+            'periodo_evaluado' => $periodoTarget,
+            'periodo_label' => $labelTarget,
+            'meses_disponibles' => $mesesDisponibles,
+        ];
     }
 }
