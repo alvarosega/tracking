@@ -453,15 +453,15 @@
               v-for="grupo in clustersFiltrados"
               :key="grupo.cluster_id"
               @click="seleccionarGrupo(grupo, true)"
-              class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-2 relative group"
+              class="p-3 rounded-xl border-2 transition-all cursor-pointer space-y-2 relative group"
               :class="[
                 grupoSeleccionadoId === grupo.cluster_id
-                  ? 'bg-slate-50/90 border-slate-900 ring-1 ring-slate-900 shadow-xs border-l-4 border-l-slate-900'
-                  : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
+                  ? 'bg-slate-50 border-slate-900 ring-2 ring-slate-900/15 shadow-sm border-l-4 border-l-slate-900'
+                  : 'bg-white hover:bg-slate-50/70 border-slate-300 shadow-2xs'
               ]"
             >
               <!-- Fila 1: Cabecera con ID, Clasificación y Distancia -->
-              <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-slate-100">
+              <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-slate-200">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <span class="font-mono font-bold text-xs text-slate-900 shrink-0">
                     #{{ grupo.cluster_id }}
@@ -476,55 +476,44 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span
                     v-if="tienePropuestaPendiente(grupo)"
-                    class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9px] font-bold font-mono"
+                    class="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-300 rounded text-[9px] font-bold font-mono"
                     title="Propuesta pendiente"
                   >
                     Propuesta
                   </span>
                   <span
-                    class="font-mono text-[10px] px-1.5 py-0.2 rounded font-bold"
-                    :class="(grupo.distancia_minima_m ?? 999) <= radioMetros ? 'bg-slate-100 text-slate-800 border border-slate-200' : 'bg-slate-50 text-slate-500'"
+                    class="font-mono text-[10px] px-1.5 py-0.2 rounded font-bold border"
+                    :class="(grupo.distancia_minima_m ?? 999) <= radioMetros ? 'bg-slate-100 text-slate-800 border-slate-300' : 'bg-slate-50 text-slate-500 border-slate-200'"
                   >
                     {{ formatearDistancia(grupo.distancia_minima_m) }}
                   </span>
                 </div>
               </div>
 
-              <!-- Fila 2: El Detalle (Coincidencia clave simplificada) -->
-              <div v-if="obtenerCoincidenciasLegibles(grupo).length > 0" class="flex flex-wrap gap-1 text-[10px] font-mono">
-                <div
-                  v-for="(coinc, idxC) in obtenerCoincidenciasLegibles(grupo)"
-                  :key="idxC"
-                  class="px-2 py-0.5 rounded bg-slate-50 border border-slate-200 flex items-center gap-1 text-slate-700 leading-tight"
-                >
-                  <span class="text-slate-400 font-bold uppercase text-[9px]">{{ coinc.titulo }}:</span>
-                  <span class="font-bold text-slate-900 truncate max-w-[260px]">{{ coinc.valor }}</span>
-                </div>
-              </div>
-
-              <!-- Fila 3: Clientes (Nombre, Código ID, Ruta con verde/rojo, MTD) -->
-              <div class="space-y-1">
+              <!-- Fila 2: Clientes (Solo Nombre e Identificación Básica con Bordes Claros) -->
+              <div class="space-y-1.5">
                 <div
                   v-for="cli in (grupo.clientes || [])"
                   :key="cli.cliente_id"
-                  class="p-1.5 rounded-lg border text-xs flex items-center justify-between gap-1.5 transition-colors bg-white border-slate-200/90"
+                  class="p-2 rounded-lg border-2 text-xs flex items-center justify-between gap-1.5 transition-colors"
+                  :class="cli.es_mas_antiguo ? 'border-emerald-300 bg-emerald-50/40' : 'border-rose-300 bg-rose-50/40'"
                 >
-                  <!-- Izquierda: Indicador punto + Nombre + Código ID -->
+                  <!-- Izquierda: Indicador punto + Nombre + Código ID y Ruta -->
                   <div class="min-w-0 flex-1 truncate">
                     <div class="flex items-center gap-1.5">
                       <span
-                        class="w-2 h-2 rounded-full shrink-0"
-                        :class="cli.es_mas_antiguo ? 'bg-emerald-500' : 'bg-rose-500'"
+                        class="w-2.5 h-2.5 rounded-full shrink-0"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-rose-600 ring-2 ring-rose-200'"
                         :title="cli.es_mas_antiguo ? 'Original (Primer ingreso)' : 'Ingreso posterior'"
                       ></span>
-                      <span class="font-bold text-slate-900 truncate">{{ cli.cliente }}</span>
+                      <span class="font-bold text-slate-900 truncate text-[12.5px]">{{ cli.cliente }}</span>
                     </div>
-                    <div class="text-[10px] font-mono text-slate-500 pt-0.5 pl-3.5 flex items-center gap-1.5">
-                      <span>ID: <strong class="text-slate-800">{{ cli.cliente_id }}</strong></span>
+                    <div class="text-[10px] font-mono text-slate-600 pt-0.5 pl-4 flex items-center gap-1.5">
+                      <span>ID: <strong class="text-slate-900">{{ cli.cliente_id }}</strong></span>
                       <span class="text-slate-300">&bull;</span>
                       <span
                         class="px-1.5 py-0.2 rounded font-bold border text-[9.5px] inline-flex items-center gap-1"
-                        :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
+                        :class="cli.es_mas_antiguo ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-rose-100 text-rose-900 border-rose-300'"
                       >
                         <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
                         <span>Ruta {{ cli.ruta }}</span>
@@ -538,8 +527,8 @@
                       Bs. {{ cli.venta_mtd }}
                     </div>
                     <div
-                      class="text-[9px] font-bold uppercase"
-                      :class="cli.es_mas_antiguo ? 'text-emerald-700' : 'text-rose-600'"
+                      class="text-[9px] font-bold uppercase tracking-wider"
+                      :class="cli.es_mas_antiguo ? 'text-emerald-700' : 'text-rose-700'"
                     >
                       {{ cli.es_mas_antiguo ? 'Original' : 'Posterior' }}
                     </div>
@@ -547,15 +536,15 @@
                 </div>
               </div>
 
-              <!-- Fila 4: Debajo, Inter-Rutas (Solo si hay rutas distintas en el grupo) -->
-              <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono">
-                <span class="text-slate-400 font-bold uppercase text-[9px]">Inter-Rutas:</span>
+              <!-- Fila 3: Debajo, Inter-Rutas (Solo si hay rutas distintas en el grupo) -->
+              <div v-if="grupo.rutas && grupo.rutas.length > 1" class="pt-1.5 border-t-2 border-slate-100 flex items-center justify-between text-[10px] font-mono">
+                <span class="text-slate-500 font-bold uppercase text-[9px] tracking-wider">Inter-Rutas:</span>
                 <div class="flex items-center gap-1">
                   <span
                     v-for="cli in (grupo.clientes || [])"
                     :key="'rt-badge-' + cli.cliente_id"
                     class="px-1.5 py-0.2 rounded font-bold border text-[9.5px] flex items-center gap-1 shadow-2xs"
-                    :class="cli.es_mas_antiguo ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'"
+                    :class="cli.es_mas_antiguo ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-rose-100 text-rose-900 border-rose-300'"
                     :title="cli.es_mas_antiguo ? 'Ruta del cliente original' : 'Ruta del cliente posterior'"
                   >
                     <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
@@ -760,12 +749,12 @@
             <template v-else>
               <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3">
                 <!-- Resumen de Coincidencias en la Cabecera del Comparador -->
-                <div class="p-3 bg-slate-50/90 rounded-xl border border-slate-200/90 shadow-2xs space-y-2">
+                <div class="p-3.5 bg-white rounded-xl border-2 border-slate-300 shadow-xs space-y-2.5">
                   <div class="flex items-center justify-between gap-2 flex-wrap">
                     <div class="flex items-center gap-1.5 font-mono">
                       <span class="w-2 h-2 rounded-full bg-slate-800"></span>
-                      <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Coincidencias Identificadas en Conflicto
+                      <span class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Detalle de lo Repetido (Datos Coincidentes en Conflicto)
                       </span>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
@@ -796,11 +785,11 @@
                     <div
                       v-for="(coinc, idx) in obtenerCoincidenciasLegibles(grupoActivo)"
                       :key="idx"
-                      class="px-2.5 py-1 rounded-lg border font-mono text-xs flex items-center gap-1.5 shadow-2xs font-medium"
+                      class="px-2.5 py-1 rounded-lg border-2 font-mono text-xs flex items-center gap-1.5 shadow-2xs font-bold"
                       :class="coinc.clase"
                     >
-                      <span class="font-bold opacity-75 text-[10px] uppercase">{{ coinc.titulo }}:</span>
-                      <span class="font-bold tracking-tight select-all text-slate-900">{{ coinc.valor }}</span>
+                      <span class="opacity-70 text-[10px] uppercase">{{ coinc.titulo }}:</span>
+                      <span class="tracking-tight select-all text-slate-900">{{ coinc.valor }}</span>
                     </div>
                   </div>
 
@@ -836,17 +825,17 @@
                   </div>
                 </div>
 
-                <!-- Grid de Clientes (Lado a Lado) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Grid de Clientes (Lado a Lado con Bordes Distintivos y Claros) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   <div
                     v-for="(cli, idx) in grupoActivo.clientes"
                     :key="cli.cliente_id"
-                    class="p-3.5 rounded-xl border flex flex-col justify-between space-y-3 transition-all relative bg-white"
+                    class="p-4 rounded-xl border-2 flex flex-col justify-between space-y-3.5 transition-all relative bg-white"
                     :class="[
                       cli.es_master_sugerido
-                        ? 'border-slate-800 ring-1 ring-slate-800 shadow-xs'
-                        : 'border-slate-200 shadow-2xs',
-                      clienteFocoId === cli.cliente_id ? 'ring-2 ring-slate-900' : ''
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/15 shadow-sm'
+                        : 'border-rose-400 ring-2 ring-rose-400/15 shadow-sm',
+                      clienteFocoId === cli.cliente_id ? 'ring-3 ring-slate-900' : ''
                     ]"
                   >
                     <!-- Cabecera de la Ficha con Boton para Fijar como Master -->
@@ -925,10 +914,44 @@
                       <p class="text-xs text-slate-500 truncate">{{ cli.direccion || 'Sin dirección registrada' }}</p>
                     </div>
 
+                    <!-- Seccion: Detalle de lo Repetido en la Ficha del Cliente -->
+                    <div
+                      v-if="obtenerCoincidenciasLegibles(grupoActivo).length > 0"
+                      class="p-2.5 rounded-xl border-2 space-y-1.5 font-mono shadow-2xs"
+                      :class="cli.es_mas_antiguo ? 'bg-emerald-50/50 border-emerald-300' : 'bg-rose-50/50 border-rose-300'"
+                    >
+                      <div
+                        class="text-[10px] uppercase font-bold tracking-wider flex items-center justify-between"
+                        :class="cli.es_mas_antiguo ? 'text-emerald-900' : 'text-rose-900'"
+                      >
+                        <span class="flex items-center gap-1.5">
+                          <span class="w-2 h-2 rounded-full" :class="cli.es_mas_antiguo ? 'bg-emerald-600' : 'bg-rose-600'"></span>
+                          <span>Detalle de lo Repetido / Coincidente:</span>
+                        </span>
+                        <span
+                          class="text-[9px] font-sans font-bold px-1.5 py-0.2 rounded bg-white/80 border"
+                          :class="cli.es_mas_antiguo ? 'border-emerald-300 text-emerald-800' : 'border-rose-300 text-rose-800'"
+                        >
+                          {{ cli.es_mas_antiguo ? 'Original' : 'Duplicado' }}
+                        </span>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span
+                          v-for="(coinc, idxCo) in obtenerCoincidenciasLegibles(grupoActivo)"
+                          :key="idxCo"
+                          class="px-2.5 py-1 rounded-lg border-2 font-mono text-xs flex items-center gap-1.5 shadow-2xs font-bold bg-white"
+                          :class="cli.es_mas_antiguo ? 'border-emerald-200 text-emerald-950' : 'border-rose-200 text-rose-950'"
+                        >
+                          <span class="font-normal uppercase text-[9.5px] opacity-75">{{ coinc.titulo }}:</span>
+                          <span>{{ coinc.valor }}</span>
+                        </span>
+                      </div>
+                    </div>
+
                     <!-- Seccion: Historial de Ingreso al Padron -->
                     <div
-                      class="p-2.5 rounded-xl border text-xs font-mono space-y-1 shadow-2xs"
-                      :class="cli.es_mas_antiguo ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'"
+                      class="p-2.5 rounded-xl border-2 text-xs font-mono space-y-1 shadow-2xs"
+                      :class="cli.es_mas_antiguo ? 'bg-emerald-50/40 border-emerald-300' : 'bg-rose-50/40 border-rose-300'"
                     >
                       <div class="flex items-center justify-between text-[10px]">
                         <span class="text-slate-500 font-sans uppercase font-bold tracking-wider">Antigüedad en Padrón:</span>
@@ -959,7 +982,7 @@
                     </div>
 
                     <!-- Seccion: Venta MTD con barra de progreso comparativa (Referencial) -->
-                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 shadow-2xs space-y-1.5 font-mono">
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border-2 border-slate-300 shadow-2xs space-y-1.5 font-mono">
                       <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5">
                           <span class="text-slate-500 font-sans">Venta {{ periodoLabel || 'Mes' }}:</span>
@@ -981,7 +1004,7 @@
                     <!-- Seccion: Atributos de Ruteo con Rutas en Verde (Original) y Rojo (Posterior) -->
                     <div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
                       <div
-                        class="p-2 rounded-xl border transition-colors shadow-2xs"
+                        class="p-2 rounded-xl border-2 transition-colors shadow-2xs"
                         :class="cli.es_mas_antiguo ? 'bg-emerald-50/70 border-emerald-300' : 'bg-rose-50/70 border-rose-300'"
                       >
                         <div class="flex items-center justify-between mb-0.5">
@@ -998,13 +1021,13 @@
                           <span class="font-mono font-bold text-sm" :class="cli.es_mas_antiguo ? 'text-emerald-950' : 'text-rose-950'">{{ cli.ruta }}</span>
                         </div>
                       </div>
-                      <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
+                      <div class="p-1.5 rounded-lg bg-white border-2 border-slate-200">
                         <span class="text-slate-400 block text-[9.5px]">Canal:</span>
                         <span class="font-bold text-slate-800">{{ cli.canal }}</span>
                       </div>
                       <div
-                        class="p-1.5 rounded-lg border transition-colors"
-                        :class="sonDiasDistintos() ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/80'"
+                        class="p-1.5 rounded-lg border-2 transition-colors"
+                        :class="sonDiasDistintos() ? 'bg-amber-50/70 border-amber-300' : 'bg-white border-slate-200'"
                       >
                         <div class="flex items-center justify-between">
                           <span class="text-slate-400 block text-[9.5px]">Día:</span>
@@ -1012,14 +1035,14 @@
                         </div>
                         <span class="font-bold text-slate-800">{{ cli.dia }}</span>
                       </div>
-                      <div class="p-1.5 rounded-lg bg-white border border-slate-200/80">
+                      <div class="p-1.5 rounded-lg bg-white border-2 border-slate-200">
                         <span class="text-slate-400 block text-[9.5px]">Vendedor:</span>
                         <span class="font-medium text-slate-800 truncate block">{{ cli.vendedor || 'S/N' }}</span>
                       </div>
                     </div>
 
                     <!-- Documentos & Contacto con Resaltado de Coincidencias -->
-                    <div class="p-2 rounded-lg bg-white border border-slate-200/80 text-[10.5px] space-y-1 font-mono">
+                    <div class="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-[10.5px] space-y-1 font-mono shadow-2xs">
                       <div class="flex items-center justify-between truncate">
                         <div class="truncate">
                           <span class="text-slate-400">NIT:</span>
@@ -1073,7 +1096,7 @@
                     </div>
 
                     <!-- Seccion: Historial de Modificaciones (Lógica Matriz de Cambios) -->
-                    <div class="rounded-xl bg-white border border-slate-200/90 shadow-2xs overflow-hidden">
+                    <div class="rounded-xl bg-white border-2 border-slate-300 shadow-2xs overflow-hidden">
                       <button
                         type="button"
                         @click="alternarCambiosCliente(cli.cliente_id, cli)"
