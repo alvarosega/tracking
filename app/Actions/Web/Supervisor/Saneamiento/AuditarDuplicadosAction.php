@@ -70,6 +70,7 @@ class AuditarDuplicadosAction
                 DB::raw("TRIM(UPPER(p.ruta)) as ruta"),
                 DB::raw("COALESCE(TRIM(p.dia_norm), TRIM(p.dia), 'SIN DIA') as dia"),
                 DB::raw("COALESCE(TRIM(p.tipo_negocio), '-') as tipo_negocio"),
+                DB::raw("COALESCE(NULLIF(TRIM(p.cluster_t), ''), NULLIF(TRIM(p.cluster_c), ''), '') as cluster_t"),
             ])
             ->get();
 
@@ -139,6 +140,7 @@ class AuditarDuplicadosAction
                 'fecha_servidor' => (string) ($row->fecha_servidor ?? ''),
                 'fecha_dispositivo' => (string) ($row->fecha_dispositivo ?? ''),
                 'tipo_negocio' => (string) $row->tipo_negocio,
+                'cluster_t' => (string) ($row->cluster_t ?? ''),
                 '_tel_norm' => $telNorm,
                 '_cel_norm' => $celNorm,
                 '_factura_norm' => $factNorm,
@@ -750,6 +752,7 @@ class AuditarDuplicadosAction
                     'dia' => $pt['dia'],
                     'vendedor' => $pt['vendedor'] ?? '',
                     'tipo_negocio' => $pt['tipo_negocio'],
+                    'cluster_t' => $pt['cluster_t'] ?? '',
                     'venta_mtd' => round($vMtd, 2),
                     'fecha_ingreso' => $fechaIngreso,
                     'origen_ingreso' => $origenIngreso,

@@ -882,8 +882,23 @@
                         </div>
                       </div>
 
-                      <div class="flex items-start justify-between gap-1">
-                        <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2 flex-wrap min-w-0">
+                          <h3 class="text-sm font-bold text-slate-900 leading-snug">{{ cli.cliente }}</h3>
+                          <span
+                            v-if="cli.cluster_t"
+                            class="shrink-0 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 border border-purple-200 text-[10.5px] font-bold font-mono shadow-2xs"
+                            title="Clúster comercial asignado al cliente"
+                          >
+                            Clúster: {{ cli.cluster_t }}
+                          </span>
+                          <span
+                            v-else
+                            class="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-mono"
+                          >
+                            Sin Clúster
+                          </span>
+                        </div>
                         <span
                           v-if="cli.tiene_cambio_nombre"
                           class="shrink-0 px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9.5px] font-bold font-mono flex items-center gap-1"
