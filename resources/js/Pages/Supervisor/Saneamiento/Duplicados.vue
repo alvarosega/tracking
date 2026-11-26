@@ -500,13 +500,20 @@
                 >
                   <!-- Izquierda: Indicador punto + Nombre + Código ID y Ruta -->
                   <div class="min-w-0 flex-1 truncate">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 min-w-0">
                       <span
                         class="w-2.5 h-2.5 rounded-full shrink-0"
                         :class="cli.es_mas_antiguo ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-rose-600 ring-2 ring-rose-200'"
                         :title="cli.es_mas_antiguo ? 'Original (Primer ingreso)' : 'Ingreso posterior'"
                       ></span>
                       <span class="font-bold text-slate-900 truncate text-[12.5px]">{{ cli.cliente }}</span>
+                      <span
+                        v-if="cli.cluster_t"
+                        class="shrink-0 px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200 text-[9.5px] font-bold font-mono shadow-2xs"
+                        :title="'Clúster: ' + cli.cluster_t"
+                      >
+                        Clúster: {{ cli.cluster_t }}
+                      </span>
                     </div>
                     <div class="text-[10px] font-mono text-slate-600 pt-0.5 pl-4 flex items-center gap-1.5">
                       <span>ID: <strong class="text-slate-900">{{ cli.cliente_id }}</strong></span>
