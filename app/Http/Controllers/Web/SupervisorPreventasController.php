@@ -14,6 +14,7 @@ use App\Actions\Web\Supervisor\Preventas\GetDetalleObjetivoRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleReposicionRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetDetalleVisitasRutaAction;
 use App\Actions\Web\Supervisor\Preventas\GetPedidosRechazadosDataAction;
+use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualEfectividadDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualHorarioDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualObjetivoDataAction;
 use App\Actions\Web\Supervisor\Preventas\GetPizarraVisualVisitasDataAction;
@@ -157,6 +158,20 @@ class SupervisorPreventasController extends Controller
      * Devuelve los datos analíticos, bullet charts, mix de categorías y tickets para el KPI 3 (Objetivo Diario de Venta).
      */
     public function pizarraVisualObjetivoData(Request $request, GetPizarraVisualObjetivoDataAction $action): JsonResponse
+    {
+        $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
+        $canales = (array) $request->input('canales', []);
+        $rutas = (array) $request->input('rutas', []);
+
+        $resultado = $action->execute(fecha: $fecha, canales: $canales, rutas: $rutas);
+
+        return response()->json($resultado);
+    }
+
+    /**
+     * Devuelve los datos analíticos, barras de umbral 80%, brecha de conversión y funnel para el KPI 4 (Efectividad Comercial).
+     */
+    public function pizarraVisualEfectividadData(Request $request, GetPizarraVisualEfectividadDataAction $action): JsonResponse
     {
         $fecha = $request->input('fecha') ? (string) $request->input('fecha') : null;
         $canales = (array) $request->input('canales', []);
