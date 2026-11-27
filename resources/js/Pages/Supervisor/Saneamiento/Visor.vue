@@ -1596,12 +1596,20 @@
                     :class="clienteActivoId === c.id ? 'bg-slate-100 border-slate-700' : 'border-transparent'"
                   >
                     <div class="flex items-start justify-between gap-2">
-                      <div class="flex items-center gap-2 flex-1 min-w-0">
+                      <div class="flex items-center gap-1.5 flex-1 min-w-0">
                         <span
                           @click="abrirExpedienteCliente(c)"
-                          class="text-xs font-semibold text-slate-900 group-hover:text-slate-700 transition-colors line-clamp-1 cursor-pointer flex-1"
+                          class="text-xs font-semibold text-slate-900 group-hover:text-slate-700 transition-colors truncate cursor-pointer"
+                          :title="c.nombre"
                         >
                           {{ c.nombre }}
+                        </span>
+                        <span
+                          v-if="c.cluster_t"
+                          class="shrink-0 px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200 text-[9px] font-bold font-mono shadow-2xs"
+                          :title="'Clúster: ' + c.cluster_t"
+                        >
+                          Clúster: {{ c.cluster_t }}
                         </span>
                       </div>
 
@@ -1780,7 +1788,16 @@
             <div class="p-3.5 bg-white border-b border-slate-100 shrink-0 space-y-2.5">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                  <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.nombre }}</h3>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ clienteSeleccionado.nombre }}</h3>
+                    <span
+                      v-if="clienteSeleccionado.cluster_t"
+                      class="shrink-0 px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200 text-[9.5px] font-bold font-mono shadow-2xs"
+                      :title="'Clúster: ' + clienteSeleccionado.cluster_t"
+                    >
+                      Clúster: {{ clienteSeleccionado.cluster_t }}
+                    </span>
+                  </div>
                   <p class="text-[11px] text-slate-500 mt-0.5">{{ clienteSeleccionado.direccion || 'Sin dirección registrada' }}</p>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
@@ -2861,9 +2878,18 @@
 
               <!-- Nombre y Dirección + Acciones Rápidas -->
               <div class="mt-1 min-w-0">
-                <h3 class="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 leading-snug" :title="modalAjusteRtm.cliente?.nombre">
-                  {{ modalAjusteRtm.cliente?.nombre }}
-                </h3>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <h3 class="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 leading-snug" :title="modalAjusteRtm.cliente?.nombre">
+                    {{ modalAjusteRtm.cliente?.nombre }}
+                  </h3>
+                  <span
+                    v-if="modalAjusteRtm.cliente?.cluster_t"
+                    class="shrink-0 px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 text-[10px] font-bold font-mono shadow-2xs"
+                    :title="'Clúster: ' + modalAjusteRtm.cliente.cluster_t"
+                  >
+                    Clúster: {{ modalAjusteRtm.cliente.cluster_t }}
+                  </span>
+                </div>
                 <div class="flex items-center justify-between gap-2 mt-0.5">
                   <p class="text-[10.5px] text-slate-500 truncate flex-1" :title="modalAjusteRtm.cliente?.direccion">
                     {{ modalAjusteRtm.cliente?.direccion || 'Sin dirección registrada' }}

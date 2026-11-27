@@ -205,7 +205,8 @@ class GetRuteoDataAction
         $clientesRaw = $queryClientes->select([
             'id', 'cliente_id', 'cliente', 'vendedor', 'tipo_negocio',
             'direccion', 'contacto', 'celular', 'latitud', 'longitud',
-            'estado', 'ruta', 'dia_norm'
+            'estado', 'ruta', 'dia_norm',
+            DB::raw("COALESCE(NULLIF(TRIM(cluster_t), ''), NULLIF(TRIM(cluster_c), ''), '') as cluster_t"),
         ])->get();
 
         // 3. Consulta agregada de métricas históricas de fact_ventas (Mes actual y mes anterior)
@@ -470,6 +471,7 @@ class GetRuteoDataAction
                 'id' => $c->id,
                 'cliente_id' => $c->cliente_id,
                 'nombre' => $c->cliente,
+                'cluster_t' => trim((string) ($c->cluster_t ?? '')),
                 'tipo_negocio' => $c->tipo_negocio ?? 'General',
                 'direccion' => $c->direccion ?? 'Sin dirección registrada',
                 'contacto' => $c->contacto,
