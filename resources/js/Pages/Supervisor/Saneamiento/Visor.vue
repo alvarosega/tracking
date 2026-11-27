@@ -423,6 +423,21 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
+
+          <!-- 10. CLÚSTER COMERCIAL (Dropdown) -->
+          <button
+            type="button"
+            @click.stop="toggleMenu('clusters', $event)"
+            class="h-8 px-2.5 bg-slate-50 hover:bg-slate-100/90 border rounded-lg text-xs font-medium text-slate-800 flex items-center gap-1.5 transition-all cursor-pointer select-none shrink-0 shadow-2xs"
+            :class="menuAbierto === 'clusters' || filtroClusters.length > 0 ? 'border-purple-400 bg-purple-50/80 text-purple-950 font-semibold shadow-xs' : 'border-slate-200/90 hover:border-slate-300'"
+            title="Filtrar clientes y mapa por clúster comercial"
+          >
+            <span class="text-slate-400 font-normal">Clúster:</span>
+            <span class="font-bold font-mono" :class="filtroClusters.length > 0 ? 'text-purple-900' : 'text-slate-900'">{{ labelClusters }}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -743,6 +758,56 @@
             <span class="text-[10px] text-slate-500 font-mono">
               Actualiza Balance y Matriz
             </span>
+            <button
+              type="button"
+              @click="menuAbierto = null"
+              class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+            >
+              Listo
+            </button>
+          </div>
+        </div>
+
+        <!-- Menú Desplegable: Filtro por Clúster Comercial -->
+        <div
+          v-if="menuAbierto === 'clusters'"
+          @click.stop
+          :style="{ top: `${posicionMenu.top}px`, left: `${posicionMenu.left}px` }"
+          class="fixed w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5 z-[99999] text-xs font-sans"
+        >
+          <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
+            <span class="font-bold text-[11px] text-slate-700 uppercase tracking-tight">Clúster Comercial</span>
+            <div class="flex items-center gap-2">
+              <button type="button" @click="seleccionarTodosClusters" class="text-[11px] text-purple-700 font-semibold hover:underline cursor-pointer">Todos</button>
+              <button type="button" @click="limpiarClusters" class="text-[11px] text-slate-500 font-medium hover:underline cursor-pointer">Limpiar</button>
+            </div>
+          </div>
+          <div class="max-h-56 overflow-y-auto space-y-1 custom-scroll pr-0.5">
+            <div v-if="clustersDisponibles.length === 0" class="py-3 text-center text-slate-400 text-[11px]">
+              Consulta clientes para ver los clústeres disponibles
+            </div>
+            <label
+              v-for="cl in clustersDisponibles"
+              :key="cl.key"
+              class="flex items-center justify-between gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer select-none"
+              :class="filtroClusters.includes(cl.key) ? 'bg-purple-50/70' : ''"
+            >
+              <div class="flex items-center gap-2 truncate">
+                <input
+                  type="checkbox"
+                  :value="cl.key"
+                  v-model="filtroClusters"
+                  @change="renderizarEnMapa(true)"
+                  class="rounded border-slate-300 text-purple-700 focus:ring-0 cursor-pointer"
+                />
+                <span class="font-mono font-semibold text-slate-800 truncate">{{ cl.label }}</span>
+              </div>
+              <span class="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-bold shrink-0">
+                {{ cl.conteo }}
+              </span>
+            </label>
+          </div>
+          <div class="pt-2 mt-1.5 border-t border-slate-100 flex justify-end">
             <button
               type="button"
               @click="menuAbierto = null"
@@ -1149,6 +1214,36 @@
                     :class="mesesHistoricosSeleccionados.length === 1 && mesesHistoricosSeleccionados[0] === periodosHistoricos[0]?.periodo ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-700 border-slate-200'"
                   >
                     Solo Actual
+                  </button>
+                </div>
+              </div>
+
+              <!-- 7B. Clúster Comercial (Móvil) -->
+              <div v-if="clustersDisponibles.length > 0">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                    Clúster ({{ labelClusters }})
+                  </label>
+                  <button
+                    v-if="filtroClusters.length > 0"
+                    type="button"
+                    @click="limpiarClusters"
+                    class="text-[11px] text-purple-700 font-semibold hover:underline cursor-pointer"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="cl in clustersDisponibles"
+                    :key="cl.key"
+                    type="button"
+                    @click="toggleClusterMovil(cl.key)"
+                    class="px-2 py-1 rounded-lg text-[11px] font-mono font-semibold border transition-all cursor-pointer flex items-center gap-1"
+                    :class="filtroClusters.includes(cl.key) ? 'bg-purple-700 text-white border-purple-700 shadow-2xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
+                  >
+                    <span>{{ cl.label }}</span>
+                    <span class="text-[9.5px] opacity-80">({{ cl.conteo }})</span>
                   </button>
                 </div>
               </div>
@@ -3451,6 +3546,66 @@ const guardandoReasignacionMasiva = ref(false);
 const filtroCanales = ref(props.canales?.includes('TDB') ? ['TDB'] : (props.canales?.[0] ? [props.canales[0]] : []));
 const filtroRutas = ref([]);
 const filtroDias = ref([]);
+const filtroClusters = ref([]);
+const SIN_CLUSTER_KEY = '__SIN_CLUSTER__';
+
+function getClusterClaveCliente(c) {
+  const val = String(c?.cluster_t || '').trim();
+  return val !== '' ? val.toUpperCase() : SIN_CLUSTER_KEY;
+}
+
+function cumpleFiltroCluster(c) {
+  if (filtroClusters.value.length === 0) return true;
+  return filtroClusters.value.includes(getClusterClaveCliente(c));
+}
+
+const clustersDisponibles = computed(() => {
+  const mapCounts = new Map();
+  (clientes.value || []).forEach(c => {
+    const key = getClusterClaveCliente(c);
+    if (!mapCounts.has(key)) {
+      mapCounts.set(key, {
+        key,
+        label: key === SIN_CLUSTER_KEY ? 'Sin Clúster' : String(c.cluster_t).trim(),
+        conteo: 0,
+      });
+    }
+    mapCounts.get(key).conteo++;
+  });
+  return Array.from(mapCounts.values()).sort((a, b) => {
+    if (a.key === SIN_CLUSTER_KEY) return 1;
+    if (b.key === SIN_CLUSTER_KEY) return -1;
+    return a.label.localeCompare(b.label, undefined, { numeric: true });
+  });
+});
+
+const labelClusters = computed(() => {
+  if (filtroClusters.value.length === 0) return 'Todos';
+  if (filtroClusters.value.length === 1) {
+    const found = clustersDisponibles.value.find(c => c.key === filtroClusters.value[0]);
+    return found ? found.label : (filtroClusters.value[0] === SIN_CLUSTER_KEY ? 'Sin Clúster' : filtroClusters.value[0]);
+  }
+  return `${filtroClusters.value.length} sel.`;
+});
+
+function seleccionarTodosClusters() {
+  filtroClusters.value = clustersDisponibles.value.map(c => c.key);
+  renderizarEnMapa(true);
+}
+
+function limpiarClusters() {
+  filtroClusters.value = [];
+  renderizarEnMapa(true);
+}
+
+function toggleClusterMovil(key) {
+  if (filtroClusters.value.includes(key)) {
+    filtroClusters.value = filtroClusters.value.filter(k => k !== key);
+  } else {
+    filtroClusters.value.push(key);
+  }
+  renderizarEnMapa(true);
+}
 const verFronteraRutas = ref(true);
 const verFronteraDias = ref(true);
 
@@ -3845,6 +4000,10 @@ const rutasFiltradasParaAjuste = computed(() => {
 const clientesFiltradosLista = computed(() => {
   let list = clientes.value;
 
+  if (filtroClusters.value.length > 0) {
+    list = list.filter(c => cumpleFiltroCluster(c));
+  }
+
   if (filtroSoloMultidia.value || filtroSubListaLateral.value === 'multidia') {
     list = list.filter(c => Boolean(c.es_multidia));
   } else if (filtroSubListaLateral.value === 'cambios') {
@@ -3857,6 +4016,7 @@ const clientesFiltradosLista = computed(() => {
     (c.nombre && c.nombre.toLowerCase().includes(q)) ||
     (c.cliente_id && String(c.cliente_id).includes(q)) ||
     (c.ruta && c.ruta.toLowerCase().includes(q)) ||
+    (c.cluster_t && c.cluster_t.toLowerCase().includes(q)) ||
     (c.dias_asignados && c.dias_asignados.some(d => d.toLowerCase().includes(q)))
   );
 });
@@ -3951,6 +4111,7 @@ const balanceRtmPorRuta = computed(() => {
   const clientesContabilizadosPorRuta = new Map();
 
   clientes.value.forEach(c => {
+    if (!cumpleFiltroCluster(c)) return;
     // En Base Original usamos ruta_original y dia_original (de plan ruteo)
     // En Con Cambios usamos ruta y dia_norm efectivos (propuestas de la tabla de modificados)
     const rKey = normalizarRutaClave(esOrig ? (c.ruta_original || c.ruta) : (c.ruta || c.ruta_original)) || 'SIN RUTA';
@@ -4063,6 +4224,7 @@ const elementosLeyenda = computed(() => {
 
   clientes.value.forEach(c => {
     if (!c.tiene_gps) return;
+    if (!cumpleFiltroCluster(c)) return;
     const rKey = normalizarRutaClave(c.ruta);
     if (!setRutasPuntosPermitidas.has(rKey)) return;
 
@@ -7001,6 +7163,9 @@ function renderizarEnMapa(mantenerVista = false) {
 
   clientes.value.forEach(c => {
     if (c.tiene_gps) {
+      if (!cumpleFiltroCluster(c)) {
+        return;
+      }
       if (filtroSoloMultidia.value && !c.es_multidia) {
         return;
       }
