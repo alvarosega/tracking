@@ -2211,6 +2211,20 @@
               class="h-6 px-2 text-[11px] bg-white border border-slate-300 rounded font-mono placeholder:text-slate-400 focus:outline-none"
             />
 
+            <!-- Botón Ver Todos los Cambios (Historial Global de Propuestas) -->
+            <button
+              v-if="tablaCambiosVisible || vistaMovil === 'cambios'"
+              type="button"
+              @click="abrirModalTodosCambios"
+              class="h-6 px-2.5 rounded text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 shrink-0"
+              title="Ver historial completo de todos los cambios y propuestas registradas"
+            >
+              <svg class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+              </svg>
+              <span>Ver todos los cambios</span>
+            </button>
+
             <!-- Botón Descargar Excel de Propuestas Pendientes -->
             <button
               v-if="tablaCambiosVisible || vistaMovil === 'cambios'"
@@ -2796,6 +2810,22 @@
           <div class="h-4 w-px bg-slate-700 hidden sm:block"></div>
 
           <div class="flex items-center gap-2 flex-wrap">
+            <!-- Botón Descartar Propuestas Seleccionadas Masivamente -->
+            <button
+              v-if="propuestasSeleccionadasIds.length > 0"
+              type="button"
+              @click="ejecutarDescarteMasivo"
+              :disabled="descartandoMasivo"
+              class="px-3 py-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Descartar en lote todas las propuestas seleccionadas y revertir al estado original"
+            >
+              <span v-if="descartandoMasivo" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+              <span>{{ descartandoMasivo ? 'Descartando...' : `Descartar (${propuestasSeleccionadasIds.length})` }}</span>
+            </button>
+
             <!-- Botón Activar Seleccionados -->
             <button
               type="button"
@@ -3361,6 +3391,191 @@
         </div>
       </Teleport>
 
+      <!-- MODAL: VER TODOS LOS CAMBIOS Y PROPUESTAS (HISTORIAL COMPLETO) -->
+      <Teleport to="body">
+        <div
+          v-if="modalTodosCambios.show"
+          class="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
+          @click.self="modalTodosCambios.show = false"
+        >
+          <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden text-slate-900 font-sans">
+            <!-- Header -->
+            <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900 font-mono uppercase tracking-wide flex items-center gap-2">
+                  <span>Todos los Cambios y Propuestas</span>
+                  <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 text-[10px]">
+                    {{ modalTodosCambios.items.length }} registros
+                  </span>
+                </h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">
+                  Historial global de propuestas registradas en el sistema (pendientes, aplicadas y descartadas)
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="modalTodosCambios.show = false"
+                class="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
+                title="Cerrar"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Barra de filtros del modal -->
+            <div class="px-4 py-2 bg-white border-b border-slate-200 flex items-center justify-between gap-2 flex-wrap shrink-0">
+              <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-mono text-[11px]">
+                <button
+                  v-for="est in [
+                    { key: 'TODOS', label: 'Todos' },
+                    { key: 'PENDIENTE', label: 'Pendientes' },
+                    { key: 'APLICADO', label: 'Aplicados' },
+                    { key: 'DESCARTADO', label: 'Descartados' },
+                  ]"
+                  :key="est.key"
+                  type="button"
+                  @click="modalTodosCambios.estado = est.key; cargarTodosCambios();"
+                  class="px-2.5 py-1 rounded-md transition-all cursor-pointer font-semibold"
+                  :class="modalTodosCambios.estado === est.key ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                >
+                  {{ est.label }}
+                </button>
+              </div>
+
+              <div class="flex items-center gap-2 flex-1 justify-end min-w-[220px]">
+                <input
+                  v-model="modalTodosCambios.busqueda"
+                  @keyup.enter="cargarTodosCambios"
+                  type="text"
+                  placeholder="Buscar por cliente, ID o ruta..."
+                  class="h-7 px-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono focus:outline-none focus:border-slate-500 w-56"
+                />
+                <button
+                  type="button"
+                  @click="cargarTodosCambios"
+                  :disabled="modalTodosCambios.cargando"
+                  class="h-7 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                >
+                  Buscar
+                </button>
+                <button
+                  v-if="modalTodosCambios.seleccionados.length > 0"
+                  type="button"
+                  @click="descartarSeleccionadosModalTodos"
+                  :disabled="descartandoMasivo"
+                  class="h-7 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                >
+                  <span>Descartar ({{ modalTodosCambios.seleccionados.length }})</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabla del historial -->
+            <div class="flex-1 overflow-auto custom-scroll">
+              <div v-if="modalTodosCambios.cargando" class="py-12 text-center text-xs text-slate-400 font-mono flex items-center justify-center gap-2">
+                <span class="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                <span>Cargando historial completo de cambios...</span>
+              </div>
+
+              <div v-else-if="modalTodosCambios.items.length === 0" class="py-12 text-center text-xs text-slate-400">
+                No se encontraron propuestas con los filtros seleccionados.
+              </div>
+
+              <table v-else class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-50 text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 z-10">
+                  <tr>
+                    <th class="py-2 px-2.5 w-8 text-center">
+                      <input
+                        type="checkbox"
+                        :checked="todosModalCambiosSeleccionados"
+                        @change="toggleSeleccionarTodosModalCambios"
+                        class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                      />
+                    </th>
+                    <th class="py-2 px-3 font-bold">ID Cli</th>
+                    <th class="py-2 px-3 font-bold">Cliente</th>
+                    <th class="py-2 px-3 font-bold">Ruta</th>
+                    <th class="py-2 px-3 font-bold">Día</th>
+                    <th class="py-2 px-3 font-bold">Estado</th>
+                    <th class="py-2 px-3 font-bold">Observación</th>
+                    <th class="py-2 px-3 font-bold">Fecha</th>
+                    <th class="py-2 px-3 font-bold text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr
+                    v-for="p in modalTodosCambios.items"
+                    :key="p.id"
+                    class="hover:bg-slate-50/80 transition-colors"
+                    :class="modalTodosCambios.seleccionados.includes(p.id) ? 'bg-rose-50/40' : ''"
+                  >
+                    <td class="py-2 px-2.5 text-center">
+                      <input
+                        v-if="p.estado !== 'DESCARTADO'"
+                        type="checkbox"
+                        :value="p.id"
+                        v-model="modalTodosCambios.seleccionados"
+                        class="rounded border-slate-300 text-rose-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                      />
+                    </td>
+                    <td class="py-2 px-3 font-mono text-slate-500 text-[11px] whitespace-nowrap">{{ p.cliente_id_origen }}</td>
+                    <td class="py-2 px-3 font-semibold text-slate-900 max-w-[200px] truncate" :title="p.cliente_nombre">{{ p.cliente_nombre }}</td>
+                    <td class="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
+                      <span class="text-slate-400">{{ formatRuta(p.ruta_actual) }}</span>
+                      <span class="text-slate-300 mx-1">-></span>
+                      <span class="font-bold text-slate-900">{{ formatRuta(p.ruta_propuesta) }}</span>
+                    </td>
+                    <td class="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
+                      <span class="text-slate-400">{{ p.dia_actual || 'S/D' }}</span>
+                      <span class="text-slate-300 mx-1">-></span>
+                      <span class="font-bold text-slate-900">{{ p.dia_propuesto || 'S/D' }}</span>
+                    </td>
+                    <td class="py-2 px-3 whitespace-nowrap">
+                      <span
+                        class="text-[9.5px] font-mono uppercase font-bold px-1.5 py-0.5 rounded border"
+                        :class="{
+                          'bg-amber-50 text-amber-800 border-amber-200': p.estado === 'PENDIENTE',
+                          'bg-emerald-50 text-emerald-800 border-emerald-200': p.estado === 'APLICADO',
+                          'bg-slate-100 text-slate-500 border-slate-200 line-through': p.estado === 'DESCARTADO',
+                        }"
+                      >
+                        {{ p.estado }}
+                      </span>
+                    </td>
+                    <td class="py-2 px-3 text-[11px] text-slate-600 max-w-[220px] truncate" :title="p.observaciones">{{ p.observaciones || '-' }}</td>
+                    <td class="py-2 px-3 font-mono text-[10.5px] text-slate-500 whitespace-nowrap">{{ p.creado_en || '-' }}</td>
+                    <td class="py-2 px-3 text-right whitespace-nowrap">
+                      <button
+                        v-if="p.estado !== 'DESCARTADO'"
+                        type="button"
+                        @click="descartarPropuestaDesdeModalTodos(p)"
+                        class="px-2 py-0.5 text-[10.5px] font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded cursor-pointer transition-colors"
+                      >
+                        Descartar
+                      </button>
+                      <span v-else class="text-[10px] text-slate-400 font-mono">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                @click="modalTodosCambios.show = false"
+                class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- VISOR LIGHTBOX MODAL CON ROTACIÓN -->
       <PhotoLightboxModal
         :show="fotoLightbox.show"
@@ -3459,6 +3674,170 @@ const subHerramientaRtm = ref('fronteras');
 const clientesSeleccionadosIds = ref([]);
 const activandoClienteId = ref(null);
 const activandoMasivo = ref(false);
+const descartandoMasivo = ref(false);
+
+const propuestasSeleccionadasIds = computed(() => {
+  if (clientesSeleccionadosIds.value.length === 0) return [];
+  const idsSet = new Set(clientesSeleccionadosIds.value.map(String));
+  const propIds = new Set();
+  clientes.value.forEach(c => {
+    if (idsSet.has(String(c.cliente_id || c.id)) && c.propuesta_id) {
+      propIds.add(Number(c.propuesta_id));
+    }
+  });
+  return Array.from(propIds);
+});
+
+const modalTodosCambios = ref({
+  show: false,
+  cargando: false,
+  estado: 'TODOS',
+  busqueda: '',
+  items: [],
+  seleccionados: [],
+});
+
+const todosModalCambiosSeleccionados = computed(() => {
+  const descartables = modalTodosCambios.value.items.filter(p => p.estado !== 'DESCARTADO');
+  if (descartables.length === 0) return false;
+  return descartables.every(p => modalTodosCambios.value.seleccionados.includes(p.id));
+});
+
+function toggleSeleccionarTodosModalCambios() {
+  const descartables = modalTodosCambios.value.items.filter(p => p.estado !== 'DESCARTADO');
+  if (todosModalCambiosSeleccionados.value) {
+    modalTodosCambios.value.seleccionados = [];
+  } else {
+    modalTodosCambios.value.seleccionados = descartables.map(p => p.id);
+  }
+}
+
+async function abrirModalTodosCambios() {
+  modalTodosCambios.value.show = true;
+  modalTodosCambios.value.seleccionados = [];
+  await cargarTodosCambios();
+}
+
+async function cargarTodosCambios() {
+  modalTodosCambios.value.cargando = true;
+  modalTodosCambios.value.seleccionados = [];
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.propuestas.historial')
+      : '/supervisor/saneamiento/propuestas/historial';
+    const res = await axios.post(url, {
+      estado: modalTodosCambios.value.estado,
+      busqueda: modalTodosCambios.value.busqueda?.trim() || null,
+      limit: 500,
+    });
+    modalTodosCambios.value.items = Array.isArray(res.data) ? res.data : (res.data?.propuestas || []);
+  } catch (err) {
+    console.error('Error al cargar historial de cambios:', err);
+    modalTodosCambios.value.items = [];
+  } finally {
+    modalTodosCambios.value.cargando = false;
+  }
+}
+
+async function descartarPropuestaDesdeModalTodos(p) {
+  if (!p?.id || !confirm(`¿Descartar la propuesta #${p.id} de ${p.cliente_nombre}?`)) return;
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.propuestas.actualizar-estado')
+      : '/supervisor/saneamiento/propuestas/actualizar-estado';
+    const res = await axios.post(url, { propuesta_id: p.id, estado: 'DESCARTADO' });
+    if (res.data?.status === 'ok') {
+      mostrarToast('Propuesta descartada exitosamente.');
+      await Promise.all([cargarTodosCambios(), cargarDatos(true)]);
+    }
+  } catch (err) {
+    console.error('Error al descartar propuesta:', err);
+    alert('Error al descartar propuesta.');
+  }
+}
+
+async function descartarSeleccionadosModalTodos() {
+  const ids = [...modalTodosCambios.value.seleccionados];
+  if (ids.length === 0) return;
+  if (!confirm(`¿Deseas descartar masivamente las ${ids.length} propuesta(s) seleccionada(s)?`)) return;
+  descartandoMasivo.value = true;
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.propuestas.actualizar-estado-masivo')
+      : '/supervisor/saneamiento/propuestas/actualizar-estado-masivo';
+    const res = await axios.post(url, { ids, estado: 'DESCARTADO' });
+    if (res.data?.status === 'ok') {
+      mostrarToast(`Se descartaron ${res.data.actualizados ?? ids.length} propuesta(s) exitosamente.`);
+      await Promise.all([cargarTodosCambios(), cargarDatos(true)]);
+    }
+  } catch (err) {
+    console.error('Error al descartar propuestas en lote:', err);
+    alert('Error al descartar propuestas: ' + (err.response?.data?.message || err.message));
+  } finally {
+    descartandoMasivo.value = false;
+  }
+}
+
+async function ejecutarDescarteMasivo() {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
+  const ids = [...propuestasSeleccionadasIds.value];
+  if (ids.length === 0) return;
+  if (!confirm(`¿Deseas descartar las ${ids.length} propuesta(s) seleccionada(s) y revertir esos clientes a su ruta y día originales?`)) {
+    return;
+  }
+
+  descartandoMasivo.value = true;
+  const propIdsSet = new Set(ids.map(Number));
+
+  // Optimistic update local
+  clientes.value = clientes.value.map(c => {
+    if (c.propuesta_id && propIdsSet.has(Number(c.propuesta_id))) {
+      return {
+        ...c,
+        ruta: c.ruta_original || c.ruta,
+        dia_norm: c.dia_original || c.dia_norm,
+        ruta_propuesta: null,
+        dia_propuesto: null,
+        tiene_cambio: false,
+        tiene_propuesta: false,
+        propuesta_id: null,
+        propuesta_estado: null,
+        observaciones_propuesta: null,
+      };
+    }
+    return c;
+  });
+
+  clientesSeleccionadosIds.value = [];
+  if (map) {
+    map.closePopup();
+  }
+  renderizarEnMapa(true);
+
+  try {
+    const url = typeof route === 'function'
+      ? route('supervisor.saneamiento.propuestas.actualizar-estado-masivo')
+      : '/supervisor/saneamiento/propuestas/actualizar-estado-masivo';
+    const res = await axios.post(url, {
+      ids,
+      estado: 'DESCARTADO',
+    });
+
+    if (res.data?.status === 'ok') {
+      mostrarToast(`Se descartaron ${res.data.actualizados ?? ids.length} propuesta(s) exitosamente.`);
+      await cargarDatos(true);
+    } else {
+      alert(res.data?.message || 'No se pudieron descartar las propuestas.');
+      await cargarDatos(true);
+    }
+  } catch (err) {
+    console.error('Error en descarte masivo:', err);
+    alert('Error al descartar propuestas: ' + (err.response?.data?.message || err.message));
+    await cargarDatos(true);
+  } finally {
+    descartandoMasivo.value = false;
+  }
+}
 
 const clientesInactivosSeleccionadosCount = computed(() => {
   if (clientesSeleccionadosIds.value.length === 0) return 0;
@@ -7369,6 +7748,11 @@ if (typeof window !== 'undefined') {
 function manejarKeydownGlobal(e) {
   // Manejo de tecla Escape para cerrar modal o lightbox
   if (e.key === 'Escape') {
+    if (modalTodosCambios.value.show) {
+      e.preventDefault();
+      modalTodosCambios.value.show = false;
+      return;
+    }
     if (modalAjusteRtm.value.show) {
       e.preventDefault();
       cerrarModalAjusteRtm();
