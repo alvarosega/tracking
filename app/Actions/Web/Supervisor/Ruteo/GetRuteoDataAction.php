@@ -111,29 +111,31 @@ class GetRuteoDataAction
             ];
         }
 
-        // 1. Consultar propuestas activas de auditoria_saneamiento_propuestas
-        $propuestasRows = DB::connection('supervisor')
-            ->table('auditoria_saneamiento_propuestas')
-            ->whereIn('estado', ['PENDIENTE', 'APLICADO'])
-            ->orderBy('id', 'desc')
-            ->get();
-
+        // 1. Consultar propuestas activas de auditoria_saneamiento_propuestas solo fuera del modo original puro
         $propuestasMap = [];
         $cidsOrigenEnRutas = [];
         $cidsDestinoEnRutas = [];
 
-        foreach ($propuestasRows as $p) {
-            $cid = (int) $p->cliente_id_origen;
-            if (!isset($propuestasMap[$cid])) {
-                $propuestasMap[$cid] = $p;
-                $rAct = strtoupper(trim((string)$p->ruta_actual));
-                $rProp = strtoupper(trim((string)$p->ruta_propuesta));
+        if ($modoVista !== 'original') {
+            $propuestasRows = DB::connection('supervisor')
+                ->table('auditoria_saneamiento_propuestas')
+                ->whereIn('estado', ['PENDIENTE', 'APLICADO'])
+                ->orderBy('id', 'desc')
+                ->get();
 
-                if (in_array($rAct, $rutasUpper, true)) {
-                    $cidsOrigenEnRutas[] = $cid;
-                }
-                if (in_array($rProp, $rutasUpper, true)) {
-                    $cidsDestinoEnRutas[] = $cid;
+            foreach ($propuestasRows as $p) {
+                $cid = (int) $p->cliente_id_origen;
+                if (!isset($propuestasMap[$cid])) {
+                    $propuestasMap[$cid] = $p;
+                    $rAct = strtoupper(trim((string)$p->ruta_actual));
+                    $rProp = strtoupper(trim((string)$p->ruta_propuesta));
+
+                    if (in_array($rAct, $rutasUpper, true)) {
+                        $cidsOrigenEnRutas[] = $cid;
+                    }
+                    if (in_array($rProp, $rutasUpper, true)) {
+                        $cidsDestinoEnRutas[] = $cid;
+                    }
                 }
             }
         }

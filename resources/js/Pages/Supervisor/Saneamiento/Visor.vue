@@ -51,6 +51,7 @@
               {{ modoPrincipal === 'ajuste_rtm' ? 'Balance' : 'Lista' }}
             </button>
             <button
+              v-if="modoPrincipal === 'ajuste_rtm'"
               type="button"
               @click="vistaMovil = 'cambios'"
               class="px-2 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
@@ -166,31 +167,6 @@
               </button>
             </div>
 
-            <!-- Sub-modos Visualización Desktop: [ Base Original | Con Cambios (N) ] -->
-            <div v-if="modoPrincipal === 'visualizacion'" class="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0">
-              <button
-                type="button"
-                @click="setSubModoVisualizacion('original')"
-                class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1"
-                :class="subModoVisualizacion === 'original' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
-                title="Ver datos originales inmutables de pan_ruteo"
-              >
-                <span>Base Original</span>
-              </button>
-              <button
-                type="button"
-                @click="setSubModoVisualizacion('cambios')"
-                class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5"
-                :class="subModoVisualizacion === 'cambios' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
-                title="Ver padrón integrando propuestas de saneamiento registradas"
-              >
-                <span>Con Cambios</span>
-                <span v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 font-bold">
-                  {{ kpis.total_propuestas || kpis.con_cambios }}
-                </span>
-              </button>
-            </div>
-
             <div class="h-5 w-px bg-slate-200 shrink-0"></div>
 
             <!-- BOTÓN CONSULTAR (Desktop) -->
@@ -243,10 +219,10 @@
               <span class="tabular-nums">{{ kpis.total_multidia }} Varios Días</span>
             </div>
 
-            <div v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
+            <div v-if="modoPrincipal === 'ajuste_rtm' && (kpis.total_propuestas || kpis.con_cambios) > 0" class="flex px-2 py-0.5 bg-slate-100 text-slate-900 border border-slate-300 rounded-md items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
               <span class="font-bold tabular-nums">
-                {{ modoPrincipal === 'visualizacion' && subModoVisualizacion === 'original' ? `${kpis.total_propuestas || kpis.con_cambios} propuestas` : `${kpis.con_cambios} cambios aplicados` }}
+                {{ `${kpis.con_cambios} cambios aplicados` }}
               </span>
             </div>
 
@@ -844,29 +820,6 @@
                     Ajuste RTM
                   </button>
                 </div>
-
-                <!-- Sub-modo si Visualización: Original vs Con Cambios -->
-                <div v-if="modoPrincipal === 'visualizacion'" class="grid grid-cols-2 gap-1.5 p-1 bg-slate-50 rounded-xl border border-slate-200 mt-2">
-                  <button
-                    type="button"
-                    @click="setSubModoVisualizacion('original')"
-                    class="py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer"
-                    :class="subModoVisualizacion === 'original' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500'"
-                  >
-                    Base Original
-                  </button>
-                  <button
-                    type="button"
-                    @click="setSubModoVisualizacion('cambios')"
-                    class="py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer flex items-center justify-center gap-1.5"
-                    :class="subModoVisualizacion === 'cambios' ? 'bg-slate-900 text-white shadow-2xs font-bold' : 'text-slate-500'"
-                  >
-                    <span>Con Cambios</span>
-                    <span v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-white/20 font-bold">
-                      {{ kpis.total_propuestas || kpis.con_cambios }}
-                    </span>
-                  </button>
-                </div>
               </div>
 
               <!-- 2. Filtro Canales -->
@@ -1214,7 +1167,7 @@
                   <span>Inactivos:</span>
                   <span>{{ kpis.inactivos }}</span>
                 </div>
-                <div v-if="(kpis.total_propuestas || kpis.con_cambios) > 0" class="flex items-center justify-between text-sky-900 font-bold">
+                <div v-if="modoPrincipal === 'ajuste_rtm' && (kpis.total_propuestas || kpis.con_cambios) > 0" class="flex items-center justify-between text-sky-900 font-bold">
                   <span>Propuestas / Cambios:</span>
                   <span>{{ kpis.total_propuestas || kpis.con_cambios }}</span>
                 </div>
@@ -1584,16 +1537,8 @@
 
               <!-- Vista 1A: Listado de Clientes Filtrables -->
               <template v-if="tabLateral === 'lista'">
-                <!-- Buscador de Clientes y Selección -->
+                <!-- Buscador de Clientes (Solo Lectura) -->
                 <div class="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center space-x-2">
-                  <div class="flex items-center pl-1" title="Seleccionar / deseleccionar todos los clientes filtrados">
-                    <input
-                      type="checkbox"
-                      :checked="todosClientesFiltradosSeleccionados"
-                      @change="toggleSeleccionarTodosClientes"
-                      class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5"
-                    />
-                  </div>
                   <div class="relative flex-1">
                     <input
                       v-model="busquedaCliente"
@@ -1607,7 +1552,7 @@
                   </div>
                 </div>
 
-                <!-- Sub-pestañas de filtrado en lista lateral: Todos | Varios Días | Con Cambios -->
+                <!-- Sub-pestañas de filtrado en lista lateral: Todos | Varios Días -->
                 <div class="px-2.5 py-1.5 bg-white border-b border-slate-100 flex items-center gap-1 text-[11px] select-none">
                   <button
                     type="button"
@@ -1629,17 +1574,6 @@
                     <span class="w-1.5 h-1.5 rounded-full" :class="filtroSubListaLateral === 'multidia' || filtroSoloMultidia ? 'bg-white' : 'bg-purple-600'"></span>
                     <span>Varios Días</span>
                     <span class="text-[9.5px] opacity-90 font-mono font-bold">({{ kpis.total_multidia || 0 }})</span>
-                  </button>
-
-                  <button
-                    v-if="(kpis.total_propuestas || kpis.con_cambios) > 0"
-                    type="button"
-                    @click="setSubListaLateral('cambios')"
-                    class="px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                    :class="filtroSubListaLateral === 'cambios' ? 'bg-slate-800 text-white shadow-2xs font-bold' : 'text-slate-600 hover:bg-slate-100'"
-                  >
-                    <span>Cambios</span>
-                    <span class="text-[9.5px] opacity-80 font-mono">({{ kpis.total_propuestas || kpis.con_cambios }})</span>
                   </button>
                 </div>
 
@@ -1663,13 +1597,6 @@
                   >
                     <div class="flex items-start justify-between gap-2">
                       <div class="flex items-center gap-2 flex-1 min-w-0">
-                        <input
-                          type="checkbox"
-                          :value="c.cliente_id || c.id"
-                          v-model="clientesSeleccionadosIds"
-                          @click.stop
-                          class="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer w-3.5 h-3.5 shrink-0"
-                        />
                         <span
                           @click="abrirExpedienteCliente(c)"
                           class="text-xs font-semibold text-slate-900 group-hover:text-slate-700 transition-colors line-clamp-1 cursor-pointer flex-1"
@@ -1679,16 +1606,6 @@
                       </div>
 
                       <div class="flex items-center gap-1 shrink-0">
-                        <button
-                          v-if="(c.estado || '').toLowerCase() === 'inactivo'"
-                          type="button"
-                          @click.stop="activarClienteDirecto(c)"
-                          :disabled="activandoClienteId === (c.cliente_id || c.id)"
-                          class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-                          title="Reactivar a Activo inmediatamente"
-                        >
-                          {{ activandoClienteId === (c.cliente_id || c.id) ? '...' : 'Activar' }}
-                        </button>
                         <span
                           v-if="(c.estado || '').toLowerCase() === 'inactivo'"
                           class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
@@ -1705,22 +1622,6 @@
                     </div>
 
                     <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
-
-                    <!-- Pastilla distintiva si tiene propuesta en sub-modo cambios -->
-                    <div
-                      v-if="subModoVisualizacion === 'cambios' && c.tiene_cambio"
-                      class="mt-1.5 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono flex items-center justify-between text-slate-800"
-                    >
-                      <div class="flex items-center gap-1 truncate">
-                        <span class="font-bold text-slate-900">Propuesta:</span>
-                        <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }} ({{ c.dia_original || 'S/D' }})</span>
-                        <span>-></span>
-                        <span class="font-bold text-slate-900">{{ formatRuta(c.ruta) }} ({{ c.dia_norm }})</span>
-                      </div>
-                      <span class="text-[9px] uppercase font-bold px-1 rounded bg-slate-200 text-slate-700 shrink-0">
-                        {{ c.propuesta_estado || 'PENDIENTE' }}
-                      </span>
-                    </div>
 
                     <!-- Chip distintivo para clientes con múltiples días de visita -->
                     <div
@@ -1898,36 +1799,16 @@
                 </div>
               </div>
 
-              <!-- Tarjeta de RTM Actual y Botones de Ajuste / Activación -->
-              <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
+              <!-- Tarjeta de Asignación Actual pan_ruteo (Solo Lectura) -->
+              <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-1.5 text-xs">
                 <div class="flex items-center justify-between font-mono text-[11px]">
                   <span>Ruta: <b :style="{ color: getRutaColor(clienteSeleccionado.ruta) }">{{ formatRuta(clienteSeleccionado.ruta) }}</b></span>
                   <span>Día: <b :style="{ color: getDiaColor(clienteSeleccionado.dia_norm) }">{{ clienteSeleccionado.dia_norm || 'S/D' }}</b></span>
                 </div>
-                <button
-                  type="button"
-                  @click="abrirModalAjusteRtm(clienteSeleccionado)"
-                  class="w-full py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                  <span>Ajustar RTM (Reasignar Ruta / Día)</span>
-                </button>
-                <button
-                  v-if="(clienteSeleccionado.estado || '').toLowerCase() !== 'activo'"
-                  type="button"
-                  @click="activarClienteDirecto(clienteSeleccionado)"
-                  :disabled="activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id)"
-                  class="w-full py-1.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Reactivar cliente a estado Activo inmediatamente"
-                >
-                  <span v-if="activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id)" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                  <span>{{ activandoClienteId === (clienteSeleccionado.cliente_id || clienteSeleccionado.id) ? 'Activando...' : 'Activar Cliente' }}</span>
-                </button>
+                <div class="flex items-center justify-between font-mono text-[10px] text-slate-500 pt-1 border-t border-slate-200/70">
+                  <span>Vendedor: <b class="text-slate-700">{{ getVendedorRuta(clienteSeleccionado.ruta) }}</b></span>
+                  <span>{{ clienteSeleccionado.tipo_negocio || 'General' }}</span>
+                </div>
               </div>
 
               <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
@@ -2216,8 +2097,10 @@
 
       <!-- ======================================================== -->
       <!-- TABLA INFERIOR: REGISTRO DE CAMBIOS Y PROPUESTAS RTM     -->
+      <!-- (Solo visible en Modo Ajuste RTM)                        -->
       <!-- ======================================================== -->
       <div
+        v-if="modoPrincipal === 'ajuste_rtm'"
         class="bg-white border-t border-slate-300 z-20 flex flex-col transition-all"
         :class="vistaMovil === 'cambios' ? 'flex flex-1 h-full min-h-0' : 'hidden md:flex shrink-0'"
       >
@@ -2853,7 +2736,7 @@
       <!-- ========================================== -->
       <Teleport to="body">
         <div
-          v-if="clientesSeleccionadosIds.length > 0"
+          v-if="modoPrincipal === 'ajuste_rtm' && clientesSeleccionadosIds.length > 0"
           class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99990] bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700/80 px-4 py-2.5 flex items-center gap-3 flex-wrap max-w-[95vw] animate-in fade-in slide-in-from-bottom-2 duration-150"
         >
           <div class="flex items-center gap-2 font-mono text-xs">
@@ -2948,7 +2831,7 @@
                     {{ modalAjusteRtm.cliente?.estado || 'Activo' }}
                   </span>
                   <button
-                    v-if="(modalAjusteRtm.cliente?.estado || '').toLowerCase() !== 'activo'"
+                    v-if="modoPrincipal === 'ajuste_rtm' && (modalAjusteRtm.cliente?.estado || '').toLowerCase() !== 'activo'"
                     type="button"
                     @click="activarClienteDirecto(modalAjusteRtm.cliente)"
                     :disabled="activandoClienteId === (modalAjusteRtm.cliente?.cliente_id || modalAjusteRtm.cliente?.id)"
@@ -3025,7 +2908,7 @@
                 class="pb-1.5 px-2.5 font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer text-xs"
                 :class="modalAjusteRtm.tabActivo === 'rtm' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'"
               >
-                <span>Ajustar RTM (Ruta / Día)</span>
+                <span>{{ modoPrincipal === 'ajuste_rtm' ? 'Ajustar RTM (Ruta / Día)' : 'Ficha del Cliente' }}</span>
               </button>
 
               <button
@@ -3184,8 +3067,57 @@
                 </div>
               </div>
 
-              <!-- TAB 1: FORMULARIO DE AJUSTE RTM -->
+              <!-- TAB 1: FICHA SOLO LECTURA (VISUALIZACIÓN) O FORMULARIO DE AJUSTE RTM -->
               <div v-if="modalAjusteRtm.tabActivo === 'rtm'" class="space-y-3">
+                <!-- MODO VISUALIZACIÓN: FICHA INFORMATIVA SOLO LECTURA (pan_ruteo) -->
+                <div v-if="modoPrincipal === 'visualizacion'" class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+                  <div class="flex items-center justify-between pb-1.5 border-b border-slate-200/80">
+                    <span class="text-[10px] font-bold uppercase tracking-wider font-mono text-slate-500">Datos en Padrón (pan_ruteo)</span>
+                    <span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 font-semibold">Solo lectura</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2.5 font-mono text-[11px]">
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Ruta</div>
+                      <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: getRutaColor(modalAjusteRtm.cliente?.ruta) }"></span>
+                        <span class="font-bold text-slate-900">{{ formatRuta(modalAjusteRtm.cliente?.ruta) }}</span>
+                      </div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Día de Visita</div>
+                      <div class="font-bold mt-0.5" :style="{ color: getDiaColor(modalAjusteRtm.cliente?.dia_norm) }">
+                        {{ modalAjusteRtm.cliente?.dia_norm || 'Sin Día' }}
+                      </div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Vendedor</div>
+                      <div class="font-semibold text-slate-800 mt-0.5 truncate" :title="getVendedorRuta(modalAjusteRtm.cliente?.ruta)">
+                        {{ getVendedorRuta(modalAjusteRtm.cliente?.ruta) }}
+                      </div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Tipo de Negocio</div>
+                      <div class="font-semibold text-slate-800 mt-0.5 truncate">
+                        {{ modalAjusteRtm.cliente?.tipo_negocio || 'General' }}
+                      </div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Teléfono / Contacto</div>
+                      <div class="font-semibold text-slate-800 mt-0.5 truncate">
+                        {{ modalAjusteRtm.cliente?.celular || modalAjusteRtm.cliente?.contacto || 'Sin registro' }}
+                      </div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white border border-slate-200/80">
+                      <div class="text-[9px] text-slate-400 uppercase font-bold">Coordenadas GPS</div>
+                      <div class="font-semibold text-slate-700 mt-0.5 text-[10px] truncate">
+                        {{ modalAjusteRtm.cliente?.tiene_gps ? `${Number(modalAjusteRtm.cliente.latitud).toFixed(5)}, ${Number(modalAjusteRtm.cliente.longitud).toFixed(5)}` : 'Sin GPS' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- MODO AJUSTE RTM: FORMULARIO EDITABLE -->
+                <template v-else>
                 <!-- Comparativa Compacta: Asignación Actual vs Nueva -->
                 <div class="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
                   <div class="space-y-0.5 min-w-0">
@@ -3289,6 +3221,7 @@
                     </label>
                   </div>
                 </div>
+                </template>
               </div>
 
               <!-- TAB 2: HISTORIAL DE VISITAS & FOTOS DE PREVENTA -->
@@ -3356,11 +3289,11 @@
                 @click="cerrarModalAjusteRtm"
                 class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               >
-                {{ modalAjusteRtm.tabActivo === 'rtm' ? 'Cancelar' : 'Cerrar' }}
+                {{ modoPrincipal === 'ajuste_rtm' && modalAjusteRtm.tabActivo === 'rtm' ? 'Cancelar' : 'Cerrar' }}
               </button>
 
               <button
-                v-if="modalAjusteRtm.tabActivo === 'rtm'"
+                v-if="modoPrincipal === 'ajuste_rtm' && modalAjusteRtm.tabActivo === 'rtm'"
                 type="button"
                 @click="confirmarAjusteRtm"
                 :disabled="guardandoRtm"
@@ -3941,6 +3874,14 @@ function setModoPrincipal(modo) {
     clienteSeleccionado.value = null;
   } else {
     cancelarEdicionVertices();
+    subModoVisualizacion.value = 'original';
+    clientesSeleccionadosIds.value = [];
+    if (filtroSubListaLateral.value === 'cambios') {
+      filtroSubListaLateral.value = 'todos';
+    }
+    if (vistaMovil.value === 'cambios') {
+      vistaMovil.value = 'mapa';
+    }
     tabLateral.value = 'lista';
   }
   if (map) {
@@ -4734,6 +4675,7 @@ function obtenerDiaValorSelect(diaVal) {
 }
 
 async function cambiarRutaDirecta(c, nuevaRuta) {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   const rutaActual = (c.ruta || '').toUpperCase();
   const rutaDestino = (nuevaRuta || '').toUpperCase();
   if (!rutaDestino || rutaDestino === rutaActual) return;
@@ -4818,6 +4760,7 @@ async function cambiarRutaDirecta(c, nuevaRuta) {
 }
 
 async function cambiarDiaDirecto(c, nuevoDia) {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   const diaClaveActual = normalizarDiaClave(c.dia_norm);
   const diaClaveDestino = normalizarDiaClave(nuevoDia);
   if (!diaClaveDestino || diaClaveDestino === diaClaveActual) return;
@@ -4919,6 +4862,7 @@ function enfocarClienteEnMapa(c) {
 }
 
 async function descartarPropuesta(c) {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   if (!c.propuesta_id) return;
   if (!confirm(`¿Deseas descartar el cambio propuesto para ${c.nombre}?`)) return;
 
@@ -5042,7 +4986,7 @@ async function cargarDatos(mantenerVista = false) {
   const currentReqId = ++cargarDatosRequestId;
   cargando.value = true;
   try {
-    const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : subModoVisualizacion.value;
+    const modoVistaConsulta = (modoPrincipal.value === 'ajuste_rtm') ? 'cambios' : 'original';
 
     // Si filtroCanales está vacío, el usuario seleccionó "Todos los canales"
     const canalesParaConsulta = (filtroCanales.value.length > 0)
@@ -5178,6 +5122,7 @@ async function ejecutarReasignacionMasiva() {
 }
 
 async function activarClienteDirecto(clienteOrId) {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   const clienteId = typeof clienteOrId === 'object' && clienteOrId !== null
     ? (clienteOrId.cliente_id || clienteOrId.id)
     : clienteOrId;
@@ -5254,6 +5199,7 @@ async function activarClienteDirecto(clienteOrId) {
 }
 
 async function ejecutarActivacionMasiva() {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   if (clientesSeleccionadosIds.value.length === 0) return;
 
   const count = clientesSeleccionadosIds.value.length;
@@ -6320,6 +6266,10 @@ function abrirModalPuntoCliente(c) {
     tabActivo: 'rtm',
   };
 
+  if (modoPrincipal.value === 'visualizacion') {
+    mostrarVentasDetalle.value = true;
+  }
+
   const esInactivo = (c.estado || '').toLowerCase() !== 'activo';
   formRtm.value = {
     cliente_id: c.cliente_id || c.id,
@@ -6364,6 +6314,7 @@ function cerrarModalAjusteRtm() {
 }
 
 function confirmarAjusteRtm() {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   if (!formRtm.value.ruta_propuesta) return;
 
   // 1. Extraer una copia completamente inmutable del payload antes de cerrar el modal
@@ -6726,6 +6677,7 @@ function generarPopupHtmlRtm(c) {
 }
 
 function guardarPropuestaRtmDesdePopup(clienteId, domId) {
+  if (modoPrincipal.value !== 'ajuste_rtm') return;
   const selectRuta = document.getElementById(`rtm-popup-ruta-${domId}`);
   const selectDia = document.getElementById(`rtm-popup-dia-${domId}`);
   const inputObs = document.getElementById(`rtm-popup-obs-${domId}`);
@@ -7315,8 +7267,8 @@ function manejarKeydownGlobal(e) {
         }
       }
 
-      // Si estamos en la pestaña RTM, confirmar y guardar propuesta inmediatamente
-      if (modalAjusteRtm.value.tabActivo === 'rtm') {
+      // Si estamos en modo Ajuste RTM y en la pestaña RTM, confirmar y guardar propuesta inmediatamente
+      if (modoPrincipal.value === 'ajuste_rtm' && modalAjusteRtm.value.tabActivo === 'rtm') {
         e.preventDefault();
         e.stopPropagation();
         confirmarAjusteRtm();
