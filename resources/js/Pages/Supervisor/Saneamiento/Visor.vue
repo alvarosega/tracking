@@ -1460,133 +1460,11 @@
       <!-- Contenedor Principal: Split Screen (Panel Lateral + Mapa Leaflet) -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
         
-        <!-- Panel Lateral: Balance RTM (en Ajuste RTM) o Clientes/Balance (en Visualización) -->
+        <!-- Panel Lateral Unificado: Clientes y Balance RTM (Solo lectura en Visualización, Editable en Ajuste RTM) -->
         <aside
           class="w-full md:w-[370px] bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all z-20"
           :class="vistaMovil === 'lista' ? 'flex flex-1 h-full min-h-0 md:flex-initial' : 'hidden md:flex'"
         >
-          <!-- CASO 1: EN MODO AJUSTE RTM, SOLO SE VE EL BALANCE RTM (SIN CLIENTES) -->
-          <template v-if="modoPrincipal === 'ajuste_rtm'">
-            <div class="p-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
-              <div class="min-w-0">
-                <h3 class="text-xs font-bold text-slate-800 tracking-wider uppercase font-mono truncate">Balance RTM</h3>
-                <p class="text-[10px] text-slate-500 truncate">Distribución por ruta y jornada</p>
-              </div>
-
-              <!-- Filtro al lado de Balance RTM para seleccionar los meses históricos -->
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  @click.stop="toggleMenu('meses_historicos', $event)"
-                  class="h-7 px-2 bg-white hover:bg-slate-100 border rounded-lg text-[10.5px] font-mono font-bold text-slate-800 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer select-none"
-                  :class="menuAbierto === 'meses_historicos' ? 'border-sky-500 bg-sky-50/50 text-sky-900' : 'border-slate-300'"
-                  title="Seleccionar meses históricos a visualizar (del actual a 10 meses atrás)"
-                >
-                  <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                  </svg>
-                  <span>Meses ({{ mesesHistoricosSeleccionados.length }})</span>
-                  <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-
-                <span class="text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-800 shrink-0">
-                  {{ balanceRtmPorRuta.length }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Cuerpo de Balance RTM -->
-            <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
-              <div v-if="balanceRtmPorRuta.length === 0" class="p-8 text-center text-xs text-slate-400">
-                Consulta rutas para visualizar el balance de cartera y carga de días RTM.
-              </div>
-
-              <div
-                v-for="b in balanceRtmPorRuta"
-                :key="b.ruta"
-                class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: getRutaColor(b.ruta) }"></span>
-                    <span class="font-mono font-bold text-slate-900 text-xs">{{ formatRuta(b.ruta) }}</span>
-                    <span class="text-slate-400 text-[10px] font-mono">({{ b.canal }})</span>
-                  </div>
-                  <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800">
-                    {{ b.total }} clientes
-                  </span>
-                </div>
-
-                <!-- Valores acumulados de los meses seleccionados por ruta -->
-                <div
-                  v-if="periodosVisibles.length > 0"
-                  class="grid gap-1 pt-1.5 border-t border-slate-200/80 font-mono text-[9.5px]"
-                  :class="{
-                    'grid-cols-2': (periodosVisibles.length + 1) === 2,
-                    'grid-cols-3': (periodosVisibles.length + 1) === 3,
-                    'grid-cols-4': (periodosVisibles.length + 1) >= 4,
-                  }"
-                >
-                  <div
-                    v-for="p in periodosVisibles"
-                    :key="p.periodo"
-                    class="border rounded px-1.5 py-0.5"
-                    :class="p.es_actual ? 'bg-sky-50/70 border-sky-200/80' : 'bg-slate-100/70 border-slate-200'"
-                    :title="p.nombre"
-                  >
-                    <div
-                      class="text-[8px] font-semibold truncate"
-                      :class="p.es_actual ? 'text-sky-700' : 'text-slate-600'"
-                    >
-                      {{ p.corto }}
-                    </div>
-                    <div
-                      class="font-bold truncate"
-                      :class="p.es_actual ? 'text-slate-900' : 'text-slate-800'"
-                    >
-                      {{ formatMonto(getVentaRutaPeriodo(b, p.periodo)) }}
-                    </div>
-                  </div>
-
-                  <!-- Promedio de Meses Seleccionados -->
-                  <div
-                    class="border rounded px-1.5 py-0.5 bg-amber-50/90 border-amber-200"
-                    :title="'Promedio mensual de ' + periodosVisibles.length + ' mes(es) seleccionado(s)'"
-                  >
-                    <div class="text-[8px] font-bold text-amber-700 truncate">
-                      Prom ({{ periodosVisibles.length }}M)
-                    </div>
-                    <div class="font-bold truncate text-amber-900">
-                      {{ formatMonto(getPromedioVentaRutaPeriodos(b)) }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Distribución por Jornadas de Visita -->
-                <div class="pt-1.5 border-t border-slate-200">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
-                    Carga por Día:
-                  </div>
-                  <div class="grid grid-cols-7 gap-1 text-[10px] font-mono">
-                    <div
-                      v-for="d in diasSemana"
-                      :key="d.key"
-                      class="text-center py-1 rounded border"
-                      :class="(b.dias[d.key] || 0) > 0 ? 'bg-white border-slate-200 font-bold text-slate-900' : 'bg-slate-100/60 border-slate-200/40 text-slate-400'"
-                    >
-                      <div class="text-[8px] opacity-75 font-normal">{{ d.corto }}</div>
-                      <div class="text-[11px]">{{ b.dias[d.key] || 0 }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- CASO 2: EN MODO VISUALIZACIÓN, SELECTOR DE PESTAÑAS (CLIENTES O BALANCE) -->
-          <template v-else>
             <template v-if="!clienteSeleccionado">
               <!-- Selector de Pestaña del Panel Lateral (Lista vs Balance RTM) -->
               <div class="p-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-1.5 shrink-0">
@@ -1670,6 +1548,17 @@
                     <span>Varios Días</span>
                     <span class="text-[9.5px] opacity-90 font-mono font-bold">({{ kpis.total_multidia || 0 }})</span>
                   </button>
+
+                  <button
+                    v-if="modoPrincipal === 'ajuste_rtm' && (kpis.total_propuestas || kpis.con_cambios) > 0"
+                    type="button"
+                    @click="setSubListaLateral('cambios')"
+                    class="px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                    :class="filtroSubListaLateral === 'cambios' ? 'bg-slate-800 text-white shadow-2xs font-bold' : 'text-slate-600 hover:bg-slate-100'"
+                  >
+                    <span>Propuestas</span>
+                    <span class="text-[9.5px] opacity-80 font-mono">({{ kpis.total_propuestas || kpis.con_cambios }})</span>
+                  </button>
                 </div>
 
                 <!-- Lista Scrollable de Clientes -->
@@ -1709,6 +1598,15 @@
                       </div>
 
                       <div class="flex items-center gap-1 shrink-0">
+                        <button
+                          v-if="modoPrincipal === 'ajuste_rtm'"
+                          type="button"
+                          @click.stop="abrirModalAjusteRtm(c)"
+                          class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-900 hover:bg-slate-700 text-white font-bold transition-colors cursor-pointer shadow-2xs"
+                          title="Editar y registrar propuesta RTM para este cliente"
+                        >
+                          Proponer
+                        </button>
                         <span
                           v-if="(c.estado || '').toLowerCase() === 'inactivo'"
                           class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase"
@@ -1725,6 +1623,22 @@
                     </div>
 
                     <p @click="abrirExpedienteCliente(c)" class="text-[11px] text-slate-500 mt-0.5 line-clamp-1 cursor-pointer">{{ c.direccion }}</p>
+
+                    <!-- Pastilla distintiva de propuesta en Modo Ajuste RTM -->
+                    <div
+                      v-if="modoPrincipal === 'ajuste_rtm' && c.tiene_cambio"
+                      class="mt-1.5 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px] font-mono flex items-center justify-between text-slate-800"
+                    >
+                      <div class="flex items-center gap-1 truncate">
+                        <span class="font-bold text-slate-900">Propuesta:</span>
+                        <span class="line-through text-slate-400">{{ formatRuta(c.ruta_original) }} ({{ c.dia_original || 'S/D' }})</span>
+                        <span>-></span>
+                        <span class="font-bold text-slate-900">{{ formatRuta(c.ruta) }} ({{ c.dia_norm }})</span>
+                      </div>
+                      <span class="text-[9px] uppercase font-bold px-1 rounded bg-slate-200 text-slate-700 shrink-0">
+                        {{ c.propuesta_estado || 'PENDIENTE' }}
+                      </span>
+                    </div>
 
                     <!-- Chip distintivo para clientes con múltiples días de visita -->
                     <div
@@ -1911,7 +1825,7 @@
                 </div>
               </div>
 
-              <!-- Tarjeta de Asignación Actual pan_ruteo (Solo Lectura) -->
+              <!-- Tarjeta de Asignación Actual pan_ruteo (Con botón Proponer solo en Ajuste RTM) -->
               <div class="p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-1.5 text-xs">
                 <div class="flex items-center justify-between font-mono text-[11px]">
                   <span>Ruta: <b :style="{ color: getRutaColor(clienteSeleccionado.ruta) }">{{ formatRuta(clienteSeleccionado.ruta) }}</b></span>
@@ -1921,6 +1835,17 @@
                   <span>Vendedor: <b class="text-slate-700">{{ getVendedorRuta(clienteSeleccionado.ruta) }}</b></span>
                   <span>{{ clienteSeleccionado.tipo_negocio || 'General' }}</span>
                 </div>
+                <button
+                  v-if="modoPrincipal === 'ajuste_rtm'"
+                  type="button"
+                  @click="abrirModalAjusteRtm(clienteSeleccionado)"
+                  class="w-full mt-1 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                  <span>Ajustar RTM (Proponer Ruta / Día)</span>
+                </button>
               </div>
 
               <!-- MÉTRICAS DE COMPRA FACT_VENTAS (MES ACTUAL VS MES ANTERIOR) -->
@@ -2095,7 +2020,6 @@
                 </div>
               </div>
             </div>
-          </template>
           </template>
         </aside>
 
@@ -2626,6 +2550,13 @@
                 <td class="py-2 px-3 whitespace-nowrap">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-semibold text-slate-900 text-xs">{{ c.nombre }}</span>
+                    <span
+                      v-if="c.cluster_t"
+                      class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-purple-50 text-purple-900 border-purple-200 font-bold"
+                      :title="'Clúster: ' + c.cluster_t"
+                    >
+                      Clúster: {{ c.cluster_t }}
+                    </span>
                     <span
                       v-if="c.es_multidia"
                       class="text-[9px] font-mono px-1.5 py-0.2 rounded border bg-rose-50 text-rose-700 border-rose-200 font-bold"
@@ -4546,13 +4477,18 @@ const clientesConCambio = computed(() => {
 });
 
 const clientesMatrizInferior = computed(() => {
+  let base;
   if (filtroMatrizInferior.value === 'todos') {
-    return clientes.value;
+    base = clientes.value;
+  } else if (filtroMatrizInferior.value === 'multiples') {
+    base = clientes.value.filter(c => c.es_multidia || c.es_multiruta);
+  } else {
+    base = clientesConCambio.value;
   }
-  if (filtroMatrizInferior.value === 'multiples') {
-    return clientes.value.filter(c => c.es_multidia || c.es_multiruta);
+  if (filtroClusters.value.length > 0) {
+    return base.filter(c => cumpleFiltroCluster(c));
   }
-  return clientesConCambio.value;
+  return base;
 });
 
 const columnaOrden = ref('cliente_id');
@@ -4580,7 +4516,8 @@ const clientesConCambioFiltrados = computed(() => {
       (c.nombre && c.nombre.toLowerCase().includes(q)) ||
       (c.cliente_id && String(c.cliente_id).includes(q)) ||
       (c.ruta && c.ruta.toLowerCase().includes(q)) ||
-      (c.ruta_original && c.ruta_original.toLowerCase().includes(q))
+      (c.ruta_original && c.ruta_original.toLowerCase().includes(q)) ||
+      (c.cluster_t && c.cluster_t.toLowerCase().includes(q))
     );
   }
 
@@ -6746,8 +6683,11 @@ function generarPopupHtmlRtm(c) {
     <div style="min-width: 275px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #0f172a; padding: 2px;">
       <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 6px;">
         <div style="font-weight: 700; font-size: 12px; color: #0f172a; line-height: 1.25; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-          <span>${escapeHtml(c.nombre)}</span>
-          <span style="font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; background: ${!esInactivo ? '#ECFDF5; color: #047857;' : '#FFE4E6; color: #BE123C;'}">${escapeHtml(c.estado || 'Activo')}</span>
+          <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0;">
+            <span>${escapeHtml(c.nombre)}</span>
+            ${c.cluster_t ? `<span style="font-size: 8.5px; font-weight: 700; font-family: monospace; padding: 1px 4px; border-radius: 3px; background: #FAF5FF; color: #581C87; border: 1px solid #E9D5FF;">Clúster: ${escapeHtml(c.cluster_t)}</span>` : ''}
+          </div>
+          <span style="font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; flex-shrink: 0; background: ${!esInactivo ? '#ECFDF5; color: #047857;' : '#FFE4E6; color: #BE123C;'}">${escapeHtml(c.estado || 'Activo')}</span>
         </div>
         <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${escapeHtml(c.direccion || 'Sin dirección')}</div>
         <div style="font-family: monospace; font-size: 10px; color: #475569; margin-top: 3px;">
