@@ -9,26 +9,26 @@
       <!-- Barra Superior de Filtros Transversales -->
       <AvanceFiltrosBar @consultar="ejecutarConsulta">
         <template #after-rutas>
-          <!-- Selector Único para evaluar por Ruta o por Vendedor (Volumen General) al lado de los filtros -->
+          <!-- Selector Único para evaluar por Ruta o por Vendedor (KPI Volumen) al lado de los filtros -->
           <div
-            v-if="modoActivo === 'vol_general'"
+            v-if="esVolumenKpi"
             class="flex items-center gap-1.5 apple-control-pill rounded-[10px] p-0.5 select-none"
-            title="Alternar reporte de Volumen General entre Ruta individual o consolidada por Vendedor"
+            title="Alternar reporte de Volumen entre ventas por Ruta (fact_ventas.ruta) o por Vendedor (fact_ventas.vendedor)"
           >
             <span class="text-[9px] font-bold text-[#86868B] uppercase tracking-wider pl-2">Ver:</span>
             <div class="inline-flex items-center rounded-[8px] bg-black/[0.04] p-0.5 text-[10.5px] font-bold">
               <button
                 type="button"
-                @click="store.evaluarPorVendedor = false"
-                :class="!store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                @click="setEvaluarPorVendedor(false)"
+                :class="!esModoVendedorActivo ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
                 class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer select-none"
               >
                 Por Ruta
               </button>
               <button
                 type="button"
-                @click="store.evaluarPorVendedor = true"
-                :class="store.evaluarPorVendedor ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                @click="setEvaluarPorVendedor(true)"
+                :class="esModoVendedorActivo ? 'bg-white text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
                 class="px-2.5 py-1 rounded-[6px] transition-all cursor-pointer select-none"
               >
                 Por Vendedor
@@ -299,7 +299,7 @@
 
       <!-- ── VISTA 2: DETALLE MONOGRÁFICO POR KPI (1 al 7) ── -->
       <section
-        v-else-if="modoActivo !== 'resumen' && modoActivo !== 'pizarra_unilever' && rutasFiltradas.length > 0"
+        v-else-if="modoActivo !== 'resumen' && modoActivo !== 'pizarra_unilever' && itemsMonograficoFiltrados.length > 0"
         class="h-[calc(100vh-12rem)] flex flex-col rounded-[16px] apple-glass-card overflow-hidden select-none border border-white/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.06)]"
       >
         <div class="shrink-0 px-4 py-2.5 bg-white/40 backdrop-blur-md border-b border-black/[0.05] flex justify-between items-center gap-3">
@@ -396,7 +396,7 @@
               <span class="text-[#86868B] ml-1">({{ sortKpiDir === 'desc' ? 'Mayor a menor' : 'Menor a mayor' }})</span>
             </span>
             <span class="text-[11px] text-[#6E6E73] font-medium font-mono">
-              {{ (esModoVendedorActivo && modoActivo === 'vol_general') ? 'Vendedores:' : 'Rutas:' }} <strong class="text-[#1D1D1F] font-bold">{{ itemsMonograficoFiltrados.length }}</strong>
+              {{ (esModoVendedorActivo && esVolumenKpi) ? 'Vendedores:' : 'Rutas:' }} <strong class="text-[#1D1D1F] font-bold">{{ itemsMonograficoFiltrados.length }}</strong>
             </span>
           </div>
         </div>
@@ -407,13 +407,13 @@
               <tr>
                 <th class="sticky top-0 left-0 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] w-10 text-center shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">#</th>
                 <th
-                  @click="toggleSortKpi(esModoVendedorActivo && modoActivo === 'vol_general' ? 'vendedor' : 'ruta')"
+                  @click="toggleSortKpi(esModoVendedorActivo && esVolumenKpi ? 'vendedor' : 'ruta')"
                   class="sticky top-0 left-10 z-40 bg-[#F8F8FA] py-2.5 px-3 border-b border-black/[0.08] min-w-[170px] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.04] transition-colors select-none group/th"
-                  :title="esModoVendedorActivo && modoActivo === 'vol_general' ? 'Ordenar por Vendedor' : 'Ordenar por Ruta'"
+                  :title="esModoVendedorActivo && esVolumenKpi ? 'Ordenar por Vendedor' : 'Ordenar por Ruta'"
                 >
                   <div class="flex items-center gap-1.5">
                     <span :class="(sortKpiCol === 'ruta' || sortKpiCol === 'vendedor') ? 'text-[#0071E3] font-bold' : ''">
-                      {{ (esModoVendedorActivo && modoActivo === 'vol_general') ? 'Vendedor / Rutas' : 'Ruta / Preventista' }}
+                      {{ (esModoVendedorActivo && esVolumenKpi) ? 'Vendedor / Rutas Facturadas' : 'Ruta / Preventista' }}
                     </span>
                     <svg v-if="sortKpiCol === 'ruta' || sortKpiCol === 'vendedor'" class="w-3 h-3 text-[#0071E3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path v-if="sortKpiDir === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
@@ -522,22 +522,22 @@
                         @click="toggleDetalleItem(r)"
                         class="w-5 h-5 rounded hover:bg-black/[0.05] inline-flex items-center justify-center text-[#86868B] hover:text-[#0071E3] transition-transform cursor-pointer shrink-0"
                         :class="isItemExpandido(r) ? 'rotate-90 text-[#0071E3] font-bold' : ''"
-                        :title="(esModoVendedorActivo && modoActivo === 'vol_general') ? 'Ver rutas del vendedor' : 'Ver desglose de clientes y días'"
+                        :title="(esModoVendedorActivo && esVolumenKpi) ? 'Ver ventas del vendedor por día y cliente' : 'Ver desglose de clientes y días'"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                       <div class="min-w-0">
-                        <template v-if="esModoVendedorActivo && modoActivo === 'vol_general'">
+                        <template v-if="esModoVendedorActivo && esVolumenKpi">
                           <div
                             class="font-bold text-[#1D1D1F] hover:text-[#0071E3] cursor-pointer inline-flex items-center gap-1"
                             @click="toggleDetalleItem(r)"
                           >
                             <span>{{ r.vendedor }}</span>
                           </div>
-                          <div class="text-[10px] text-[#6E6E73] truncate max-w-[150px]">
-                            {{ r.rutas.length > 1 ? `${r.rutas.length} rutas (${r.rutas.join(', ')})` : `Ruta ${r.rutas[0] || '-'}` }}
+                          <div class="text-[10px] text-[#6E6E73] truncate max-w-[190px]" :title="resumenRutasVendedor(r)">
+                            {{ resumenRutasVendedor(r) }}
                             <span v-if="r.canal" class="text-[9px] font-mono px-1 py-0.2 rounded bg-black/[0.04] text-[#6E6E73] ml-1">{{ r.canal }}</span>
                           </div>
                         </template>
@@ -610,22 +610,21 @@
                           <span class="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
                           <div>
                             <div class="text-[12px] font-bold text-[#1D1D1F] flex items-center gap-1.5 flex-wrap">
-                              <span>Desglose de Ruta: {{ rutaExpandida || r.ruta }}</span>
-                              <span class="text-[10px] text-[#86868B] font-normal">({{ r.vendedor || 'Preventista no asignado' }})</span>
-
-                              <!-- Selector directo si el vendedor posee múltiples rutas -->
-                              <div v-if="r.rutas && r.rutas.length > 1" class="ml-2 inline-flex items-center gap-1 p-0.5 rounded-[8px] bg-black/[0.04]">
-                                <button
-                                  v-for="subR in r.rutas"
-                                  :key="subR"
-                                  type="button"
-                                  @click.stop="cambiarSubRutaVendedor(subR)"
-                                  class="px-2 py-0.5 rounded-[6px] text-[10px] font-bold transition-all cursor-pointer select-none"
-                                  :class="rutaExpandida === subR ? 'bg-white text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                              <template v-if="esModoVendedorActivo && esVolumenKpi">
+                                <span>Desglose de Ventas del Vendedor: {{ r.vendedor }}</span>
+                                <span
+                                  v-for="rf in (r.rutas_facturadas || [])"
+                                  :key="rf"
+                                  class="px-1.5 py-0.5 rounded-[5px] text-[9.5px] font-mono font-bold bg-blue-50 text-[#0071E3] border border-blue-200/70"
+                                  title="Ruta con facturas emitidas por este vendedor en fact_ventas"
                                 >
-                                  {{ subR }}
-                                </button>
-                              </div>
+                                  {{ rf }}
+                                </span>
+                              </template>
+                              <template v-else>
+                                <span>Desglose de Ruta: {{ rutaExpandida || r.ruta }}</span>
+                                <span class="text-[10px] text-[#86868B] font-normal">({{ r.vendedor || 'Preventista no asignado' }})</span>
+                              </template>
                             </div>
                             <div class="text-[10px] text-[#6E6E73]">
                               <template v-if="modoDetalleRuta === 'dias'">
@@ -761,7 +760,7 @@
                       <!-- Estado de Carga -->
                       <div v-if="cargandoClientes" class="py-6 text-center text-[11px] text-[#86868B] flex items-center justify-center gap-2 font-medium">
                         <div class="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin"></div>
-                        Cargando desglose de la ruta {{ r.ruta }}...
+                        Cargando desglose de {{ (esModoVendedorActivo && esVolumenKpi) ? `vendedor ${r.vendedor}` : `la ruta ${r.ruta}` }}...
                       </div>
 
                       <!-- Error al Cargar -->
@@ -769,7 +768,7 @@
                         <span>{{ errorCargaClientes }}</span>
                         <button
                           type="button"
-                          @click="toggleDetalleRuta(r.ruta)"
+                          @click="reintentarDetalleItem(r)"
                           class="underline ml-2 text-[#0071E3] font-bold cursor-pointer hover:text-blue-800"
                         >
                           Reintentar
@@ -888,6 +887,12 @@
                                           <span class="font-sans font-bold text-[#1D1D1F]">{{ cDia.cliente }}</span>
                                         </div>
                                         <div class="flex items-center gap-3">
+                                          <span
+                                            v-if="esModoVendedorActivo && esVolumenKpi && cDia.ruta"
+                                            class="px-1.5 py-0.2 rounded bg-blue-50 text-[#0071E3] border border-blue-200/70 font-mono font-bold text-[8.5px]"
+                                          >
+                                            {{ cDia.ruta }}
+                                          </span>
                                           <span class="text-[#6E6E73] font-sans">Preventista: {{ cDia.vendedor }}</span>
                                           <span class="font-bold font-mono text-[#0071E3]">Bs {{ formatNum(cDia.monto_bs, 2) }}</span>
                                         </div>
@@ -1796,7 +1801,7 @@
                           <tfoot v-else class="bg-[#F8F8FA] text-[#1D1D1F] font-bold sticky bottom-0 z-20 font-mono tabular-nums border-t border-black/[0.08]">
                             <tr>
                               <td colspan="5" class="py-2 px-2.5 text-left text-[10px] text-[#6E6E73] font-sans">
-                                TOTAL CARTERA RUTA {{ r.ruta }} ({{ carteraClientes.length }} Clientes)
+                                {{ (esModoVendedorActivo && esVolumenKpi) ? `TOTAL VENDEDOR ${r.vendedor}` : `TOTAL VENTAS RUTA ${r.ruta}` }} ({{ carteraClientes.length }} Clientes)
                               </td>
                               <td class="py-2 px-2.5 text-center text-[10px] text-emerald-800 font-sans">
                                 {{ clientesConCompra.length }} comp.
@@ -2367,9 +2372,35 @@ const modoInicial = (submodoGuardado && (kpisVisibleIds.includes(submodoGuardado
   : 'resumen'
 const modoActivo = ref(modoInicial)
 
+const esVolumenKpi = computed(() => {
+  return ['vol_general', 'vol_seda', 'vol_clinical'].includes(modoActivo.value)
+})
+
 const esModoVendedorActivo = computed(() => {
   return Boolean(store.filtrosAplicados?.evaluarPorVendedor)
 })
+
+function setEvaluarPorVendedor(val) {
+  const flag = Boolean(val)
+  store.evaluarPorVendedor = flag
+  if (store.filtrosAplicados) {
+    store.filtrosAplicados.evaluarPorVendedor = flag
+  }
+}
+
+function resumenRutasVendedor(r) {
+  const asignadas = Array.isArray(r.rutas) ? r.rutas : []
+  const facturadas = Array.isArray(r.rutas_facturadas) ? r.rutas_facturadas : []
+  if (asignadas.length > 0) {
+    const extras = facturadas.filter(rf => !asignadas.includes(rf))
+    const base = asignadas.length > 1 ? `${asignadas.length} rutas (${asignadas.join(', ')})` : `Ruta ${asignadas[0]}`
+    return extras.length > 0 ? `${base} + ${extras.join(', ')}` : base
+  }
+  if (facturadas.length > 0) {
+    return `Facturó en: ${facturadas.join(', ')}`
+  }
+  return 'Sin ruta asignada'
+}
 
 // Estado de ordenamiento
 const sortResumenCol = ref('vol_general')
@@ -2380,7 +2411,7 @@ const sortKpiDir = ref('desc')
 
 const sortLabelsKpi = computed(() => {
   const labels = {
-    ruta: (esModoVendedorActivo.value && modoActivo.value === 'vol_general') ? 'Vendedor' : 'Ruta',
+    ruta: (esModoVendedorActivo.value && esVolumenKpi.value) ? 'Vendedor' : 'Ruta',
     vendedor: 'Vendedor',
     meta: 'Meta Mes',
     logrado: 'Logrado / Compradores',
@@ -2972,29 +3003,17 @@ const rutasFiltradas = computed(() => {
 const vendedoresFiltrados = computed(() => {
   const listaBackend = store.datosCumplimiento?.vendedores
   if (Array.isArray(listaBackend) && listaBackend.length > 0) {
-    // Si hay rutas filtradas por el supervisor, filtrar vendedores que posean alguna de esas rutas
-    const rutasVisibles = new Set((rutasFiltradas.value || []).map(r => String(r.ruta || '').trim().toUpperCase()))
-    let arr = listaBackend.filter(v => {
-      if (rutasVisibles.size === 0) return true
-      const vRutas = (v.rutas || []).map(r => String(r || '').trim().toUpperCase())
-      return vRutas.some(r => rutasVisibles.has(r))
-    })
+    const q = String(store.filtrosAplicados?.busqueda || '').toLowerCase().trim()
+    let arr = [...listaBackend]
 
-    if (arr.length === 0) {
-      arr = [...listaBackend]
+    if (q) {
+      arr = arr.filter(v =>
+        String(v.vendedor || '').toLowerCase().includes(q) ||
+        String(v.ruta || '').toLowerCase().includes(q) ||
+        (Array.isArray(v.rutas_facturadas) ? v.rutas_facturadas.join(' ').toLowerCase().includes(q) : false) ||
+        String(v.canal || '').toLowerCase().includes(q)
+      )
     }
-
-    const rutasMap = new Map((rutasFiltradas.value || []).map(r => [String(r.ruta || '').trim().toUpperCase(), r]))
-    arr = arr.map(v => {
-      const vRutas = (v.rutas || []).map(r => String(r || '').trim().toUpperCase())
-      const subRutas = (Array.isArray(v.rutas_detalle) && v.rutas_detalle.length > 0)
-        ? v.rutas_detalle
-        : vRutas.map(rKey => rutasMap.get(rKey)).filter(Boolean)
-      return {
-        ...v,
-        rutas_detalle: subRutas
-      }
-    })
 
     const col = sortKpiCol.value || 'pct'
     const dir = sortKpiDir.value === 'asc' ? 1 : -1
@@ -3095,35 +3114,33 @@ const vendedoresFiltrados = computed(() => {
 })
 
 const itemsMonograficoFiltrados = computed(() => {
-  if (modoActivo.value === 'vol_general' && esModoVendedorActivo.value) {
+  if (esVolumenKpi.value && esModoVendedorActivo.value) {
     return vendedoresFiltrados.value
   }
   return rutasFiltradas.value
 })
 
 function isItemExpandido(r) {
-  if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
-    return vendedorExpandido.value === r.vendedor && Boolean(rutaExpandida.value)
+  if (esModoVendedorActivo.value && esVolumenKpi.value) {
+    return vendedorExpandido.value === r.vendedor
   }
   return rutaExpandida.value === r.ruta
 }
 
 function toggleDetalleItem(r) {
-  if (esModoVendedorActivo.value && modoActivo.value === 'vol_general') {
-    if (vendedorExpandido.value === r.vendedor) {
-      vendedorExpandido.value = null
-      rutaExpandida.value = null
-      diaSeleccionadoInline.value = null
-      clienteExpandidoId.value = null
-      errorCargaClientes.value = null
-    } else {
-      vendedorExpandido.value = r.vendedor
-      const target = (Array.isArray(r.rutas) && r.rutas.length > 0) ? r.rutas[0] : (r.ruta || '')
-      if (target) {
-        toggleDetalleRuta(target)
-      }
-    }
+  if (esModoVendedorActivo.value && esVolumenKpi.value) {
+    toggleDetalleVendedor(r.vendedor)
   } else {
+    toggleDetalleRuta(r.ruta)
+  }
+}
+
+function reintentarDetalleItem(r) {
+  if (esModoVendedorActivo.value && esVolumenKpi.value) {
+    vendedorExpandido.value = null
+    toggleDetalleVendedor(r.vendedor)
+  } else {
+    rutaExpandida.value = null
     toggleDetalleRuta(r.ruta)
   }
 }
@@ -3152,6 +3169,32 @@ const promedioGlobalScore = computed(() => {
 })
 
 const totalesKpi = computed(() => {
+  if (esModoVendedorActivo.value && esVolumenKpi.value) {
+    const q = String(store.filtrosAplicados?.busqueda || '').trim()
+    if (!q && store.datosCumplimiento?.totales_vendedores) {
+      return store.datosCumplimiento.totales_vendedores
+    }
+    const lista = vendedoresFiltrados.value || []
+    const meta = lista.reduce((acc, v) => acc + Number(v.meta || 0), 0)
+    const logrado = lista.reduce((acc, v) => acc + Number(v.logrado || 0), 0)
+    const brecha = lista.reduce((acc, v) => acc + Number(v.brecha || 0), 0)
+    const cuotaDia = lista.reduce((acc, v) => acc + Number(v.cuota_dia || 0), 0)
+    const proy = lista.reduce((acc, v) => acc + Number(v.proyeccion_cierre || 0), 0)
+    const pct = meta > 0 ? Number(((logrado / meta) * 100).toFixed(1)) : 0
+    const pctProy = meta > 0 ? Number(((proy / meta) * 100).toFixed(1)) : 0
+    return {
+      meta: Number(meta.toFixed(2)),
+      logrado: Number(logrado.toFixed(2)),
+      brecha: Number(brecha.toFixed(2)),
+      cuota_dia: Number(cuotaDia.toFixed(2)),
+      cuota_diaria_req: Number(cuotaDia.toFixed(2)),
+      proyeccion_cierre: Number(proy.toFixed(2)),
+      pct,
+      pct_avance_mtd: pct,
+      pct_ritmo: pctProy,
+      pct_proyeccion: pctProy
+    }
+  }
   return store.datosCumplimiento?.totales || {}
 })
 
@@ -3263,28 +3306,7 @@ async function onCambioFrecuenciaMinima() {
   }
 }
 
-async function toggleDetalleRuta(ruta) {
-  if (rutaExpandida.value === ruta) {
-    rutaExpandida.value = null
-    diaSeleccionadoInline.value = null
-    clienteExpandidoId.value = null
-    errorCargaClientes.value = null
-    canalRutaActual.value = ''
-    reglaCoberturaRuta.value = null
-    return
-  }
-  rutaExpandida.value = ruta
-  diaSeleccionadoInline.value = null
-  clienteExpandidoId.value = null
-  errorCargaClientes.value = null
-  canalRutaActual.value = ''
-  reglaCoberturaRuta.value = null
-
-  if (modoActivo.value === 'pizarra_unilever') {
-    // Para la pizarra Unilever, el desglose cronológico día a día ya reside en la propiedad dias de la fila
-    return
-  }
-
+async function cargarDesgloseClientes(paramsExtra = {}) {
   cargandoClientes.value = true
   carteraClientes.value = []
   diasRuta.value = []
@@ -3299,7 +3321,9 @@ async function toggleDetalleRuta(ruta) {
     }
 
     const res = await axios.post('/supervisor/avance/cumplimiento/clientes-ruta', {
-      ruta,
+      ruta: paramsExtra.ruta || '',
+      vendedor: paramsExtra.vendedor || null,
+      modo_agrupacion: paramsExtra.modo_agrupacion || 'ruta',
       kpi: kpiParaDetalle,
       fecha_inicio: fInicio,
       fecha_corte: fCorte,
@@ -3338,11 +3362,67 @@ async function toggleDetalleRuta(ruta) {
       filtroClientesTab.value = tienenCompra.length > 0 ? 'compradores' : 'todos'
     }
   } catch (err) {
-    console.error('Error al cargar clientes de la ruta:', err)
+    console.error('Error al cargar desglose:', err)
     errorCargaClientes.value = err?.response?.data?.message || err?.message || 'Error al conectar con el servidor'
   } finally {
     cargandoClientes.value = false
   }
+}
+
+async function toggleDetalleVendedor(vendedor) {
+  if (vendedorExpandido.value === vendedor) {
+    vendedorExpandido.value = null
+    rutaExpandida.value = null
+    diaSeleccionadoInline.value = null
+    clienteExpandidoId.value = null
+    errorCargaClientes.value = null
+    canalRutaActual.value = ''
+    reglaCoberturaRuta.value = null
+    return
+  }
+  vendedorExpandido.value = vendedor
+  rutaExpandida.value = null
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
+  errorCargaClientes.value = null
+  canalRutaActual.value = ''
+  reglaCoberturaRuta.value = null
+
+  await cargarDesgloseClientes({
+    ruta: '',
+    vendedor,
+    modo_agrupacion: 'vendedor'
+  })
+}
+
+async function toggleDetalleRuta(ruta) {
+  if (rutaExpandida.value === ruta) {
+    rutaExpandida.value = null
+    diaSeleccionadoInline.value = null
+    clienteExpandidoId.value = null
+    errorCargaClientes.value = null
+    canalRutaActual.value = ''
+    reglaCoberturaRuta.value = null
+    return
+  }
+  vendedorExpandido.value = null
+  rutaExpandida.value = ruta
+  diaSeleccionadoInline.value = null
+  clienteExpandidoId.value = null
+  errorCargaClientes.value = null
+  canalRutaActual.value = ''
+  reglaCoberturaRuta.value = null
+
+  if (modoActivo.value === 'pizarra_unilever') {
+    // Para la pizarra Unilever, el desglose cronológico día a día ya reside en la propiedad dias de la fila
+    return
+  }
+
+  await cargarDesgloseClientes({
+    ruta,
+    vendedor: null,
+    modo_agrupacion: 'ruta'
+  })
 }
 
 function abrirModalInfoKpi(kpi) {

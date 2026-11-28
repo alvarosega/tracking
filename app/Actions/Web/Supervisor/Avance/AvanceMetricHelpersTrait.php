@@ -370,4 +370,20 @@ trait AvanceMetricHelpersTrait
 
         return $cuotasAsignadas;
     }
+
+    /**
+     * Normaliza el nombre del vendedor para coincidencia exacta entre dim_rutas y fact_ventas.
+     */
+    public function normalizarVendedor(?string $vendedor): string
+    {
+        if (empty($vendedor)) {
+            return '';
+        }
+        $v = trim((string) preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
+        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
+        $aliases = [
+            'juan daniel conde quispe' => 'daniel conde quispe',
+        ];
+        return $aliases[$v] ?? $v;
+    }
 }

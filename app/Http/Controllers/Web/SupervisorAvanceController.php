@@ -97,11 +97,13 @@ class SupervisorAvanceController extends Controller
     }
 
     /**
-     * Devuelve los clientes individuales y ventas diarias acumuladas de una ruta para el acordeón.
+     * Devuelve los clientes individuales y ventas diarias acumuladas de una ruta o vendedor para el acordeón.
      */
     public function clientesRuta(Request $request, GetAvanceClientesRutaAction $action): JsonResponse
     {
-        $ruta = (string) $request->input('ruta');
+        $ruta = (string) $request->input('ruta', '');
+        $vendedor = $request->input('vendedor') ? (string) $request->input('vendedor') : null;
+        $modoAgrupacion = (string) $request->input('modo_agrupacion', 'ruta');
         $kpi = (string) $request->input('kpi', 'vol_general');
         $fechaInicio = $request->input('fecha_inicio') ? (string) $request->input('fecha_inicio') : null;
         $fechaCorte = $request->input('fecha_corte') ? (string) $request->input('fecha_corte') : null;
@@ -120,7 +122,9 @@ class SupervisorAvanceController extends Controller
             omitirUnitarios3m: $omitirUnitarios,
             mesesHistorico: $mesesHistorico,
             frecuenciaMinima: $frecuenciaMinima,
-            cantidadMinima: $cantidadMinima
+            cantidadMinima: $cantidadMinima,
+            vendedor: $vendedor,
+            modoAgrupacion: $modoAgrupacion
         );
 
         return response()->json($data);

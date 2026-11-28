@@ -38,9 +38,18 @@ class GetAvanceClientesRutaAction
         bool $omitirUnitarios3m = false,
         int $mesesHistorico = 3,
         int $frecuenciaMinima = 1,
-        int $cantidadMinima = 1
+        int $cantidadMinima = 1,
+        ?string $vendedor = null,
+        string $modoAgrupacion = 'ruta'
     ): array {
         $rutaClean = strtoupper(trim($ruta));
+        $vendedorClean = trim((string) preg_replace('/\s+/', ' ', (string) ($vendedor ?? '')));
+        $esVolumen = in_array($kpiClave, ['vol_general', 'vol_seda', 'vol_clinical'], true);
+        $porVendedor = ($esVolumen && strtolower(trim($modoAgrupacion)) === 'vendedor' && $vendedorClean !== '');
+        $vendedorNormObjetivo = $porVendedor ? $this->normalizarVendedor($vendedorClean) : '';
+        if ($porVendedor && $vendedorNormObjetivo === '') {
+            $vendedorNormObjetivo = 'sin asignar';
+        }
         $mesesHistorico = max(1, min(8, $mesesHistorico));
         $frecuenciaMinima = max(1, $frecuenciaMinima);
         $cantidadMinima = $cantidadMinima > 1 ? $cantidadMinima : ($omitirUnitarios3m ? 2 : ($kpiClave === 'cob_core' ? 4 : 1));
@@ -60,51 +69,57 @@ class GetAvanceClientesRutaAction
         $cantMesesEval = max(1, count($mesesCerrados));
 
         // Obtener canal oficial de la ruta desde dim_rutas para aplicar umbrales de cobertura
-        $dimRuta = DB::connection('supervisor')->table('dim_rutas')
-            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-            ->first();
-        $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
-            ? strtoupper(trim((string) $dimRuta->canal))
-            : 'SC';
+        $canalRuta = 'SC';
+        if (!$porVendedor && $rutaClean !== '') {
+            $dimRuta = DB::connection('supervisor')->table('dim_rutas')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->first();
+            $canalRuta = ($dimRuta && !empty($dimRuta->canal) && !is_numeric($dimRuta->canal))
+                ? strtoupper(trim((string) $dimRuta->canal))
+                : 'SC';
+        }
         $reglaCoberturaRuta = $this->obtenerUmbralCoberturaCanal($canalRuta, $rutaClean);
 
-        // 1. Cartera Oficial desde pan_ruteo
-        $filasCartera = DB::connection('supervisor')->table('pan_ruteo')
-            ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
-            ->where('cliente_id', '>', 0)
-            ->where(function ($q): void {
-                $q->whereNull('estado')
-                  ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
-            })
-            ->select([
-                'cliente_id',
-                DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
-                DB::raw("MAX(COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado')) as vendedor_ruteo"),
-                DB::raw("COALESCE(MAX(NULLIF(TRIM(dia_norm), '')), MAX(NULLIF(TRIM(dia), '')), 'Sin Día') as dia_visita"),
-            ])
-            ->groupBy('cliente_id')
-            ->get();
-
+        // 1. Cartera Oficial desde pan_ruteo (solo para KPIs de Cobertura; en KPI Volumen NO se toma en cuenta pan_ruteo)
         $cartera = [];
-        foreach ($filasCartera as $fc) {
-            $cid = (int) $fc->cliente_id;
-            $diaNorm = ucfirst(strtolower((string) $fc->dia_visita));
-            $cartera[$cid] = [
-                'cliente_id' => $cid,
-                'cliente' => $fc->cliente,
-                'vendedor_ruteo' => $fc->vendedor_ruteo,
-                'dia' => $diaNorm ?: 'Sin Día',
-                'dia_visita' => $diaNorm ?: 'Sin Día',
-                'monto' => 0.0,
-                'cantidad' => 0,
-                'vendedores_factura' => [],
-                'fechas_compra' => [],
-            ];
+        if (!$esVolumen) {
+            $filasCartera = DB::connection('supervisor')->table('pan_ruteo')
+                ->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean)
+                ->where('cliente_id', '>', 0)
+                ->where(function ($q): void {
+                    $q->whereNull('estado')
+                      ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
+                })
+                ->select([
+                    'cliente_id',
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(cliente), ''), CONCAT('Cliente #', cliente_id))) as cliente"),
+                    DB::raw("MAX(COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado')) as vendedor_ruteo"),
+                    DB::raw("COALESCE(MAX(NULLIF(TRIM(dia_norm), '')), MAX(NULLIF(TRIM(dia), '')), 'Sin Día') as dia_visita"),
+                ])
+                ->groupBy('cliente_id')
+                ->get();
+
+            foreach ($filasCartera as $fc) {
+                $cid = (int) $fc->cliente_id;
+                $diaNorm = ucfirst(strtolower((string) $fc->dia_visita));
+                $cartera[$cid] = [
+                    'cliente_id' => $cid,
+                    'cliente' => $fc->cliente,
+                    'vendedor_ruteo' => $fc->vendedor_ruteo,
+                    'dia' => $diaNorm ?: 'Sin Día',
+                    'dia_visita' => $diaNorm ?: 'Sin Día',
+                    'monto' => 0.0,
+                    'cantidad' => 0,
+                    'vendedores_factura' => [],
+                    'rutas_factura' => [],
+                    'fechas_compra' => [],
+                ];
+            }
         }
 
         $carteraClientIds = array_values(array_filter(array_keys($cartera), fn ($id) => is_numeric($id) && (int) $id > 0));
 
-        // 2. Ventas registradas en la ruta en el rango de fechas (agrupadas estrictamente por la ruta facturada)
+        // 2. Ventas registradas en fact_ventas (por vendedor o por ruta, sin pan_ruteo para Volumen)
         $ventasRutaQuery = DB::connection('supervisor')->table('fact_ventas')
             ->where('fecha_norm', '>=', $fechaInicio)
             ->where('fecha_norm', '<=', $fechaCorte)
@@ -113,20 +128,23 @@ class GetAvanceClientesRutaAction
                 $q->whereNull('revertida')->orWhere('revertida', '!=', 'Si');
             });
 
-        if ($rutaClean === 'SIN RUTA') {
-            $ventasRutaQuery->where(function ($q): void {
-                $q->whereNull('ruta')
-                  ->orWhere(DB::raw("TRIM(ruta)"), '')
-                  ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
-            });
-        } else {
-            $ventasRutaQuery->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean);
+        if (!$porVendedor) {
+            if ($rutaClean === 'SIN RUTA') {
+                $ventasRutaQuery->where(function ($q): void {
+                    $q->whereNull('ruta')
+                      ->orWhere(DB::raw("TRIM(ruta)"), '')
+                      ->orWhere(DB::raw("TRIM(UPPER(ruta))"), 'SIN RUTA');
+                });
+            } else {
+                $ventasRutaQuery->where(DB::raw("TRIM(UPPER(ruta))"), $rutaClean);
+            }
         }
 
         $ventasRuta = $ventasRutaQuery
             ->select([
                 'cliente_id',
                 DB::raw("COALESCE(NULLIF(TRIM(cliente), ''), 'CLIENTE S/N') as cliente_factura"),
+                DB::raw("COALESCE(NULLIF(TRIM(UPPER(ruta)), ''), 'SIN RUTA') as ruta_factura"),
                 DB::raw("CAST(fecha_norm AS CHAR) as fecha"),
                 DB::raw("COALESCE(NULLIF(TRIM(nro_factura), ''), 'S/F') as nro_factura"),
                 DB::raw("TRIM(codigo) as codigo"),
@@ -135,10 +153,20 @@ class GetAvanceClientesRutaAction
                 DB::raw("UPPER(TRIM(COALESCE(categoria, ''))) as categoria"),
                 DB::raw("COALESCE(cantidad, 0) as cantidad"),
                 DB::raw("COALESCE(monto_final, 0.0) as monto_final"),
-                DB::raw("COALESCE(TRIM(vendedor), 'Sin Asignar') as vendedor_factura"),
+                DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'Sin Asignar') as vendedor_factura"),
             ])
             ->orderBy('fecha_norm', 'asc')
             ->get();
+
+        if ($porVendedor) {
+            $ventasRuta = $ventasRuta->filter(function ($v) use ($vendedorNormObjetivo): bool {
+                $vNorm = $this->normalizarVendedor((string) ($v->vendedor_factura ?? ''));
+                if ($vNorm === '') {
+                    $vNorm = 'sin asignar';
+                }
+                return $vNorm === $vendedorNormObjetivo;
+            })->values();
+        }
 
         $diasSemanaEs = [
             1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
@@ -149,6 +177,7 @@ class GetAvanceClientesRutaAction
         $diasAcum = [];
         $mtdClienteProdsMap = [];
         $mtdClienteCodMap = [];
+        $rutasFacturadasSet = [];
 
         foreach ($ventasRuta as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
@@ -162,16 +191,23 @@ class GetAvanceClientesRutaAction
             $cat = (string) $v->categoria;
 
             if ($this->aplicaTransaccion($kpiClave, $prod, $j3, $cod, $cat)) {
+                $rFact = (string) ($v->ruta_factura ?? 'SIN RUTA');
+                $vFactClean = trim((string) preg_replace('/\s+/', ' ', (string) ($v->vendedor_factura ?? 'Sin Asignar')));
+                if ($rFact !== '') {
+                    $rutasFacturadasSet[$rFact] = true;
+                }
+
                 if (!isset($cartera[$cid])) {
                     $cartera[$cid] = [
                         'cliente_id' => $cid,
                         'cliente' => $v->cliente_factura ?: "Cliente #{$cid}",
-                        'vendedor_ruteo' => $v->vendedor_factura ?: 'Sin Asignar',
-                        'dia' => 'Sin Día',
-                        'dia_visita' => 'Sin Día',
+                        'vendedor_ruteo' => $vFactClean ?: 'Sin Asignar',
+                        'dia' => $rFact !== '' ? $rFact : 'Sin Día',
+                        'dia_visita' => $rFact !== '' ? $rFact : 'Sin Día',
                         'monto' => 0.0,
                         'cantidad' => 0,
                         'vendedores_factura' => [],
+                        'rutas_factura' => [],
                         'fechas_compra' => [],
                     ];
                 }
@@ -185,8 +221,11 @@ class GetAvanceClientesRutaAction
                 $cartera[$cid]['monto'] += $mVal;
                 $cartera[$cid]['cantidad'] += $cVal;
                 $cartera[$cid]['fechas_compra'][$fVal] = true;
-                if ($v->vendedor_factura && $v->vendedor_factura !== 'Sin Asignar') {
-                    $cartera[$cid]['vendedores_factura'][$v->vendedor_factura] = true;
+                if ($rFact !== '') {
+                    $cartera[$cid]['rutas_factura'][$rFact] = true;
+                }
+                if ($vFactClean !== '' && $vFactClean !== 'Sin Asignar') {
+                    $cartera[$cid]['vendedores_factura'][$vFactClean] = true;
                 }
 
                 // Agrupación MTD por Cliente y SKU para cálculo de match sugerido
@@ -233,12 +272,16 @@ class GetAvanceClientesRutaAction
                     $diasAcum[$fVal]['clientes_map'][$cid] = [
                         'cliente_id' => $cid,
                         'cliente' => $cartera[$cid]['cliente'],
-                        'vendedor' => $v->vendedor_factura,
+                        'vendedor' => $vFactClean,
+                        'rutas' => [],
                         'dia_visita' => $cartera[$cid]['dia'],
                         'monto' => 0.0,
                         'cantidad' => 0,
                         'facturas' => [],
                     ];
+                }
+                if ($rFact !== '') {
+                    $diasAcum[$fVal]['clientes_map'][$cid]['rutas'][$rFact] = true;
                 }
                 $diasAcum[$fVal]['clientes_map'][$cid]['monto'] += $mVal;
                 $diasAcum[$fVal]['clientes_map'][$cid]['cantidad'] += $cVal;
@@ -265,7 +308,7 @@ class GetAvanceClientesRutaAction
         }
 
         $mesYm = $carbonCorte->format('Y-m');
-        $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
+        $objetivoMensualRuta = (!$porVendedor && $rutaClean !== '') ? $this->obtenerMetaMesRuta($rutaClean, $mesYm) : 0.0;
         $cuotaObjetivoMap = [];
 
         if (!empty($carteraClientIds)) {
@@ -306,7 +349,7 @@ class GetAvanceClientesRutaAction
             }
 
             $mesYm = $carbonCorte->format('Y-m');
-            $objetivoMensualRuta = $this->obtenerMetaMesRuta($rutaClean, $mesYm);
+            $objetivoMensualRuta = (!$porVendedor && $rutaClean !== '') ? $this->obtenerMetaMesRuta($rutaClean, $mesYm) : 0.0;
 
             // Cuota objetivo por cliente:
             // Para Cobertura Core, algoritmo de balanceo iterativo (Waterfilling) con piso de 150 Bs
@@ -829,10 +872,15 @@ class GetAvanceClientesRutaAction
                 : ($kpiClave === 'cob_core' ? 150.0 : 0.0)));
             $totalSugeridoCli = ($kpiClave === 'cob_general') ? 0.0 : round($sugeridoClienteMap[$cid] ?? 0.0, 2);
 
+            $rutasFactCli = array_keys($item['rutas_factura'] ?? []);
+            sort($rutasFactCli);
+
             $clientesLista[] = [
                 'cliente_id' => $cid,
                 'cliente' => $item['cliente'],
                 'vendedor' => $vends,
+                'ruta' => !empty($rutasFactCli) ? implode(', ', $rutasFactCli) : $rutaClean,
+                'rutas_factura' => $rutasFactCli,
                 'canal' => $canalRuta,
                 'umbral_minimo' => (float) ($reglaCoberturaRuta['min'] ?? 0.0),
                 'umbral_operador' => (string) ($reglaCoberturaRuta['operador'] ?? '>='),
@@ -906,10 +954,13 @@ class GetAvanceClientesRutaAction
 
             $clientesDia = [];
             foreach ($dInfo['clientes_map'] as $cObj) {
+                $rutasDiaCli = array_keys($cObj['rutas'] ?? []);
+                sort($rutasDiaCli);
                 $clientesDia[] = [
                     'cliente_id' => $cObj['cliente_id'],
                     'cliente' => $cObj['cliente'],
                     'vendedor' => $cObj['vendedor'],
+                    'ruta' => !empty($rutasDiaCli) ? implode(', ', $rutasDiaCli) : $rutaClean,
                     'dia_visita' => $cObj['dia_visita'],
                     'monto_bs' => round((float) $cObj['monto'], 2),
                     'cantidad' => $cObj['cantidad'],
@@ -931,8 +982,14 @@ class GetAvanceClientesRutaAction
 
         $totalSugeridoRuta = round(array_sum($sugeridoClienteMap), 2);
 
+        $rutasFacturadasLista = array_keys($rutasFacturadasSet);
+        sort($rutasFacturadasLista);
+
         return [
             'ruta' => $rutaClean,
+            'vendedor' => $porVendedor ? $vendedorClean : null,
+            'modo_agrupacion' => $porVendedor ? 'vendedor' : 'ruta',
+            'rutas_facturadas' => $rutasFacturadasLista,
             'canal' => $canalRuta,
             'regla_cobertura' => $reglaCoberturaRuta,
             'kpi' => $kpiClave,

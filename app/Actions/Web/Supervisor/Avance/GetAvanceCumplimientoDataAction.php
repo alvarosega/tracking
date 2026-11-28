@@ -107,37 +107,40 @@ class GetAvanceCumplimientoDataAction
         }
 
         // 2. Metas de las Rutas (Cartera pan_ruteo, fact_metas, fact_metas_kpi)
+        $esVolumenKpi = ($vista === 'kpi' && in_array($kpiClave, ['vol_general', 'vol_seda', 'vol_clinical'], true));
         $metasTodas = $this->obtenerMetasKpis($mesYm);
 
-        // Cartera Oficial Actual desde pan_ruteo (para conteo de cartera y mapeo de preventistas)
-        $panRuteoRaw = DB::connection('supervisor')->table('pan_ruteo')
-            ->where('cliente_id', '>', 0)
-            ->whereNotNull('ruta')
-            ->where('ruta', '!=', '')
-            ->where(function ($q): void {
-                $q->whereNull('estado')
-                  ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
-            })
-            ->select([
-                'cliente_id',
-                DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
-                DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado') as vendedor_ruteo"),
-            ])
-            ->get();
-
+        // Cartera Oficial Actual desde pan_ruteo (solo para Resumen y KPIs de Cobertura; NO se usa en KPI Volumen)
         $carteraOficialRutaCount = [];
         $vendedorRuteoMap = [];
-        foreach ($panRuteoRaw as $pr) {
-            $cid = (int) $pr->cliente_id;
-            $rClean = (string) $pr->ruta_clean;
-            if ($cid > 0 && $rClean !== '') {
-                $carteraOficialRutaCount[$rClean] = ($carteraOficialRutaCount[$rClean] ?? 0) + 1;
-                if (!isset($vendedorRuteoMap[$rClean]) && $pr->vendedor_ruteo !== 'No Asignado') {
-                    $vendedorRuteoMap[$rClean] = $pr->vendedor_ruteo;
+        if (!$esVolumenKpi) {
+            $panRuteoRaw = DB::connection('supervisor')->table('pan_ruteo')
+                ->where('cliente_id', '>', 0)
+                ->whereNotNull('ruta')
+                ->where('ruta', '!=', '')
+                ->where(function ($q): void {
+                    $q->whereNull('estado')
+                      ->orWhereIn(DB::raw("UPPER(TRIM(estado))"), ['ACTIVO', 'ACTIVA', 'VIGENTE']);
+                })
+                ->select([
+                    'cliente_id',
+                    DB::raw("TRIM(UPPER(ruta)) as ruta_clean"),
+                    DB::raw("COALESCE(NULLIF(TRIM(vendedor), ''), 'No Asignado') as vendedor_ruteo"),
+                ])
+                ->get();
+
+            foreach ($panRuteoRaw as $pr) {
+                $cid = (int) $pr->cliente_id;
+                $rClean = (string) $pr->ruta_clean;
+                if ($cid > 0 && $rClean !== '') {
+                    $carteraOficialRutaCount[$rClean] = ($carteraOficialRutaCount[$rClean] ?? 0) + 1;
+                    if (!isset($vendedorRuteoMap[$rClean]) && $pr->vendedor_ruteo !== 'No Asignado') {
+                        $vendedorRuteoMap[$rClean] = $pr->vendedor_ruteo;
+                    }
                 }
             }
+            unset($panRuteoRaw);
         }
-        unset($panRuteoRaw);
 
         // 3. Catálogo Oficial de Rutas y Canales (dim_rutas)
         $rutasDimRaw = DB::connection('supervisor')->table('dim_rutas')
@@ -203,8 +206,11 @@ class GetAvanceCumplimientoDataAction
             }
         }
 
-        // Asegurar rutas presentes en metas oficiales y en cartera pan_ruteo
-        foreach ($metasTodas as $rName => $_) {
+        // Asegurar rutas presentes en metas oficiales (y en cartera pan_ruteo solo si NO es KPI Volumen)
+        foreach ($metasTodas as $rName => $metaObj) {
+            if ($esVolumenKpi && (float) ($metaObj[$kpiClave] ?? 0.0) <= 0.0) {
+                continue;
+            }
             if (!isset($rutasCatalogo[$rName])) {
                 $rutasCatalogo[$rName] = [
                     'canal' => 'SC',
@@ -212,14 +218,16 @@ class GetAvanceCumplimientoDataAction
                 ];
             }
         }
-        foreach ($carteraOficialRutaCount as $rName => $cCount) {
-            if (!isset($rutasCatalogo[$rName])) {
-                $rutasCatalogo[$rName] = [
-                    'canal' => 'SC',
-                    'vendedor' => $vendedorRuteoMap[$rName] ?? 'No Asignado',
-                ];
-            } elseif ($rutasCatalogo[$rName]['vendedor'] === 'No Asignado' && isset($vendedorRuteoMap[$rName])) {
-                $rutasCatalogo[$rName]['vendedor'] = $vendedorRuteoMap[$rName];
+        if (!$esVolumenKpi) {
+            foreach ($carteraOficialRutaCount as $rName => $cCount) {
+                if (!isset($rutasCatalogo[$rName])) {
+                    $rutasCatalogo[$rName] = [
+                        'canal' => 'SC',
+                        'vendedor' => $vendedorRuteoMap[$rName] ?? 'No Asignado',
+                    ];
+                } elseif ($rutasCatalogo[$rName]['vendedor'] === 'No Asignado' && isset($vendedorRuteoMap[$rName])) {
+                    $rutasCatalogo[$rName]['vendedor'] = $vendedorRuteoMap[$rName];
+                }
             }
         }
 
@@ -295,18 +303,19 @@ class GetAvanceCumplimientoDataAction
         // Acumuladores de montos por cliente para validar cobertura según umbrales de canal
         $montoClienteCob = [];
         $montoClienteCobDia = [];
+        $vendedorDisplayName = [];
+        $vendedorFacturoEnUniverso = [];
+        $rutasFacturadasVendedor = [];
+        $canalesFacturadosVendedor = [];
 
         foreach ($ventasRaw as $v) {
             $cid = (int) ($v->cliente_id ?: 0);
             $rc = (string) $v->ruta_clean;
 
-            // Agrupación directa por la ruta correspondiente registrada en la factura (fact_ventas)
-            // pan_ruteo define la cartera y meta, pero no altera la ruta de la transacción facturada
+            // Agrupación directa por la columna ruta de fact_ventas (sin tomar en cuenta pan_ruteo)
             $targetRuta = $rc;
+            $enUniverso = isset($universo[$targetRuta]);
 
-            if (!isset($universo[$targetRuta])) {
-                continue;
-            }
             $monto = (float) $v->monto;
             $prod = (string) $v->producto;
             $j3 = (string) $v->jerarquia3;
@@ -315,10 +324,14 @@ class GetAvanceCumplimientoDataAction
             $fVStr = substr((string) $v->fecha, 0, 10);
             $esDiaCorte = ($fVStr === $fechaCorte);
 
-            $vFact = trim((string) ($v->vendedor_factura ?? ''));
-            $vFactNorm = $this->normalizarVendedor($vFact);
+            $vFactLimpio = trim((string) preg_replace('/\s+/', ' ', (string) ($v->vendedor_factura ?? '')));
+            $vFactNorm = $this->normalizarVendedor($vFactLimpio);
             if ($vFactNorm === '') {
                 $vFactNorm = 'sin asignar';
+                $vFactLimpio = 'Sin Asignar';
+            }
+            if (!isset($vendedorDisplayName[$vFactNorm]) && $vFactLimpio !== '') {
+                $vendedorDisplayName[$vFactNorm] = $vFactLimpio;
             }
 
             // Evaluación por cada KPI
@@ -326,17 +339,30 @@ class GetAvanceCumplimientoDataAction
                 if ($this->aplicaTransaccion($kId, $prod, $j3, $cod, $cat)) {
                     $tipo = $kpisMap[$kId]['tipo'];
                     if ($tipo === 'VOLUMEN') {
-                        $acumVol[$targetRuta][$kId] += $monto;
-                        if ($esDiaCorte) {
-                            $acumVolDia[$targetRuta][$kId] += $monto;
-                        }
-                        if ($vFactNorm !== '') {
-                            $acumVolVendedor[$vFactNorm][$kId] = ($acumVolVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                        // Por Ruta: estrictamente ventas agrupadas por fact_ventas.ruta
+                        if ($enUniverso) {
+                            $acumVol[$targetRuta][$kId] += $monto;
                             if ($esDiaCorte) {
-                                $acumVolDiaVendedor[$vFactNorm][$kId] = ($acumVolDiaVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                                $acumVolDia[$targetRuta][$kId] += $monto;
                             }
                         }
-                    } elseif ($cid > 0) {
+
+                        // Por Vendedor: TODAS las ventas agrupadas por fact_ventas.vendedor (sin pan_ruteo)
+                        $acumVolVendedor[$vFactNorm][$kId] = ($acumVolVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                        if ($esDiaCorte) {
+                            $acumVolDiaVendedor[$vFactNorm][$kId] = ($acumVolDiaVendedor[$vFactNorm][$kId] ?? 0.0) + $monto;
+                        }
+                        if ($kId === 'vol_general' || $kId === $kpiClave) {
+                            $rutasFacturadasVendedor[$vFactNorm][$targetRuta] = true;
+                            $canalDeVenta = $rutasCatalogo[$targetRuta]['canal'] ?? 'SC';
+                            if ($canalDeVenta !== '') {
+                                $canalesFacturadosVendedor[$vFactNorm][$canalDeVenta] = true;
+                            }
+                            if ($enUniverso) {
+                                $vendedorFacturoEnUniverso[$vFactNorm] = true;
+                            }
+                        }
+                    } elseif ($cid > 0 && $enUniverso) {
                         $montoClienteCob[$targetRuta][$kId][$cid] = ($montoClienteCob[$targetRuta][$kId][$cid] ?? 0.0) + $monto;
                         if ($necesitaComprasCob && $kId === $kpiClave) {
                             $comprasCob[$targetRuta][$kId][$cid][] = [$fVStr, $monto];
@@ -772,13 +798,16 @@ class GetAvanceCumplimientoDataAction
             'pct_avance_cob_core' => $totPctCobCore,
         ];
 
-        // Consolidación de métricas reales agrupadas por vendedor
+        // Consolidación de métricas reales agrupadas por vendedor (estrictamente fact_ventas.vendedor, sin pan_ruteo)
+        $hayFiltroCanalORuta = !empty($canalesFiltroSet) || !empty($rutasFiltroSet);
         $rutasPorVendedor = [];
         foreach ($universoRutas as $r) {
             $infoDim = $rutasCatalogo[$r] ?? ['canal' => 'SIN CANAL', 'vendedor' => 'No Asignado'];
-            $vNom = trim((string) ($infoDim['vendedor'] ?? 'No Asignado'));
+            $vNom = trim((string) preg_replace('/\s+/', ' ', (string) ($infoDim['vendedor'] ?? 'No Asignado')));
             $vKey = $this->normalizarVendedor($vNom);
-            if ($vKey === '') $vKey = 'no_asignado';
+            if ($vKey === '') {
+                $vKey = 'no_asignado';
+            }
 
             if (!isset($rutasPorVendedor[$vKey])) {
                 $rutasPorVendedor[$vKey] = [
@@ -796,17 +825,25 @@ class GetAvanceCumplimientoDataAction
                 $rutasPorVendedor[$vKey]['canales'][$infoDim['canal']] = true;
             }
             $metasR = $metasTodas[$r] ?? [];
-            $metaRuta = (float) ($metasR[$clave] ?? ($metasR['vol_general'] ?? 0.0));
+            $metaRuta = (float) ($metasR[$clave] ?? 0.0);
             $rutasPorVendedor[$vKey]['meta_mes'] += $metaRuta;
             $rutasPorVendedor[$vKey]['meta_dia'] += ($dTot > 0) ? round($metaRuta / $dTot, 2) : 0.0;
         }
 
-        foreach ($acumVolVendedor as $vKey => $_) {
+        foreach ($acumVolVendedor as $vKey => $kpisVend) {
             if (!isset($rutasPorVendedor[$vKey])) {
+                if ($hayFiltroCanalORuta && empty($vendedorFacturoEnUniverso[$vKey])) {
+                    continue;
+                }
+                $montoKpiVend = (float) ($kpisVend[$clave] ?? 0.0);
+                if ($clave !== 'vol_general' && abs($montoKpiVend) < 0.001) {
+                    continue;
+                }
+                $canalesVend = $canalesFacturadosVendedor[$vKey] ?? ['SC' => true];
                 $rutasPorVendedor[$vKey] = [
-                    'nombre' => ucwords($vKey),
+                    'nombre' => $vendedorDisplayName[$vKey] ?? ucwords($vKey),
                     'rutas' => [],
-                    'canales' => ['SC' => true],
+                    'canales' => $canalesVend,
                     'meta_mes' => 0.0,
                     'meta_dia' => 0.0,
                 ];
@@ -814,29 +851,45 @@ class GetAvanceCumplimientoDataAction
         }
 
         $matrizVendedores = [];
+        $totVendMeta = 0.0;
+        $totVendLogrado = 0.0;
+        $totVendBrecha = 0.0;
+        $totVendCuota = 0.0;
+
         foreach ($rutasPorVendedor as $vKey => $vData) {
             $metaMes = round($vData['meta_mes'], 2);
             $metaDia = round($vData['meta_dia'], 2);
 
-            $logMtd = round((float) ($acumVolVendedor[$vKey][$clave] ?? ($acumVolVendedor[$vKey]['vol_general'] ?? 0.0)), 2);
-            $logDia = round((float) ($acumVolDiaVendedor[$vKey][$clave] ?? ($acumVolDiaVendedor[$vKey]['vol_general'] ?? 0.0)), 2);
+            $logMtd = round((float) ($acumVolVendedor[$vKey][$clave] ?? 0.0), 2);
+            $logDia = round((float) ($acumVolDiaVendedor[$vKey][$clave] ?? 0.0), 2);
 
             if ($modoTemporal === 'diario') {
                 $logrado = $logDia;
                 $meta = $metaDia;
+                $brecha = round(max(0.0, $meta - $logrado), 2);
+                $cuota = $metaDia;
+                $proy = round($logrado * $dTot, 2);
+                $pct = $this->calcPct($logrado, $meta);
+                $pctProy = $this->calcPct($proy, $metaMes);
             } else {
                 $logrado = $logMtd;
                 $meta = $metaMes;
+                $brecha = round(max(0.0, $meta - $logrado), 2);
+                $cuota = (!$infoDias['cerrado'] && $dRest > 0) ? round($brecha / $dRestCuota, 2) : 0.0;
+                $proy = ($dTrans > 0) ? round(($logrado / $dTrans) * $dTot, 2) : 0.0;
+                $pct = $this->calcPct($logrado, $meta);
+                $pctProy = $this->calcPct($proy, $meta);
             }
 
-            $brecha = round(max(0.0, $meta - $logrado), 2);
-            $cuota = ($dRestCuota > 0) ? round($brecha / $dRestCuota, 2) : 0.0;
-            $proy = ($dTrans > 0) ? round(($logrado / $dTrans) * $dTot, 2) : 0.0;
-            $pct = $meta > 0 ? round(($logrado / $meta) * 100.0, 1) : 0.0;
-            $pctProy = $meta > 0 ? round(($proy / $meta) * 100.0, 1) : 0.0;
+            $totVendMeta += $meta;
+            $totVendLogrado += $logrado;
+            $totVendBrecha += $brecha;
+            $totVendCuota += $cuota;
 
             $canalesStr = implode(', ', array_keys($vData['canales'])) ?: 'SC';
             $rutasStr = implode(', ', $vData['rutas']);
+            $rutasFacturadas = array_keys($rutasFacturadasVendedor[$vKey] ?? []);
+            sort($rutasFacturadas);
             $rutasDetalle = array_values(array_filter($filas, fn ($f) => in_array($f['ruta'], $vData['rutas'], true)));
 
             $matrizVendedores[] = [
@@ -844,6 +897,7 @@ class GetAvanceCumplimientoDataAction
                 'vendedor' => $vData['nombre'],
                 'ruta' => $rutasStr,
                 'rutas' => $vData['rutas'],
+                'rutas_facturadas' => $rutasFacturadas,
                 'rutas_detalle' => $rutasDetalle,
                 'canal' => $canalesStr,
                 'meta' => $meta,
@@ -859,11 +913,28 @@ class GetAvanceCumplimientoDataAction
                 'proyeccion_cierre' => $proy,
                 'pct' => $pct,
                 'pct_avance_mtd' => $pct,
+                'pct_ritmo' => $pctProy,
                 'pct_proyeccion' => $pctProy,
             ];
         }
 
         usort($matrizVendedores, fn ($a, $b) => $b['pct'] <=> $a['pct']);
+
+        $totVendProy = ($dTrans > 0) ? round(($totVendLogrado / $dTrans) * $dTot, 2) : 0.0;
+        $totVendPct = $this->calcPct($totVendLogrado, $totVendMeta);
+        $totVendPctProy = ($totVendMeta > 0) ? $this->calcPct($totVendProy, $totVendMeta) : 0.0;
+        $totalesVendedores = [
+            'meta' => round($totVendMeta, 2),
+            'logrado' => round($totVendLogrado, 2),
+            'brecha' => round($totVendBrecha, 2),
+            'cuota_dia' => round($totVendCuota, 2),
+            'cuota_diaria_req' => round($totVendCuota, 2),
+            'pct' => $totVendPct,
+            'pct_avance_mtd' => $totVendPct,
+            'pct_ritmo' => $totVendPctProy,
+            'proyeccion_cierre' => $totVendProy,
+            'pct_proyeccion' => $totVendPctProy,
+        ];
 
         return [
             'modo' => 'kpi',
@@ -878,6 +949,7 @@ class GetAvanceCumplimientoDataAction
             'canales' => $canalesDisponibles,
             'canales_disponibles' => $canalesDisponibles,
             'totales' => $totales,
+            'totales_vendedores' => $totalesVendedores,
             'rutas' => $filas,
             'vendedores' => $matrizVendedores,
             'meses_historico' => $mesesHistorico,
@@ -1325,22 +1397,6 @@ class GetAvanceCumplimientoDataAction
         }
 
         return $cuotasAsignadas;
-    }
-
-    /**
-     * Normaliza el nombre del vendedor para coincidencia exacta entre dim_rutas y fact_ventas.
-     */
-    private function normalizarVendedor(?string $vendedor): string
-    {
-        if (empty($vendedor)) {
-            return '';
-        }
-        $v = trim(preg_replace('/\s+/', ' ', mb_strtolower($vendedor)));
-        $v = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $v);
-        $aliases = [
-            'juan daniel conde quispe' => 'daniel conde quispe',
-        ];
-        return $aliases[$v] ?? $v;
     }
 }
 
